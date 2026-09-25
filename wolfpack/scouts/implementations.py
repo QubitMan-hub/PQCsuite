@@ -25,8 +25,22 @@ WORDS = [
 PRIMES = [
     ("SM2", {}, "fffffffeffffffffffffffffffffffffffffffff00000000ffffffffffffffff"),
     ("ECC", {"curve": "P-256"}, "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff"),
+    ("ECC", {"curve": "secp256k1"}, "fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"),
 ]
 NUM = re.compile(r"\b0[xX]([0-9a-fA-F_]+)[uUlL]*\b|\b(\d+)[uUlL]*\b")
+
+
+def packed(sig):
+    """The table as bytes, big- and little-endian, in the word size its largest value needs."""
+    size = 8 if max(sig) > 0xFFFFFFFF else 4 if max(sig) > 0xFF else 1
+    be = b"".join(v.to_bytes(size, "big") for v in sig)
+    le = b"".join(v.to_bytes(size, "little") for v in sig)
+    return [be, le] if be != le else [be]
+
+
+def byte_tables():
+    """(algo, params, patterns) for the binary scout."""
+    return [(a, p, packed(sig)) for a, p, sig in WORDS] + [(a, p, [bytes.fromhex(h), bytes.fromhex(h)[::-1]]) for a, p, h in PRIMES]
 
 
 def numbers(code):

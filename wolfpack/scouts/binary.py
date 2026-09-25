@@ -2,33 +2,18 @@ import io
 import re
 import zipfile
 
-from ..elders import lookup, pq_from_text
+from ..elders import pq_from_text
 from ..model import Sighting, Library
 from . import iter_files, rel, is_test, SKIP_DIRS, BUILD_DIRS
 from .source import classify_literal
+from .implementations import byte_tables
 
 
-def _words(hexwords, size=4):
-    be = bytes.fromhex("".join(hexwords))
-    le = b"".join(bytes.fromhex(w)[::-1] for w in hexwords)
-    return [be, le] if be != le else [be]
-
-
-CONSTANTS = [
-    ("AES", [bytes.fromhex("637c777bf26b6fc53001672bfed7ab76")], "AES S-box"),
-    ("SHA-256", _words(["428a2f98", "71374491", "b5c0fbcf", "e9b5dba5"]), "SHA-256 round constants"),
-    ("SHA-512", _words(["428a2f98d728ae22", "7137449123ef65cd"]), "SHA-512 round constants"),
-    ("SHA-1", _words(["67452301", "efcdab89", "98badcfe", "10325476", "c3d2e1f0"]), "SHA-1 initial state"),
-    ("MD5", _words(["d76aa478", "e8c7b756", "242070db", "c1bdceee"]), "MD5 sine table"),
-    ("ChaCha20", [b"expand 32-byte k"], "ChaCha20 sigma"),
-    ("ECDSA", [bytes.fromhex("ffffffff00000001000000000000000000000000ffffffffffffffffffffffff"),
-               bytes.fromhex("ffffffff00000001000000000000000000000000ffffffffffffffffffffffff")[::-1]], "NIST P-256 prime"),
-    ("ECDSA", [bytes.fromhex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"),
-               bytes.fromhex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")[::-1]], "secp256k1 prime"),
-    ("ML-KEM", [b"ML-KEM-768", b"MLKEM768", b"X25519MLKEM768"], "ML-KEM identifier"),
-    ("ML-DSA", [b"ML-DSA-65", b"MLDSA65", b"ML-DSA-44", b"ML-DSA-87"], "ML-DSA identifier"),
+EXTRA = [
+    ("ChaCha20", {}, [b"expand 32-byte k"]),
+    (None, {}, [b"ML-KEM-768", b"MLKEM768"]),
+    (None, {}, [b"ML-DSA-65", b"MLDSA65", b"ML-DSA-44", b"ML-DSA-87"]),
 ]
-CURVE_OF = {"NIST P-256 prime": "P-256", "secp256k1 prime": "secp256k1"}
 VERSIONS = [
     (re.compile(rb"OpenSSL (\d+\.\d+\.\d+[a-z]?)[ \x00]"), "openssl"),
     (re.compile(rb"LibreSSL (\d+\.\d+\.\d+)"), "libressl"),
@@ -62,16 +47,13 @@ def lib_note(name, ver):
 
 def scan_native(data, path, base):
     sights, libs = [], []
-    for algo, pats, label in CONSTANTS:
+    for algo, params, pats in byte_tables() + EXTRA:
         for pat in pats:
             i = data.find(pat)
             if i >= 0:
-                p = {"role": "implementation"}
-                if label in CURVE_OF:
-                    p["curve"] = CURVE_OF[label]
-                name = (lookup(pat.decode()) or pq_from_text(pat.decode())) if algo in ("ML-KEM", "ML-DSA") else algo
-                sights.append(Sighting(algo=name, file=path, line=0, evidence="binary", scout="binary",
-                                       snippet=f"{label} at offset 0x{i:x}", lang="native", params=p, context=set(base)))
+                sights.append(Sighting(algo=algo or pq_from_text(pat.decode()), file=path, line=0, evidence="binary", scout="binary",
+                                       snippet=f"{pat[:8].hex()}... at offset 0x{i:x}", lang="native",
+                                       params=dict(params, role="implementation"), context=set(base)))
                 break
     seen = set()
     for rx, name in VERSIONS:

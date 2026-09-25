@@ -70,6 +70,18 @@ class Pack(unittest.TestCase):
         self.assertEqual(self.accepted("c/md5_impl.c"), {"MD5"})
         self.assertEqual(self.accepted("go/sm4.go"), {"SM4"})
 
+    def test_one_constant_table_for_source_and_binaries(self):
+        import tempfile
+        from wolfpack.scouts import binary, implementations
+        p = "fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "k1.c").write_text(f"static const char P[] = \"{p}\";\n", encoding="utf-8")
+            (Path(d) / "k1.so").write_bytes(b"\x7fELF" + bytes.fromhex(p)[::-1])
+            src = implementations.scan(d)[0]
+            bins = binary.scan(d)[0]
+        self.assertEqual({(s.algo, s.params["curve"]) for s in src + bins}, {("ECC", "secp256k1")})
+        self.assertEqual(len(bins), 1)
+
     def test_sodium_bindings_sjcl_and_extensionless_config(self):
         self.assertEqual(self.accepted("cs/SodiumInterop.cs"), set())
         self.assertEqual(self.accepted("cs/SodiumUse.cs"), {"Ed25519", "BLAKE2"})
