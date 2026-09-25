@@ -11,7 +11,7 @@ Project site: [`site/index.html`](site/index.html), a single self-contained page
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"          # gives you the `wolfpack` command; or: pip install -r requirements.txt
+pip install -e ".[dev]"          # gives you the `wolfpack` command
 
 py -m wolfpack scan C:\path\to\repo
 py -m wolfpack scan C:\path\to\repo --tls api.example.com:443 --ssh bastion.example.com

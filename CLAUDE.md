@@ -73,6 +73,8 @@ eval/fresh/       hand-checked run on 7 unseen repos, with before and after fixe
 eval/stress/      40-repo stress test (tuned on; never evidence)
 docs/HANDOFF.md  history, decisions, validation evidence, open questions
 docs/PACK.md     role map, switches, glossary, naming rules
+site/            project page (index.html); site/demo/app.py is the file its "Watch a hunt" demo shows
+.claude/skills/tidy  repo cleanup procedure: measure, derive instead of restating, snapshot-verify
 ```
 
 ## Key concepts
@@ -111,7 +113,7 @@ New scout: return a list of `Sighting`s with the right evidence type, add a swit
 ## Next work, in priority order
 
 1. Held-out benchmark for the paper: 15 to 20 real GitHub repos across Java, Python, Go, JS, C and C#, labelled blind by someone other than the author before running any tool. Kit is in `eval/heldout/`; Labels are done (amendment 1: two isolated AI labellers + adjudicator, in labels/final). Next: a person fills labels/audit (63 files, blind, no AI), then `heldout.py agree final audit`, then score. Headline Wolf Pack version is commit 158d69f (amendment 2); later versions are reported separately. Never run Wolf Pack on `eval/heldout/repos/` (including `score --partial`) before the labels are committed.
-2. Head-to-head with CBOMkit on the Java/Python/Go subset: run sonar-cryptography via its Docker setup, convert both CBOMs to (file, family) pairs, and score both against the same labels. Harness and a first unlabelled six-repo run are in `eval/cbomkit/`.
+2. Head-to-head with CBOMkit on the Java/Python/Go subset: run sonar-cryptography via its Docker setup, convert both CBOMs to (file, family) pairs, and score both against the same labels. Harness and a first unlabelled six-repo run are in `eval/cbomkit/`. Second baseline candidate: OWASP cdxgen `--include-crypto` (Java and JS/TS source crypto); see docs/HANDOFF.md, "Other baselines".
 3. Done in stage 3: format-sniffing lists (`recognition` role). Sniffers not written as startswith/in/HasPrefix are still counted.
 4. Done in stage 3 for Java/Kotlin/C# `Owner.NAME`, Go `pkg.Name` and C header macros (`cross-file` role). Not done: JavaScript imports, values passed through parameters. Integer constants now propagate from constant declarations only.
 5. Container images (walk layers, reuse existing scouts) and cloud KMS/HSM config.

@@ -158,3 +158,22 @@ Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3
 - **Benchmark labels:** how should declared-support lists be labelled? That choice changes precision for JWT libraries noticeably.
 - **Ablation shape:** the second-look ablation shows less effect since constant propagation was added. The ablation table may need to separate propagation, registries and second look.
 - **Baseline for comparison:** a fair CBOMkit comparison should restrict to the languages and libraries it supports, and then report breadth separately.
+
+## Other baselines (surveyed September 2026, none run yet)
+
+- **OWASP cdxgen `--include-crypto`**: the most credible second baseline. It is the official CycloneDX generator, widely used, and emits CBOM components from Java (keystores, certificates) and JS/TS source (node:crypto, WebCrypto, JWT) using constant propagation. Easy to run on the held-out Java and JS repos.
+- **CodeQL crypto queries via Santander's cryptobom-forge**: semantic analysis, like CBOMkit, but it needs a CodeQL database per repo. Worth adding if reviewers ask for a second semantic tool.
+- **Scanners closest in scope, all small projects:**
+  - `csnp/cryptoscan`: Go, regex with confidence scoring, its own CBOM format rather than CycloneDX.
+  - `jimbo111/open-quantum-secure`: Go, 14 languages, configs, binaries, TLS/SSH, CycloneDX 1.7.
+  - `TAIPANBOX/qryx`: code, binaries, images, TLS, KMS.
+  - `CipherIQ/cbom-generator`: Linux filesystems, binaries, certificates and services, no source code.
+  - They are useful to show breadth, but too young to carry a headline comparison.
+- **Not comparable:** AWS CryptaMap and keycensus scan cloud KMS and HSM, not code. Crypto-misuse checkers such as CryptoGuard and CogniCrypt answer a different question.
+
+## Demo and duplicate assets
+
+- **Duplicate assets:** a bare sighting, such as an import, used to become its own asset next to its parameterised use, for example RSA beside RSA-2048 from the same file.
+  - It now joins that variant when the file has exactly one variant of the algorithm (`den.assets`).
+  - Sightings and the bench are unchanged. Across 54 roots, assets went from 722 to 718, and counts moved to the specific variants.
+- **Site demo:** the "Watch a hunt" demo shows `site/demo/app.py` and the real output of `wolfpack hunt site/demo`. Regenerate its data if the pack's verdicts on that file change.
