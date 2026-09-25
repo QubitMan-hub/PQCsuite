@@ -71,3 +71,7 @@ Human labellers were not available, so labels come from AI labellers under these
 1. **Label exposure.** The labellers' summary reports, which describe some judgement calls, were read by the assistant that also develops Wolf Pack. To keep that from influencing the result, the **headline Wolf Pack version is commit `158d69f`**, the last commit made before any label existed.
 2. **Later versions.** Versions after `158d69f`, including the 40-repo stress-test fixes, are scored separately and reported as "later version", never in place of the headline.
 3. **Audit sample.** The human audit sample was drawn with `heldout.py sample --from final --to audit --fraction 0.1 --seed 0` (66 files).
+
+### Correction to amendment 2 (same day)
+
+The audit sample drawn by that command has **63** files, not 66.

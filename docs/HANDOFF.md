@@ -70,6 +70,18 @@ v0.2 ("100x better, but don't overcomplicate") added:
   - flow exclusions for flag and serialization-name calls.
 - **Result after the fixes:** everything right on the six non-profile repos, with RSA/ECDSA via runtime names in node-jwa and the bcrypt implementation still missed. CBOMkit, run on the four repos in its languages, found nothing Wolf Pack missed except a random-number generator.
 
+## Held-out labels and the 40-repo stress test
+
+- **Labelling:** held-out labelling moved to AI under pre-registration amendment 1, because two human labellers were not available.
+  - Labeller A (Opus) and labeller B (Sonnet) each labelled all 607 files in an isolated workspace. They agreed on 1,103 of 1,214 cells.
+  - Three Opus adjudicators resolved the other 111 cells.
+  - The labels were committed before any tool ran on the held-out repos (`52e3bac`).
+  - A human audit of 63 sampled files is the last step before scoring.
+  - Amendment 2 fixes the headline Wolf Pack version at `158d69f`, because the labellers' reports, which described some of their judgement calls, reached the assistant that develops the tool.
+- **Stress test:** 40 new repositories, recorded in `eval/stress/`. There were no crashes and every CBOM was valid.
+  - **New:** an implementation scout (constants), SM2/SM3/SM4/SHA-3, libsodium in C#, sjcl, commons-codec, extensionless configs, Go/C#/Python key-construction gaps, and test and benchmark directory detection.
+  - **Result:** 542 pairs grew to 649 with none lost. CBOMkit's remaining extra pairs are all outside the labelling guide (RNGs, MGF1, internal hashes).
+
 ## Design decisions worth knowing
 
 Scoring is at (file, algorithm family) granularity, not line level, so labelling stays tractable. Signature schemes such as SHA256withECDSA, RS256 and certificate signatures emit the hash as its own finding, consistently everywhere.

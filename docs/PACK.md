@@ -18,26 +18,27 @@ scouts ──hunt──> sightings ──> den ──verify──> accepted / he
 
 ## Roles
 
-Each switch is passed as `wolfpack hunt PATH --without ROLE`, or as `pack.Roles.without(...)` in code. The last column is the change on the dev corpus when that role alone is off (`wolfpack bench bench/corpus`, 70 labels). The corpus is overfit by construction, so these numbers show each role is live, not how much it matters on real code.
+Each switch is passed as `wolfpack hunt PATH --without ROLE`, or as `pack.Roles.without(...)` in code. The last column is the change on the dev corpus when that role alone is off (`wolfpack bench bench/corpus`, 91 labels). The corpus is overfit by construction, so these numbers show each role is live, not how much it matters on real code.
 
 | Role | Module | Job | Switch | Corpus effect when off |
 |---|---|---|---|---|
 | Elders | `elders.py` | Knowledge base: algorithms, aliases, OIDs, security levels, NIST dates, replacements | none (every stage consults it) | n/a |
-| Source scouts | `scouts/source.py`, `pysrc.py`, `rules.py`, `lexer.py` | Python AST, per-language rules (OpenSSL, JCA, Go, Node, .NET, Rust, libsodium), string literals | `source` | recall 1.000 → 0.257 |
-| Config scouts | `scouts/config.py`, `suites.py` | TLS/SSH/OpenSSL/app configs | `config` | recall → 0.814 |
-| Artifact scouts | `scouts/artifacts.py` | Certificates, keys, embedded PEM | `artifacts` | recall → 0.957 |
-| Binary scouts | `scouts/binary.py` | Native constants, library versions, JAR/class constants | `binary` | recall → 0.971 |
+| Source scouts | `scouts/source.py`, `pysrc.py`, `rules.py`, `lexer.py` | Python AST, per-language rules (OpenSSL, JCA, commons-codec, Go, Node, sjcl, .NET, Rust, libsodium in C/PHP/JS/C#), string literals | `source` | recall 1.000 → 0.286 |
+| Implementation scouts | `scouts/implementations.py` | Algorithms implemented in source, recognised by published constants (round constants, IVs, S-boxes, curve primes) | `implementations` | recall → 0.967 |
+| Config scouts | `scouts/config.py`, `suites.py` | TLS/SSH/OpenSSL/app configs, including extensionless files with 2+ TLS/SSH directives | `config` | recall → 0.802 |
+| Artifact scouts | `scouts/artifacts.py` | Certificates, keys, embedded PEM | `artifacts` | recall → 0.967 |
+| Binary scouts | `scouts/binary.py` | Native constants, library versions, JAR/class constants | `binary` | recall → 0.978 |
 | Dependency scouts | `scouts/deps.py` | Crypto libraries in manifests, checked against imports | none (libraries, not sightings) | n/a |
 | Live scouts | `scouts/tls.py`, `probe.py` | TLS handshake and group probe, SSH KEXINIT | only when `--tls`/`--ssh` given | n/a |
-| Scouts' memory | `source.propagate`, `PyScout.consts` | Constant propagation inside a file: strings from any declaration, integers only from `final`/`const`/`readonly`/`#define` | `propagation` | recall → 0.986; also recovers key sizes (RSA-1024 instead of RSA) |
-| Scouts' shared memory | `source.shared_constants` | Constants reached from other files: `Owner.NAME` (Java, Kotlin, C#), `pkg.Name` (Go), `#define` in an included C header. Names with conflicting values are dropped. Needs `propagation`. | `cross-file` | recall → 0.986 |
-| Den | `den.py` | Confidence per evidence type, hard rejects (comment, docstring, prose), suppression, threshold | `den` | precision 1.000 → 0.729 |
-| Den: corroboration | `den.verify` | +0.25 when a different evidence type in the same file backs a sighting | `corroboration` | recall → 0.986 |
+| Scouts' memory | `source.propagate`, `PyScout.consts` | Constant propagation inside a file: strings from any declaration, integers only from `final`/`const`/`readonly`/`#define` | `propagation` | recall → 0.989; also recovers key sizes (RSA-1024 instead of RSA) |
+| Scouts' shared memory | `source.shared_constants` | Constants reached from other files: `Owner.NAME` (Java, Kotlin, C#), `pkg.Name` (Go), `#define` in an included C header. Names with conflicting values are dropped. Needs `propagation`. | `cross-file` | recall → 0.989 |
+| Den | `den.py` | Confidence per evidence type, hard rejects (comment, docstring, prose), suppression, threshold | `den` | precision 1.000 → 0.765 |
+| Den: corroboration | `den.verify` | +0.25 when a different evidence type in the same file backs a sighting | `corroboration` | recall → 0.989 |
 | Alpha: trails | `alpha.follow_trails` | Finds configs and code that load a key or certificate, so it is weighted as deployed | `trails` | none at family level; changes exposure and tier |
-| Alpha: second look, flow | `alpha.flows` | Promotes a held literal that flows into a call | `flow` | recall → 0.986 |
-| Alpha: second look, registries | `alpha.registries` | Promotes a list of 3+ algorithm names, unless its variable is named like a deny-list | `registries` | recall → 0.971 |
-| Alpha: second look, siblings | `alpha.siblings` | Halves of one literal ("RS256" gives RSA and SHA-256) share fate | `siblings` | recall → 0.986 |
-| Alpha: recognition | `alpha.sniffs`, `alpha.recognise` | A list whose entries are only searched for inside input data (`key.startswith(FORMATS)`, `any(p in data for p in FORMATS)`, a loop calling `HasPrefix`) is format sniffing: never promoted, and held back even if the den let it in | `recognition` | precision → 0.959 |
+| Alpha: second look, flow | `alpha.flows` | Promotes a held literal that flows into a call | `flow` | recall → 0.989 |
+| Alpha: second look, registries | `alpha.registries` | Promotes a list of 3+ algorithm names, unless its variable is named like a deny-list | `registries` | recall → 0.978 |
+| Alpha: second look, siblings | `alpha.siblings` | Halves of one literal ("RS256" gives RSA and SHA-256) share fate | `siblings` | recall → 0.989 |
+| Alpha: recognition | `alpha.sniffs`, `alpha.recognise` | A list whose entries are only searched for inside input data (`key.startswith(FORMATS)`, `any(p in data for p in FORMATS)`, a loop calling `HasPrefix`) is format sniffing: never promoted, and held back even if the den let it in | `recognition` | precision → 0.968 |
 | Alpha: lead | `alpha.lead`, `assess`, `alerts` | Mosca tiers, hybrid awareness, exposure weighting, test demotion, hygiene alerts | none (ranking, not detection) | n/a |
 
 `--without second-look` switches off flow, registries and siblings together.

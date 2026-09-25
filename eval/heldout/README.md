@@ -1,13 +1,15 @@
 # Held-out benchmark
 
+**Status (25 September 2026):** labels are done and committed: `labels/ai-a`, `labels/ai-b`, and the adjudicated `labels/final` (see `labels/LOG.md` and pre-registration amendments 1 and 2). The last step before scoring is the human audit of `labels/audit/` (63 files).
+
 The benchmark for the paper: 18 real repositories that Wolf Pack was not developed on, labelled blind by someone other than the author, then used to score Wolf Pack, its ablations and CBOMkit. The development corpus in `bench/` only shows that each part of the pack works. This benchmark is the one that measures it.
 
 | File | What it is |
 |---|---|
 | `repos.json` | The 18 repositories, each pinned to a commit, with the reason it was chosen |
-| `PREREGISTRATION.md` | Metrics and expectations, fixed before labelling (draft until the owner signs off) |
+| `PREREGISTRATION.md` | Metrics and expectations, signed off before labelling, with dated amendments |
 | `LABELLING.md` | The guide the labellers follow |
-| `heldout.py` | `fetch`, `sheets`, `check`, `agree`, `score` |
+| `heldout.py` | `fetch`, `sheets`, `check`, `agree`, `merge`, `sample`, `score` |
 | `labels/<labeller>/` | The labellers' sheets and logs (committed before any tool runs) |
 | `repos/` | The fetched repositories (not committed) |
 
