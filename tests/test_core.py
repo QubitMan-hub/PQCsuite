@@ -120,6 +120,21 @@ class Roles(unittest.TestCase):
         self.assertEqual(full.get("RSA-1024"), "critical")
         self.assertNotIn("RSA-1024", blind)
 
+    def test_format_sniffing_is_not_a_registry(self):
+        self.assertEqual(self.accepted([], "py/keysniff.py"), {"ECC"})
+        self.assertEqual(self.accepted(["recognition"], "py/keysniff.py"), {"ECC", "RSA", "ECDSA", "Ed25519"})
+        self.assertIn("AES", self.accepted([], "py/policy.py"))
+
+    def test_cross_file_constant_resolves_by_owner(self):
+        self.assertEqual(self.accepted([], "java/Keys.java"), {"AES"})
+        self.assertEqual(self.accepted(["cross-file"], "java/Keys.java"), set())
+
+    def test_final_int_constant_gives_key_size_but_a_local_does_not(self):
+        sizes = lambda off: {s.params.get("key_size") for s in pack.run(CORPUS, "c", roles=pack.Roles.without(*off)).sightings
+                             if s.file == "java/KeySizes.java" and s.verdict == "accepted"}
+        self.assertEqual(sizes([]), {1024, None})
+        self.assertEqual(sizes(["propagation"]), {None})
+
     def test_each_role_is_live(self):
         self.assertNotIn("SHA-256", self.accepted(["corroboration"], "py/token_kind.py"))
         self.assertNotIn("SHA-256", self.accepted(["siblings"], "py/token_kind.py"))

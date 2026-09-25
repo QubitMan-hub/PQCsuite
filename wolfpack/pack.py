@@ -18,11 +18,13 @@ class Roles:
     artifacts: bool = True
     binary: bool = True
     propagation: bool = True
+    cross_file: bool = True
     den: bool = True
     corroboration: bool = True
     flow: bool = True
     registries: bool = True
     siblings: bool = True
+    recognition: bool = True
     trails: bool = True
 
     @classmethod
@@ -58,7 +60,7 @@ def hunt(root, roles=Roles(), include_vendor=False, tls_targets=(), ssh_targets=
     """The scouts go out. Each reports everything it saw; nothing is filtered until the den."""
     h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
     if roles.source:
-        s, h.files["source"] = source.scan(root, include_vendor, roles.propagation)
+        s, h.files["source"] = source.scan(root, include_vendor, roles.propagation, roles.cross_file)
         h.sightings += s
     if roles.config:
         s, h.files["config"] = config.scan(root, include_vendor)
@@ -118,9 +120,10 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
     trails = alpha.follow_trails(root, h.artifacts, h.sightings, include_vendor) if roles.trails else 0
     if roles.den:
         sightings = den.verify(h.sightings, threshold, lines, roles.corroboration)
-        looks = alpha.second_look(sightings, lines, threshold, [k for k in alpha.LOOKS if getattr(roles, k)])
+        looks = alpha.second_look(sightings, lines, threshold, [k for k in alpha.LOOKS if getattr(roles, k)], roles.recognition)
+        held = alpha.recognise(sightings, lines) if roles.recognition else 0
     else:
-        sightings, looks = den.admit_all(h.sightings), dict.fromkeys(alpha.LOOKS, 0)
+        sightings, looks, held = den.admit_all(h.sightings), dict.fromkeys(alpha.LOOKS, 0), 0
     assets = alpha.lead(den.assets(sightings), horizon)
     if baseline:
         seen = load_baseline(baseline)
@@ -131,6 +134,6 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
              "libraries": len(h.libraries), "endpoints": len(h.endpoints), "raw_sightings": len(h.sightings),
              "accepted": sum(s.verdict == "accepted" for s in sightings), "quarantined": sum(s.verdict == "quarantined" for s in sightings),
              "rejected": sum(s.verdict == "rejected" for s in sightings), "suppressed": sum(s.verdict == "suppressed" for s in sightings),
-             "promoted_on_second_look": sum(looks.values()), "second_look": looks, "trails_followed": trails, "roles_off": roles.off,
+             "promoted_on_second_look": sum(looks.values()), "second_look": looks, "held_as_formats": held, "trails_followed": trails, "roles_off": roles.off,
              "seconds": round(time.time() - t0, 2), "horizon": vars(horizon) | {"years_to_crqc": horizon.z}}
     return Result(project, sightings, assets, h.artifacts, h.libraries, al, alpha.readiness(assets), stats, h.notes, h.endpoints, str(baseline or ""))

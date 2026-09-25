@@ -102,5 +102,16 @@
   "py/policy.py": [
     "AES",
     "ChaCha20"
+  ],
+  "py/keysniff.py": [
+    "ECC"
+  ],
+  "java/Algs.java": [],
+  "java/Legacy.java": [],
+  "java/Keys.java": [
+    "AES"
+  ],
+  "java/KeySizes.java": [
+    "RSA"
   ]
 }

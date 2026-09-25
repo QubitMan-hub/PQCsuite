@@ -47,13 +47,28 @@ def list_name(ls, first):
     return ""
 
 
-def registries(sightings, lines, size=3, gap=2):
-    """Three or more crypto literals packed into one list or table form an algorithm registry, unless it is a deny-list."""
+def sniffs(ls, name, after):
+    """True when every later use of the list searches for its entries inside other data: format recognition, not declared support."""
+    n = re.escape(name.split(".")[-1])
+    needle = re.compile(rf"(?i)\.(?:startswith|endswith|find|index|search|match)\(\s*(?:tuple\(\s*)?{n}\b"
+                        rf"|\b(\w+)\s+in\s+[\w.\[\]()]+\s+for\s+\1\s+in\s+{n}\b")
+    loop = re.compile(rf"\bfor\s*\(?\s*(?:[\w<>\[\]]+\s+)?(?:_\s*,\s*)?(\w+)\s*(?:in|:|:=\s*range)\s+{n}\b")
+    uses = [k for k in range(after, len(ls)) if re.search(rf"\b{n}\b", ls[k])]
+    for k in uses:
+        m = loop.search(ls[k])
+        body = "\n".join([ls[k][m.end():]] + ls[k + 1:k + 4]) if m else ""
+        if not (needle.search(ls[k]) or m and re.search(rf"(?i)(?:startswith|endswith|hasprefix|hassuffix|contains|includes|indexof)\(\s*(?:[\w.]+\s*,\s*)?{m.group(1)}\b"
+                                                          rf"|\b{m.group(1)}\s+in\s+\w", body)):
+            return False
+    return bool(uses)
+
+
+def clusters(sightings, lines, size=3, gap=2):
+    """Runs of three or more string literals on nearby lines: the entries of one list or table, with its variable name."""
     by_file = defaultdict(list)
     for s in sightings:
         if s.evidence == "string" and s.verdict in ("quarantined", "accepted") and s.line:
             by_file[s.file].append(s)
-    n = 0
     for f, group in by_file.items():
         group.sort(key=lambda s: s.line)
         cluster = [group[0]]
@@ -62,12 +77,32 @@ def registries(sightings, lines, size=3, gap=2):
                 cluster.append(s)
                 continue
             if len({c.line for c in cluster}) >= size:
-                if not DENY_NAME.search(list_name(lines(f), cluster[0].line)):
-                    for c in cluster:
-                        if c.verdict == "quarantined":
-                            c.verdict, c.confidence, c.reason = "accepted", 0.65, f"part of an algorithm list of {len(cluster)} entries (lines {cluster[0].line}-{cluster[-1].line})"
-                            n += 1
+                yield f, cluster, list_name(lines(f), cluster[0].line)
             cluster = [s] if s is not None else []
+
+
+def registries(sightings, lines, recognition=True):
+    """An algorithm list or table is declared support, unless it is a deny-list or a format sniffer."""
+    n = 0
+    for f, cluster, name in clusters(sightings, lines):
+        if DENY_NAME.search(name) or recognition and name and sniffs(lines(f), name, cluster[-1].line):
+            continue
+        for c in cluster:
+            if c.verdict == "quarantined":
+                c.verdict, c.confidence, c.reason = "accepted", 0.65, f"part of an algorithm list of {len(cluster)} entries (lines {cluster[0].line}-{cluster[-1].line})"
+                n += 1
+    return n
+
+
+def recognise(sightings, lines):
+    """The alpha's last word on lists: entries of a list used only to sniff formats are held, however they got in."""
+    n = 0
+    for f, cluster, name in clusters(sightings, lines):
+        if name and sniffs(lines(f), name, cluster[-1].line):
+            for c in cluster:
+                if c.verdict == "accepted":
+                    c.verdict, c.confidence, c.reason = "quarantined", 0.35, f"entry of {name}, a list used only to recognise formats"
+                    n += 1
     return n
 
 
@@ -103,9 +138,10 @@ def flows(sightings, lines, threshold=0.6):
     return promoted
 
 
-def second_look(sightings, lines, threshold=0.6, looks=LOOKS):
+def second_look(sightings, lines, threshold=0.6, looks=LOOKS, recognition=True):
     """The alpha sends the pack back over what the den held. Returns how many sightings each look promoted."""
-    run = {"flow": lambda: flows(sightings, lines, threshold), "registries": lambda: registries(sightings, lines), "siblings": lambda: siblings(sightings)}
+    run = {"flow": lambda: flows(sightings, lines, threshold), "registries": lambda: registries(sightings, lines, recognition=recognition),
+           "siblings": lambda: siblings(sightings)}
     return {k: run[k]() if k in looks else 0 for k in LOOKS}
 
 

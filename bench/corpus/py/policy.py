@@ -13,3 +13,7 @@ SUPPORTED_CIPHERS = (
 
 def is_weak(name):
     return name.lower() in WEAK_ALGORITHMS
+
+
+def supported(name):
+    return name in SUPPORTED_CIPHERS

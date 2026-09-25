@@ -1,4 +1,6 @@
 import re
+from collections import defaultdict
+from pathlib import Path
 
 from ..elders import lookup, pq_from_text, parse_transformation, parse_symmetric_name, AMBIGUOUS, MODES
 from ..model import Sighting
@@ -45,21 +47,70 @@ DECL = re.compile(r"""(?m)^[ \t]*(?:(?:export|public|private|protected|internal|
                   r"""(?:[A-Za-z_][\w<>\[\]]*\s+)?([A-Za-z_]\w*)\s*(?::\s*[\w&']+\s*)?:?=\s*(["'`])([^"'`\n]{1,80})\2\s*[;,]?[ \t]*$""")
 
 
-def propagate(code):
-    """Inlines file-level string constants into later uses, keeping line structure intact."""
-    consts = {}
-    for m in DECL.finditer(code):
-        consts.setdefault(m.group(1), (m.group(3), m.end()))
-    if not consts:
-        return code
-    names = "|".join(re.escape(k) for k in consts if len(k) > 1)
+CONST_DECL = re.compile(r"""(?m)^[ \t]*(?:(?:export|public|private|protected|internal|static|pub)\s+)*(?:final|const|readonly)\s+"""
+                        r"""(?:(?:static|final|readonly|const|val)\s+)*(?:[A-Za-z_][\w<>\[\]]*\s+)?([A-Za-z_]\w*)\s*(?::\s*[\w&']+\s*)?=\s*"""
+                        r"""(?:(["'`])([^"'`\n]{1,80})\2|(\d{2,5}))\s*[;,]?[ \t]*$""")
+DEFINE = re.compile(r'(?m)^[ \t]*#[ \t]*define[ \t]+([A-Za-z_]\w*)[ \t]+(?:"([^"\n]{1,80})"|\(?(\d{2,5})\)?)[ \t]*$')
+INCLUDE = re.compile(r'(?m)^[ \t]*#[ \t]*include[ \t]*"([^"]+)"')
+
+
+def constants(code, fixed_only=False):
+    """Constants a file declares, as {name: (source text to inline, end offset)}. Numbers only from declarations that cannot change."""
+    out = {}
+    if not fixed_only:
+        for m in DECL.finditer(code):
+            out.setdefault(m.group(1), (f'"{m.group(3)}"', m.end()))
+    for m in CONST_DECL.finditer(code):
+        out.setdefault(m.group(1), (f'"{m.group(3)}"' if m.group(2) else m.group(4), m.end()))
+    for m in DEFINE.finditer(code):
+        out.setdefault(m.group(1), (f'"{m.group(2)}"' if m.group(2) else m.group(3), m.end()))
+    return out
+
+
+def propagate(code, shared=None):
+    """Inlines constants into later uses, keeping line structure intact. `shared` holds constants reachable from other files."""
+    consts = constants(code)
+    for k, v in (shared or {}).items():
+        consts.setdefault(k, (v, -1))
+    names = "|".join(re.escape(k) for k in sorted(consts, key=len, reverse=True) if len(k) > 1)
     if not names:
         return code
 
     def sub(m):
         val, end = consts[m.group(1)]
-        return f'"{val}"' if m.start() > end else m.group(0)
+        return val if m.start() > end else m.group(0)
     return re.sub(r"(?<![\w.$])(" + names + r")\b(?!\s*:?=[^=])", sub, code)
+
+
+def shared_constants(root, include_vendor=False):
+    """Constants other files can reach: Owner.NAME in Java, Kotlin and C# (Owner is the declaring file), pkg.Name in Go,
+    and #define macros per C header. A name declared with two different values is dropped rather than guessed."""
+    qualified, headers = defaultdict(set), defaultdict(lambda: defaultdict(set))
+    for p in iter_files(root, include_vendor):
+        lang = LANGS.get(p.suffix.lower())
+        if lang not in ("java", "csharp", "go", "c"):
+            continue
+        text = read(p)
+        if not text:
+            continue
+        code = split(text, lang)[0]
+        consts = constants(code, fixed_only=True)
+        if lang == "c":
+            if p.suffix.lower() in (".h", ".hpp"):
+                for k, (v, _) in consts.items():
+                    headers[p.name][k].add(v)
+            continue
+        owner = p.stem
+        if lang == "go":
+            m = re.search(r"(?m)^package\s+(\w+)", code)
+            if not m:
+                continue
+            owner = m.group(1)
+            consts = {k: v for k, v in consts.items() if k[0].isupper()}
+        for k, (v, _) in consts.items():
+            qualified[f"{owner}.{k}"].add(v)
+    settle = lambda table: {k: next(iter(v)) for k, v in table.items() if len(v) == 1}
+    return settle(qualified), {h: settle(t) for h, t in headers.items()}
 
 
 def run_rules(path, text, lang, sink, base_ctx, comment=False):
@@ -120,7 +171,7 @@ def string_scout(path, lang, strings, lines, sink, base_ctx, docs):
             _emit(sink, path, lang, line, lines, a, dict(p, literal=val), "string", "strings", c)
 
 
-def scan_file(root, p, sink, constants=True):
+def scan_file(root, p, sink, constants=True, shared=((), {})):
     lang = LANGS.get(p.suffix.lower())
     if not lang:
         return False
@@ -135,7 +186,9 @@ def scan_file(root, p, sink, constants=True):
         for algo, ln, ev, snip, params in scan_python(path, text, constants) or []:
             _emit(sink, path, lang, ln, lines, algo, params, ev, "source", base | ({"doc"} if ln in docs else set()))
     else:
-        run_rules(path, propagate(code) if constants else code, lang, sink, base)
+        qualified, headers = shared
+        reach = {k: v for h in INCLUDE.findall(code) for k, v in headers.get(Path(h).name, {}).items()} if lang == "c" else dict(qualified)
+        run_rules(path, propagate(code, reach) if constants else code, lang, sink, base)
         run_rules(path, comments, lang, sink, base, comment=True)
     string_scout(path, lang, strings, lines, sink, base, docs)
     for m in re.finditer(r"[^\n]+", comments):
@@ -144,8 +197,9 @@ def scan_file(root, p, sink, constants=True):
     return True
 
 
-def scan(root, include_vendor=False, constants=True):
+def scan(root, include_vendor=False, constants=True, cross_file=True):
     sink, n = [], 0
+    shared = shared_constants(root, include_vendor) if constants and cross_file else ((), {})
     for p in iter_files(root, include_vendor):
-        n += scan_file(root, p, sink, constants)
+        n += scan_file(root, p, sink, constants, shared)
     return sink, n
