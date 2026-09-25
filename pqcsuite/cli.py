@@ -1,0 +1,282 @@
+import argparse
+import getpass
+import json
+import logging
+import os
+import signal
+import socket
+import sys
+import threading
+from pathlib import Path
+
+from . import NAME, __version__, tls
+from .ca import ALGORITHMS, CA, CAError
+
+CA_PASS_ENV = "PQCSUITE_CA_PASSPHRASE"
+
+
+def ca_passphrase(root, new=False):
+    """From PQCSUITE_CA_PASSPHRASE or a prompt, and only when the CA key is (or will be) encrypted."""
+    key = Path(root) / "ca.key"
+    if not new and not (key.exists() and b"ENCRYPTED" in key.read_bytes()[:64]):
+        return None
+    if os.environ.get(CA_PASS_ENV):
+        return os.environ[CA_PASS_ENV].encode()
+    if not new:
+        return getpass.getpass("CA passphrase: ").encode()
+    p1, p2 = getpass.getpass("New CA passphrase: "), getpass.getpass("Repeat: ")
+    if p1 != p2:
+        raise CAError("the passphrases do not match")
+    return p1.encode()
+
+
+def env_passphrase(var):
+    if not var:
+        return None
+    if var not in os.environ:
+        raise CAError(f"environment variable {var} is not set")
+    return os.environ[var].encode()
+
+
+def show(obj, as_json):
+    if as_json:
+        print(json.dumps(obj, indent=1, default=str))
+    else:
+        for k, v in obj.items():
+            print(f"{k:>14}  {v}")
+
+
+def cmd_doctor(a):
+    import cryptography
+    from cryptography.hazmat.backends.openssl.backend import backend
+    print(f"{NAME} {__version__}, Python {sys.version.split()[0]}")
+    print(f"cryptography {cryptography.__version__} with {backend.openssl_version_text()}: certificate authority ready")
+    try:
+        lib = tls.lib()
+        ctx = tls.client_context(verify=False)
+        ctx.close()
+        print(f"TLS: {lib.version}, groups {tls.PQC_GROUPS} available")
+        return 0
+    except tls.TLSError as e:
+        print(f"TLS: not available: {e}")
+        return 1
+
+
+def cmd_ca(a):
+    if a.ca_cmd == "init":
+        ca = CA.init(a.dir, a.name, a.algorithm, a.days, ca_passphrase(a.dir, new=True) if a.encrypt else None)
+        print(f"created {a.algorithm} root '{a.name}' in {a.dir} (serial {ca.cert.serial_number:x})")
+        return 0
+    ca = CA(a.dir, ca_passphrase(a.dir))
+    if a.ca_cmd == "issue":
+        out, r = ca.issue(a.common_name, a.kind, a.san, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
+        print(f"issued {r.kind} certificate {r.serial} for {r.common_name} ({r.algorithm}), valid until {r.not_after}")
+        print(f"  {out / 'cert.pem'}\n  {out / 'chain.pem'}  (certificate + CA, use this for servers)\n  {out / 'key.pem'}")
+    elif a.ca_cmd == "sign-csr":
+        cert, r = ca.sign_csr(Path(a.csr).read_bytes(), a.kind, a.days)
+        from .ca import cert_pem
+        Path(a.out).write_bytes(cert_pem(cert))
+        print(f"signed {r.serial} for {r.common_name} -> {a.out}")
+    elif a.ca_cmd == "revoke":
+        ca.revoke(a.serial, a.reason)
+        print(f"revoked {ca.find(a.serial).serial}; {Path(a.dir) / 'crl.pem'} updated, distribute it to your servers")
+    elif a.ca_cmd == "crl":
+        ca.crl(a.days)
+        print(f"wrote {Path(a.dir) / 'crl.pem'}")
+    elif a.ca_cmd == "renew":
+        out, r = ca.renew(a.serial, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
+        print(f"renewed as {r.serial}, valid until {r.not_after}, in {out}")
+    elif a.ca_cmd == "list":
+        rows = ca.expiring(a.expiring) if a.expiring is not None else ca.records()
+        if a.json:
+            print(json.dumps([vars(r) for r in rows], indent=1))
+        for r in [] if a.json else rows:
+            print(f"{r.serial[:16]:16}  {r.status:7}  {r.kind:6}  {r.not_after[:10]}  {r.algorithm:9}  {r.common_name}  {' '.join(r.names)}")
+    return 0
+
+
+def cmd_tls(a):
+    if a.tls_cmd == "serve":
+        from .tls.server import Server
+        make = lambda: tls.server_context(a.cert, a.key, a.ca, a.require_client_cert, a.policy, env_passphrase(a.key_passphrase_env))
+
+        def echo(conn, addr):
+            while data := conn.recv(timeout=300):
+                conn.sendall(data)
+
+        srv = Server(parse_addr(a.listen), make, echo, watch=[a.cert, a.key, a.ca], crl=a.crl, ca=a.ca, name="serve")
+        run_until_signal(srv.serve_forever, srv.stop)
+        return 0
+    host, port = parse_addr(a.target, "")
+    if a.tls_cmd == "probe":
+        return probe(host, port, a)
+    ctx = tls.client_context(a.ca, a.cert, a.key, a.policy, env_passphrase(a.key_passphrase_env))
+    with tls.connect(host, port, ctx, a.server_name, a.timeout) as conn:
+        out = conn.info()
+        if a.send is not None:
+            try:
+                conn.sendall(a.send.encode())
+                reply = conn.recv()
+            except (tls.TLSError, OSError) as e:
+                reply, out["error"] = b"", str(e)
+            if not reply:
+                raise tls.TLSError("the server closed the connection after the handshake: it probably refused our client certificate "
+                                   f"(missing, untrusted or revoked){': ' + out['error'] if 'error' in out else ''}")
+            out["reply"] = reply.decode(errors="replace")
+    show(out, a.json)
+    return 0
+
+
+def probe(host, port, a):
+    """Which post-quantum and classical groups does a server accept? One handshake per group, certificate not checked."""
+    from .tls.openssl import Context
+    results = {}
+    for g in ["X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "X25519", "secp256r1", "secp384r1"]:
+        try:
+            ctx = Context(False, g, None, tls.CIPHERSUITES, verify=False)
+            with ctx.wrap(socket.create_connection((host, port), timeout=a.timeout), a.server_name or host, a.timeout) as conn:
+                results[g] = f"accepted ({conn.info()['peer_key'] or 'no certificate'})"
+        except (tls.TLSError, OSError) as e:
+            results[g] = "refused" if "handshake" in str(e) else f"error: {e}"
+    pq = [g for g, r in results.items() if r.startswith("accepted") and "MLKEM" in g]
+    classical = [g for g, r in results.items() if r.startswith("accepted") and "MLKEM" not in g]
+    results["verdict"] = ("post-quantum only" if pq and not classical else "post-quantum, with classical fallback" if pq
+                          else "classical only: vulnerable to harvest-now, decrypt-later" if classical else "no TLS 1.3 handshake succeeded")
+    show(results, a.json)
+    return 0 if pq else 2
+
+
+def cmd_edge(a):
+    from .edge import Edge, Route, load_config, serve_metrics
+    if a.config:
+        routes, metrics = load_config(a.config)
+    else:
+        routes = [Route(name="edge", mode=a.mode, listen=a.listen, target=a.target, policy=a.policy, cert=a.cert or "", key=a.key or "",
+                        key_passphrase_env=a.key_passphrase_env or "", ca=a.ca or "", require_client_cert=a.require_client_cert,
+                        crl=a.crl or "", server_name=a.server_name or "", proxy_protocol=a.proxy_protocol)]
+        metrics = a.metrics
+    edges = [Edge(r) for r in routes]
+    if metrics:
+        serve_metrics(metrics, edges)
+    threads = [threading.Thread(target=e.serve_forever, daemon=True, name=e.route.name) for e in edges]
+    for t in threads:
+        t.start()
+    run_until_signal(lambda: [t.join() for t in threads], lambda: [e.stop() for e in edges])
+    return 0
+
+
+def parse_addr(s, default_host="0.0.0.0"):
+    from .edge import hostport
+    return hostport(s, default_host)
+
+
+def run_until_signal(run, stop):
+    def handle(*_):
+        logging.getLogger(NAME).info("shutting down")
+        stop()
+    signal.signal(signal.SIGINT, handle)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, handle)
+    run()
+
+
+class JSONFormatter(logging.Formatter):
+    def format(self, r):
+        return json.dumps({"time": self.formatTime(r), "level": r.levelname, "logger": r.name, "message": r.getMessage()})
+
+
+def tls_client_args(p):
+    p.add_argument("target", help="host:port")
+    p.add_argument("--server-name", help="name the certificate must match (default: host)")
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+    p.add_argument("--timeout", type=float, default=10.0)
+    p.add_argument("--json", action="store_true")
+
+
+def parser():
+    ap = argparse.ArgumentParser(prog=NAME, description="Post-quantum secure communication: certificate authority, TLS 1.3, edge proxy.")
+    ap.add_argument("--version", action="version", version=f"{NAME} {__version__}")
+    ap.add_argument("--log-json", action="store_true", help="structured JSON logs")
+    ap.add_argument("-v", "--verbose", action="store_true")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("doctor", help="check that this machine can run everything")
+
+    ca = sub.add_parser("ca", help="post-quantum certificate authority").add_subparsers(dest="ca_cmd", required=True)
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--dir", default="pki", help="CA folder (default: pki)")
+    p = ca.add_parser("init", parents=[common], help="create a root CA")
+    p.add_argument("--name", required=True)
+    p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-87")
+    p.add_argument("--days", type=int, default=3650)
+    p.add_argument("--encrypt", action="store_true", help=f"encrypt the CA key (passphrase from {CA_PASS_ENV} or a prompt)")
+    for name in ("issue", "renew"):
+        p = ca.add_parser(name, parents=[common], help="issue a key and certificate" if name == "issue" else "new key and certificate, same names")
+        if name == "issue":
+            p.add_argument("kind", choices=["server", "client"])
+            p.add_argument("common_name")
+            p.add_argument("--san", action="append", default=[], help="DNS name or IP (repeatable; servers default to the common name)")
+        else:
+            p.add_argument("serial")
+        p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-65")
+        p.add_argument("--days", type=int, default=397)
+        p.add_argument("--out", help="folder for cert.pem, chain.pem and key.pem")
+        p.add_argument("--key-passphrase-env", help="encrypt the new key with the passphrase in this environment variable")
+    p = ca.add_parser("sign-csr", parents=[common], help="certify a key generated elsewhere")
+    p.add_argument("csr")
+    p.add_argument("--kind", choices=["server", "client"], required=True)
+    p.add_argument("--days", type=int, default=397)
+    p.add_argument("--out", required=True)
+    p = ca.add_parser("revoke", parents=[common], help="revoke a certificate and refresh the CRL")
+    p.add_argument("serial")
+    p.add_argument("--reason", default="unspecified")
+    p = ca.add_parser("crl", parents=[common], help="re-sign the CRL (do this before it expires)")
+    p.add_argument("--days", type=int, default=7)
+    p = ca.add_parser("list", parents=[common], help="list issued certificates")
+    p.add_argument("--expiring", type=int, metavar="DAYS", help="only those expiring within DAYS")
+    p.add_argument("--json", action="store_true")
+
+    t = sub.add_parser("tls", help="PQC TLS 1.3 server, client and probe").add_subparsers(dest="tls_cmd", required=True)
+    p = t.add_parser("serve", help="an echo server, for testing clients")
+    p.add_argument("--listen", default="0.0.0.0:8443")
+    p.add_argument("--cert", required=True, help="chain.pem")
+    p.add_argument("--key", required=True)
+    p.add_argument("--key-passphrase-env")
+    p.add_argument("--ca", help="CA that signs client certificates")
+    p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
+    p.add_argument("--crl", help="refuse revoked client certificates")
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+    p = t.add_parser("connect", help="handshake, optionally send a message, print what was negotiated")
+    tls_client_args(p)
+    p.add_argument("--ca", required=True)
+    p.add_argument("--cert", help="client certificate, for mutual TLS")
+    p.add_argument("--key")
+    p.add_argument("--key-passphrase-env")
+    p.add_argument("--send", help="message to send; the reply is printed")
+    p = t.add_parser("probe", help="which post-quantum groups does a server accept?")
+    tls_client_args(p)
+
+    e = sub.add_parser("edge", help="PQC TLS in front of any TCP service, or a tunnel to one")
+    e.add_argument("--config", help="TOML file with [[edge]] routes; replaces the flags below")
+    e.add_argument("--mode", choices=["terminate", "originate"], default="terminate")
+    e.add_argument("--listen", default="0.0.0.0:8443")
+    e.add_argument("--target", help="upstream host:port (terminate) or remote edge host:port (originate)")
+    e.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+    for flag in ("--cert", "--key", "--key-passphrase-env", "--ca", "--crl", "--server-name", "--metrics"):
+        e.add_argument(flag)
+    e.add_argument("--require-client-cert", action="store_true")
+    e.add_argument("--proxy-protocol", action="store_true", help="send a PROXY v1 header so the upstream sees the client address")
+    return ap
+
+
+def main(argv=None):
+    a = parser().parse_args(argv)
+    h = logging.StreamHandler()
+    h.setFormatter(JSONFormatter() if a.log_json else logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO, handlers=[h])
+    if a.cmd == "edge" and not a.config and not a.target:
+        parser().error("edge needs --config or --target")
+    try:
+        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge}[a.cmd](a))
+    except (CAError, tls.TLSError, ValueError, OSError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)

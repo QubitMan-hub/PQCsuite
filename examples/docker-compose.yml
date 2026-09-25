@@ -1,0 +1,14 @@
+# PQC edge in front of an app that only speaks plain HTTP.
+services:
+  app:
+    image: nginx:stable
+  edge:
+    build: ..
+    command: ["edge", "--config", "/etc/pqcsuite/edge.toml"]
+    ports: ["8443:8443"]
+    volumes:
+      - ./edge.docker.toml:/etc/pqcsuite/edge.toml:ro
+      - ./pki:/srv/pki:ro
+    environment:
+      EDGE_KEY_PASSPHRASE: ${EDGE_KEY_PASSPHRASE:-}
+    restart: unless-stopped

@@ -1,0 +1,28 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  unit:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e .
+      - run: python -m unittest discover -s tests -v
+  tls:
+    runs-on: ubuntu-latest
+    container: python:3.13-slim-trixie
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e . && pqcsuite doctor
+      - run: python -m unittest discover -s tests -v
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t pqcsuite:ci . && docker run --rm pqcsuite:ci doctor

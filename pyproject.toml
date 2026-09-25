@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pqcsuite"
+version = "0.1.0"
+description = "Post-quantum secure communication: PQC certificate authority, TLS 1.3 and mTLS, edge proxy"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["cryptography>=49"]
+
+[project.scripts]
+pqcsuite = "pqcsuite.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pqcsuite*"]
