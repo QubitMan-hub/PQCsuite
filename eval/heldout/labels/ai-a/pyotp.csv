@@ -1,0 +1,12 @@
+file,used,declared,notes
+docs/conf.py,-,-,no cryptography
+pyproject.toml,-,-,no cryptography
+src/pyotp/__init__.py,HMAC; SHA-1; SHA-256; SHA-512,-,algorithm URI param maps SHA1/SHA256/SHA512 to hashlib digests passed into TOTP/HOTP
+src/pyotp/compat.py,-,-,SystemRandom only
+src/pyotp/contrib/__init__.py,-,-,no cryptography
+src/pyotp/contrib/steam.py,HMAC; SHA-1,-,Steam TOTP with sha1
+src/pyotp/hotp.py,HMAC; SHA-1,-,HOTP default digest sha1; md5/shake_128 only rejected
+src/pyotp/otp.py,HMAC; SHA-1,-,hmac.new with default digest sha1; md5/shake_128 reject list
+src/pyotp/totp.py,HMAC; SHA-1,-,TOTP default digest sha1; md5/shake_128 only rejected
+src/pyotp/utils.py,-,-,"compare_digest only; ""sha1"" string only compared for URI building"
+test.py,HMAC; SHA-1; SHA-256; SHA-512,-,HOTP/TOTP tests with sha1/sha256/sha512; md5/shake_128 only tested as rejected

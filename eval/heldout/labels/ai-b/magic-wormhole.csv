@@ -1,0 +1,66 @@
+file,used,declared,notes
+.appveyor.yml,-,-,
+.readthedocs.yaml,-,-,
+docs/api-example.py,-,-,
+docs/conf.py,-,-,
+misc/demo-journal.py,-,-,
+misc/dump-stats.py,-,-,
+misc/dump-timing.py,-,-,
+misc/web/timeline.js,-,-,
+newest-version.py,-,-,
+pyproject.toml,-,-,
+setup.cfg,-,-,
+setup.py,-,-,
+snapcraft.yaml,-,-,
+src/wormhole/__init__.py,-,-,
+src/wormhole/__main__.py,-,-,
+src/wormhole/_allocator.py,-,-,
+src/wormhole/_boss.py,-,-,wires the state machines together; no direct crypto calls
+src/wormhole/_code.py,-,-,
+src/wormhole/_dilation/__init__.py,-,-,
+src/wormhole/_dilation/_noise.py,-,-,"only imports/re-exports noise-protocol exception and connection classes, no concrete algorithm named here"
+src/wormhole/_dilation/connection.py,-,-,"?performs the actual Noise handshake/encrypt/decrypt framing via a self._noise object injected from connector.py, but no concrete algorithm name (X25519/ChaCha20/BLAKE2) appears in this file itself"
+src/wormhole/_dilation/connector.py,HKDF; SHA-256; X25519; ChaCha20; BLAKE2,-,"NOISEPROTO = b""Noise_NNpsk0_25519_ChaChaPoly_BLAKE2s"" is passed to NoiseConnection.from_name() here (X25519 key exchange, ChaCha20-Poly1305 AEAD, BLAKE2s hash); also calls util.HKDF directly for the relay handshake token"
+src/wormhole/_dilation/encode.py,-,-,struct packing helpers only
+src/wormhole/_dilation/inbound.py,-,-,
+src/wormhole/_dilation/manager.py,HKDF; SHA-256,-,calls _key.derive_key() to derive the per-generation dilation key
+src/wormhole/_dilation/outbound.py,-,-,
+src/wormhole/_dilation/roles.py,-,-,
+src/wormhole/_dilation/subchannel.py,-,-,"comment mentions the wire format is encrypted elsewhere, but no crypto call in this file"
+src/wormhole/_hints.py,-,-,
+src/wormhole/_input.py,-,-,
+src/wormhole/_interfaces.py,-,-,zope Interface definitions only; mentions SPAKE2 in a docstring comment
+src/wormhole/_key.py,HKDF; SHA-256; OTHER:SPAKE2; OTHER:Salsa20,-,PAKE core: SPAKE2_Symmetric (not in vocab -> OTHER:SPAKE2) derives the shared key; derive_key()/derive_phase_key() call util.HKDF (SHA-256); sha256() used directly for phase-purpose tags; encrypt_data/decrypt_data use nacl SecretBox (XSalsa20-Poly1305 -> OTHER:Salsa20 per guide)
+src/wormhole/_lister.py,-,-,
+src/wormhole/_mailbox.py,-,-,
+src/wormhole/_nameplate.py,-,-,
+src/wormhole/_order.py,-,-,
+src/wormhole/_receive.py,HKDF; SHA-256; OTHER:Salsa20,-,calls _key.derive_phase_key/derive_key (HKDF-SHA256) and decrypt_data (nacl SecretBox -> OTHER:Salsa20)
+src/wormhole/_rendezvous.py,-,-,"websocket client to the rendezvous server, no crypto call"
+src/wormhole/_rlcompleter.py,-,-,
+src/wormhole/_send.py,HKDF; SHA-256; OTHER:Salsa20,-,calls _key.derive_phase_key (HKDF-SHA256) and encrypt_data (nacl SecretBox -> OTHER:Salsa20)
+src/wormhole/_status.py,-,-,
+src/wormhole/_terminator.py,-,-,
+src/wormhole/_version.py,-,-,versioneer-generated version metadata
+src/wormhole/_wordlist.py,-,-,PGP word list data table
+src/wormhole/cli/__init__.py,-,-,
+src/wormhole/cli/cli.py,-,-,
+src/wormhole/cli/cmd_receive.py,HKDF; SHA-256,-,w.derive_key() for the transit key (HKDF-SHA256); hashlib.sha256() used to verify received file integrity
+src/wormhole/cli/cmd_send.py,HKDF; SHA-256,-,w.derive_key() for the transit key (HKDF-SHA256); hashlib.sha256() used to compute the sent file's checksum
+src/wormhole/cli/cmd_ssh.py,-,-,
+src/wormhole/cli/public_relay.py,-,-,
+src/wormhole/cli/welcome.py,-,-,
+src/wormhole/errors.py,-,-,
+src/wormhole/eventual.py,-,-,
+src/wormhole/ipaddrs.py,-,-,
+src/wormhole/journal.py,-,-,
+src/wormhole/observer.py,-,-,
+src/wormhole/timing.py,-,-,
+src/wormhole/tor_manager.py,-,-,
+src/wormhole/transit.py,HKDF; SHA-256; OTHER:Salsa20,-,derives per-direction record keys and relay handshake/token via util.HKDF (SHA-256); encrypts/decrypts the transit stream with nacl SecretBox (OTHER:Salsa20)
+src/wormhole/util.py,HKDF; SHA-256,-,HKDF() wraps cryptography's hkdf.HKDF hardcoded to hashes.SHA256() -- this is the module the rest of the codebase calls for key derivation
+src/wormhole/wormhole.py,HKDF; SHA-256,-,Wormhole.derive_key()/DeferredWormhole.derive_key() call _key.derive_key (HKDF-SHA256)
+src/wormhole/xfer_util.py,-,-,"thin convenience wrapper around wormhole.create(), no direct crypto call"
+tox.ini,-,-,
+update-version.py,-,-,
+versioneer.py,-,-,

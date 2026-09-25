@@ -1,0 +1,84 @@
+file,used,declared,notes
+contrib/dns-hatchet/apply.sh,-,-,
+contrib/embeddable-wg-library/test.c,X25519,-,
+contrib/embeddable-wg-library/wireguard.c,X25519,-,
+contrib/embeddable-wg-library/wireguard.h,-,-,used: A=- B=X25519 || decided: types and prototypes only; no algorithm named or used
+contrib/external-tests/go/main.go,BLAKE2; ChaCha20; X25519,-,
+contrib/external-tests/haskell/package.yaml,-,BLAKE2,declared: A=BLAKE2 B=OTHER:BLAKE2 || decided: depends on blake2 library; BLAKE2 is in vocabulary so not OTHER
+contrib/external-tests/haskell/stack.yaml,-,-,
+contrib/external-tests/python/main.py,BLAKE2; ChaCha20; X25519,-,
+contrib/external-tests/rust/Cargo.toml,-,-,
+contrib/external-tests/rust/src/main.rs,BLAKE2; ChaCha20; X25519,-,
+contrib/extract-handshakes/extract-handshakes.sh,-,-,
+contrib/extract-handshakes/offset-finder.c,-,-,
+contrib/extract-keys/config.c,-,-,
+contrib/extract-keys/extract-keys.c,-,-,
+contrib/highlighter/fuzz.c,-,-,
+contrib/highlighter/gui/highlight.cpp,-,-,
+contrib/highlighter/highlight.c,-,-,
+contrib/highlighter/highlighter.c,-,-,
+contrib/highlighter/highlighter.h,-,-,
+contrib/keygen-html/wireguard.js,X25519,-,
+contrib/nat-hole-punching/nat-punch-client.c,-,-,
+contrib/nat-hole-punching/nat-punch-server.c,-,-,
+contrib/ncat-client-server/client-quick.sh,X25519,-,used: A=X25519 B=- || decided: runs wg genkey/pubkey (Curve25519) and configures tunnel with the keys
+contrib/ncat-client-server/client.sh,X25519,-,used: A=X25519 B=- || decided: runs wg genkey/pubkey (Curve25519) and configures tunnel with the keys
+contrib/ncat-client-server/server.sh,X25519,-,used: A=X25519 B=- || decided: runs wg genkey/pubkey (Curve25519) and configures tunnel with the keys
+contrib/reresolve-dns/reresolve-dns.sh,-,-,
+contrib/sticky-sockets/sticky-sockets.c,-,-,
+contrib/synergy/synergy-client.sh,X25519,-,used: A=X25519 B=- || decided: ? embeds Curve25519 key pair and configures tunnel with it
+contrib/synergy/synergy-server.sh,X25519,-,used: A=X25519 B=- || decided: ? embeds Curve25519 key pair and configures tunnel with it
+src/config.c,-,-,used: A=- B=X25519 || decided: only parses/prints base64 keys; no curve operation
+src/config.h,-,-,
+src/containers.h,-,-,
+src/ctype.h,-,-,
+src/curve25519-fiat32.h,X25519,-,
+src/curve25519-hacl64.h,X25519,-,
+src/curve25519.c,X25519,-,
+src/curve25519.h,X25519,-,
+src/encoding.c,-,-,
+src/encoding.h,-,-,
+src/fuzz/cmd.c,-,-,used: A=- B=X25519 || decided: does not include curve25519.c or call key derivation
+src/fuzz/config.c,-,-,used: A=- B=X25519 || decided: does not include curve25519.c or call key derivation
+src/fuzz/set.c,X25519,-,"used: A=- B=X25519 || decided: ? #includes ../curve25519.c, compiling the X25519 implementation into this unit"
+src/fuzz/setconf.c,X25519,-,"used: A=- B=X25519 || decided: ? #includes ../curve25519.c, compiling the X25519 implementation into this unit"
+src/fuzz/stringlist.c,-,-,
+src/fuzz/uapi.c,X25519,-,"used: A=- B=X25519 || decided: ? #includes ../curve25519.c, compiling the X25519 implementation into this unit"
+src/genkey.c,X25519,-,
+src/ipc-freebsd.h,-,-,
+src/ipc-linux.h,-,-,
+src/ipc-openbsd.h,-,-,
+src/ipc-uapi-unix.h,-,-,
+src/ipc-uapi-windows.h,-,-,
+src/ipc-uapi.h,X25519,-,
+src/ipc-windows.h,-,-,
+src/ipc.c,-,-,
+src/ipc.h,-,-,
+src/netlink.h,-,-,
+src/pubkey.c,X25519,-,
+src/set.c,-,-,
+src/setconf.c,-,-,
+src/show.c,-,-,used: A=- B=X25519 || decided: only parses/prints base64 keys; no curve operation
+src/showconf.c,-,-,used: A=- B=X25519 || decided: only parses/prints base64 keys; no curve operation
+src/subcommands.h,-,-,
+src/terminal.c,-,-,
+src/terminal.h,-,-,
+src/uapi/freebsd/dev/wg/if_wg.h,-,-,
+src/uapi/linux/linux/wireguard.h,-,-,
+src/uapi/openbsd/net/if_wg.h,-,-,
+src/uapi/windows/wireguard.h,-,-,
+src/version.h,-,-,
+src/wg-quick/android.c,-,-,
+src/wg.c,-,-,
+src/wincompat/compat.h,-,-,
+src/wincompat/include/arpa/inet.h,-,-,
+src/wincompat/include/hashtable.h,-,-,
+src/wincompat/include/net/if.h,-,-,
+src/wincompat/include/netdb.h,-,-,
+src/wincompat/include/netinet/in.h,-,-,
+src/wincompat/include/sys/socket.h,-,-,
+src/wincompat/init.c,-,-,
+src/wincompat/libc.c,-,-,
+src/wincompat/load_config.c,-,-,
+src/wincompat/loader.c,-,-,
+src/wincompat/manifest.xml,-,-,

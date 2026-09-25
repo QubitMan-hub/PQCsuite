@@ -1,0 +1,10 @@
+file,used,declared,notes
+.golangci.yml,-,-,linter config only
+cmd/ncrypt/main.go,AES; ChaCha20; scrypt,-,cipherSuites() branches on 'AES256'/'C20P1305' selecting sio.AES_GCM/CHACHA20_POLY1305; scrypt.Key for password-based key derivation
+dare.go,-,-,"?generic AEAD Seal/Open over cipher.AEAD built elsewhere; only references CHACHA20_POLY1305 as an upper-bound sanity check on the cipher id byte, not selecting behavior by name"
+generic.go,-,-,"version dispatch (v1/v2) only, no algorithm names"
+reader-v1.go,-,-,"wraps authEncV10/authDecV10 Seal/Open, no algorithm literals"
+reader-v2.go,-,-,"wraps authEncV20/authDecV20 Seal/Open, no algorithm literals"
+sio.go,AES; ChaCha20,-,newAES uses aes.NewCipher+GCM; newChaCha20 uses chacha20poly1305.New and HChaCha20 key expansion
+writer-v1.go,-,-,no algorithm literals
+writer-v2.go,-,-,no algorithm literals

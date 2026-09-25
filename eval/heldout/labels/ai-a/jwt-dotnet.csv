@@ -1,0 +1,81 @@
+file,used,declared,notes
+.pipelines/build.yml,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/AuthenticationBuilderExtensions.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/Factories/ClaimsIdentityFactory.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/Factories/DefaultTicketFactory.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/Factories/IIdentityFactory.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/Factories/ITicketFactory.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/FailedTicketContext.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/Internal/SystemClockDatetimeProvider.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/JwtAuthenticationDefaults.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/JwtAuthenticationEvents.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/JwtAuthenticationHandler.cs,-,-,no cryptography
+src/JWT.Extensions.AspNetCore/JwtAuthenticationOptions.cs,-,-,HMACSHA/RS mentioned only in doc comments
+src/JWT.Extensions.AspNetCore/SuccessfulTicketContext.cs,-,-,no cryptography
+src/JWT.Extensions.DependencyInjection/Internal/SystemClockDatetimeProvider.cs,-,-,no cryptography
+src/JWT.Extensions.DependencyInjection/ServiceCollectionExtensions.cs,-,-,no cryptography
+src/JWT/Algorithms/CertificateAlgorithm.cs,-,-,"abstract base; loads X509 cert keys generically, algorithm left to subclasses"
+src/JWT/Algorithms/DelegateAlgorithmFactory.cs,-,-,no cryptography
+src/JWT/Algorithms/ECDSAAlgorithm.cs,ECDSA,-,ECDsa SignData/VerifyData; hash supplied by subclass
+src/JWT/Algorithms/ECDSAAlgorithmFactory.cs,ECDSA; SHA-256; SHA-384; SHA-512,-,switch on ES256/ES384/ES512 creates ECDSA algorithms; HS/RS cases only throw NotSupported
+src/JWT/Algorithms/ES256Algorithm.cs,ECDSA; SHA-256,-,"ES256, hash SHA256 flows into base SignData"
+src/JWT/Algorithms/ES384Algorithm.cs,ECDSA; SHA-384,-,ES384
+src/JWT/Algorithms/ES512Algorithm.cs,ECDSA; SHA-512,-,ES512
+src/JWT/Algorithms/GenericAlgorithmFactory.cs,-,-,no cryptography
+src/JWT/Algorithms/HMACSHA256Algorithm.cs,HMAC; SHA-256,-,new HMACSHA256
+src/JWT/Algorithms/HMACSHA384Algorithm.cs,HMAC; SHA-384,-,new HMACSHA384
+src/JWT/Algorithms/HMACSHA512Algorithm.cs,HMAC; SHA-512,-,new HMACSHA512
+src/JWT/Algorithms/HMACSHAAlgorithm.cs,HMAC,-,abstract HMAC ComputeHash; hash chosen by subclass
+src/JWT/Algorithms/HMACSHAAlgorithmFactory.cs,HMAC; SHA-256; SHA-384; SHA-512,-,switch on HS256/384/512 instantiates HMAC classes; RS/ES cases only throw
+src/JWT/Algorithms/IAlgorithmFactory.cs,-,-,no cryptography
+src/JWT/Algorithms/IAsymmetricAlgorithm.cs,-,-,no cryptography
+src/JWT/Algorithms/IJwtAlgorithm.cs,-,-,interface; hash names only in doc comment
+src/JWT/Algorithms/JwtAlgorithmFactory.cs,-,-,no cryptography
+src/JWT/Algorithms/JwtAlgorithmName.cs,-,HMAC; RSA; ECDSA; SHA-256; SHA-384; SHA-512,"enum of supported JWA names; ? RS1024/2048/4096 doc says SHA-1024 etc (nonsense), their classes use SHA-512"
+src/JWT/Algorithms/NoneAlgorithm.cs,-,-,"none algorithm, no crypto"
+src/JWT/Algorithms/RS1024Algorithm.cs,RSA; SHA-512,-,RS1024 uses SHA512 despite doc comment saying SHA-1024
+src/JWT/Algorithms/RS2048Algorithm.cs,RSA; SHA-512,-,RS2048 uses SHA512
+src/JWT/Algorithms/RS256Algorithm.cs,RSA; SHA-256,-,RS256
+src/JWT/Algorithms/RS384Algorithm.cs,RSA; SHA-384,-,RS384
+src/JWT/Algorithms/RS4096Algorithm.cs,RSA; SHA-512,-,RS4096 uses SHA512
+src/JWT/Algorithms/RS512Algorithm.cs,RSA; SHA-512,-,RS512
+src/JWT/Algorithms/RSAlgorithm.cs,RSA,-,RSA SignData/VerifyData PKCS1; hash supplied by subclass (SHA-256 only in doc comment)
+src/JWT/Algorithms/RSAlgorithmFactory.cs,RSA; SHA-256; SHA-384; SHA-512,-,switch on RS256/384/512/1024/2048/4096 creates RSA algorithms (the last three use SHA-512); HS/ES cases only throw
+src/JWT/Builder/ClaimName.cs,-,-,at_hash/c_hash are claim names only
+src/JWT/Builder/EnumExtensions.cs,-,-,no cryptography
+src/JWT/Builder/HeaderName.cs,-,-,no cryptography
+src/JWT/Builder/JwtBuilder.cs,-,-,no cryptography
+src/JWT/Builder/JwtBuilderExtensions.cs,-,-,no cryptography
+src/JWT/Builder/JwtData.cs,-,-,no cryptography
+src/JWT/Builder/JwtHeader.cs,-,-,no cryptography
+src/JWT/Compatibility/String.cs,-,-,no cryptography
+src/JWT/Compatibility/System.Reflection/CustomAttributeExtensions.cs,-,-,no cryptography
+src/JWT/Compatibility/System.Security.Cryptography/HashAlgorithmName.cs,-,MD5; SHA-1; SHA-256; SHA-384; SHA-512,? polyfill of HashAlgorithmName for NET35/40 defining named hash constants; treated as declared
+src/JWT/Exceptions/InvalidTokenPartsException.cs,-,-,no cryptography
+src/JWT/Exceptions/SignatureVerificationException.cs,-,-,no cryptography
+src/JWT/Exceptions/TokenExpiredException.cs,-,-,no cryptography
+src/JWT/Exceptions/TokenNotYetValidException.cs,-,-,no cryptography
+src/JWT/IBase64UrlEncoder.cs,-,-,no cryptography
+src/JWT/IDateTimeProvider.cs,-,-,no cryptography
+src/JWT/IJsonSerializer.cs,-,-,no cryptography
+src/JWT/IJwtDecoder.cs,-,-,no cryptography
+src/JWT/IJwtEncoder.cs,-,-,no cryptography
+src/JWT/IJwtValidator.cs,-,-,no cryptography
+src/JWT/Internal/EncodingHelper.cs,-,-,no cryptography
+src/JWT/Internal/StringHelper.cs,-,-,no cryptography
+src/JWT/JwtBase64UrlEncoder.cs,-,-,no cryptography
+src/JWT/JwtDecoder.cs,-,-,generic via IJwtAlgorithm; only None algorithm check
+src/JWT/JwtDecoderContext.cs,-,-,no cryptography
+src/JWT/JwtEncoder.cs,-,-,generic via IJwtAlgorithm
+src/JWT/JwtParts.cs,-,-,no cryptography
+src/JWT/JwtValidator.cs,-,-,"constant-time string compare of signatures, algorithm generic"
+src/JWT/Properties/AssemblyInfo.cs,-,-,no cryptography
+src/JWT/Serializers/Converters/DictionaryStringObjectJsonConverter.cs,-,-,no cryptography
+src/JWT/Serializers/DefaultJsonSerializerFactory.cs,-,-,no cryptography
+src/JWT/Serializers/DelegateJsonSerializerFactory.cs,-,-,no cryptography
+src/JWT/Serializers/IJsonSerializerFactory.cs,-,-,no cryptography
+src/JWT/Serializers/JsonNetSerializer.cs,-,-,no cryptography
+src/JWT/Serializers/SystemTextSerializer.cs,-,-,no cryptography
+src/JWT/UnixEpoch.cs,-,-,no cryptography
+src/JWT/UtcDateTimeProvider.cs,-,-,no cryptography
+src/JWT/ValidationParameters.cs,-,-,no cryptography

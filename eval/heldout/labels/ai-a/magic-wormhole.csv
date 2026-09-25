@@ -1,0 +1,66 @@
+file,used,declared,notes
+.appveyor.yml,-,-,no cryptography
+.readthedocs.yaml,-,-,no cryptography
+docs/api-example.py,-,-,no cryptography
+docs/conf.py,-,-,no cryptography
+misc/demo-journal.py,-,-,no cryptography
+misc/dump-stats.py,-,-,no cryptography
+misc/dump-timing.py,-,-,no cryptography
+misc/web/timeline.js,-,-,no cryptography
+newest-version.py,-,-,no cryptography
+pyproject.toml,-,-,no cryptography
+setup.cfg,-,-,no cryptography
+setup.py,-,-,"dependencies only (spake2, pynacl, cryptography, noiseprotocol)"
+snapcraft.yaml,-,-,no cryptography
+src/wormhole/__init__.py,-,-,no cryptography
+src/wormhole/__main__.py,-,-,no cryptography
+src/wormhole/_allocator.py,-,-,no cryptography
+src/wormhole/_boss.py,-,-,no cryptography
+src/wormhole/_code.py,-,-,no cryptography
+src/wormhole/_dilation/__init__.py,-,-,no cryptography
+src/wormhole/_dilation/_noise.py,-,-,noise library imports only
+src/wormhole/_dilation/connection.py,-,-,?noise object encrypt/decrypt; protocol chosen in connector.py
+src/wormhole/_dilation/connector.py,HKDF; X25519; ChaCha20; BLAKE2,-,"Noise_NNpsk0_25519_ChaChaPoly_BLAKE2s protocol name passed to NoiseConnection; ?HKDF via util wrapper, hash SHA-256 not visible here"
+src/wormhole/_dilation/encode.py,-,-,no cryptography
+src/wormhole/_dilation/inbound.py,-,-,no cryptography
+src/wormhole/_dilation/manager.py,-,-,?derive_key wrapper only
+src/wormhole/_dilation/outbound.py,-,-,no cryptography
+src/wormhole/_dilation/roles.py,-,-,no cryptography
+src/wormhole/_dilation/subchannel.py,-,-,no cryptography
+src/wormhole/_hints.py,-,-,no cryptography
+src/wormhole/_input.py,-,-,no cryptography
+src/wormhole/_interfaces.py,-,-,no cryptography
+src/wormhole/_key.py,OTHER:SPAKE2; OTHER:Salsa20; SHA-256; HKDF,-,"SPAKE2 symmetric, SecretBox (XSalsa20-Poly1305), sha256 for phase key purpose, HKDF wrapper"
+src/wormhole/_lister.py,-,-,no cryptography
+src/wormhole/_mailbox.py,-,-,no cryptography
+src/wormhole/_nameplate.py,-,-,no cryptography
+src/wormhole/_order.py,-,-,no cryptography
+src/wormhole/_receive.py,-,-,?calls decrypt_data/derive_key wrappers from _key.py; no algorithm named here
+src/wormhole/_rendezvous.py,-,-,wss/tls endpoint without pinned version; os.urandom id
+src/wormhole/_rlcompleter.py,-,-,no cryptography
+src/wormhole/_send.py,-,-,?calls encrypt_data/derive_phase_key wrappers from _key.py; no algorithm named here
+src/wormhole/_status.py,-,-,no cryptography
+src/wormhole/_terminator.py,-,-,no cryptography
+src/wormhole/_version.py,-,-,no cryptography
+src/wormhole/_wordlist.py,-,-,no cryptography
+src/wormhole/cli/__init__.py,-,-,no cryptography
+src/wormhole/cli/cli.py,-,-,no cryptography
+src/wormhole/cli/cmd_receive.py,SHA-256,-,file hash with hashlib.sha256; w.derive_key is generic
+src/wormhole/cli/cmd_send.py,SHA-256,-,file hash with hashlib.sha256; w.derive_key is generic
+src/wormhole/cli/cmd_ssh.py,-,-,"reads SSH public key file, no algorithm handling"
+src/wormhole/cli/public_relay.py,-,-,no cryptography
+src/wormhole/cli/welcome.py,-,-,no cryptography
+src/wormhole/errors.py,-,-,no cryptography
+src/wormhole/eventual.py,-,-,no cryptography
+src/wormhole/ipaddrs.py,-,-,no cryptography
+src/wormhole/journal.py,-,-,no cryptography
+src/wormhole/observer.py,-,-,no cryptography
+src/wormhole/timing.py,-,-,no cryptography
+src/wormhole/tor_manager.py,-,-,no cryptography
+src/wormhole/transit.py,HKDF; OTHER:Salsa20,-,"SecretBox record encryption; ?HKDF via util wrapper, SHA-256 not visible here"
+src/wormhole/util.py,HKDF; SHA-256,-,HKDF-SHA256 wrapper
+src/wormhole/wormhole.py,-,-,?derive_key wrapper only
+src/wormhole/xfer_util.py,-,-,no cryptography
+tox.ini,-,-,no cryptography
+update-version.py,-,-,no cryptography
+versioneer.py,-,-,vendored; SHA1 only in docs about git commit ids

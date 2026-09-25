@@ -1,0 +1,31 @@
+file,used,declared,notes
+aes.c,AES,-,
+aes.h,AES,-,API for aes.c
+aes_test.c,AES,-,"known-answer tests, calls the cipher"
+arcfour.c,RC4,-,ARCFOUR is RC4
+arcfour.h,RC4,-,API for arcfour.c
+arcfour_test.c,RC4,-,known-answer tests
+base64.c,-,-,"encoding, not a cipher"
+base64.h,-,-,"encoding, not a cipher"
+base64_test.c,-,-,"encoding, not a cipher"
+blowfish.c,Blowfish,-,
+blowfish.h,Blowfish,-,API for blowfish.c
+blowfish_test.c,Blowfish,-,known-answer tests
+des.c,DES; 3DES,-,des_crypt and three_des_crypt both implemented
+des.h,DES; 3DES,-,"API for des.c, both single and triple DES"
+des_test.c,DES; 3DES,-,known-answer tests for both
+md2.c,OTHER:MD2,-,
+md2.h,OTHER:MD2,-,API for md2.c
+md2_test.c,OTHER:MD2,-,known-answer tests
+md5.c,MD5,-,
+md5.h,MD5,-,API for md5.c
+md5_test.c,MD5,-,known-answer tests
+rot-13.c,OTHER:ROT-13,-,"?trivial substitution cipher, not real crypto but implemented as one"
+rot-13.h,OTHER:ROT-13,-,?API for rot-13.c
+rot-13_test.c,OTHER:ROT-13,-,?known-answer tests
+sha1.c,SHA-1,-,
+sha1.h,SHA-1,-,API for sha1.c
+sha1_test.c,SHA-1,-,known-answer tests
+sha256.c,SHA-256,-,
+sha256.h,SHA-256,-,API for sha256.c
+sha256_test.c,SHA-256,-,known-answer tests

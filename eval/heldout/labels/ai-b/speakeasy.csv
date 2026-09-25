@@ -1,0 +1,5 @@
+file,used,declared,notes
+.travis.yml,-,-,CI config only
+index.js,HMAC; SHA-1; SHA-256; SHA-512,-,"digest() defaults algorithm to sha1 and branches concretely on 'sha1'/'sha256'/'sha512' for buffer sizing before crypto.createHmac(algorithm,...); HOTP/TOTP built on this"
+jsdoc.json,-,-,jsdoc generator config
+package.json,-,-,manifest; 'hmac'/'hotp'/'totp' are just keywords

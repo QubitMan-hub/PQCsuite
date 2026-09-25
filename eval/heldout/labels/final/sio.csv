@@ -1,0 +1,10 @@
+file,used,declared,notes
+.golangci.yml,-,-,
+cmd/ncrypt/main.go,AES; ChaCha20; scrypt,-,
+dare.go,-,-,
+generic.go,-,-,
+reader-v1.go,-,-,
+reader-v2.go,-,-,
+sio.go,AES; ChaCha20,-,
+writer-v1.go,-,-,
+writer-v2.go,-,-,

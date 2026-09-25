@@ -1,0 +1,59 @@
+file,used,declared,notes
+.codacy.yml,-,-,
+.config/dotnet-tools.json,-,-,
+Dockerfile,-,-,
+assets/PfxToSnk.cs,RSA,-,extracts RSA private key from pfx and re-imports/exports via RSACryptoServiceProvider
+assets/jBCrypt-0.4/build.xml,-,-,
+assets/jBCrypt-0.4/src/org/mindrot/jbcrypt/3BCrypt.java,bcrypt,-,"older jBCrypt copy, same Blowfish-based bcrypt implementation"
+assets/jBCrypt-0.4/src/org/mindrot/jbcrypt/BCrypt.java,bcrypt,-,reference jBCrypt implementation vendored as an asset
+benchmarks/Diagnostic-Benchmarks/BenchmarkCurrent.cs,bcrypt,-,benchmarks BCryptCore.CreatePasswordHash
+benchmarks/Diagnostic-Benchmarks/Program.cs,-,-,just runs the benchmark suite
+benchmarks/Method-Benchmarks/3.2.1/BaseLine.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,vendored old-version bcrypt implementation with enhanced SHA hashing kept for benchmarking
+benchmarks/Method-Benchmarks/3.5.perfmerge_1/PerfMerge1.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,vendored old-version bcrypt implementation kept for benchmarking
+benchmarks/Method-Benchmarks/4.0.0/version4.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,vendored old-version bcrypt implementation kept for benchmarking
+benchmarks/Method-Benchmarks/4.0.3/BCrypt403.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,vendored old-version bcrypt implementation kept for benchmarking
+benchmarks/Method-Benchmarks/B64DecoderBenchmark.cs,-,-,"base64 decode only, no crypto"
+benchmarks/Method-Benchmarks/B64EncoderBenchmark.cs,-,-,"base64 encode only, no crypto"
+benchmarks/Method-Benchmarks/DecodeB64/Decoder.cs,-,-,"base64 decode helper, no crypto"
+benchmarks/Method-Benchmarks/EncodeB64/Encoder.cs,-,-,"base64 encode helper, no crypto"
+benchmarks/Method-Benchmarks/EnhancedHashingBenchmark.cs,bcrypt; HMAC; SHA-384,-,calls enhanced HashPassword (default SHA384) across versions incl. V3's HMAC-SHA3 variant
+benchmarks/Method-Benchmarks/EnhancedHashingV3Benchmark.cs,HMAC; SHA3-256; SHA3-384; SHA3-512,-,directly implements HMACSHA3_256/384/512 pre-hash used by BCryptExtendedV3
+benchmarks/Method-Benchmarks/EnhancedHashingValidation.cs,bcrypt; HMAC; SHA-384,-,explicit SHA384 enhanced hashing across versions plus BCryptExtendedV3 HMAC path
+benchmarks/Method-Benchmarks/EnhancedValidationBenchmark.cs,bcrypt,-,calls Verify across bcrypt implementation versions
+benchmarks/Method-Benchmarks/HashInterrogationBenchmark.cs,-,-,"?parses/interrogates bcrypt hash structure only (workfactor/version), no hashing performed - treated like format recognition"
+benchmarks/Method-Benchmarks/HashParser/HashParser.cs,-,-,"?validates and decodes bcrypt hash string format only, no hashing performed"
+benchmarks/Method-Benchmarks/HashingBenchmark.cs,bcrypt,-,calls HashPassword across bcrypt implementation versions
+benchmarks/Method-Benchmarks/Program.cs,-,-,benchmark runner config
+benchmarks/Method-Benchmarks/StringBuildingVariantsBenchmark.cs,-,-,string building and base64 encode/decode only
+benchmarks/Release-Benchmarks/BCryptBasics.cs,-,-,benchmark job/version config only
+benchmarks/Release-Benchmarks/Benchmark.cs,bcrypt,-,calls BCrypt.HashPassword
+benchmarks/Release-Benchmarks/Program.cs,-,-,benchmark runner
+docs/api/toc.yml,-,-,
+docs/docfx.json,-,-,
+docs/docs/toc.yml,-,-,
+docs/template/public/main.js,-,-,
+docs/toc.yml,-,-,
+global.json,-,-,
+src/BCrypt.Net.IdentityExtensions/BCryptConfig.cs,bcrypt,-,wires BCryptPasswordHasher into DI as the IPasswordHasher implementation
+src/BCrypt.Net.IdentityExtensions/BCryptHasherOptions.cs,-,-,"just a work-factor options record, no algorithm named"
+src/BCrypt.Net.IdentityExtensions/BCryptPasswordHasher.cs,bcrypt,-,calls BCrypt.HashPassword/Verify/InterrogateHash
+src/BCrypt.Net.IdentityExtensions/Properties/AssemblyInfo.cs,-,-,InternalsVisibleTo declarations only
+src/BCrypt.Net.IdentityExtensions/StringUtils.cs,-,-,base64/hex encoding helpers only
+src/BCrypt.Net/BCrypt.cs,bcrypt,-,public HashPassword/Verify/ValidateAndUpgradeHash API
+src/BCrypt.Net/BCryptBase.Core.cs,bcrypt,-,.NET Core implementation of bcrypt/Blowfish key schedule and hashing
+src/BCrypt.Net/BCryptBase.Std.cs,bcrypt,-,.NET Standard implementation of bcrypt/Blowfish key schedule and hashing
+src/BCrypt.Net/BCryptBase.cs,bcrypt,-,shared bcrypt/Blowfish key schedule tables and helpers
+src/BCrypt.Net/BCryptExtendedV2.Std.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,"pre-hashes with SHA256/384/512 (SHA384 default) before bcrypt hashing, .NET Standard variant"
+src/BCrypt.Net/BCryptExtendedV2.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,pre-hashes with SHA256/384/512 (SHA384 default) before bcrypt hashing
+src/BCrypt.Net/BCryptExtendedV3.cs,bcrypt; HMAC; SHA3-256; SHA3-384; SHA3-512,-,HMAC-SHA3-256/384/512 pre-hash (SHA3-384 default) before bcrypt hashing
+src/BCrypt.Net/BcryptAuthenticationException.cs,-,-,exception type only
+src/BCrypt.Net/HashInformation.cs,-,-,plain value object holding parsed hash fields
+src/BCrypt.Net/HashInformationException.cs,-,-,exception type only
+src/BCrypt.Net/HashParser.cs,-,-,"?validates and decodes bcrypt hash string format (version/workfactor/salt extraction) only, no hashing performed"
+src/BCrypt.Net/HashType.cs,-,SHA-256; SHA-384; SHA-512,"enum of pre-hash types selected by BCryptExtendedV2/V3, used there"
+src/BCrypt.Net/Properties/AssemblyInfo.cs,-,-,InternalsVisibleTo declarations only
+src/BCrypt.Net/SafeStringExtension.Fwk.cs,bcrypt,-,SecureString wrapper calling bcrypt HashPassword/CreatePasswordHash
+src/BCrypt.Net/SafeStringExtension.cs,bcrypt,-,SecureString wrapper calling bcrypt HashPassword/CreatePasswordHash
+src/BCrypt.Net/SaltParseException.cs,-,-,exception type only
+stryker-config.json,-,-,
+version.json,-,-,

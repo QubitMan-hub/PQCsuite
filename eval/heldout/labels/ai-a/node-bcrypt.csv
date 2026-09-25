@@ -1,0 +1,10 @@
+file,used,declared,notes
+Dockerfile,-,-,build image
+bcrypt.js,bcrypt,-,wrapper forwarding to native bcrypt binding
+build-all.sh,-,-,build script
+package.json,-,-,keywords only
+promises.js,-,-,promise helper
+src/bcrypt.cc,bcrypt,-,bcrypt implementation (EksBlowfish setup via Blowfish_* calls); not labelled Blowfish per guide
+src/bcrypt_node.cc,bcrypt,-,N-API bindings calling bcrypt/bcrypt_gensalt
+src/blowfish.cc,Blowfish,-,"? vendored OpenBSD Blowfish cipher implementation incl. ECB/CBC modes; Blowfish implemented as a cipher, not just inside bcrypt"
+src/node_blf.h,-,Blowfish; bcrypt,? vendored header: prototypes for standalone Blowfish ECB/CBC API and bcrypt functions

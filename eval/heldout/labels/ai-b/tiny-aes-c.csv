@@ -1,0 +1,10 @@
+file,used,declared,notes
+aes.c,AES,-,"ECB/CBC/CTR, key sizes 128/192/256"
+aes.h,AES,-,API and mode/keysize config macros for aes.c
+aes.hpp,AES,-,C++ wrapper including aes.h
+conanfile.py,-,-,"?package metadata mentions AES only as description/keyword, not a call or registry"
+library.json,-,-,package metadata description/keywords only
+library.properties,-,-,package metadata description only
+test.c,AES,-,"known-answer tests, calls the cipher"
+test.cpp,AES,-,includes aes.hpp and test.c
+test_package/conanfile.py,-,-,"generic conan test runner, no crypto"

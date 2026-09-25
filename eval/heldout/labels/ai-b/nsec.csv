@@ -1,0 +1,104 @@
+file,used,declared,notes
+src/Cryptography/AeadAlgorithm.cs,-,AES; ChaCha20; OTHER:AEGIS,registry of concrete AEAD algorithms defined elsewhere
+src/Cryptography/Aegis128L.cs,OTHER:AEGIS,-,calls libsodium crypto_aead_aegis128l_*
+src/Cryptography/Aegis256.cs,OTHER:AEGIS,-,calls libsodium crypto_aead_aegis256_*
+src/Cryptography/Aes256Gcm.cs,AES,-,
+src/Cryptography/Algorithm.cs,-,-,"generic abstract base, no algorithm-specific code"
+src/Cryptography/Argon2Parameters.cs,-,-,parameter struct only
+src/Cryptography/Argon2id.cs,Argon2,-,
+src/Cryptography/Blake2b.cs,BLAKE2,-,
+src/Cryptography/Blake2bMac.cs,BLAKE2,-,"keyed BLAKE2 MAC, not an HMAC construction"
+src/Cryptography/ChaCha20Poly1305.cs,ChaCha20,-,
+src/Cryptography/Ed25519.cs,Ed25519,-,
+src/Cryptography/Ed25519ph.cs,Ed25519,-,"prehash variant of Ed25519, same family"
+src/Cryptography/Error.cs,-,-,"exception message factory, no algorithm names"
+src/Cryptography/Formatting/Armor.cs,-,-,base64 PEM armor encoding only
+src/Cryptography/Formatting/Ed25519PrivateKeyFormatter.cs,Ed25519,-,calls crypto_sign_ed25519_seed_keypair / sk_to_seed
+src/Cryptography/Formatting/Ed25519PublicKeyFormatter.cs,-,-,"? pure byte copy of an Ed25519 public key blob, no crypto call invoked here"
+src/Cryptography/Formatting/NSecKeyFormatter.cs,-,-,"generic blob formatter, algorithm-agnostic"
+src/Cryptography/Formatting/PrivateKeyFormatter.cs,-,-,"generic abstract base plus PEM armor, algorithm-agnostic"
+src/Cryptography/Formatting/PublicKeyFormatter.cs,-,-,"generic abstract base, algorithm-agnostic"
+src/Cryptography/Formatting/RawKeyFormatter.cs,-,-,generic raw byte copy
+src/Cryptography/Formatting/X25519PrivateKeyFormatter.cs,X25519,-,calls crypto_scalarmult_curve25519_base
+src/Cryptography/Formatting/X25519PublicKeyFormatter.cs,-,-,"? pure byte copy/clamp, no scalarmult call"
+src/Cryptography/HashAlgorithm.cs,-,BLAKE2; SHA-256; SHA-512; SHA3-256; SHA3-512,"registry; SHAKE/cSHAKE only listed in a comment table, not implemented"
+src/Cryptography/HkdfSha256.cs,HKDF; SHA-256,-,
+src/Cryptography/HkdfSha512.cs,HKDF; SHA-512,-,
+src/Cryptography/HmacSha256.cs,HMAC; SHA-256,-,
+src/Cryptography/HmacSha512.cs,HMAC; SHA-512,-,
+src/Cryptography/IncrementalHash.cs,-,BLAKE2; SHA-256; SHA-512; SHA3-256; SHA3-512,union of algorithm states dispatched polymorphically
+src/Cryptography/IncrementalMac.cs,-,BLAKE2; HMAC; SHA-256; SHA-512,union of MAC algorithm states
+src/Cryptography/IncrementalSignature.cs,-,-,"generic, algorithm-agnostic"
+src/Cryptography/IncrementalSignatureState.cs,-,Ed25519,state union field for Ed25519ph
+src/Cryptography/IncrementalSignatureVerification.cs,-,-,"generic, algorithm-agnostic"
+src/Cryptography/Key.cs,-,-,"generic key container, algorithm-agnostic"
+src/Cryptography/KeyAgreementAlgorithm.cs,-,X25519,registry; ECDH P-256/P-521 and X448 only listed as candidates in a comment
+src/Cryptography/KeyBlobFormat.cs,-,-,enum of format tags only
+src/Cryptography/KeyCreationParameters.cs,-,-,parameter struct only
+src/Cryptography/KeyDerivationAlgorithm.cs,-,HKDF; SHA-256; SHA-512,registry; other KDFs only listed as candidates in a comment
+src/Cryptography/KeyDerivationAlgorithm2.cs,-,-,"generic extract-then-expand base, no static registry"
+src/Cryptography/KeyExportPolicies.cs,-,-,flags enum only
+src/Cryptography/MacAlgorithm.cs,-,BLAKE2; HMAC; SHA-256; SHA-512,registry; AES-CMAC/KMAC only listed as candidates in a comment
+src/Cryptography/PasswordBasedKeyDerivationAlgorithm.cs,-,Argon2; scrypt,static factory methods for concrete algorithms defined elsewhere
+src/Cryptography/PublicKey.cs,-,-,"generic, algorithm-agnostic"
+src/Cryptography/Scrypt.cs,scrypt,-,
+src/Cryptography/ScryptParameters.cs,-,-,parameter struct only
+src/Cryptography/Sha256.cs,SHA-256,-,
+src/Cryptography/Sha3_256.cs,SHA3-256,-,
+src/Cryptography/Sha3_512.cs,SHA3-512,-,
+src/Cryptography/Sha512.cs,SHA-512,-,
+src/Cryptography/SharedSecret.cs,-,-,"generic shared-secret container, algorithm-agnostic"
+src/Cryptography/SharedSecretBlobFormat.cs,-,-,enum only
+src/Cryptography/SharedSecretCreationParameters.cs,-,-,parameter struct only
+src/Cryptography/SignatureAlgorithm.cs,-,Ed25519,registry; ECDSA P-256/P-521 and Ed448 only listed as candidates in a comment
+src/Cryptography/SignatureAlgorithm2.cs,-,-,"generic incremental-signature base, no static registry"
+src/Cryptography/Sodium.cs,-,-,"library init/version check, no specific algorithm"
+src/Cryptography/X25519.cs,X25519,-,
+src/Cryptography/XChaCha20Poly1305.cs,ChaCha20,-,
+src/Experimental/AnsiX963KdfSha256.cs,OTHER:ANSI-X9.63-KDF; SHA-256,-,
+src/Experimental/Asn1/Asn1Oid.cs,-,-,ASN.1 OID byte encoding only
+src/Experimental/Asn1/Asn1Reader.cs,-,-,generic DER reader
+src/Experimental/Asn1/Asn1Writer.cs,-,-,generic DER writer
+src/Experimental/ChaCha20.cs,ChaCha20,-,
+src/Experimental/ConcatKdfHmacSha256.cs,OTHER:ConcatKDF; HMAC; SHA-256,-,
+src/Experimental/ConcatKdfSha256.cs,OTHER:ConcatKDF; SHA-256,-,
+src/Experimental/CryptographicUtilities.cs,-,-,"base64/hex encoding, RNG fill, constant-time compare; no specific algorithm"
+src/Experimental/Iso78164Padding.cs,-,-,"generic padding scheme, no specific algorithm"
+src/Experimental/KeyConverter.cs,Ed25519; X25519,-,converts an Ed25519 key to X25519 via libsodium
+src/Experimental/Nonce.cs,-,-,generic nonce struct
+src/Experimental/PasswordBased/Argon2i.cs,Argon2,-,
+src/Experimental/PasswordBased/PasswordBasedEncryptionScheme.cs,-,-,"generic PBES2 composition, algorithm-agnostic"
+src/Experimental/PasswordBased/PasswordBasedKeyExporter.cs,AES; ChaCha20; OTHER:AEGIS; Argon2; PBKDF2; SHA-256; scrypt,-,branches on concrete algorithm types to pick wire-format tags
+src/Experimental/PasswordBased/PasswordBasedMacScheme.cs,-,-,"generic PBMAC1 composition, algorithm-agnostic"
+src/Experimental/PasswordBased/Pbkdf2HmacSha256.cs,PBKDF2; SHA-256,-,
+src/Experimental/PasswordBased/Pbkdf2Parameters.cs,-,-,parameter struct only
+src/Experimental/RandomGenerator.cs,-,-,"RNG wrapper, not a crypto algorithm per the guide"
+src/Experimental/StreamCipherAlgorithm.cs,-,ChaCha20,registry of concrete stream cipher defined elsewhere
+src/Experimental/Text/Base16.cs,-,-,hex encoding only
+src/Experimental/Text/Base32.cs,-,-,base32 encoding only
+src/Experimental/Text/Base64.cs,-,-,base64 encoding only
+src/Interop/Interop.Aead.Aegis128L.cs,OTHER:AEGIS,-,P/Invoke binding to libsodium AEGIS-128L
+src/Interop/Interop.Aead.Aegis256.cs,OTHER:AEGIS,-,P/Invoke binding to libsodium AEGIS-256
+src/Interop/Interop.Aead.Aes256Gcm.cs,AES,-,P/Invoke binding to libsodium AES-256-GCM
+src/Interop/Interop.Aead.ChaCha20Poly1305.cs,ChaCha20,-,P/Invoke binding to libsodium ChaCha20-Poly1305
+src/Interop/Interop.Aead.XChaCha20Poly1305.cs,ChaCha20,-,P/Invoke binding to libsodium XChaCha20-Poly1305
+src/Interop/Interop.Auth.HmacSha256.cs,HMAC; SHA-256,-,P/Invoke binding to libsodium HMAC-SHA-256
+src/Interop/Interop.Auth.HmacSha512.cs,HMAC; SHA-512,-,P/Invoke binding to libsodium HMAC-SHA-512
+src/Interop/Interop.Core.cs,-,-,sodium_init/misuse handler only
+src/Interop/Interop.GenericHash.Blake2b.cs,BLAKE2,-,P/Invoke binding to libsodium BLAKE2b
+src/Interop/Interop.Hash.Sha256.cs,SHA-256,-,P/Invoke binding to libsodium SHA-256
+src/Interop/Interop.Hash.Sha3.cs,SHA3-256; SHA3-512,-,P/Invoke binding to libsodium SHA3
+src/Interop/Interop.Hash.Sha512.cs,SHA-512,-,P/Invoke binding to libsodium SHA-512
+src/Interop/Interop.Libraries.cs,-,-,library name constant only
+src/Interop/Interop.PublicKeyBytes.cs,-,-,generic fixed-size byte struct
+src/Interop/Interop.Pwhash.Argon2i.cs,Argon2,-,P/Invoke binding to libsodium Argon2i
+src/Interop/Interop.Pwhash.Argon2id.cs,Argon2,-,P/Invoke binding to libsodium Argon2id
+src/Interop/Interop.Pwhash.Scrypt.cs,scrypt,-,P/Invoke binding to libsodium scrypt
+src/Interop/Interop.Scalarmult.X25519.cs,X25519,-,P/Invoke binding to libsodium curve25519 scalarmult
+src/Interop/Interop.SecretBox.XSalsa20Poly1305.cs,-,OTHER:Salsa20,"? P/Invoke binding present, but crypto_secretbox_* is not called by any wrapper class in this repo"
+src/Interop/Interop.SecureMemoryHandle.cs,-,-,"generic secure memory handle, no specific algorithm"
+src/Interop/Interop.Sign.Ed25519.cs,Ed25519,-,P/Invoke binding to libsodium Ed25519
+src/Interop/Interop.Stream.ChaCha20.cs,ChaCha20,-,P/Invoke binding to libsodium ChaCha20
+src/Interop/Interop.Utils.cs,-,-,sodium_free and misc utils only
+src/Interop/Interop.Version.cs,-,-,version check constants only
+src/Interop/Interop.yaml,-,AES; ChaCha20; HMAC; SHA-256; SHA-512; SHA3-256; SHA3-512; BLAKE2; X25519; Ed25519; Argon2; scrypt; OTHER:AEGIS; OTHER:Salsa20; OTHER:Ristretto255; OTHER:Poly1305; OTHER:SipHash,libsodium header/function manifest for interop code generation; lists many primitives beyond what is actually wired into C# wrapper classes

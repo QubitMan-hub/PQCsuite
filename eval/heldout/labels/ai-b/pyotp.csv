@@ -1,0 +1,12 @@
+file,used,declared,notes
+docs/conf.py,-,-,
+pyproject.toml,-,-,
+src/pyotp/__init__.py,SHA-1; SHA-256; SHA-512,-,"branches on algorithm= query param, selecting hashlib digest that flows into HOTP/TOTP construction"
+src/pyotp/compat.py,-,-,"SystemRandom is a RNG, not crypto per guide"
+src/pyotp/contrib/__init__.py,-,-,
+src/pyotp/contrib/steam.py,HMAC; SHA-1,-,wrapper: hardcodes digest=sha1 into TOTP superclass and calls its HMAC-based generate_otp
+src/pyotp/hotp.py,HMAC; SHA-1,-,default digest=sha1 when caller passes none; at()/verify() call inherited HMAC generate_otp
+src/pyotp/otp.py,HMAC; SHA-1,-,hmac.new(...) with default digest=hashlib.sha1
+src/pyotp/totp.py,HMAC; SHA-1,-,default digest=sha1 when caller passes none; at()/now()/verify() call inherited HMAC generate_otp
+src/pyotp/utils.py,-,-,"hmac.compare_digest used only as timing-safe string compare, not a MAC"
+test.py,HMAC; MD5; SHA-1; SHA-256; SHA-512; OTHER:SHAKE128,-,?test file constructs real HOTP/TOTP objects with sha1/sha256/sha512 digests (RFC vectors); md5 and shake_128 are passed in specifically to verify they get rejected before hashing

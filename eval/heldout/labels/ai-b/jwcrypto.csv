@@ -1,0 +1,18 @@
+file,used,declared,notes
+.readthedocs.yaml,-,-,
+docs/source/conf.py,-,-,
+jwcrypto/__init__.py,-,-,
+jwcrypto/common.py,-,-,"base64url + JSON helpers and exception/registry classes, no crypto"
+jwcrypto/jwa.py,RSA; ECDSA; ECDH; X25519; X448; Ed25519; Ed448; ML-DSA; AES; HMAC; PBKDF2; SHA-1; SHA-256; SHA-384; SHA-512; OTHER:ConcatKDF,-,"core crypto engine: implements every JWA alg directly (HMAC/RSA/EC incl. Brainpool+secp256k1/AES/PBKDF2/EdDSA/ML-DSA); ConcatKDFHash is NIST SP800-56A Concat KDF, not HKDF, so OTHER:ConcatKDF; RSA-OAEP defaults to SHA-1"
+jwcrypto/jwe.py,-,RSA; AES; ECDH; PBKDF2; HMAC; SHA-256; SHA-384; SHA-512,"default_allowed_algs is an allow-list dispatched generically to JWA.keymgmt_alg/encryption_alg by runtime header value, no branch on concrete names in this file, matching the 'registry mapping to implementations defined elsewhere' declared example; families derived from the RFC7518 alg/enc identifiers listed"
+jwcrypto/jwk.py,RSA; ECC; Ed25519; Ed448; X25519; X448; ML-DSA; SHA-256; SHA-384; SHA-512; SHA3-256; SHA3-384; SHA3-512; BLAKE2; OTHER:SHA3-224,-,"generates/imports/exports keys via pyca cryptography: RSA and generic EC curves (P-256/384/521, secp256k1, Brainpool) with no sign/verify call in this file -> ECC; Ed25519/Ed448/X25519/X448 via dedicated curve classes; ML-DSA (AKP) key generation; thumbprint()/thumbprint_uri() actually compute digests for SHA-256 (default), SHA-384, SHA-512, SHA3-256/384/512, BLAKE2s/BLAKE2b, and SHA3-224 (not in vocab)"
+jwcrypto/jws.py,-,HMAC; SHA-256; SHA-384; SHA-512; RSA; ECDSA; Ed25519; Ed448; ML-DSA,"same pattern as jwe.py: default_allowed_algs is a declared allow-list, generic dispatch to JWA.signing_alg with no branch on concrete alg names in this file"
+jwcrypto/jwt.py,-,-,"delegates entirely to JWS/JWE objects; only inspects alg-list membership for JWS-vs-JWE heuristics, no crypto call"
+jwcrypto/tests-cookbook.py,HMAC; SHA-256; SHA-512; AES; RSA; ECDH; ECDSA; PBKDF2,-,"RFC 7520 JOSE cookbook vectors: signs/verifies with RSA, ECDSA and HMAC keys, encrypts/decrypts with RSA1_5/RSA-OAEP/AES-KW/ECDH-ES/PBES2 and AES-CBC/AES-GCM content encryption"
+jwcrypto/tests.py,HMAC; SHA-256; SHA-384; SHA-512; AES; RSA; ECDSA; ECDH; Ed25519; Ed448; X25519; X448; PBKDF2; ML-DSA; 3DES,-,"?exercises nearly every algorithm jwa.py implements incl. Brainpool/secp256k1 ECDSA signing; also imports a password-encrypted RSA PEM fixture (DES-EDE3-CBC) via jwk.JWK.from_pem, which decrypts it -> 3DES used"
+jwcrypto/tests_mldsa.py,ML-DSA; ECC; SHA-256,-,RFC 9964 ML-DSA JWS sign/verify test vectors; also generates an unrelated EC P-256 key for a negative wrong-key-type test (no sign/verify on it) -> ECC; thumbprint uses default SHA-256
+jwcrypto/version.py,-,-,
+pyproject.toml,-,-,
+setup.cfg,-,-,
+setup.py,-,-,
+tox.ini,-,-,

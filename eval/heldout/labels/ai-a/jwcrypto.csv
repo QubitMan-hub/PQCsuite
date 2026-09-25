@@ -1,0 +1,18 @@
+file,used,declared,notes
+.readthedocs.yaml,-,-,no cryptography
+docs/source/conf.py,-,-,no cryptography
+jwcrypto/__init__.py,-,-,no cryptography
+jwcrypto/common.py,-,-,base64/json helpers only
+jwcrypto/jwa.py,HMAC; SHA-1; SHA-256; SHA-384; SHA-512; RSA; ECDSA; AES; PBKDF2; ECDH; X25519; X448; Ed25519; Ed448; ML-DSA; OTHER:ConcatKDF,-,JWA implementations; SHA-1 via RSA-OAEP MGF1/OAEP; Brainpool/secp256k1 ECDSA; ConcatKDF-SHA256 for ECDH-ES
+jwcrypto/jwe.py,-,RSA; SHA-1; SHA-256; SHA-384; SHA-512; AES; ECDH; PBKDF2; HMAC,"default_allowed_algs list, algorithms implemented in jwa.py; SHA-1 from RSA-OAEP"
+jwcrypto/jwk.py,RSA; ECC; Ed25519; Ed448; X25519; X448; ML-DSA; SHA-256; SHA-384; SHA-512; SHA3-256; SHA3-384; SHA3-512; BLAKE2; OTHER:SHA3-224,-,key generation/import; thumbprint default SHA-256 and IANA hash registry used by thumbprint_uri
+jwcrypto/jws.py,-,HMAC; SHA-256; SHA-384; SHA-512; RSA; ECDSA; Ed25519; Ed448; ML-DSA,default_allowed_algs list; implementations in jwa.py
+jwcrypto/jwt.py,-,-,?only checks algs lists (incl RSA1_5) to pick JWS vs JWE type; no crypto call itself
+jwcrypto/tests-cookbook.py,HMAC; SHA-1; SHA-256; SHA-384; SHA-512; RSA; ECDSA; ECDH; AES; PBKDF2,-,RFC 7520 vectors (RS256 PS384 ES512 HS256 RSA1_5 RSA-OAEP PBES2 ECDH-ES AxKW AxGCM CBC-HS)
+jwcrypto/tests.py,HMAC; SHA-1; SHA-256; SHA-384; SHA-512; RSA; ECDSA; ECDH; X25519; Ed25519; Ed448; AES; PBKDF2; MD5,-,tests; embedded test cert is md5WithRSAEncryption; ML-DSA names only in a keysize tuple so not labelled
+jwcrypto/tests_mldsa.py,ML-DSA; ECC,-,ML-DSA sign/verify tests; EC P-256 key generated only as wrong key
+jwcrypto/version.py,-,-,no cryptography
+pyproject.toml,-,-,no cryptography
+setup.cfg,-,-,no cryptography
+setup.py,-,-,no cryptography
+tox.ini,-,-,no cryptography

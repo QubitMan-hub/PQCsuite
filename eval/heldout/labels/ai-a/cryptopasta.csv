@@ -1,0 +1,6 @@
+file,used,declared,notes
+encrypt.go,AES,-,AES-256-GCM via crypto/aes + cipher.NewGCM
+hash.go,HMAC; SHA-512; bcrypt,-,HMAC-SHA-512/256 (mapped to SHA-512); bcrypt password hashing
+marshal.go,ECC,-,"? ECDSA-typed EC keys only parsed/encoded, no sign/verify here; ECC per EC-key-loaded rule"
+sign.go,HMAC; SHA-512; ECDSA; SHA-256,-,HMAC-SHA-512/256; ECDSA P-256 over SHA-256 digest
+tls.go,TLS 1.2; ECDH,-,MinVersion TLS12; CurvePreferences P-256 -> ECDH (? curve preference as key agreement)

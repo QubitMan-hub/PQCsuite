@@ -1,0 +1,18 @@
+file,used,declared,notes
+.readthedocs.yaml,-,-,
+docs/source/conf.py,-,-,
+jwcrypto/__init__.py,-,-,
+jwcrypto/common.py,-,-,
+jwcrypto/jwa.py,AES; ECDH; ECDSA; Ed25519; Ed448; HMAC; ML-DSA; OTHER:CONCATKDF; PBKDF2; RSA; SHA-1; SHA-256; SHA-384; SHA-512; X25519; X448,-,
+jwcrypto/jwe.py,-,AES; ECDH; HMAC; PBKDF2; RSA; SHA-1; SHA-256; SHA-384; SHA-512,declared: A=AES; ECDH; HMAC; PBKDF2; RSA; SHA-1; SHA-256; SHA-384; SHA-512 B=AES; ECDH; HMAC; PBKDF2; RSA; SHA-256; SHA-384; SHA-512 || decided: A: RSA-OAEP in default_allowed_algs implies SHA-1
+jwcrypto/jwk.py,BLAKE2; ECC; Ed25519; Ed448; ML-DSA; OTHER:SHA3-224; RSA; SHA-256; SHA-384; SHA-512; SHA3-256; SHA3-384; SHA3-512; X25519; X448,-,
+jwcrypto/jws.py,-,ECDSA; Ed25519; Ed448; HMAC; ML-DSA; RSA; SHA-256; SHA-384; SHA-512,
+jwcrypto/jwt.py,-,-,
+jwcrypto/tests-cookbook.py,AES; ECDH; ECDSA; HMAC; PBKDF2; RSA; SHA-1; SHA-256; SHA-384; SHA-512,-,used: A=AES; ECDH; ECDSA; HMAC; PBKDF2; RSA; SHA-1; SHA-256; SHA-384; SHA-512 B=AES; ECDH; ECDSA; HMAC; PBKDF2; RSA; SHA-256; SHA-512 || decided: A: tests run RSA-OAEP (SHA-1) and PS384 (SHA-384) headers
+jwcrypto/tests.py,3DES; AES; ECDH; ECDSA; Ed25519; Ed448; HMAC; PBKDF2; RSA; SHA-1; SHA-256; SHA-384; SHA-512; X25519,-,used: A=AES; ECDH; ECDSA; Ed25519; Ed448; HMAC; MD5; PBKDF2; RSA; SHA-1; SHA-256; SHA-384; SHA-512; X25519 B=3DES; AES; ECDH; ECDSA; Ed25519; Ed448; HMAC; ML-DSA; PBKDF2; RSA; SHA-256; SHA-384; SHA-512; X25519; X448 || decided: neither: DES-EDE3-CBC PEM is decrypted (3DES) and RSA-OAEP runs (SHA-1); MD5 not named; ML-DSA only in a keysize check list; X448 not named
+jwcrypto/tests_mldsa.py,ECC; ML-DSA,-,"used: A=ECC; ML-DSA B=ECC; ML-DSA; SHA-256 || decided: A: thumbprint SHA-256 is a default in jwk.py, not named here"
+jwcrypto/version.py,-,-,
+pyproject.toml,-,-,
+setup.cfg,-,-,
+setup.py,-,-,
+tox.ini,-,-,

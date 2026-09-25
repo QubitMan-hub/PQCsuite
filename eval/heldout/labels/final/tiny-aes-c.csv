@@ -1,0 +1,10 @@
+file,used,declared,notes
+aes.c,AES,-,
+aes.h,AES,-,
+aes.hpp,-,-,used: A=- B=AES || decided: only wraps #include aes.h; no algorithm of its own
+conanfile.py,AES,-,used: A=AES B=- || decided: ? build options enable AES128/192/256 and modes; configures the cipher
+library.json,-,-,
+library.properties,-,-,
+test.c,AES,-,
+test.cpp,AES,-,used: A=- B=AES || decided: #include test.c pulls the AES test code into this unit
+test_package/conanfile.py,-,-,
