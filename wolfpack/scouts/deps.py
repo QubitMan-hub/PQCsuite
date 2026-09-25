@@ -6,46 +6,47 @@ from ..model import Library
 from . import iter_files, rel, read
 from .lexer import LANGS
 
-# name: (import markers, implied algorithms, pq-capable, note)
+MANIFESTS = {"pyproject.toml", "package.json", "pom.xml", "build.gradle", "build.gradle.kts", "go.mod", "cargo.toml", "packages.config"}
+
+
+def L(imports=None, implies=(), pq=False, note=""):
+    """A known crypto library: its import marker (the package name unless given), algorithms it implies, PQ support, a note."""
+    return imports, implies, pq, note
+
+
 KNOWN = {
     "pypi": {
-        "cryptography": (["cryptography"], (), True, ""), "pycryptodome": (["Crypto"], (), False, ""), "pycryptodomex": (["Cryptodome"], (), False, ""),
-        "pycrypto": (["Crypto"], (), False, "Unmaintained since 2013 with known CVEs; replace with pycryptodome or cryptography"),
-        "pyjwt": (["jwt"], (), False, ""), "python-jose": (["jose"], (), False, ""), "ecdsa": (["ecdsa"], ("ECDSA",), False, ""),
-        "rsa": (["rsa"], ("RSA",), False, ""), "pynacl": (["nacl"], ("Ed25519", "X25519"), False, ""), "paramiko": (["paramiko"], (), False, ""),
-        "pyopenssl": (["OpenSSL"], (), False, ""), "liboqs-python": (["oqs"], (), True, ""), "bcrypt": (["bcrypt"], ("bcrypt",), False, ""),
-        "argon2-cffi": (["argon2"], ("Argon2",), False, ""), "m2crypto": (["M2Crypto"], (), False, ""), "tink": (["tink"], (), False, ""),
-        "kyber-py": (["kyber"], ("ML-KEM",), True, "Educational implementation, not constant-time"),
-        "dilithium-py": (["dilithium"], ("ML-DSA",), True, "Educational implementation, not constant-time"),
+        "cryptography": L(pq=True), "pycryptodome": L("Crypto"), "pycryptodomex": L("Cryptodome"),
+        "pycrypto": L("Crypto", note="Unmaintained since 2013 with known CVEs; replace with pycryptodome or cryptography"), "pyjwt": L("jwt"),
+        "python-jose": L("jose"), "ecdsa": L(implies=("ECDSA",)), "rsa": L(implies=("RSA",)), "pynacl": L("nacl", implies=("Ed25519", "X25519")),
+        "paramiko": L(), "pyopenssl": L("OpenSSL"), "liboqs-python": L("oqs", pq=True), "bcrypt": L(implies=("bcrypt",)),
+        "argon2-cffi": L("argon2", implies=("Argon2",)), "m2crypto": L("M2Crypto"), "tink": L(),
+        "kyber-py": L("kyber", implies=("ML-KEM",), pq=True, note="Educational implementation, not constant-time"),
+        "dilithium-py": L("dilithium", implies=("ML-DSA",), pq=True, note="Educational implementation, not constant-time"),
     },
     "npm": {
-        "node-forge": (["node-forge"], (), False, ""), "jsonwebtoken": (["jsonwebtoken"], (), False, ""), "jose": (["jose"], (), False, ""),
-        "node-rsa": (["node-rsa"], ("RSA",), False, ""), "elliptic": (["elliptic"], ("ECC",), False, ""), "tweetnacl": (["tweetnacl"], ("Ed25519", "X25519"), False, ""),
-        "crypto-js": (["crypto-js"], (), False, "Discontinued; migrate to WebCrypto or node:crypto"), "bcrypt": (["bcrypt"], ("bcrypt",), False, ""),
-        "bcryptjs": (["bcryptjs"], ("bcrypt",), False, ""), "@noble/curves": (["@noble/curves"], ("ECC",), False, ""),
-        "@noble/post-quantum": (["@noble/post-quantum"], (), True, ""), "openpgp": (["openpgp"], (), False, ""), "jsrsasign": (["jsrsasign"], ("RSA",), False, ""),
-        "sshpk": (["sshpk"], (), False, ""),
+        "node-forge": L(), "jsonwebtoken": L(), "jose": L(), "node-rsa": L(implies=("RSA",)), "elliptic": L(implies=("ECC",)),
+        "tweetnacl": L(implies=("Ed25519", "X25519")), "crypto-js": L(note="Discontinued; migrate to WebCrypto or node:crypto"),
+        "bcrypt": L(implies=("bcrypt",)), "bcryptjs": L(implies=("bcrypt",)), "@noble/curves": L(implies=("ECC",)), "@noble/post-quantum": L(pq=True),
+        "openpgp": L(), "jsrsasign": L(implies=("RSA",)), "sshpk": L(),
     },
     "maven": {
-        "org.bouncycastle": (["org.bouncycastle"], (), True, ""), "com.nimbusds:nimbus-jose-jwt": (["com.nimbusds.jose"], (), False, ""),
-        "io.jsonwebtoken": (["io.jsonwebtoken"], (), False, ""), "com.google.crypto.tink": (["com.google.crypto.tink"], (), False, ""),
-        "org.openquantumsafe": (["org.openquantumsafe"], (), True, ""),
+        "org.bouncycastle": L(pq=True), "com.nimbusds:nimbus-jose-jwt": L("com.nimbusds.jose"), "io.jsonwebtoken": L(), "com.google.crypto.tink": L(),
+        "org.openquantumsafe": L(pq=True),
     },
     "go": {
-        "golang.org/x/crypto": (["golang.org/x/crypto"], (), False, ""), "github.com/cloudflare/circl": (["github.com/cloudflare/circl"], (), True, ""),
-        "github.com/golang-jwt/jwt": (["github.com/golang-jwt/jwt"], (), False, ""), "filippo.io/mlkem768": (["filippo.io/mlkem768"], ("ML-KEM-768",), True, ""),
-        "github.com/open-quantum-safe/liboqs-go": (["github.com/open-quantum-safe/liboqs-go"], (), True, ""),
+        "golang.org/x/crypto": L(), "github.com/cloudflare/circl": L(pq=True), "github.com/golang-jwt/jwt": L(),
+        "filippo.io/mlkem768": L(implies=("ML-KEM-768",), pq=True), "github.com/open-quantum-safe/liboqs-go": L(pq=True),
     },
     "cargo": {
-        "ring": (["ring"], (), False, ""), "rsa": (["rsa"], ("RSA",), False, ""), "openssl": (["openssl"], (), False, ""), "rustls": (["rustls"], (), True, ""),
-        "ed25519-dalek": (["ed25519_dalek"], ("Ed25519",), False, ""), "x25519-dalek": (["x25519_dalek"], ("X25519",), False, ""),
-        "aes-gcm": (["aes_gcm"], ("AES",), False, ""), "sha1": (["sha1"], ("SHA-1",), False, ""), "md-5": (["md5"], ("MD5",), False, ""),
-        "md5": (["md5"], ("MD5",), False, ""), "ml-kem": (["ml_kem"], ("ML-KEM",), True, ""), "ml-dsa": (["ml_dsa"], ("ML-DSA",), True, ""),
-        "pqcrypto": (["pqcrypto"], (), True, ""), "oqs": (["oqs"], (), True, ""),
+        "ring": L(), "rsa": L(implies=("RSA",)), "openssl": L(), "rustls": L(pq=True), "ed25519-dalek": L(implies=("Ed25519",)),
+        "x25519-dalek": L(implies=("X25519",)), "aes-gcm": L(implies=("AES",)), "sha1": L(implies=("SHA-1",)),
+        "md-5": L("md5", implies=("MD5",)), "md5": L(implies=("MD5",)), "ml-kem": L(implies=("ML-KEM",), pq=True),
+        "ml-dsa": L(implies=("ML-DSA",), pq=True), "pqcrypto": L(pq=True), "oqs": L(pq=True),
     },
     "nuget": {
-        "bouncycastle.cryptography": (["Org.BouncyCastle"], (), True, ""), "portable.bouncycastle": (["Org.BouncyCastle"], (), False, ""),
-        "system.identitymodel.tokens.jwt": (["System.IdentityModel.Tokens.Jwt"], (), False, ""), "nsec.cryptography": (["NSec.Cryptography"], (), False, ""),
+        "bouncycastle.cryptography": L("Org.BouncyCastle", pq=True), "portable.bouncycastle": L("Org.BouncyCastle"),
+        "system.identitymodel.tokens.jwt": L("System.IdentityModel.Tokens.Jwt"), "nsec.cryptography": L("NSec.Cryptography"),
     },
 }
 
@@ -65,9 +66,7 @@ def _add(out, eco, name, version, manifest, line):
     key, info = _match(eco, name)
     if key and not any(l.name == key and l.manifest == manifest for l in out):
         imports, implies, pq, note = info
-        lib = Library(name=key, ecosystem=eco, manifest=manifest, line=line, version=version, imports=tuple(imports), implies=implies, pq=pq)
-        lib.note = note
-        out.append(lib)
+        out.append(Library(name=key, ecosystem=eco, manifest=manifest, line=line, version=version, imports=(imports or (key.replace("-", "_") if eco == "cargo" else key),), implies=implies, pq=pq, note=note))
 
 
 def _lineno(text, needle):
@@ -145,7 +144,7 @@ def scan(root, include_vendor=False):
     libs, code = [], []
     for p in iter_files(root, include_vendor):
         n = p.name.lower()
-        if n.startswith("requirements") or n in ("pyproject.toml", "package.json", "pom.xml", "build.gradle", "build.gradle.kts", "go.mod", "cargo.toml", "packages.config") or p.suffix.lower() == ".csproj":
+        if n.startswith("requirements") or n in MANIFESTS or p.suffix.lower() == ".csproj":
             t = read(p)
             if t:
                 parse_manifest(p, rel(root, p), t, libs)

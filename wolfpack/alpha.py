@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .elders import CATALOG, SHOR, LEGACY, GROVER, SAFE, HYBRIDS, classical_bits, nist_status
-from .scouts import config, iter_files, read, rel
+from .scouts import config, iter_files, read, rel, DENY
 from .scouts.lexer import LANGS
 
 TIERS = ["critical", "high", "medium", "low", "ok"]
@@ -21,7 +21,6 @@ NOISE = re.compile(r"\b(print\w*|log\w*|debug|info|warn\w*|error|trace|format|pr
                    r"|flag\.\w+|add_argument|add_option|getenv|JsonProperty\w*|SerializedName|DataMember|bench\w*|perf\w*|PerfCase|describe|it|test\w*|do_table)\s*\(", re.I)
 
 
-DENY_NAME = re.compile(r"disabl|deny|denied|block|forbid|reject|insecure|weak|deprecat|legacy_only|exclude|blacklist", re.I)
 
 
 def siblings(sightings):
@@ -86,7 +85,7 @@ def registries(sightings, lines, recognition=True):
     """An algorithm list or table is declared support, unless it is a deny-list or a format sniffer."""
     n = 0
     for f, cluster, name in clusters(sightings, lines):
-        if DENY_NAME.search(name) or recognition and name and sniffs(lines(f), name, cluster[-1].line):
+        if DENY.search(name) or recognition and name and sniffs(lines(f), name, cluster[-1].line):
             continue
         for c in cluster:
             if c.verdict == "quarantined":

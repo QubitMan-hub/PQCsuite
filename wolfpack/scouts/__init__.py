@@ -12,6 +12,7 @@ TEST_PARTS = {"test", "tests", "spec", "specs", "__tests__", "testdata", "test_d
 TEST_DIR = re.compile(r"(?:^|[._-])(?:unit|integration|functional)?tests?(?:net\d+|core)?$")
 BUILD_DIRS = {"dist", "build", "target", "bin", "obj"}
 MAX_BYTES = 2_000_000
+DENY = re.compile(r"disabl|disallow|deny|denied|block|forbid|reject|insecure|weak|deprecat|legacy_only|exclude|blacklist", re.I)
 
 
 def iter_files(root, include_vendor=False, max_bytes=MAX_BYTES, skip=None):

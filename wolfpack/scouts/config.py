@@ -2,13 +2,12 @@ import re
 
 from ..elders import lookup, pq_from_text, curve, CATALOG
 from ..model import Sighting
-from . import iter_files, rel, is_test, read
+from . import iter_files, rel, is_test, read, DENY
 from .lexer import split_hash
 from .suites import cipher_string, ssh_token, sig_scheme
 
 EXT = {".conf", ".cnf", ".cfg", ".ini", ".yaml", ".yml", ".properties", ".toml", ".env", ".xml", ".json", ".tf", ".hcl"}
 NAMES = {"sshd_config", "ssh_config", "openssl.cnf", "nginx.conf", "httpd.conf", "haproxy.cfg", "java.security", "dockerfile", ".env"}
-DENY = re.compile(r"disabled|disallow|exclude|blacklist|denylist|deny|blocked|forbid|reject", re.I)
 
 TLSV = re.compile(r"\b(SSLv[23]|TLSv1(?:\.[0-3])?|TLS1_[0-3]_VERSION|TLS1_VERSION|TLSv1_[0-3])\b", re.I)
 PAIRS = [
@@ -65,17 +64,16 @@ SNIFF = re.compile(r"(?m)^[ \t]*(ssl_protocols|ssl_ciphers|ssl_ecdh_curve|SSLPro
 
 def sniffed(p, text):
     """A file with no extension, such as `conf`, counts as config when at least two different TLS/SSH directives start its lines."""
-    return not p.suffix and text is not None and len({m.group(1) for m in SNIFF.finditer(text[:50000])}) >= 2
+    return len({m.group(1) for m in SNIFF.finditer(text[:50000])}) >= 2
 
 
 def scan(root, include_vendor=False):
     sink, n = [], 0
     for p in iter_files(root, include_vendor):
-        if not is_config(p):
-            if p.suffix or not sniffed(p, read(p)):
-                continue
+        if p.suffix and not is_config(p):
+            continue
         text = read(p)
-        if text is None:
+        if text is None or not is_config(p) and not sniffed(p, text):
             continue
         n += 1
         path = rel(root, p)
