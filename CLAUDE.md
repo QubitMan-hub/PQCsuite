@@ -15,7 +15,7 @@ Current version: 0.2.0. It was built in a Claude.ai chat, then moved here.
 ```powershell
 py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 14 tests, must stay green
+python -m unittest discover -s tests -v          # 20 tests, must stay green
 python -m wolfpack bench bench/corpus            # precision/recall + ablations
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -56,10 +56,11 @@ wolfpack/
   report.py      self-contained monochrome HTML report and terminal summary
   cli.py         scan / bench subcommands
   bench.py       scores at (file, algorithm family) granularity across 3 configs
-bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 53 labelled pairs
+bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 54 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)
 tests/test_core.py
+eval/cbomkit/     CBOMkit head-to-head harness (compare.py) and first results
 docs/HANDOFF.md  history, decisions, validation evidence, open questions
 ```
 
@@ -95,7 +96,7 @@ New scout: return a list of `Sighting`s with the right evidence type, and wire i
 ## Next work, in priority order
 
 1. Held-out benchmark for the paper: 15 to 20 real GitHub repos across Java, Python, Go, JS, C and C#, labelled blind by someone other than the author before running any tool. Store under `eval/` (not bench/), with a labelling guide.
-2. Head-to-head with CBOMkit on the Java/Python/Go subset: run sonar-cryptography via its Docker setup, convert both CBOMs to (file, family) pairs, and score both against the same labels.
+2. Head-to-head with CBOMkit on the Java/Python/Go subset: run sonar-cryptography via its Docker setup, convert both CBOMs to (file, family) pairs, and score both against the same labels. Harness and a first unlabelled six-repo run are in `eval/cbomkit/`.
 3. Known false positive: algorithm lists used only for key-format detection (pyjwt `utils.py` SSH prefixes). Find a principled fix or document it.
 4. Cross-file constant propagation for non-Python languages (currently intra-file only).
 5. Container images (walk layers, reuse existing scouts) and cloud KMS/HSM config.
