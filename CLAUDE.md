@@ -10,6 +10,7 @@ pqcsuite is a company product for post-quantum secure communication, written in 
 - `pqcsuite/tls/server.py`: threaded server with limits, CRL checks, certificate hot-reload and stats.
 - `pqcsuite/edge.py`: terminate and originate proxy, TOML config, metrics.
 - `pqcsuite/vpn/`: site-to-site IPsec. `charon.py` drives strongSwan through VICI. `controller.py` does the ML-DSA mTLS key agreement (PSK + RFC 8784 PPK from the TLS exporter), rotation and revocation.
+- `pqcsuite/vault.py`: file, folder and backup encryption (X25519 + ML-KEM-768 hybrid KEM, chunked AES-GCM, ML-DSA signatures).
 - `pqcsuite/cli.py`: the `pqcsuite` command.
 
 ## Rules

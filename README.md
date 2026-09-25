@@ -7,7 +7,9 @@ Post-quantum secure communication, in Python. `pqcsuite` is a working name; the 
 - **Edge:** puts post-quantum TLS in front of any TCP service (web app, database, MQTT broker) without touching it. A tunnel mode lets legacy clients reach one. It exposes Prometheus metrics.
 - **VPN:** site-to-site IPsec on strongSwan 6.1. Key exchange is hybrid ML-KEM on every exchange, and authentication is rooted in ML-DSA certificates. Keys rotate, and a revoked site is cut off within seconds.
 
-The data vault and the web console come next (see the roadmap).
+- **Vault:** quantum-safe encryption for files, folders and backups. It handles several recipients, has optional ML-DSA signatures from CA certificates, and can share a file without re-encrypting it.
+
+The web console comes next (see the roadmap).
 
 ## Why
 
@@ -120,6 +122,26 @@ What the tests prove: `tests/test_vpn.py` builds two sites in Linux network name
 - a second key agreement produces a new PPK-protected SA
 - revoking the branch closes its tunnel at HQ
 
+## Vault: quantum-safe backups
+
+```
+pqcsuite vault keygen ops                        # ops.key (secret) + ops.pub
+pqcsuite vault backup /var/lib/app --to /backups -r ops.pub -r dr-site.pub \
+    --sign-cert bot/cert.pem --sign-key bot/key.pem --keep 14
+pqcsuite vault decrypt /backups/app-20260925T161150Z.pqv --key ops.key -o /restore --ca pki/ca.crt --signer backup-bot
+pqcsuite vault share file.pqv --key ops.key -r new-admin.pub   # grant access, data untouched
+pqcsuite vault inspect file.pqv
+```
+
+How it's built:
+
+- **Per recipient:** the file key is wrapped with X25519 + ML-KEM-768, combined as X-Wing combines them. An attacker must break both.
+- **Data:** AES-256-GCM in 1 MiB chunks. Each nonce carries the chunk number and a last-chunk flag. Modifying, reordering or truncating anything, including dropping the final chunk, is detected before anything is written.
+- **Folders:** stored as a tar stream and extracted with Python's safe `data` filter, so an archive cannot write outside the restore folder.
+- **Signatures:** optional, using any ML-DSA certificate from the pqcsuite CA. Restore can require the signer's certificate to chain to the CA, not be revoked, and carry a given name. The signer is bound into every chunk, so a signature cannot be stripped.
+- **Sharing:** `share` re-wraps the file key for new recipients. The encrypted data is copied unchanged, so granting access to a large archive is cheap.
+- **Speed:** about 100 MB/s on the build machine. The `.pqv` files can be synced to any storage (S3, Azure, a NAS, tape) with the tools you already use.
+
 ## Policies
 
 | Policy | Key exchange | Certificates | Use |
@@ -175,8 +197,7 @@ with tls.connect("api.example.com", 8443, ctx) as conn:
 ## Roadmap
 
 1. **VPN, next:** remote access for laptops (virtual IP pools), and WireGuard as a second data plane fed by the same ML-DSA key agreement.
-2. **Vault.** Encrypt and sign files and backups for one or more recipients with X25519 + ML-KEM-768 and ML-DSA.
-3. **Console.** One web dashboard: certificates and expiry, edges and their live metrics, tunnels, probes, plus crypto discovery from Wolf Pack CBOM.
+2. **Console.** One web dashboard: certificates and expiry, edges and their live metrics, tunnels, probes, plus crypto discovery from Wolf Pack CBOM.
 
 ## Tests
 

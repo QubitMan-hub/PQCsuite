@@ -11,6 +11,7 @@ from pathlib import Path
 
 from . import NAME, __version__, tls
 from .ca import ALGORITHMS, CA, CAError
+from .vault import VaultError
 from .vpn.charon import CharonError
 
 CA_PASS_ENV = "PQCSUITE_CA_PASSPHRASE"
@@ -193,6 +194,43 @@ def cmd_vpn(a):
     return 0
 
 
+def cmd_vault(a):
+    from . import vault
+    def passphrase():
+        if a.passphrase_env:
+            return env_passphrase(a.passphrase_env)
+        return getpass.getpass("Key passphrase: ").encode() if b"ENCRYPTED" in Path(a.key).read_bytes()[:64] else None
+
+    signer = lambda: vault.load_signer(a.sign_cert, a.sign_key, env_passphrase(a.sign_passphrase_env)) if a.sign_cert else None
+    if a.vault_cmd == "keygen":
+        ident = vault.Identity.generate()
+        pw = env_passphrase(a.passphrase_env) if a.passphrase_env else None
+        if not pw and not a.no_passphrase:
+            pw = getpass.getpass("Passphrase for the new key: ").encode()
+            if getpass.getpass("Repeat: ").encode() != pw:
+                raise VaultError("the passphrases do not match")
+        ident.save(f"{a.out}.key", pw)
+        Path(f"{a.out}.pub").write_bytes(ident.public.pem())
+        print(f"{a.out}.key (keep secret) and {a.out}.pub (share with people who encrypt for you), id {ident.public.id}")
+    elif a.vault_cmd in ("encrypt", "backup"):
+        rec = [vault.Recipient.load(r) for r in a.recipient]
+        if a.vault_cmd == "encrypt":
+            vault.encrypt(a.source, a.out, rec, signer())
+            print(f"encrypted {a.source} -> {a.out} for {len(rec)} recipient(s)")
+        else:
+            target, pruned = vault.backup(a.source, a.to, rec, signer(), a.keep)
+            print(f"backup {target}" + (f"; removed {len(pruned)} old" if pruned else ""))
+    elif a.vault_cmd == "decrypt":
+        target, who = vault.decrypt(a.file, a.out, vault.Identity.load(a.key, passphrase()), a.ca, a.crl, a.signer, a.require_signature)
+        print(f"restored {target}" + (f", signed by {who}" if who else ", not signed"))
+    elif a.vault_cmd == "share":
+        n = vault.add_recipients(a.file, vault.Identity.load(a.key, passphrase()), [vault.Recipient.load(r) for r in a.recipient])
+        print(f"{a.file} now opens for {n} recipient(s); the encrypted data was not rewritten")
+    elif a.vault_cmd == "inspect":
+        show(vault.inspect(a.file), a.json)
+    return 0
+
+
 def serve_json(address, routes):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -317,6 +355,41 @@ def parser():
     e.add_argument("--require-client-cert", action="store_true")
     e.add_argument("--proxy-protocol", action="store_true", help="send a PROXY v1 header so the upstream sees the client address")
 
+    q = sub.add_parser("vault", help="quantum-safe encryption for files, folders and backups").add_subparsers(dest="vault_cmd", required=True)
+    p = q.add_parser("keygen", help="a recipient key pair (ML-KEM-768 + X25519)")
+    p.add_argument("out", help="writes OUT.key and OUT.pub")
+    p.add_argument("--passphrase-env")
+    p.add_argument("--no-passphrase", action="store_true")
+    for name in ("encrypt", "backup"):
+        p = q.add_parser(name, help="encrypt a file or folder" if name == "encrypt" else "timestamped encrypted archive, with retention")
+        p.add_argument("source")
+        if name == "encrypt":
+            p.add_argument("-o", "--out", required=True)
+        else:
+            p.add_argument("--to", required=True, help="folder that holds the archives (sync it to any storage)")
+            p.add_argument("--keep", type=int, help="keep only the newest N archives")
+        p.add_argument("-r", "--recipient", action="append", required=True, help="recipient .pub (repeatable)")
+        p.add_argument("--sign-cert", help="sign with this CA-issued ML-DSA certificate")
+        p.add_argument("--sign-key")
+        p.add_argument("--sign-passphrase-env")
+    p = q.add_parser("decrypt", help="decrypt and verify")
+    p.add_argument("file")
+    p.add_argument("--key", required=True)
+    p.add_argument("-o", "--out", default=".")
+    p.add_argument("--passphrase-env")
+    p.add_argument("--ca", help="the signer's certificate must chain to this CA")
+    p.add_argument("--crl", help="and must not be revoked")
+    p.add_argument("--signer", help="and must have this common name")
+    p.add_argument("--require-signature", action="store_true")
+    p = q.add_parser("share", help="let more recipients open a file, without re-encrypting it")
+    p.add_argument("file")
+    p.add_argument("--key", required=True, help="your key (you must be able to open the file)")
+    p.add_argument("-r", "--recipient", action="append", required=True)
+    p.add_argument("--passphrase-env")
+    p = q.add_parser("inspect", help="who can open a file and who signed it")
+    p.add_argument("file")
+    p.add_argument("--json", action="store_true")
+
     v = sub.add_parser("vpn", help="post-quantum site-to-site IPsec (strongSwan)").add_subparsers(dest="vpn_cmd", required=True)
     p = v.add_parser("up", help="run a site: key agreement, rotation, revocation, metrics")
     p.add_argument("--config", required=True, help="site TOML (see examples/vpn-hq.toml)")
@@ -336,7 +409,7 @@ def main(argv=None):
     if a.cmd == "edge" and not a.config and not a.target:
         parser().error("edge needs --config or --target")
     try:
-        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn}[a.cmd](a))
-    except (CAError, CharonError, tls.TLSError, ValueError, OSError, ImportError) as e:
+        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault}[a.cmd](a))
+    except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
