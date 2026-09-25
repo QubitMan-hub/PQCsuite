@@ -11,6 +11,7 @@ from pathlib import Path
 
 from . import NAME, __version__, tls
 from .ca import ALGORITHMS, CA, CAError
+from .vpn.charon import CharonError
 
 CA_PASS_ENV = "PQCSUITE_CA_PASSPHRASE"
 
@@ -165,6 +166,56 @@ def cmd_edge(a):
     return 0
 
 
+def cmd_vpn(a):
+    from .vpn import load_config
+    from .vpn.charon import Charon
+    if a.vpn_cmd == "up":
+        from .vpn.controller import Controller
+        site = load_config(a.config)
+        ctl = Controller(site)
+        ctl.start()
+        if site.metrics:
+            serve_json(site.metrics, {"/metrics": ctl.metrics, "/status": lambda: json.dumps(ctl.status(), default=str)})
+        run_until_signal(lambda: ctl.stop.wait(), ctl.shutdown)
+        return 0
+    ch = Charon(load_config(a.config).vici if a.config else a.vici)
+    if a.vpn_cmd == "check":
+        kems = ch.ml_kem()
+        print(f"{ch.version()} at {ch.uri}\nML-KEM key exchanges: {', '.join(kems) or 'none (needs strongSwan 6.0.2+ with OpenSSL 3.5+ or the ml plugin)'}")
+        return 0 if kems else 1
+    tunnels = ch.tunnels()
+    if a.json:
+        print(json.dumps(tunnels, indent=1))
+    for t in [] if a.json else tunnels:
+        print(f"{t['peer']:16} {t['state']:12} {t['key_exchange']:32} PPK {'yes' if t['ppk'] else 'NO '}  up {t['established_s']}s")
+        for c in t["children"]:
+            print(f"  {c['name']:14} {c['state']:12} {c['encryption']:14} in {c['bytes_in']} B / out {c['bytes_out']} B")
+    return 0
+
+
+def serve_json(address, routes):
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            fn = routes.get(self.path) or (lambda: "ok\n" if self.path == "/healthz" else None)
+            body = fn()
+            if body is None:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body.encode())))
+            self.end_headers()
+            self.wfile.write(body.encode())
+
+        def log_message(self, *args):
+            pass
+
+    httpd = ThreadingHTTPServer(parse_addr(address, "127.0.0.1"), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd
+
+
 def parse_addr(s, default_host="0.0.0.0"):
     from .edge import hostport
     return hostport(s, default_host)
@@ -212,7 +263,7 @@ def parser():
     for name in ("issue", "renew"):
         p = ca.add_parser(name, parents=[common], help="issue a key and certificate" if name == "issue" else "new key and certificate, same names")
         if name == "issue":
-            p.add_argument("kind", choices=["server", "client"])
+            p.add_argument("kind", choices=["server", "client", "site"], help="site: a VPN gateway (server and client)")
             p.add_argument("common_name")
             p.add_argument("--san", action="append", default=[], help="DNS name or IP (repeatable; servers default to the common name)")
         else:
@@ -223,7 +274,7 @@ def parser():
         p.add_argument("--key-passphrase-env", help="encrypt the new key with the passphrase in this environment variable")
     p = ca.add_parser("sign-csr", parents=[common], help="certify a key generated elsewhere")
     p.add_argument("csr")
-    p.add_argument("--kind", choices=["server", "client"], required=True)
+    p.add_argument("--kind", choices=["server", "client", "site"], required=True)
     p.add_argument("--days", type=int, default=397)
     p.add_argument("--out", required=True)
     p = ca.add_parser("revoke", parents=[common], help="revoke a certificate and refresh the CRL")
@@ -265,6 +316,15 @@ def parser():
         e.add_argument(flag)
     e.add_argument("--require-client-cert", action="store_true")
     e.add_argument("--proxy-protocol", action="store_true", help="send a PROXY v1 header so the upstream sees the client address")
+
+    v = sub.add_parser("vpn", help="post-quantum site-to-site IPsec (strongSwan)").add_subparsers(dest="vpn_cmd", required=True)
+    p = v.add_parser("up", help="run a site: key agreement, rotation, revocation, metrics")
+    p.add_argument("--config", required=True, help="site TOML (see examples/vpn-hq.toml)")
+    for name, text in (("status", "tunnels, algorithms and traffic"), ("check", "is strongSwan reachable and does it have ML-KEM?")):
+        p = v.add_parser(name, help=text)
+        p.add_argument("--config", help="read the VICI address from a site TOML")
+        p.add_argument("--vici", default="unix:///var/run/charon.vici")
+        p.add_argument("--json", action="store_true")
     return ap
 
 
@@ -276,7 +336,7 @@ def main(argv=None):
     if a.cmd == "edge" and not a.config and not a.target:
         parser().error("edge needs --config or --target")
     try:
-        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge}[a.cmd](a))
-    except (CAError, tls.TLSError, ValueError, OSError) as e:
+        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn}[a.cmd](a))
+    except (CAError, CharonError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)

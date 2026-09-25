@@ -40,6 +40,7 @@ PROTOTYPES = {
         ("SSL_get_error", [P, I], I), ("SSL_get_version", [P], S), ("SSL_get_current_cipher", [P], P),
         ("SSL_CIPHER_get_name", [P], S), ("SSL_get0_group_name", [P], S), ("SSL_get_verify_result", [P], L),
         ("SSL_get1_peer_certificate", [P], P), ("SSL_set1_host", [P, S], I), ("SSL_get0_param", [P], P),
+        ("SSL_export_keying_material", [P, P, ctypes.c_size_t, S, ctypes.c_size_t, B, ctypes.c_size_t, I], I),
     ],
 }
 
@@ -296,6 +297,13 @@ class Connection:
             return x509.load_der_x509_certificate(buf.raw)
         finally:
             L_.X509_free(x)
+
+    def export(self, label, context, length=32):
+        """Keying material from this session (RFC 8446 section 7.5): both peers get the same bytes, nobody else can."""
+        out = ctypes.create_string_buffer(length)
+        if lib().SSL_export_keying_material(self.ssl, out, length, label.encode(), len(label), context, len(context), 1) != 1:
+            raise TLSError(f"cannot export keying material: {errors()}")
+        return out.raw
 
     def info(self):
         from ..ca import algorithm_of

@@ -1,0 +1,19 @@
+# Headquarters: waits for branches. Start with: pqcsuite vpn up --config vpn-hq.toml
+[site]
+name = "hq.acme.example"              # must equal the CN of this site's certificate (pqcsuite ca issue site hq.acme.example --san 203.0.113.10)
+address = "203.0.113.10"              # this gateway's public address
+cert = "pki/issued/hq/chain.pem"
+key = "pki/issued/hq/key.pem"
+ca = "pki/ca.crt"
+crl = "pki/crl.pem"                   # revoke a branch in the CA and its tunnel is cut within 15 seconds
+vici = "unix:///var/run/charon.vici"
+keyring_listen = "0.0.0.0:7443"       # branches agree keys here over ML-DSA mutual TLS
+metrics = "127.0.0.1:9101"            # /metrics, /status
+
+[[peer]]
+name = "branch1.acme.example"
+address = "198.51.100.7"
+local_subnets = ["10.1.0.0/16"]
+remote_subnets = ["10.2.0.0/16"]
+profile = "standard"                  # X25519 + ML-KEM-768; "high" = P-384 + ML-KEM-1024 (CNSA 2.0 level)
+rotate_minutes = 60

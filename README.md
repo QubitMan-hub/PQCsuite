@@ -5,8 +5,9 @@ Post-quantum secure communication, in Python. `pqcsuite` is a working name; the 
 - **Certificate authority:** ML-DSA (FIPS 204) root and leaf certificates, CSR signing, revocation and CRLs, renewal. Pure Python, with no OpenSSL install needed.
 - **TLS 1.3 and mutual TLS:** X25519MLKEM768 and other ML-KEM (FIPS 203) hybrid key exchanges, ML-DSA certificates, and a PQC-only or transition policy. It runs on OpenSSL 3.5+ through a small ctypes bridge.
 - **Edge:** puts post-quantum TLS in front of any TCP service (web app, database, MQTT broker) without touching it. A tunnel mode lets legacy clients reach one. It exposes Prometheus metrics.
+- **VPN:** site-to-site IPsec on strongSwan 6.1. Key exchange is hybrid ML-KEM on every exchange, and authentication is rooted in ML-DSA certificates. Keys rotate, and a revoked site is cut off within seconds.
 
-The IPsec VPN, the data vault and the web console come next (see the roadmap).
+The data vault and the web console come next (see the roadmap).
 
 ## Why
 
@@ -81,6 +82,44 @@ pqcsuite edge --config examples/edge.toml
 
 Renewed certificates are picked up within five seconds without a restart. `/metrics` reports connections, handshake failures and the negotiated groups for Prometheus.
 
+## VPN: post-quantum site-to-site IPsec
+
+Most "quantum-safe VPNs" add ML-KEM to the key exchange and stop there: authentication is still RSA or ECDSA, or a static password. strongSwan, the IPsec engine this builds on, cannot authenticate with ML-DSA yet. pqcsuite closes that gap without waiting for it:
+
+1. **Key agreement:** each pair of gateways agrees keys over post-quantum mutual TLS: ML-DSA certificates from the pqcsuite CA, X25519MLKEM768, and the CRL checked.
+2. **Two keys from one session:** both sides derive the IKE pre-shared key and an RFC 8784 post-quantum pre-shared key (PPK) from that session's exporter (RFC 8446, section 7.5). The keys never cross the network.
+3. **Hybrid IKEv2:** X25519 + ML-KEM-768 (RFC 9370), with the PPK mixed into every key. ESP is AES-256-GCM with a hybrid ML-KEM exchange on every rekey. The `high` profile uses P-384 + ML-KEM-1024.
+4. **Rotation:** keys rotate on a schedule (`rotate_minutes`). A new tunnel comes up with the new keys before the old one goes away.
+5. **Revocation:** revoke a gateway's certificate in the CA and its tunnel is closed and its keys discarded within 15 seconds. It cannot get new ones.
+6. **PPK isolation:** each peer pair has its own PPK namespace, so one branch cannot present another branch's key.
+
+```
+# once, on the CA machine
+pqcsuite ca issue site hq.acme.example --san 203.0.113.10 --out hq
+pqcsuite ca issue site branch1.acme.example --san 198.51.100.7 --out branch1
+
+# on each gateway (strongSwan 6.0.2+ with ML-KEM, or the gateway image below)
+pip install -e ".[vpn]"
+pqcsuite vpn check                                # strongSwan version and ML-KEM support
+pqcsuite vpn up --config examples/vpn-hq.toml     # at HQ
+pqcsuite vpn up --config examples/vpn-branch.toml # at the branch
+pqcsuite vpn status
+```
+
+```
+hq.acme.example  ESTABLISHED  CURVE_25519 + ML_KEM_768         PPK yes  up 42s
+  net            INSTALLED    AES_GCM_16     in 5218 B / out 5218 B
+```
+
+Gateway image: `docker build -f docker/vpn-gateway.Dockerfile -t pqcsuite-vpn .`, then run it with `--network host --cap-add NET_ADMIN -v /etc/pqcsuite:/etc/pqcsuite`. It builds strongSwan 6.1.0 from source. 6.1.0 fixes CVE-2026-78133, a use-after-free in IKEv2 rekeying that can allow remote code execution, and CVE-2026-78135, a CHILD_SA usable before authentication. Older 6.0.x builds have both.
+
+What the tests prove: `tests/test_vpn.py` builds two sites in Linux network namespaces, with real charon daemons and real `pqcsuite vpn up` controllers. It checks:
+
+- the tunnel negotiates CURVE_25519 + ML_KEM_768 and uses a PPK
+- traffic flows through ESP (CI)
+- a second key agreement produces a new PPK-protected SA
+- revoking the branch closes its tunnel at HQ
+
 ## Policies
 
 | Policy | Key exchange | Certificates | Use |
@@ -113,7 +152,7 @@ Every connection uses TLS 1.3 only, with AES-256-GCM, ChaCha20-Poly1305 or AES-1
 | `mTLS/*` | `--require-client-cert`, with a CRL, on the same commands |
 | `mTLS` step 5 (unauthorised client) | Tested in `tests/test_tls.py`: no certificate, a foreign CA, a revoked certificate |
 | `openssl_bridge.py` | `pqcsuite/tls/openssl.py`: version check, error messages, deadlines, SNI and hostname checks, encrypted keys, cleanup |
-| `pqc-ipsec` | Roadmap stage 3 |
+| `pqc-ipsec` (PSK `demo-psk-12345`, strongSwan 6.0.7, swanctl output parsing) | `pqcsuite vpn`: keys from ML-DSA mutual TLS plus a PPK, strongSwan 6.1.0 driven through VICI, rotation and revocation |
 
 ## Using it from Python
 
@@ -135,7 +174,7 @@ with tls.connect("api.example.com", 8443, ctx) as conn:
 
 ## Roadmap
 
-1. **IPsec VPN.** Drive strongSwan 6 from Python through its VICI API. Authenticate peers with ML-DSA certificates from this CA instead of a PSK, generate tunnel configs, monitor and rekey, and ship a gateway Docker image.
+1. **VPN, next:** remote access for laptops (virtual IP pools), and WireGuard as a second data plane fed by the same ML-DSA key agreement.
 2. **Vault.** Encrypt and sign files and backups for one or more recipients with X25519 + ML-KEM-768 and ML-DSA.
 3. **Console.** One web dashboard: certificates and expiry, edges and their live metrics, tunnels, probes, plus crypto discovery from Wolf Pack CBOM.
 

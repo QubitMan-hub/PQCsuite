@@ -9,6 +9,7 @@ pqcsuite is a company product for post-quantum secure communication, written in 
 - `pqcsuite/tls/__init__.py`: policies (`strict`, `transition`), contexts, `connect`.
 - `pqcsuite/tls/server.py`: threaded server with limits, CRL checks, certificate hot-reload and stats.
 - `pqcsuite/edge.py`: terminate and originate proxy, TOML config, metrics.
+- `pqcsuite/vpn/`: site-to-site IPsec. `charon.py` drives strongSwan through VICI. `controller.py` does the ML-DSA mTLS key agreement (PSK + RFC 8784 PPK from the TLS exporter), rotation and revocation.
 - `pqcsuite/cli.py`: the `pqcsuite` command.
 
 ## Rules
@@ -29,4 +30,4 @@ pqcsuite doctor
 
 ## Roadmap
 
-Stage 3 is IPsec via VICI with ML-DSA certificate auth. Stage 4 is the vault (X25519 + ML-KEM-768 hybrid encryption and ML-DSA signatures). Stage 5 is the web console, integrating Wolf Pack CBOM discovery. Propose a plan to the owner before starting each stage.
+Stage 3 (IPsec) is done: run its integration test as root with PQCSUITE_STRONGSWAN set; kernel ESP is needed for the data-plane part (PQCSUITE_VPN_DATAPLANE=1). Stage 4 is the vault (X25519 + ML-KEM-768 hybrid encryption and ML-DSA signatures). Stage 5 is the web console, integrating Wolf Pack CBOM discovery. Propose a plan to the owner before starting each stage.

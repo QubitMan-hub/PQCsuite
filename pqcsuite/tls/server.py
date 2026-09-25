@@ -21,11 +21,11 @@ class Revocation:
         self.crl_path, self.ca = crl_path, x509.load_pem_x509_certificate(open(ca_path, "rb").read())
         self.mtime, self.data = None, None
 
-    def check(self, cert):
+    def check(self, serial):
         m = os.stat(self.crl_path).st_mtime
         if m != self.mtime:
             self.data, self.mtime = open(self.crl_path, "rb").read(), m
-        check_revocation(cert, self.data, self.ca)
+        check_revocation(serial, self.data, self.ca)
 
 
 class Stats:
@@ -110,7 +110,7 @@ class Server:
                 conn = ctx.wrap(sock, timeout=self.handshake_timeout)
                 cert = conn.peer_certificate()
                 if self.revocation and cert:
-                    self.revocation.check(cert)
+                    self.revocation.check(cert.serial_number)
             except (TLSError, CAError, OSError) as e:
                 self.stats.add("handshake_failed")
                 log.warning("%s: rejected %s: %s", self.name, peer, e)

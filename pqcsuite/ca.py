@@ -13,7 +13,8 @@ from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 ALGORITHMS = {"ML-DSA-44": mldsa.MLDSA44PrivateKey, "ML-DSA-65": mldsa.MLDSA65PrivateKey, "ML-DSA-87": mldsa.MLDSA87PrivateKey}
 PUBLIC = {"ML-DSA-44": mldsa.MLDSA44PublicKey, "ML-DSA-65": mldsa.MLDSA65PublicKey, "ML-DSA-87": mldsa.MLDSA87PublicKey}
-USAGE = {"server": ExtendedKeyUsageOID.SERVER_AUTH, "client": ExtendedKeyUsageOID.CLIENT_AUTH}
+USAGE = {"server": [ExtendedKeyUsageOID.SERVER_AUTH], "client": [ExtendedKeyUsageOID.CLIENT_AUTH],
+         "site": [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]}
 REASONS = {r.value: r for r in x509.ReasonFlags if r not in (x509.ReasonFlags.unspecified, x509.ReasonFlags.remove_from_crl)}
 
 
@@ -127,14 +128,14 @@ class CA:
         algorithm = algorithm_of(public_key)
         if not algorithm:
             raise CAError("only ML-DSA keys can be certified")
-        names = list(names) or ([common_name] if kind == "server" else [])
+        names = list(names) or ([common_name] if kind != "client" else [])
         not_after = min(now() + dt.timedelta(days=days), self.cert.not_valid_after_utc)
         b = (x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)]))
              .issuer_name(self.cert.subject).public_key(public_key).serial_number(x509.random_serial_number())
              .not_valid_before(now()).not_valid_after(not_after)
              .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
              .add_extension(x509.KeyUsage(True, False, False, False, False, False, False, False, False), critical=True)
-             .add_extension(x509.ExtendedKeyUsage([USAGE[kind]]), critical=False)
+             .add_extension(x509.ExtendedKeyUsage(USAGE[kind]), critical=False)
              .add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key), critical=False)
              .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(self.key.public_key()), critical=False))
         if names:
@@ -148,7 +149,7 @@ class CA:
     def issue(self, common_name, kind, names=(), days=397, algorithm="ML-DSA-65", out=None, passphrase=None):
         """Generate a key pair and certificate; writes cert.pem, key.pem and chain.pem to `out`."""
         key = generate(algorithm)
-        names = list(dict.fromkeys(([common_name] if kind == "server" else []) + list(names)))
+        names = list(dict.fromkeys(([common_name] if kind != "client" else []) + list(names)))
         cert, rec = self.sign(key.public_key(), common_name, kind, names, days)
         out = Path(out or self.root / "issued" / f"{common_name}-{rec.serial[:8]}")
         write(out / "key.pem", key_pem(key, passphrase), secret=True)
@@ -205,13 +206,13 @@ class CA:
         return [r for r in self.records() if r.status == "valid" and dt.datetime.fromisoformat(r.not_after) <= cutoff]
 
 
-def check_revocation(cert, crl_pem, ca_cert):
-    """Raise if `cert` is revoked, or if the CRL is forged or stale. Fails closed."""
+def check_revocation(serial, crl_pem, ca_cert):
+    """Raise if the certificate with this serial number is revoked, or if the CRL is forged or stale. Fails closed."""
     crl = x509.load_pem_x509_crl(crl_pem)
     if crl.issuer != ca_cert.subject or not crl.is_signature_valid(ca_cert.public_key()):
         raise CAError("the CRL was not signed by this CA")
     if crl.next_update_utc and crl.next_update_utc < now():
         raise CAError(f"the CRL expired at {crl.next_update_utc.isoformat()}")
-    r = crl.get_revoked_certificate_by_serial_number(cert.serial_number)
+    r = crl.get_revoked_certificate_by_serial_number(serial)
     if r is not None:
-        raise CAError(f"certificate {cert.serial_number:x} was revoked on {r.revocation_date_utc.date()}")
+        raise CAError(f"certificate {serial:x} was revoked on {r.revocation_date_utc.date()}")

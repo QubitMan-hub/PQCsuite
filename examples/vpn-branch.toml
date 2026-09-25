@@ -1,0 +1,19 @@
+# Branch office: starts the tunnel and the key agreement.
+[site]
+name = "branch1.acme.example"
+address = "198.51.100.7"
+cert = "pki/issued/branch1/chain.pem"
+key = "pki/issued/branch1/key.pem"
+ca = "pki/ca.crt"
+crl = "pki/crl.pem"
+vici = "unix:///var/run/charon.vici"
+
+[[peer]]
+name = "hq.acme.example"
+address = "203.0.113.10"
+local_subnets = ["10.2.0.0/16"]
+remote_subnets = ["10.1.0.0/16"]
+initiate = true
+keyring = "203.0.113.10:7443"
+profile = "standard"
+rotate_minutes = 60

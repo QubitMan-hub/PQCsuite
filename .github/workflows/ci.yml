@@ -26,3 +26,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t pqcsuite:ci . && docker run --rm pqcsuite:ci doctor
+  vpn:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Cache OpenSSL 3.5 and strongSwan 6.1
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/pqc
+          key: openssl-3.5.4-strongswan-6.1.0-v1
+      - name: Build OpenSSL 3.5 and strongSwan 6.1
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y build-essential libgmp-dev pkg-config
+          curl -fsSL https://github.com/openssl/openssl/releases/download/openssl-3.5.4/openssl-3.5.4.tar.gz | tar xz
+          (cd openssl-3.5.4 && ./Configure --prefix=/opt/pqc --libdir=lib shared no-tests && make -j4 && sudo make install_sw)
+          curl -fsSL https://github.com/strongswan/strongswan/releases/download/6.1.0/strongswan-6.1.0.tar.bz2 | tar xj
+          cd strongswan-6.1.0 && PKG_CONFIG_PATH=/opt/pqc/lib/pkgconfig CPPFLAGS=-I/opt/pqc/include LDFLAGS="-L/opt/pqc/lib -Wl,-rpath,/opt/pqc/lib" \
+            ./configure --prefix=/opt/pqc --disable-defaults --enable-openssl --enable-ml --enable-vici --enable-swanctl --enable-charon \
+            --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce --enable-hmac \
+            --enable-kdf --enable-kernel-netlink --enable-socket-default --enable-updown --enable-resolve --enable-attr --enable-constraints \
+            --enable-revocation && make -j4 && sudo make install
+      - run: pip install -e ".[vpn]"
+      - name: Two sites in network namespaces, real ESP traffic
+        run: |
+          sudo modprobe -a esp4 xfrm_user || true
+          sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib PQCSUITE_STRONGSWAN=/opt/pqc PQCSUITE_VPN_DATAPLANE=1 \
+            python -m unittest tests.test_vpn tests.test_tls -v

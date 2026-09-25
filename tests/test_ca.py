@@ -41,6 +41,13 @@ class CATest(unittest.TestCase):
         self.assertEqual((out / "chain.pem").read_bytes().count(b"BEGIN CERTIFICATE"), 2)
         self.assertEqual(rec.algorithm, "ML-DSA-65")
 
+    def test_site_certificate_serves_and_connects(self):
+        out, rec = self.ca.issue("hq.acme", "site", ["203.0.113.10"])
+        cert = x509.load_pem_x509_certificate((out / "cert.pem").read_bytes())
+        eku = list(cert.extensions.get_extension_for_class(x509.ExtendedKeyUsage).value)
+        self.assertEqual(eku, [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH])
+        self.assertEqual(rec.names, ["hq.acme", "203.0.113.10"])
+
     def test_client_certificate_and_validity_capped_by_root(self):
         _, rec = self.ca.issue("alice", "client", days=100000)
         self.assertLessEqual(dt.datetime.fromisoformat(rec.not_after), self.ca.cert.not_valid_after_utc)
@@ -58,10 +65,10 @@ class CATest(unittest.TestCase):
     def test_revocation_reaches_the_crl(self):
         out, rec = self.ca.issue("bob", "client")
         cert = x509.load_pem_x509_certificate((out / "cert.pem").read_bytes())
-        check_revocation(cert, self.ca.crl(), self.ca.cert)
+        check_revocation(cert.serial_number, self.ca.crl(), self.ca.cert)
         crl = self.ca.revoke(rec.serial[:10], "keyCompromise")
         with self.assertRaisesRegex(CAError, "revoked"):
-            check_revocation(cert, crl, self.ca.cert)
+            check_revocation(cert.serial_number, crl, self.ca.cert)
         with self.assertRaises(CAError):
             self.ca.revoke(rec.serial)
         self.assertEqual(self.ca.find(rec.serial).reason, "keyCompromise")
@@ -71,7 +78,7 @@ class CATest(unittest.TestCase):
         out, _ = self.ca.issue("carol", "client")
         cert = x509.load_pem_x509_certificate((out / "cert.pem").read_bytes())
         with self.assertRaisesRegex(CAError, "not signed"):
-            check_revocation(cert, other.crl(), self.ca.cert)
+            check_revocation(cert.serial_number, other.crl(), self.ca.cert)
 
     def test_renew_keeps_names_with_a_new_key(self):
         out1, r1 = self.ca.issue("svc", "server", ["svc.local"])
