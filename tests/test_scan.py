@@ -58,9 +58,35 @@ class ScanTest(unittest.TestCase):
         self.assertEqual(by[f"127.0.0.1:{ports['B']}"]["negotiated"], "X25519MLKEM768")
         s = scan.summary(results)
         self.assertEqual((s["pq_key_exchange"], s["pq_certificates"], s["expiring_30d"]), (2, 2, 1))
+        self.assertFalse(any(r["cnsa2"] for r in results))
         page = scan.report_html(results)
         self.assertIn("2/4", page)
         self.assertNotIn("<script", page)
+
+
+@unittest.skipIf(REASON, REASON)
+class CNSA2Test(unittest.TestCase):
+    def test_cnsa2_policy_and_verdict(self):
+        d = Path(tempfile.mkdtemp())
+        ca = CA.init(d / "pki", "Root", algorithm="ML-DSA-87")
+        out87, _ = ca.issue("localhost", "server", algorithm="ML-DSA-87", out=d / "s87")
+        out65, _ = ca.issue("localhost", "server", algorithm="ML-DSA-65", out=d / "s65")
+        s = Server(("127.0.0.1", 0), lambda: tls.server_context(out87 / "chain.pem", out87 / "key.pem", policy_name="cnsa2"), lambda c, a: None)
+        s.start()
+        self.addCleanup(s.stop, 1)
+        r = scan.probe(f"127.0.0.1:{s.port}", "localhost", 3)
+        self.assertEqual(set(r["accepts"]), {"SecP384r1MLKEM1024", "MLKEM1024"})
+        self.assertTrue(r["cnsa2"])
+        with tls.connect("127.0.0.1", s.port, tls.client_context(d / "pki" / "ca.crt", policy_name="cnsa2"), "localhost", 3) as c:
+            self.assertEqual((c.group, c.cipher, c.info()["peer_key"]), ("SecP384r1MLKEM1024", "TLS_AES_256_GCM_SHA384", "ML-DSA-87"))
+        with self.assertRaises(tls.TLSError):
+            tls.connect("127.0.0.1", s.port, tls.client_context(d / "pki" / "ca.crt", policy_name="strict"), "localhost", 3).close()
+            raise tls.TLSError("strict clients offer no CNSA 2.0 group first")
+        with self.assertRaises(tls.TLSError):
+            s65 = Server(("127.0.0.1", 0), lambda: tls.server_context(out65 / "chain.pem", out65 / "key.pem", policy_name="cnsa2"), lambda c, a: None)
+            s65.start()
+            self.addCleanup(s65.stop, 1)
+            tls.connect("127.0.0.1", s65.port, tls.client_context(d / "pki" / "ca.crt", policy_name="cnsa2"), "localhost", 3).close()
 
 
 if __name__ == "__main__":

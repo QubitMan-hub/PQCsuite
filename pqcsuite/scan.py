@@ -12,7 +12,8 @@ from .ca import algorithm_of
 from .edge import hostport
 from .tls.openssl import Context
 
-PQ = ["X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024"]
+PQ = ["X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "MLKEM768", "MLKEM1024"]
+CNSA2_GROUPS = {"SecP384r1MLKEM1024", "MLKEM1024"}
 CLASSICAL = ["X25519", "secp256r1", "secp384r1"]
 GRADES = {
     "A": "post-quantum key exchange only",
@@ -44,7 +45,7 @@ def _hello(host, port, groups, server_name, timeout):
 def probe(target, server_name=None, timeout=8.0):
     host, port = hostport(target, "")
     port = port or 443
-    out = {"target": f"{host}:{port}", "accepts": [], "negotiated": None, "certificate": None, "error": None}
+    out = {"target": f"{host}:{port}", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
     try:
         out["negotiated"], cert = _hello(host, port, ":".join(PQ + CLASSICAL), server_name or host, timeout)
     except (tls.TLSError, OSError) as e:
@@ -64,6 +65,8 @@ def probe(target, server_name=None, timeout=8.0):
     pq = any(g in out["accepts"] for g in PQ)
     classical = any(g in out["accepts"] for g in CLASSICAL)
     out["grade"] = "A" if pq and not classical else "B" if pq else "C" if classical else "F"
+    cert_key = (out["certificate"] or {}).get("key")
+    out["cnsa2"] = bool(out["accepts"]) and set(out["accepts"]) <= CNSA2_GROUPS and cert_key == "ML-DSA-87"
     return out
 
 
@@ -75,7 +78,7 @@ def scan(targets, workers=16, timeout=8.0):
 def summary(results):
     counts = {g: sum(r["grade"] == g for r in results) for g in GRADES}
     certs = [r["certificate"] for r in results if r["certificate"]]
-    return {"endpoints": len(results), "grades": counts, "pq_key_exchange": counts["A"] + counts["B"],
+    return {"endpoints": len(results), "grades": counts, "pq_key_exchange": counts["A"] + counts["B"], "cnsa2": sum(r.get("cnsa2", False) for r in results),
             "pq_certificates": sum(c["quantum_safe"] for c in certs), "expiring_30d": sum(c["days_left"] < 30 for c in certs)}
 
 
@@ -100,7 +103,7 @@ ul{{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:6px}}li span{{col
 th{{font-size:12px;color:var(--mute);font-weight:500}}.gA{{color:var(--a);font-weight:700}}.gB{{color:var(--b);font-weight:700}}.gC{{color:var(--c);font-weight:700}}.gF{{color:var(--f);font-weight:700}}
 </style><main><h1>{e(title)}</h1><p>{s['endpoints']} endpoints scanned {now} by pqcsuite</p>
 <div class=stats><div><b>{s['pq_key_exchange']}/{s['endpoints']}</b><span>offer post-quantum key exchange</span></div>
-<div><b>{s['pq_certificates']}</b><span>use ML-DSA certificates</span></div><div><b>{s['expiring_30d']}</b><span>certificates expire within 30 days</span></div></div>
+<div><b>{s['pq_certificates']}</b><span>use ML-DSA certificates</span></div><div><b>{s['cnsa2']}</b><span>meet CNSA 2.0</span></div><div><b>{s['expiring_30d']}</b><span>certificates expire within 30 days</span></div></div>
 <ul>{legend}</ul><div class=scroll><table><thead><tr><th>Endpoint</th><th>Grade</th><th>Negotiated</th><th>Accepted key exchanges</th><th>Certificate key</th><th>Expires</th></tr></thead>
 <tbody>{rows}</tbody></table></div></main></html>"""
 

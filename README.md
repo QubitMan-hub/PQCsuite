@@ -207,6 +207,7 @@ How it's secured:
 |---|---|---|---|
 | `strict` (default) | X25519MLKEM768, SecP384r1MLKEM1024, SecP256r1MLKEM768 | ML-DSA only | Post-quantum end to end |
 | `transition` | The same, plus X25519, P-256 and P-384 | Any | Prefers PQC but still serves classical clients while they migrate |
+| `cnsa2` | SecP384r1MLKEM1024, ML-KEM-1024 | ML-DSA-87 only, AES-256-GCM only | NSA CNSA 2.0 (national security systems, defense suppliers) |
 
 Every connection uses TLS 1.3 only, with AES-256-GCM, ChaCha20-Poly1305 or AES-128-GCM.
 
@@ -257,6 +258,10 @@ with tls.connect("api.example.com", 8443, ctx) as conn:
 
 1. **VPN, next:** remote access for laptops (virtual IP pools), and WireGuard as a second data plane fed by the same ML-DSA key agreement.
 2. **Discovery.** Integrate Wolf Pack CBOM into the console: find where classical cryptography lives in code, configs and binaries, and feed it into the readiness view.
+
+The readiness scan marks each endpoint that meets CNSA 2.0: it accepts only ML-KEM-1024 key exchanges and presents an ML-DSA-87 certificate. For a CNSA 2.0 VPN, use `profile = "high"` (P-384 + ML-KEM-1024).
+
+What to build next, and how pqcsuite compares with QuSecure, SandboxAQ, Keyfactor, pqcrypto and others: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Tests
 

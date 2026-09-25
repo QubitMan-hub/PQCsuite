@@ -10,15 +10,18 @@ CIPHERSUITES = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_
 
 @dataclass(frozen=True)
 class Policy:
-    """What a peer may negotiate. `strict` is post-quantum only; `transition` prefers PQC but still talks to classical peers."""
+    """What a peer may negotiate. `strict` is post-quantum only; `transition` prefers PQC but still talks to classical peers;
+    `cnsa2` is NSA CNSA 2.0: ML-KEM-1024, ML-DSA-87 and AES-256 only."""
     name: str
     groups: str
     sigalgs: str | None
+    ciphersuites: str = CIPHERSUITES
 
 
 POLICIES = {
     "strict": Policy("strict", PQC_GROUPS, "mldsa87:mldsa65:mldsa44"),
     "transition": Policy("transition", PQC_GROUPS + ":X25519:secp256r1:secp384r1", None),
+    "cnsa2": Policy("cnsa2", "SecP384r1MLKEM1024:MLKEM1024", "mldsa87", "TLS_AES_256_GCM_SHA384"),
 }
 
 
@@ -32,14 +35,14 @@ def server_context(cert, key, ca=None, require_client_cert=False, policy_name="s
     p = policy(policy_name)
     if require_client_cert and not ca:
         raise TLSError("requiring client certificates needs the CA that issued them")
-    return Context(True, p.groups, p.sigalgs, CIPHERSUITES, cert, key, key_passphrase, ca, True, require_client_cert)
+    return Context(True, p.groups, p.sigalgs, p.ciphersuites, cert, key, key_passphrase, ca, True, require_client_cert)
 
 
 def client_context(ca=None, cert=None, key=None, policy_name="strict", key_passphrase=None, verify=True):
     p = policy(policy_name)
     if verify and not ca:
         raise TLSError("verifying the server needs a CA certificate (or pass verify=False for a probe)")
-    return Context(False, p.groups, p.sigalgs, CIPHERSUITES, cert, key, key_passphrase, ca, verify)
+    return Context(False, p.groups, p.sigalgs, p.ciphersuites, cert, key, key_passphrase, ca, verify)
 
 
 def connect(host, port, ctx, server_name=None, timeout=10.0):
