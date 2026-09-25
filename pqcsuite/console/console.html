@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pqcsuite console</title>
+<style>
+:root {
+  --bg: #f5f6f7; --panel: #ffffff; --sunken: #eef0f2; --ink: #16191d; --ink-2: #41464d; --mute: #6b7178; --line: #e2e5e8;
+  --accent: #0d6e76; --accent-ink: #ffffff; --ok: #1b7a43; --warn: #8a6100; --bad: #b3261e;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0f1113; --panel: #171a1d; --sunken: #1d2125; --ink: #e8eaec; --ink-2: #c0c5ca; --mute: #8b9197;
+    --line: #2a2f34; --accent: #4fb8c0; --accent-ink: #0f1113; --ok: #5ad08a; --warn: #e8b53e; --bad: #f2837b; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0f1113; --panel: #171a1d; --sunken: #1d2125; --ink: #e8eaec; --ink-2: #c0c5ca; --mute: #8b9197;
+  --line: #2a2f34; --accent: #4fb8c0; --accent-ink: #0f1113; --ok: #5ad08a; --warn: #e8b53e; --bad: #f2837b; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); }
+button, input, select, textarea { font: inherit; color: inherit; }
+.shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+nav { background: var(--panel); border-right: 1px solid var(--line); padding: 20px 12px; display: flex; flex-direction: column; gap: 2px; }
+nav .brand { font-weight: 650; padding: 0 10px 16px; letter-spacing: -0.01em; }
+nav .brand small { display: block; color: var(--mute); font-weight: 400; font-size: 12px; }
+nav a { padding: 8px 10px; border-radius: 7px; color: var(--ink-2); text-decoration: none; }
+nav a:hover { background: var(--sunken); }
+nav a[aria-current="page"] { background: var(--sunken); color: var(--ink); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+nav .foot { margin-top: auto; padding: 10px; color: var(--mute); font-size: 12px; display: grid; gap: 8px; }
+main { padding: 28px 32px 48px; min-width: 0; }
+h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--mute); margin: 0 0 22px; max-width: 70ch; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.tile span { color: var(--mute); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.tile b { display: block; font: 600 26px/1.2 var(--mono); margin: 4px 0; font-variant-numeric: tabular-nums; }
+.tile small { color: var(--ink-2); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 18px; }
+.panel h2 { font-size: 14px; margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--mute); font-weight: 500; background: var(--sunken); }
+tr:last-child td { border-bottom: 0; }
+td.mono, .mono { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { white-space: nowrap; display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; border: 1px solid currentColor; }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); } .mute { color: var(--mute); }
+form.row { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 16px; align-items: end; }
+label { display: grid; gap: 4px; font-size: 12px; color: var(--mute); }
+input, select, textarea { background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; min-width: 0; }
+textarea { width: 100%; min-height: 80px; font-family: var(--mono); font-size: 12.5px; }
+button { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 7px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
+button.quiet { background: transparent; color: var(--ink-2); border: 1px solid var(--line); font-weight: 500; }
+button:disabled { opacity: .55; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.notice { padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.empty { padding: 18px 16px; color: var(--mute); }
+.login { max-width: 420px; margin: 12vh auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 24px; display: grid; gap: 12px; }
+@media (max-width: 760px) { .shell { grid-template-columns: 1fr; } nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); }
+  nav .brand, nav .foot { display: none; } main { padding: 20px 16px; } }
+</style>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const VIEWS = { overview: "Overview", certificates: "Certificates", edges: "Edges", vpn: "VPN", backups: "Backups", readiness: "Readiness" };
+let token = null;
+try { token = sessionStorage.getItem("pqc-token"); } catch (e) {}
+
+async function api(path, body) {
+  const r = await fetch("/api/" + path, { method: body ? "POST" : "GET", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401) { token = null; try { sessionStorage.removeItem("pqc-token"); } catch (e) {} ; login("That token was not accepted."); throw new Error("unauthorised"); }
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+function login(message) {
+  $("#app").innerHTML = `<form class="login" id="login"><h1>pqcsuite console</h1>
+    <p class="sub" style="margin:0">Paste the access token printed when the console started (or PQCSUITE_CONSOLE_TOKEN).</p>
+    ${message ? `<div class="bad">${esc(message)}</div>` : ""}
+    <label>Access token<input id="tok" type="password" autocomplete="off" required></label><button>Open console</button></form>`;
+  $("#login").onsubmit = (e) => { e.preventDefault(); token = $("#tok").value.trim(); try { sessionStorage.setItem("pqc-token", token); } catch (x) {} ; shell(); };
+}
+
+function shell() {
+  $("#app").innerHTML = `<div class="shell"><nav>
+    <div class="brand">pqcsuite<small>post-quantum console</small></div>
+    ${Object.entries(VIEWS).map(([k, v]) => `<a href="#${k}" data-view="${k}">${v}</a>`).join("")}
+    <div class="foot"><button class="quiet" id="theme" type="button">Toggle theme</button><button class="quiet" id="logout" type="button">Sign out</button></div>
+  </nav><main id="view"></main></div>`;
+  $("#logout").onclick = () => { try { sessionStorage.removeItem("pqc-token"); } catch (e) {} ; token = null; login(); };
+  $("#theme").onclick = () => { const r = document.documentElement; const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    r.dataset.theme = dark ? "light" : "dark"; };
+  addEventListener("hashchange", route);
+  route();
+}
+
+let timer = null;
+function route() {
+  const view = (location.hash.slice(1) in VIEWS) ? location.hash.slice(1) : "overview";
+  document.querySelectorAll("nav a").forEach((a) => a.dataset.view === view ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  clearInterval(timer);
+  const run = () => RENDER[view]().catch((e) => { if (e.message !== "unauthorised") $("#view").insertAdjacentHTML("afterbegin", `<div class="panel notice bad">${esc(e.message)}</div>`); });
+  run();
+  timer = setInterval(() => { if (!document.hidden && view !== "certificates" && view !== "readiness") run(); }, 10000);
+}
+
+const table = (cols, rows, empty) => rows.length ? `<div class="scroll"><table><thead><tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead>
+  <tbody>${rows.map((r) => `<tr>${r.map(cell).join("")}</tr>`).join("")}</tbody></table></div>`
+  : `<div class="empty">${esc(empty)}</div>`;
+const cell = (c) => c && typeof c === "object" ? ("html" in c ? `<td>${c.html}</td>` : `<td class="mono">${esc(c.mono)}</td>`) : `<td>${esc(c)}</td>`;
+const pill = (text, cls) => ({ html: `<span class="pill ${cls}">${esc(text)}</span>` });
+const bytes = (n) => n > 1e9 ? (n / 1e9).toFixed(1) + " GB" : n > 1e6 ? (n / 1e6).toFixed(1) + " MB" : n > 1e3 ? (n / 1e3).toFixed(1) + " kB" : n + " B";
+const head = (title, sub) => `<h1>${esc(title)}</h1><p class="sub">${esc(sub)}</p>`;
+
+const RENDER = {
+  async overview() {
+    const o = await api("overview");
+    const c = o.certificates, e = o.edges, v = o.vpn, b = o.backups, r = o.readiness;
+    const tile = (label, value, note, cls = "") => `<div class="tile"><span>${label}</span><b class="${cls}">${esc(value)}</b><small>${esc(note)}</small></div>`;
+    $("#view").innerHTML = head("Overview", `${o.product} ${o.version}. Refreshes every 10 seconds.`) + `<div class="tiles">
+      ${c.error ? tile("Certificates", "–", c.error) : tile("Certificates", c.valid, `${c.expiring_30d} expire within 30 days, ${c.revoked} revoked`, c.expiring_30d ? "warn" : "")}
+      ${tile("Edges", e.routes, `${e.active} open connections, ${e.handshakes} handshakes, ${e.failed} refused${e.unreachable ? `, ${e.unreachable} unreachable` : ""}`, e.unreachable ? "warn" : "")}
+      ${tile("VPN tunnels", `${v.quantum_safe}/${v.tunnels}`, v.tunnels ? "up with ML-KEM and a PPK" : "no tunnels connected", !v.tunnels ? "" : v.quantum_safe < v.tunnels ? "bad" : "ok")}
+      ${tile("Backups", b.count, b.latest ? `latest ${b.latest.slice(0, 16).replace("T", " ")}, ${b.signed} signed` : "none found")}
+      ${tile("Readiness", r ? `${r.pq_key_exchange}/${r.endpoints}` : "–", r ? "endpoints offer post-quantum key exchange" : "run a scan on the Readiness page", r && r.pq_key_exchange < r.endpoints ? "warn" : "")}
+    </div>`;
+  },
+
+  async certificates() {
+    const d = await api("certificates");
+    const statusPill = (c) => c.status === "revoked" ? pill("revoked", "bad") : c.days_left < 0 ? pill("expired", "bad") : c.days_left <= 30 ? pill(`${c.days_left} days`, "warn") : pill("valid", "ok");
+    $("#view").innerHTML = head("Certificates", `Root: ${d.root.subject}, ML-DSA, valid until ${d.root.expires}.`) +
+      `<div class="panel"><h2>Issue a certificate</h2><form class="row" id="issue">
+        <label>Kind<select name="kind"><option value="server">server</option><option value="client">client</option><option value="site">site (VPN gateway)</option></select></label>
+        <label>Common name<input name="common_name" required placeholder="api.acme.example"></label>
+        <label>Other names<input name="names" placeholder="10.0.0.5, api.internal"></label>
+        <label>Days<input name="days" type="number" value="397" min="1" style="width:90px"></label>
+        <button>Issue</button><span id="issued" class="mute"></span></form></div>
+      <div class="panel"><h2>Issued certificates <button class="quiet" id="maintain" type="button" style="float:right;margin-top:-5px">Renew expiring and refresh CRL</button></h2>
+      ${table(["Serial", "Name", "Kind", "Key", "Expires", "Status", ""], d.certificates.slice().reverse().map((c) => [{ mono: c.serial.slice(0, 16) }, c.common_name + (c.names.length ? ` (${c.names.join(", ")})` : ""),
+        c.kind, { mono: c.algorithm }, { mono: c.not_after.slice(0, 10) }, statusPill(c),
+        c.status === "valid" ? { html: `<button class="quiet" data-revoke="${esc(c.serial)}" data-name="${esc(c.common_name)}" type="button">Revoke</button>` } : ""]), "No certificates yet.")}</div>`;
+    $("#issue").onsubmit = async (e) => { e.preventDefault(); const f = new FormData(e.target);
+      try { const r = await api("certificates/issue", Object.fromEntries(f)); await RENDER.certificates(); $("#issued").textContent = `Issued ${r.serial.slice(0, 16)}; key and certificate are in ${r.folder}`; }
+      catch (x) { $("#issued").textContent = x.message; } };
+    $("#maintain").onclick = async () => { const r = await api("certificates/maintain", {}); await RENDER.certificates();
+      $("#issued").textContent = `Renewed ${r.renewed.length ? r.renewed.join(", ") : "nothing"}${r.skipped.length ? `; renew by hand: ${r.skipped.join(", ")}` : ""}. CRL re-signed.`; };
+    document.querySelectorAll("[data-revoke]").forEach((b) => b.onclick = async () => {
+      if (b.dataset.confirm !== "yes") { b.dataset.confirm = "yes"; b.textContent = `Confirm: revoke ${b.dataset.name}`; b.classList.remove("quiet"); return; }
+      await api("certificates/revoke", { serial: b.dataset.revoke, reason: "unspecified" }); await RENDER.certificates(); });
+  },
+
+  async edges() {
+    const rows = await api("edges");
+    $("#view").innerHTML = head("Edges", "Post-quantum TLS in front of your services, read from each edge's /status endpoint.") + `<div class="panel">${table(
+      ["Edge", "Mode", "Listen → target", "Policy", "Open", "Handshakes", "Refused", "Key exchange"],
+      rows.map((e) => e.error ? [e.source, pill("unreachable", "bad"), { html: `<span class="mute">${esc(e.error)}</span>` }, "", "", "", "", ""]
+        : [e.name, e.mode, { mono: `${e.listen} → ${e.target}` }, pill(e.policy, e.policy === "strict" ? "ok" : "warn"), e.active, e.handshakes || 0,
+           e.handshake_failed || 0, Object.entries(e.groups || {}).map(([g, n]) => `${g} ×${n}`).join(", ") || "–"]),
+      "No edges configured. Start the console with --edge http://HOST:PORT (an edge's metrics address).")}</div>`;
+  },
+
+  async vpn() {
+    const rows = await api("tunnels");
+    $("#view").innerHTML = head("VPN", "Site-to-site IPsec: hybrid ML-KEM key exchange with PSK and PPK from ML-DSA mutual TLS.") + `<div class="panel">${table(
+      ["Peer", "State", "Key exchange", "PPK", "Up", "Traffic in / out"],
+      rows.map((t) => t.error ? [t.source, pill("unreachable", "bad"), { html: `<span class="mute">${esc(t.error)}</span>` }, "", "", ""]
+        : [t.peer, pill(t.state, t.state === "ESTABLISHED" ? "ok" : "warn"), { mono: t.key_exchange }, t.ppk ? pill("yes", "ok") : pill("no", "bad"),
+           { mono: Math.round(t.established_s / 60) + " min" }, { mono: t.children.map((c) => `${bytes(c.bytes_in)} / ${bytes(c.bytes_out)}`).join(", ") || "–" }]),
+      "No tunnels. Start the console with --vici unix:///var/run/charon.vici.")}</div>`;
+  },
+
+  async backups() {
+    const rows = await api("backups");
+    $("#view").innerHTML = head("Backups", "Vault archives: X25519 + ML-KEM-768 per recipient, AES-256-GCM, optional ML-DSA signature.") + `<div class="panel">${table(
+      ["File", "Created", "Kind", "Recipients", "Signed by", "Size"],
+      rows.map((b) => b.error ? [{ mono: b.file }, pill("unreadable", "bad"), b.error, "", "", ""]
+        : [{ mono: b.file.split(/[\\/]/).pop() }, { mono: b.created.slice(0, 16).replace("T", " ") }, b.kind, b.recipients.length,
+           b.signed_by ? pill(b.signed_by.replace("CN=", ""), "ok") : pill("unsigned", "warn"), { mono: bytes(b.size) }]),
+      "No backups found. Start the console with --backups FOLDER.")}</div>`;
+  },
+
+  async readiness() {
+    const s = await api("scan");
+    const grade = { A: "ok", B: "ok", C: "bad", F: "mute" };
+    $("#view").innerHTML = head("Readiness", "Which endpoints offer post-quantum key exchange, and with which certificates.") +
+      `<div class="panel"><h2>Scan</h2><form id="scan" style="padding:14px 16px;display:grid;gap:10px">
+        <label>Endpoints, one per line (host:port)<textarea name="targets">${esc((s.targets || []).join("\n"))}</textarea></label>
+        <div><button ${s.running ? "disabled" : ""}>${s.running ? "Scanning…" : "Scan"}</button> <span class="mute" id="scanmsg"></span></div></form></div>` +
+      (s.last ? `<div class="panel"><h2>${s.last.summary.pq_key_exchange}/${s.last.summary.endpoints} offer post-quantum key exchange, ${s.last.summary.pq_certificates} use ML-DSA certificates</h2>${table(
+        ["Grade", "Endpoint", "Negotiated", "Accepted", "Certificate", "Expires"],
+        s.last.endpoints.slice().sort((a, b) => a.grade.localeCompare(b.grade)).map((r) => [pill(r.grade, grade[r.grade]), { mono: r.target }, r.negotiated || r.error || "",
+          r.accepts.join(", "), (r.certificate || {}).key || "", { mono: (r.certificate || {}).expires || "" }]), "")}</div>` : "");
+    $("#scan").onsubmit = async (e) => { e.preventDefault();
+      try { await api("scan", { targets: new FormData(e.target).get("targets") }); } catch (x) { $("#scanmsg").textContent = x.message; return; }
+      const poll = setInterval(async () => { const t = await api("scan"); if (!t.running) { clearInterval(poll); RENDER.readiness(); } }, 1500);
+      RENDER.readiness(); };
+  },
+};
+
+token ? shell() : login();
+</script>
+</body>
+</html>

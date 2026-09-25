@@ -245,6 +245,27 @@ def cmd_bundle(a):
     return 0
 
 
+def cmd_console(a):
+    from .console import App, Settings, serve
+    s = Settings.load(a.config) if a.config else Settings()
+    for k in ("listen", "ca"):
+        if getattr(a, k):
+            setattr(s, k, getattr(a, k))
+    s.edges += a.edge
+    s.vpn += a.vici
+    s.backups += a.backups
+    app = App(s)
+    httpd = serve(app)
+    host, port = httpd.server_address[:2]
+    print(f"console on http://{host}:{port}/  access token: {app.token}")
+    if host not in ("127.0.0.1", "::1", "localhost"):
+        print("warning: listening beyond localhost over plain HTTP; put `pqcsuite edge --policy transition` in front of it")
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    stop = threading.Event()
+    run_until_signal(stop.wait, lambda: (httpd.shutdown(), stop.set()))
+    return 0
+
+
 def serve_json(address, routes):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -414,6 +435,14 @@ def parser():
     p.add_argument("--workers", type=int, default=16)
     p.add_argument("--timeout", type=float, default=8.0)
 
+    p = sub.add_parser("console", help="web dashboard for certificates, edges, VPN, backups and readiness")
+    p.add_argument("--config", help="TOML with a [console] section")
+    p.add_argument("--listen", help="default 127.0.0.1:8900")
+    p.add_argument("--ca", help="CA folder")
+    p.add_argument("--edge", action="append", default=[], help="an edge's metrics address, e.g. http://127.0.0.1:9100 (repeatable)")
+    p.add_argument("--vici", action="append", default=[], help="strongSwan VICI address (repeatable)")
+    p.add_argument("--backups", action="append", default=[], help="folder of vault archives (repeatable)")
+
     from .bundles import SERVICES
     p = sub.add_parser("bundle", help="a PQCready service: nginx, postgres, pgvector or mqtt behind the PQC edge")
     p.add_argument("service", choices=list(SERVICES))
@@ -442,7 +471,7 @@ def main(argv=None):
     if a.cmd == "edge" and not a.config and not a.target:
         parser().error("edge needs --config or --target")
     try:
-        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan}[a.cmd](a))
+        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console}[a.cmd](a))
     except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
