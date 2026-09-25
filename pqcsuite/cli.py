@@ -219,7 +219,7 @@ def cmd_vault(a):
 
     signer = lambda: vault.load_signer(a.sign_cert, a.sign_key, env_passphrase(a.sign_passphrase_env)) if a.sign_cert else None
     if a.vault_cmd == "keygen":
-        ident = vault.Identity.generate()
+        ident = vault.Identity.generate(a.cnsa2)
         pw = env_passphrase(a.passphrase_env) if a.passphrase_env else None
         if not pw and not a.no_passphrase:
             pw = getpass.getpass("Passphrase for the new key: ").encode()
@@ -310,6 +310,28 @@ def cmd_agent(a):
     agent = Agent(a.url, a.cert_dir, a.interval, a.server_name)
     run_until_signal(agent.run, agent.shutdown)
     return 0
+
+
+def cmd_report(a):
+    from . import compliance, scan
+    from .console import App, Settings
+    app = App(Settings(ca=a.ca or "", vpn=a.vici, backups=a.backups))
+    rows = []
+    if a.ca:
+        rows += compliance.certificates(app.ca().records())
+    targets = scan.load_targets(a.targets)
+    if targets:
+        rows += compliance.endpoints(scan.scan(targets, timeout=a.timeout))
+    rows += compliance.tunnels(app.tunnels()) + compliance.backups(app.backups())
+    rep = compliance.report(rows)
+    if a.html:
+        Path(a.html).write_text(compliance.to_html(rep), encoding="utf-8")
+    if a.json:
+        Path(a.json).write_text(compliance.to_json(rep), encoding="utf-8")
+    s = rep["status"]
+    print(f"{rep['assets']} assets: {s['ready']} quantum-safe, {s['transition']} with classical fallback, {s['action']} need action; "
+          f"{rep['cnsa2_compliant']} meet CNSA 2.0")
+    return 0 if not s["action"] else 2
 
 
 def serve_json(address, routes):
@@ -454,6 +476,7 @@ def parser():
     p.add_argument("out", help="writes OUT.key and OUT.pub")
     p.add_argument("--passphrase-env")
     p.add_argument("--no-passphrase", action="store_true")
+    p.add_argument("--cnsa2", action="store_true", help="ML-KEM-1024 + P-384 (NSA CNSA 2.0) instead of ML-KEM-768 + X25519")
     for name in ("encrypt", "backup"):
         p = q.add_parser(name, help="encrypt a file or folder" if name == "encrypt" else "timestamped encrypted archive, with retention")
         p.add_argument("source")
@@ -528,6 +551,15 @@ def parser():
     p.add_argument("--interval", type=int, default=30)
     p.add_argument("--server-name")
 
+    p = sub.add_parser("report", help="compliance evidence: NIST IR 8547 and CNSA 2.0 status of every asset")
+    p.add_argument("--ca", help="CA folder (certificates)")
+    p.add_argument("--targets", nargs="*", default=[], help="host:port, ssh://host:port or .txt files to scan")
+    p.add_argument("--vici", action="append", default=[])
+    p.add_argument("--backups", action="append", default=[])
+    p.add_argument("--html")
+    p.add_argument("--json")
+    p.add_argument("--timeout", type=float, default=8.0)
+
     from .bundles import SERVICES
     p = sub.add_parser("bundle", help="a PQCready service: nginx, postgres, pgvector or mqtt behind the PQC edge")
     p.add_argument("service", choices=list(SERVICES))
@@ -556,7 +588,7 @@ def main(argv=None):
     if a.cmd == "edge" and not a.config and not a.target:
         parser().error("edge needs --config or --target")
     try:
-        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console, "enroll": cmd_enroll, "fleet": cmd_fleet, "agent": cmd_agent}[a.cmd](a))
+        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console, "enroll": cmd_enroll, "fleet": cmd_fleet, "agent": cmd_agent, "report": cmd_report}[a.cmd](a))
     except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)

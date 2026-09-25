@@ -1,5 +1,8 @@
 import datetime as dt
+import os
+import socket
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -91,3 +94,55 @@ class CNSA2Test(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def fake_ssh(kex, hostkeys="ssh-ed25519"):
+    import os
+    import socket
+    import struct
+    import threading
+    srv = socket.create_server(("127.0.0.1", 0))
+
+    def serve():
+        c, _ = srv.accept()
+        with c:
+            c.sendall(b"SSH-2.0-FakeSSH_1.0\r\n")
+            nl = lambda s: struct.pack(">I", len(s)) + s.encode()
+            payload = bytes([20]) + os.urandom(16) + nl(kex) + nl(hostkeys) + b"".join(nl("") for _ in range(8)) + b"\0" + b"\0" * 4
+            pad = 8 - (len(payload) + 5) % 8 + 4
+            c.sendall(struct.pack(">IB", len(payload) + pad + 1, pad) + payload + b"\0" * pad)
+            c.recv(100)
+        srv.close()
+    threading.Thread(target=serve, daemon=True).start()
+    return srv.getsockname()[1]
+
+
+class SSHTest(unittest.TestCase):
+    def test_ssh_grades(self):
+        cases = {"A": "mlkem768x25519-sha256,ext-info-s,kex-strict-s-v00@openssh.com",
+                 "B": "mlkem768x25519-sha256,sntrup761x25519-sha512,curve25519-sha256",
+                 "C": "curve25519-sha256,diffie-hellman-group14-sha256"}
+        for grade, kex in cases.items():
+            r = scan.probe(f"ssh://127.0.0.1:{fake_ssh(kex)}", timeout=3)
+            self.assertEqual(r["grade"], grade, kex)
+            self.assertNotIn("ext-info-s", r["accepts"])
+        self.assertEqual(scan.probe("ssh://127.0.0.1:1", timeout=2)["grade"], "F")
+
+    @unittest.skipUnless(Path("/usr/sbin/sshd").exists() and hasattr(os, "geteuid") and os.geteuid() == 0, "needs root and OpenSSH")
+    def test_real_openssh(self):
+        import subprocess
+        d = Path(tempfile.mkdtemp())
+        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(d / "key")], check=True)
+        Path("/run/sshd").mkdir(exist_ok=True)
+        with socket.create_server(("127.0.0.1", 0)) as s:
+            port = s.getsockname()[1]
+        (d / "conf").write_text(f"Port {port}\nListenAddress 127.0.0.1\nHostKey {d / 'key'}\nPidFile {d / 'pid'}\n")
+        proc = subprocess.Popen(["/usr/sbin/sshd", "-D", "-f", str(d / "conf")])
+        self.addCleanup(proc.terminate)
+        for _ in range(50):
+            r = scan.probe(f"ssh://127.0.0.1:{port}", timeout=2)
+            if r["grade"] != "F":
+                break
+            time.sleep(0.1)
+        self.assertIn(r["grade"], "AB")
+        self.assertEqual(r["host_keys"], ["ssh-ed25519"])

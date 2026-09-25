@@ -211,6 +211,24 @@ How it works:
 - **Bad config:** it is refused twice, first by the console and then by the agent, which keeps running the last good one and reports the error.
 - **Revoked agents:** revoking an agent's certificate shuts it out of the fleet.
 
+## Compliance evidence
+
+```
+pqcsuite report --ca pki --targets hosts.txt ssh://bastion.acme.example:22 --vici unix:///var/run/charon.vici --backups /backups \
+    --html evidence.html --json evidence.json
+```
+
+Every certificate, TLS and SSH endpoint, VPN tunnel and backup gets:
+
+- **Status:** quantum-safe, quantum-safe with a classical fallback still allowed, or action needed.
+- **NIST IR 8547:** what the draft says about it (quantum-vulnerable algorithms deprecated after 2030 at 112-bit, disallowed after 2035).
+- **CNSA 2.0:** whether it meets NSA CNSA 2.0, and the deadline for its category (2030 for VPNs, 2033 for servers and services).
+- **Exit code:** non-zero while anything needs action, so it can gate a pipeline.
+
+For CNSA 2.0 backups, make recipient keys with `pqcsuite vault keygen --cnsa2` (ML-KEM-1024 + P-384, SHA-384 combiner).
+
+`scan` also takes SSH servers (`ssh://host:22`). It reads the server's key-exchange offer and grades it the same way: `mlkem768x25519-sha256` and `sntrup761x25519-sha512` count as post-quantum.
+
 ## Keeping it running
 
 ```

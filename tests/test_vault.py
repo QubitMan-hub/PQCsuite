@@ -118,6 +118,23 @@ class VaultTest(unittest.TestCase):
         with self.assertRaisesRegex(VaultError, "only share"):
             vault.add_recipients(f, self.eve, [self.eve.public])
 
+    def test_cnsa2_suite(self):
+        a, b = Identity.generate(cnsa2=True), Identity.generate(cnsa2=True)
+        a.save(self.d / "a.key", None)
+        (self.d / "a.pub").write_bytes(a.public.pem())
+        a = Identity.load(self.d / "a.key")
+        f = self.d / "c.pqv"
+        vault.encrypt(self.d / "db.dump", f, [Recipient.load(self.d / "a.pub"), b.public])
+        self.assertEqual(vault.inspect(f)["suite"], vault.CNSA2_SUITE)
+        for who in (a, b):
+            self.assertEqual(vault.decrypt(f, self.d / who.public.id, who)[0].read_bytes(), self.data)
+        with self.assertRaisesRegex(VaultError, "not encrypted for this key"):
+            vault.decrypt(f, self.d / "x", self.alice)
+        with self.assertRaisesRegex(VaultError, "same suite"):
+            vault.encrypt(self.d / "db.dump", self.d / "mixed.pqv", [a.public, self.alice.public])
+        with self.assertRaisesRegex(VaultError, "suite"):
+            vault.add_recipients(f, a, [self.bob.public])
+
     def test_identity_files_and_backups(self):
         self.alice.save(self.d / "alice.key", b"pw")
         (self.d / "alice.pub").write_bytes(self.alice.public.pem())

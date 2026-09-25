@@ -19,13 +19,42 @@ from pathlib import Path
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization as ser
-from cryptography.hazmat.primitives.asymmetric import mlkem, x25519
+from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from .ca import PUBLIC as MLDSA_PUBLIC, CAError, check_revocation
 
 MAGIC, SIG_MAGIC = b"PQV1\n", b"SIG1"
-SUITE = "X25519+ML-KEM-768/AES-256-GCM"
+class Suite:
+    """A hybrid KEM for wrapping file keys: ML-KEM plus a classical Diffie-Hellman, combined X-Wing style."""
+
+    def __init__(self, name, kem, kem_public, curve, digest):
+        self.name, self.kem, self.kem_public, self.curve, self.digest = name, kem, kem_public, curve, digest
+
+    def dh_generate(self):
+        return x25519.X25519PrivateKey.generate() if self.curve is None else ec.generate_private_key(self.curve)
+
+    def dh_bytes(self, pub):
+        return pub.public_bytes_raw() if self.curve is None else pub.public_bytes(ser.Encoding.X962, ser.PublicFormat.UncompressedPoint)
+
+    def dh_load(self, data):
+        return x25519.X25519PublicKey.from_public_bytes(data) if self.curve is None else ec.EllipticCurvePublicKey.from_encoded_point(self.curve, data)
+
+    def exchange(self, priv, pub):
+        return priv.exchange(pub) if self.curve is None else priv.exchange(ec.ECDH(), pub)
+
+    def owns(self, kem_key, dh_key):
+        kem_ok = isinstance(kem_key, (self.kem, self.kem_public))
+        if self.curve is None:
+            return kem_ok and isinstance(dh_key, (x25519.X25519PrivateKey, x25519.X25519PublicKey))
+        return kem_ok and isinstance(dh_key, (ec.EllipticCurvePrivateKey, ec.EllipticCurvePublicKey)) and dh_key.curve.name == self.curve.name
+
+
+SUITES = {s.name: s for s in (
+    Suite("X25519+ML-KEM-768/AES-256-GCM", mlkem.MLKEM768PrivateKey, mlkem.MLKEM768PublicKey, None, hashlib.sha3_256),
+    Suite("P-384+ML-KEM-1024/AES-256-GCM", mlkem.MLKEM1024PrivateKey, mlkem.MLKEM1024PublicKey, ec.SECP384R1(), hashlib.sha384),
+)}
+SUITE, CNSA2_SUITE = list(SUITES)
 CHUNK = 1 << 20
 LABEL = b"pqcsuite-vault-v1"
 b64 = lambda b: base64.b64encode(b).decode()
@@ -36,15 +65,21 @@ class VaultError(Exception):
     pass
 
 
+def _suite_of(kem, dh):
+    return next((s for s in SUITES.values() if s.owns(kem, dh)), None)
+
+
 class Identity:
-    """A recipient: an ML-KEM-768 key and an X25519 key."""
+    """A recipient: an ML-KEM key and a Diffie-Hellman key of one suite (standard, or CNSA 2.0 with cnsa2=True)."""
 
     def __init__(self, kem, dh):
         self.kem, self.dh = kem, dh
+        self.suite = _suite_of(kem, dh)
 
     @classmethod
-    def generate(cls):
-        return cls(mlkem.MLKEM768PrivateKey.generate(), x25519.X25519PrivateKey.generate())
+    def generate(cls, cnsa2=False):
+        s = SUITES[CNSA2_SUITE if cnsa2 else SUITE]
+        return cls(s.kem.generate(), s.dh_generate())
 
     @property
     def public(self):
@@ -63,20 +98,21 @@ class Identity:
             keys = [ser.load_pem_private_key(b, passphrase) for b in blocks]
         except (TypeError, ValueError) as e:
             raise VaultError(f"cannot open {path}: {e}") from None
-        kem = next((k for k in keys if isinstance(k, mlkem.MLKEM768PrivateKey)), None)
-        dh = next((k for k in keys if isinstance(k, x25519.X25519PrivateKey)), None)
-        if not (kem and dh):
-            raise VaultError(f"{path} is not a vault identity (needs an ML-KEM-768 and an X25519 key)")
+        kem = next((k for k in keys if isinstance(k, (mlkem.MLKEM768PrivateKey, mlkem.MLKEM1024PrivateKey))), None)
+        dh = next((k for k in keys if not isinstance(k, (mlkem.MLKEM768PrivateKey, mlkem.MLKEM1024PrivateKey))), None)
+        if not (kem and dh and _suite_of(kem, dh)):
+            raise VaultError(f"{path} is not a vault identity (needs an ML-KEM key and the matching X25519 or P-384 key)")
         return cls(kem, dh)
 
 
 class Recipient:
     def __init__(self, kem, dh):
         self.kem, self.dh = kem, dh
+        self.suite = _suite_of(kem, dh)
 
     @property
     def id(self):
-        return hashlib.sha256(self.kem.public_bytes_raw() + self.dh.public_bytes_raw()).hexdigest()[:16]
+        return hashlib.sha256(self.kem.public_bytes_raw() + self.suite.dh_bytes(self.dh)).hexdigest()[:16]
 
     def pem(self):
         return b"".join(k.public_bytes(ser.Encoding.PEM, ser.PublicFormat.SubjectPublicKeyInfo) for k in (self.kem, self.dh))
@@ -84,9 +120,9 @@ class Recipient:
     @classmethod
     def load(cls, path):
         keys = [ser.load_pem_public_key(b) for b in _pem_blocks(Path(path).read_bytes())]
-        kem = next((k for k in keys if isinstance(k, mlkem.MLKEM768PublicKey)), None)
-        dh = next((k for k in keys if isinstance(k, x25519.X25519PublicKey)), None)
-        if not (kem and dh):
+        kem = next((k for k in keys if isinstance(k, (mlkem.MLKEM768PublicKey, mlkem.MLKEM1024PublicKey))), None)
+        dh = next((k for k in keys if not isinstance(k, (mlkem.MLKEM768PublicKey, mlkem.MLKEM1024PublicKey))), None)
+        if not (kem and dh and _suite_of(kem, dh)):
             raise VaultError(f"{path} is not a vault recipient key")
         return cls(kem, dh)
 
@@ -96,22 +132,22 @@ def _pem_blocks(data):
     return [p + b"-----END " + parts[i + 1].split(b"\n")[0] + b"\n" for i, p in enumerate(parts[:-1])]
 
 
-def _combine(ss_kem, ss_dh, ct_dh, pk_dh):
-    return hashlib.sha3_256(ss_kem + ss_dh + ct_dh + pk_dh + LABEL).digest()
+def _combine(suite, ss_kem, ss_dh, ct_dh, pk_dh):
+    return suite.digest(ss_kem + ss_dh + ct_dh + pk_dh + LABEL).digest()[:32]
 
 
 def wrap(dek, recipient, file_id):
+    s = recipient.suite
     ss_kem, ct_kem = recipient.kem.encapsulate()
-    eph = x25519.X25519PrivateKey.generate()
-    ct_dh, pk_dh = eph.public_key().public_bytes_raw(), recipient.dh.public_bytes_raw()
-    kek = _combine(ss_kem, eph.exchange(recipient.dh), ct_dh, pk_dh)
+    eph = s.dh_generate()
+    ct_dh, pk_dh = s.dh_bytes(eph.public_key()), s.dh_bytes(recipient.dh)
+    kek = _combine(s, ss_kem, s.exchange(eph, recipient.dh), ct_dh, pk_dh)
     return {"id": recipient.id, "kem": b64(ct_kem), "dh": b64(ct_dh), "key": b64(AESGCM(kek).encrypt(b"\0" * 12, dek, file_id))}
 
 
 def unwrap(entry, identity, file_id):
-    ct_dh = unb64(entry["dh"])
-    kek = _combine(identity.kem.decapsulate(unb64(entry["kem"])), identity.dh.exchange(x25519.X25519PublicKey.from_public_bytes(ct_dh)),
-                   ct_dh, identity.dh.public_key().public_bytes_raw())
+    s, ct_dh = identity.suite, unb64(entry["dh"])
+    kek = _combine(s, identity.kem.decapsulate(unb64(entry["kem"])), s.exchange(identity.dh, s.dh_load(ct_dh)), ct_dh, s.dh_bytes(identity.dh.public_key()))
     return AESGCM(kek).decrypt(b"\0" * 12, unb64(entry["key"]), file_id)
 
 
@@ -130,9 +166,12 @@ class Writer(io.RawIOBase):
     def __init__(self, out, recipients, name, kind="file", signer=None):
         if not recipients:
             raise VaultError("at least one recipient is needed")
+        suites = {r.suite.name for r in recipients}
+        if len(suites) > 1:
+            raise VaultError("all recipients of one file must use the same suite (standard or CNSA 2.0)")
         self.out, self.dek, self.buf, self.i = out, AESGCM.generate_key(256), bytearray(), 0
         self.aes = None
-        self.h = {"v": 1, "suite": SUITE, "id": b64(os.urandom(16)), "chunk": CHUNK, "nonce": b64(os.urandom(7)), "name": name,
+        self.h = {"v": 1, "suite": suites.pop(), "id": b64(os.urandom(16)), "chunk": CHUNK, "nonce": b64(os.urandom(7)), "name": name,
                   "kind": kind, "created": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()}
         self.signer = signer
         if signer:
@@ -177,7 +216,7 @@ def read_header(f):
     if n > 1 << 24:
         raise VaultError("header too large")
     h = json.loads(f.read(n))
-    if h.get("v") != 1 or h.get("suite") != SUITE:
+    if h.get("v") != 1 or h.get("suite") not in SUITES:
         raise VaultError(f"unsupported vault format {h.get('v')}/{h.get('suite')}")
     return h
 
@@ -186,7 +225,7 @@ def chunks(f, h, identity):
     """Decrypted chunks, in order; raises on any tampering. Afterwards h["_signature"] holds the trailer, if any."""
     aad = hashlib.sha256(_core(h)).digest()
     entry = next((r for r in h["recipients"] if r["id"] == identity.public.id), None)
-    if not entry:
+    if not entry or h["suite"] != identity.suite.name:
         raise VaultError("this file was not encrypted for this key")
     try:
         aes = AESGCM(unwrap(entry, identity, aad))
@@ -350,6 +389,8 @@ def add_recipients(path, identity, recipients):
         if not entry:
             raise VaultError("you can only share a file you can open")
         dek = unwrap(entry, identity, aad)
+        if any(r.suite.name != h["suite"] for r in recipients):
+            raise VaultError(f"this file uses {h['suite']}; new recipients must have keys of that suite")
         have = {r["id"] for r in h["recipients"]}
         h["recipients"] += [wrap(dek, r, aad) for r in recipients if r.id not in have]
         header = json.dumps(h).encode()

@@ -42,10 +42,60 @@ def _hello(host, port, groups, server_name, timeout):
         ctx.close()
 
 
+SSH_PQ = ("mlkem768x25519-sha256", "mlkem768nistp256-sha256", "mlkem1024nistp384-sha384", "sntrup761x25519-sha512",
+          "sntrup761x25519-sha512@openssh.com")
+SSH_META = ("ext-info-", "kex-strict-", "kex-guess")
+
+
+def ssh_kexinit(host, port, timeout):
+    """The server's banner and algorithm lists, read from its KEXINIT (it sends one right after the banners)."""
+    import struct
+    with socket.create_connection((host, port), timeout=timeout) as s:
+        f = s.makefile("rb")
+        banner = b""
+        for _ in range(20):
+            banner = f.readline(512)
+            if banner.startswith(b"SSH-"):
+                break
+        if not banner.startswith(b"SSH-"):
+            raise OSError("not an SSH server")
+        s.sendall(b"SSH-2.0-pqcsuite_scan\r\n")
+        n, pad = struct.unpack(">IB", f.read(5))
+        if n > 35000:
+            raise OSError("oversized SSH packet")
+        payload = f.read(n - 1)[:n - 1 - pad]
+    if not payload or payload[0] != 20:
+        raise OSError("the server did not send KEXINIT")
+    lists, i = [], 17
+    for _ in range(2):
+        (m,) = struct.unpack(">I", payload[i:i + 4])
+        lists.append(payload[i + 4:i + 4 + m].decode("ascii", "replace").split(","))
+        i += 4 + m
+    return banner.decode("ascii", "replace").strip(), lists[0], lists[1]
+
+
+def probe_ssh(host, port, timeout):
+    out = {"target": f"ssh://{host}:{port}", "protocol": "ssh", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
+    try:
+        banner, kex, hostkeys = ssh_kexinit(host, port, timeout)
+    except (OSError, ValueError) as e:
+        out["error"], out["grade"] = str(e), "F"
+        return out
+    kex = [k for k in kex if not k.startswith(SSH_META)]
+    pq = [k for k in kex if k in SSH_PQ]
+    out |= {"accepts": kex, "negotiated": pq[0] if pq else (kex[0] if kex else None), "banner": banner, "host_keys": hostkeys,
+            "certificate": {"key": ", ".join(hostkeys[:3]), "expires": "", "days_left": 9999, "quantum_safe": False}}
+    out["grade"] = "A" if pq and len(pq) == len(kex) else "B" if pq else "C" if kex else "F"
+    return out
+
+
 def probe(target, server_name=None, timeout=8.0):
+    if target.startswith("ssh://"):
+        host, port = hostport(target[6:], "")
+        return probe_ssh(host, port or 22, timeout)
     host, port = hostport(target, "")
     port = port or 443
-    out = {"target": f"{host}:{port}", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
+    out = {"target": f"{host}:{port}", "protocol": "tls", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
     try:
         out["negotiated"], cert = _hello(host, port, ":".join(PQ + CLASSICAL), server_name or host, timeout)
     except (tls.TLSError, OSError) as e:
