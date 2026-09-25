@@ -1,0 +1,121 @@
+import socket
+import ssl
+
+from cryptography import x509
+
+from ..elders import lookup, curve, pq_from_text
+from ..model import Sighting
+from .artifacts import cert_record
+from .probe import tls_groups, ssh_kexinit
+from .suites import suite, ssh_token
+
+LEGACY = [("TLS 1.0", ssl.TLSVersion.TLSv1), ("TLS 1.1", ssl.TLSVersion.TLSv1_1)]
+FFDHE = {"ffdhe2048": 2048, "ffdhe3072": 3072, "ffdhe4096": 4096}
+
+
+def _ctx(minv=None, maxv=None, legacy=False):
+    c = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    c.check_hostname = False
+    c.verify_mode = ssl.CERT_NONE
+    if legacy:
+        try:
+            c.set_ciphers("ALL:@SECLEVEL=0")
+        except ssl.SSLError:
+            pass
+    if minv:
+        c.minimum_version = minv
+    if maxv:
+        c.maximum_version = maxv
+    return c
+
+
+def _handshake(host, port, ctx, timeout):
+    with socket.create_connection((host, port), timeout=timeout) as s:
+        with ctx.wrap_socket(s, server_hostname=host) as t:
+            return t.version(), t.cipher(), t.getpeercert(binary_form=True)
+
+
+def _split(target, default):
+    host, _, port = target.rpartition(":")
+    if not host or not port.isdigit():
+        return target, default
+    return host.strip("[]"), int(port)
+
+
+def group_algo(name):
+    if name in FFDHE:
+        return "DH", {"key_size": FFDHE[name]}
+    c = curve(name)
+    if c:
+        return "ECDH", {"curve": c}
+    return lookup(name) or pq_from_text(name), {}
+
+
+def probe(target, timeout=6.0):
+    host, port = _split(target, 443)
+    loc = f"tls://{host}:{port}"
+    ep = {"target": loc, "kind": "tls"}
+    sights, arts, notes = [], [], []
+
+    def add(algo, snip, **p):
+        if algo:
+            sights.append(Sighting(algo=algo, file=loc, line=0, evidence="live", scout="tls", snippet=snip, lang="tls",
+                                   params={k: v for k, v in p.items() if v is not None}))
+    try:
+        version, cipher, der = _handshake(host, port, _ctx(), timeout)
+    except Exception as e:
+        ep["error"] = f"{type(e).__name__}: {e}"
+        return sights, arts, [f"{loc}: handshake failed ({ep['error']})"], ep
+    ep.update(version=version, cipher=cipher[0])
+    add(lookup(version), f"{version} {cipher[0]}", negotiated=True, cipher=cipher[0])
+    for a, p in suite(cipher[0]):
+        add(a, cipher[0], role="cipher-suite", **p)
+    g = tls_groups(host, port, timeout)
+    if "error" in g:
+        notes.append(f"{loc}: group probe failed ({g['error']})")
+    else:
+        ep.update(preferred_group=g.get("preferred"), groups=g.get("supported", []), pq_groups=g.get("pq", []))
+        for name in g.get("supported", []):
+            a, p = group_algo(name)
+            add(a, f"server accepts key-exchange group {name}" + (" (preferred)" if name == g.get("preferred") else ""), role="key-exchange", **p)
+    if der:
+        a, s = cert_record(x509.load_der_x509_certificate(der), loc, 0, source="live")
+        arts.append(a)
+        sights += s
+        ep["cert"] = f"{a.algo}" + (f"-{a.params.get('key_size') or a.params.get('curve')}" if a.params else "") + f", expires {a.details['not_after'][:10]}"
+    ep["legacy"] = []
+    for name, v in LEGACY:
+        try:
+            ver, c, _ = _handshake(host, port, _ctx(v, v, legacy=True), timeout)
+            ep["legacy"].append(name)
+            add(name, f"server accepted {ver} ({c[0]})", negotiated=False)
+        except ssl.SSLError as e:
+            if "no protocols available" in str(e).lower() or "unsupported protocol" in str(e).lower() and "alert" not in str(e).lower():
+                notes.append(f"{loc}: {name} probe inconclusive (local OpenSSL will not offer it)")
+        except Exception:
+            pass
+    return sights, arts, notes, ep
+
+
+def probe_ssh(target, timeout=6.0):
+    host, port = _split(target, 22)
+    loc = f"ssh://{host}:{port}"
+    ep = {"target": loc, "kind": "ssh"}
+    try:
+        r = ssh_kexinit(host, port, timeout)
+    except Exception as e:
+        ep["error"] = f"{type(e).__name__}: {e}"
+        return [], [], [f"{loc}: SSH probe failed ({ep['error']})"], ep
+    r["kex"] = [k for k in r["kex"] if not k.startswith(("kex-strict", "ext-info"))]
+    ep.update(version=r["banner"], preferred_group=r["kex"][0] if r["kex"] else None, groups=r["kex"], hostkeys=r["hostkey"],
+              pq_groups=[k for k in r["kex"] if lookup(k.split("@")[0]) in ("X25519MLKEM768", "sntrup761x25519") or lookup(k) in ("X25519MLKEM768", "sntrup761x25519")])
+    sights = []
+    for field, role in (("kex", "key-exchange"), ("hostkey", "host-key"), ("ciphers", "cipher"), ("macs", "mac")):
+        for tok in r[field]:
+            if tok.startswith(("kex-strict", "ext-info")):
+                continue
+            for a, p in ssh_token(tok):
+                if a:
+                    sights.append(Sighting(algo=a, file=loc, line=0, evidence="live", scout="ssh", snippet=f"{field}: {tok}", lang="ssh",
+                                           params={k: v for k, v in dict(p, role=role).items() if v is not None}))
+    return sights, [], [], ep

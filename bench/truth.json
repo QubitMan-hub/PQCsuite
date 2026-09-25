@@ -1,0 +1,95 @@
+{
+  "py/auth.py": [
+    "RSA",
+    "SHA-256",
+    "AES"
+  ],
+  "py/legacy.py": [
+    "MD5",
+    "3DES",
+    "AES"
+  ],
+  "py/notes.py": [],
+  "py/pq.py": [
+    "ML-KEM",
+    "ML-DSA"
+  ],
+  "py/unused_import.py": [],
+  "java/TokenSigner.java": [
+    "ECC",
+    "ECDSA",
+    "SHA-256",
+    "AES",
+    "RSA"
+  ],
+  "go/server.go": [
+    "TLS 1.0",
+    "X25519MLKEM768",
+    "X25519",
+    "ECDSA",
+    "SHA-1",
+    "ML-KEM"
+  ],
+  "js/crypto.js": [
+    "MD5",
+    "RSA",
+    "AES"
+  ],
+  "c/legacy.c": [
+    "MD5",
+    "RSA",
+    "AES"
+  ],
+  "cs/Crypto.cs": [
+    "RSA",
+    "SHA-1",
+    "AES"
+  ],
+  "rust/lib.rs": [
+    "ECDSA",
+    "SHA-256"
+  ],
+  "config/nginx.conf": [
+    "TLS 1.2",
+    "TLS 1.3",
+    "ECDH",
+    "RSA",
+    "AES",
+    "SHA-256",
+    "X25519MLKEM768",
+    "X25519"
+  ],
+  "config/sshd_config": [
+    "X25519MLKEM768",
+    "X25519",
+    "Ed25519",
+    "RSA",
+    "SHA-512"
+  ],
+  "config/java.security": [],
+  "tests/test_legacy.py": [
+    "MD5"
+  ],
+  "certs/server.crt": [
+    "RSA",
+    "SHA-256"
+  ],
+  "certs/signing.key": [
+    "ECC"
+  ],
+  "java/Hasher.java": [
+    "SHA-1"
+  ],
+  "js/tokens.js": [
+    "SHA-1"
+  ],
+  "py/suppressed.py": [],
+  "bin/legacy_tool": [
+    "AES",
+    "MD5"
+  ],
+  "py/policy.py": [
+    "AES",
+    "ChaCha20"
+  ]
+}
