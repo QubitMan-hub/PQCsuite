@@ -11,6 +11,9 @@ pqcsuite is a company product for post-quantum secure communication, written in 
 - `pqcsuite/edge.py`: terminate and originate proxy, TOML config, metrics.
 - `pqcsuite/vpn/`: site-to-site IPsec. `charon.py` drives strongSwan through VICI. `controller.py` does the ML-DSA mTLS key agreement (PSK + RFC 8784 PPK from the TLS exporter), rotation and revocation.
 - `pqcsuite/vault.py`: file, folder and backup encryption (X25519 + ML-KEM-768 hybrid KEM, chunked AES-GCM, ML-DSA signatures).
+- `pqcsuite/bundles.py`: PQCready Compose bundles (nginx, postgres, pgvector, mqtt).
+- `pqcsuite/scan.py`: readiness scanner (grades A/B/C/F, HTML/JSON).
+- `pqcsuite/console/`: stdlib web console plus `console.html` (self-contained, offline).
 - `pqcsuite/cli.py`: the `pqcsuite` command.
 
 ## Rules
@@ -31,4 +34,4 @@ pqcsuite doctor
 
 ## Roadmap
 
-Stage 3 (IPsec) is done: run its integration test as root with PQCSUITE_STRONGSWAN set; kernel ESP is needed for the data-plane part (PQCSUITE_VPN_DATAPLANE=1). Stage 4 is the vault (X25519 + ML-KEM-768 hybrid encryption and ML-DSA signatures). Stage 5 is the web console, integrating Wolf Pack CBOM discovery. Propose a plan to the owner before starting each stage.
+Stage 3 (IPsec) is done: run its integration test as root with PQCSUITE_STRONGSWAN set; kernel ESP is needed for the data-plane part (PQCSUITE_VPN_DATAPLANE=1). The vault, bundles, scan, maintenance and console are done. Next: Wolf Pack CBOM discovery inside the console (the owner will say when), remote-access VPN, and a WireGuard data plane. Propose a plan to the owner before starting each stage.

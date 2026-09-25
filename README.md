@@ -9,7 +9,7 @@ Post-quantum secure communication, in Python. `pqcsuite` is a working name; the 
 
 - **Vault:** quantum-safe encryption for files, folders and backups. It handles several recipients, has optional ML-DSA signatures from CA certificates, and can share a file without re-encrypting it.
 
-The web console comes next (see the roadmap).
+- **Console:** one web page for certificates, edges, VPN tunnels, backups and readiness scans.
 
 ## Why
 
@@ -180,6 +180,27 @@ pqcsuite ca maintain --dir pki     # daily, from cron or a scheduled task
 
 It renews certificates that expire within 30 days, in the folder they were issued to (edges and VPN gateways reload them within seconds), and re-signs the CRL. Mutual TLS refuses everyone once the CRL expires, so this matters. Encrypted keys are reported for manual renewal.
 
+## Console
+
+```
+pqcsuite console --ca pki --edge http://127.0.0.1:9100 --vici unix:///var/run/charon.vici --backups /backups
+```
+
+It prints a URL and an access token. The pages are:
+
+- **Overview:** one tile each for certificates, edges, VPN, backups and readiness.
+- **Certificates:** issue, revoke (with a confirm step), and renew-and-refresh-CRL.
+- **Edges:** live connections, refused handshakes and negotiated groups.
+- **VPN:** tunnel state, key exchange, PPK and traffic.
+- **Backups:** creation time, recipients and signer.
+- **Readiness:** run a scan and read the graded results.
+
+How it's secured:
+
+- **Access:** it binds to localhost by default, every API call needs the token (compared in constant time), and every change goes to an audit log (`console-audit.jsonl`).
+- **Offline:** the page is one self-contained file, with no external scripts or fonts, so it works on an isolated network.
+- **Remote access:** browsers already negotiate X25519MLKEM768 but cannot verify ML-DSA certificates yet. So publish the console through the edge with the `transition` policy and a certificate browsers accept: `pqcsuite edge --policy transition --target 127.0.0.1:8900 --cert <ECDSA or RSA chain> --key <key>`.
+
 ## Policies
 
 | Policy | Key exchange | Certificates | Use |
@@ -235,7 +256,7 @@ with tls.connect("api.example.com", 8443, ctx) as conn:
 ## Roadmap
 
 1. **VPN, next:** remote access for laptops (virtual IP pools), and WireGuard as a second data plane fed by the same ML-DSA key agreement.
-2. **Console.** One web dashboard: certificates and expiry, edges and their live metrics, tunnels, probes, plus crypto discovery from Wolf Pack CBOM.
+2. **Discovery.** Integrate Wolf Pack CBOM into the console: find where classical cryptography lives in code, configs and binaries, and feed it into the readiness view.
 
 ## Tests
 
