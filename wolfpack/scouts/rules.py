@@ -92,6 +92,27 @@ def _(m, x):
     return [(BC.get(c) or pq_from_text(c), {"lib": "org.bouncycastle"})]
 
 
+# libsodium: the same crypto_* names in C, PHP (sodium_crypto_*) and the JS wrappers
+SODIUM = [("aead_xchacha20poly1305", "ChaCha20-Poly1305"), ("aead_chacha20poly1305", "ChaCha20-Poly1305"), ("secretstream_xchacha20poly1305", "ChaCha20-Poly1305"),
+          ("aead_aes256gcm", "AES"), ("stream_xchacha20", "ChaCha20"), ("stream_chacha20", "ChaCha20"), ("stream_xsalsa20", "Salsa20"),
+          ("stream_salsa20", "Salsa20"), ("secretbox", "Salsa20"), ("box", ("X25519", "Salsa20")), ("sign", "Ed25519"), ("kx", "X25519"),
+          ("scalarmult", "X25519"), ("generichash", "BLAKE2"), ("kdf", "BLAKE2"), ("hash_sha256", "SHA-256"), ("hash_sha512", "SHA-512"),
+          ("hash", "SHA-512"), ("auth_hmacsha256", ("HMAC", "SHA-256")), ("auth_hmacsha512", ("HMAC", "SHA-512")), ("auth", ("HMAC", "SHA-512")),
+          ("pwhash_scryptsalsa208sha256", "scrypt"), ("pwhash", "Argon2")]
+
+
+@rule("c js", r'(?<![A-Za-z0-9])(?:sodium_)?crypto_([a-z0-9]+(?:_[a-z0-9]+)*)\s*\(')
+def _(m, x):
+    name = m.group(1)
+    before = x.text[x.text.rfind("\n", 0, m.start()) + 1:m.start()]
+    if x.path.endswith((".h", ".hpp")) and re.match(r"\s*(?!return\b)(?:[A-Za-z_]\w*\s+|\*\s*)+$", before):
+        return []
+    for key, algos in SODIUM:
+        if name == key or name.startswith(key + "_"):
+            return [(a, {"lib": "libsodium"}) for a in ((algos,) if isinstance(algos, str) else algos)]
+    return []
+
+
 # Go
 @rule("go", r'\b(md5|sha1|sha256|sha512|sha3)\.(New\w*|Sum\w*)\(')
 def _(m, x):
@@ -192,22 +213,22 @@ def _(m, x):
 
 
 # JavaScript / TypeScript
-@rule("js", r'\bcreateHash\(\s*' + Q + r'([\w-]+)' + Q)
+@rule("js", r'\bcreateHash\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
 def _(m, x):
     return lit(m.group(1))
 
 
-@rule("js", r'\bcreateHmac\(\s*' + Q + r'([\w-]+)' + Q)
+@rule("js", r'\bcreateHmac\(\s*(?:' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)]))?')
 def _(m, x):
-    return [("HMAC", {"hash": lookup(m.group(1))})]
+    return [("HMAC", {"hash": lookup(m.group(1)) if m.group(1) else None})]
 
 
-@rule("js", r'\bcreate(?:Cipheriv|Decipheriv|Cipher|Decipher)\(\s*' + Q + r'([\w-]+)' + Q)
+@rule("js", r'\bcreate(?:Cipheriv|Decipheriv|Cipher|Decipher)\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
 def _(m, x):
     return [parse_symmetric_name(m.group(1))]
 
 
-@rule("js", r'\bgenerateKeyPair(?:Sync)?\(\s*' + Q + r'([\w-]+)' + Q)
+@rule("js", r'\bgenerateKeyPair(?:Sync)?\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
 def _(m, x):
     a = lookup(m.group(1)) or pq_from_text(m.group(1))
     near = x.window_text(6)
@@ -221,12 +242,12 @@ def _(m, x):
     return [(a, p)]
 
 
-@rule("js", r'\bcreate(?:Sign|Verify)\(\s*' + Q + r'([\w-]+)' + Q)
+@rule("js", r'\bcreate(?:Sign|Verify)\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
 def _(m, x):
     return sig_scheme(m.group(1))
 
 
-@rule("js", r'\bcreateECDH\(\s*' + Q + r'([\w-]+)' + Q)
+@rule("js", r'\bcreateECDH\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
 def _(m, x):
     return [("ECDH", {"curve": curve(m.group(1))})]
 
@@ -236,7 +257,7 @@ def _(m, x):
     return [("DH", {})]
 
 
-@rule("js", r'\bpbkdf2(?:Sync)?\([^;]*?' + Q + r'(sha\w+|md5)' + Q)
+@rule("js", r'\bpbkdf2(?:Sync)?\([^;]*?' + Q + r'(sha\w+|md5)' + Q + r'(?=\s*[,)])')
 def _(m, x):
     return [("PBKDF2", {"hash": lookup(m.group(1))})]
 

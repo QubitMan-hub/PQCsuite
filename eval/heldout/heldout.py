@@ -19,7 +19,11 @@ from wolfpack.scouts.lexer import LANGS
 
 REPOS = HERE / "repos"
 LABELS = HERE / "labels"
-FAMILIES = {a.family.upper(): a.family for a in CATALOG.values()}
+VOCABULARY = ("RSA", "DSA", "DH", "ECC", "ECDSA", "ECDH", "Ed25519", "Ed448", "X25519", "X448", "ML-KEM", "ML-DSA", "SLH-DSA", "FN-DSA", "HQC",
+              "X25519MLKEM768", "sntrup761x25519", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "AES", "ChaCha20", "3DES", "DES", "RC4", "RC2",
+              "Blowfish", "MD4", "MD5", "SHA-1", "SHA-224", "SHA-256", "SHA-384", "SHA-512", "SHA3-256", "SHA3-384", "SHA3-512", "BLAKE2",
+              "HMAC", "PBKDF2", "HKDF", "scrypt", "Argon2", "bcrypt", "SSL 2.0", "SSL 3.0", "TLS 1.0", "TLS 1.1", "TLS 1.2", "TLS 1.3")
+FAMILIES = {f.upper(): f for f in VOCABULARY}
 LOCKFILES = {"package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "composer.lock", "go.sum", "cargo.lock", "poetry.lock"}
 COLUMNS = ["file", "used", "declared", "notes"]
 
@@ -108,9 +112,14 @@ def bootstrap(rows, n=2000, seed=0):
     return ci(ps), ci(rs)
 
 
+def label_family(family):
+    """The signed-off vocabulary is frozen; a family Wolf Pack learned later is scored the way a labeller writes it, OTHER:<NAME>."""
+    return family if family in VOCABULARY else "OTHER:" + family.upper()
+
+
 def wolfpack_pairs(root, files, roles=pack.Roles()):
     r = pack.run(root, root.name, roles=roles)
-    return {(s.file, CATALOG[s.algo].family) for s in r.sightings if s.verdict == "accepted" and s.algo in CATALOG and s.file in files}
+    return {(s.file, label_family(CATALOG[s.algo].family)) for s in r.sightings if s.verdict == "accepted" and s.algo in CATALOG and s.file in files}
 
 
 def cmd_fetch(a):
@@ -215,7 +224,7 @@ def cmd_score(a):
                 files = {f for f in labels if Path(f).suffix.lower() in CBOMKIT_LANGS}
                 truth = {x for x in gold(labels, policy) if x[0] in files}
                 rows_wp.append(prf(wolfpack_pairs(REPOS / repo, files), truth))
-                rows_ck.append(prf({x for x in cbomkit_pairs(cb, REPOS / repo, True) if x[0] in files}, truth))
+                rows_ck.append(prf({(f, label_family(x)) for f, x in cbomkit_pairs(cb, REPOS / repo, True) if f in files}, truth))
             for name, rows in (("wolfpack, CBOMkit languages", rows_wp), ("cbomkit, CBOMkit languages", rows_ck)):
                 if rows:
                     p, r, f1 = micro(rows)

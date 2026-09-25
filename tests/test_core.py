@@ -15,6 +15,7 @@ class Elders(unittest.TestCase):
         self.assertEqual(parse_transformation("AES/ECB/PKCS5Padding"), ("AES", {"mode": "ECB", "padding": "pkcs5"}))
         self.assertEqual(curve("NID_X9_62_prime256v1"), "P-256")
         self.assertEqual(lookup("SHA-512/256"), "SHA-512")
+        self.assertEqual(lookup("HMACSHA1"), "HMAC")
 
 
 class Suites(unittest.TestCase):
@@ -54,6 +55,15 @@ class Pack(unittest.TestCase):
 
     def test_hmac_and_kdf_report_their_hash(self):
         self.assertEqual(self.accepted("java/Macs.java"), {"HMAC", "SHA-256", "PBKDF2", "SHA-1"})
+
+    def test_libsodium_calls_but_not_its_size_constants(self):
+        self.assertEqual(self.accepted("c/sodium.c"), {"BLAKE2", "Ed25519", "scrypt", "Salsa20"})
+        self.assertEqual(self.accepted("c/sodium_api.h"), set())
+
+    def test_names_that_are_not_algorithms(self):
+        self.assertEqual(self.accepted("js/hmac_bits.js"), {"HMAC"})
+        self.assertEqual(self.accepted("go/flags.go"), set())
+        self.assertEqual(self.accepted("cs/Blob.cs"), set())
 
     def test_second_look(self):
         self.assertIn("SHA-1", self.accepted("java/Hasher.java"))

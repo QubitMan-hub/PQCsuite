@@ -19,6 +19,12 @@ class Sheets(unittest.TestCase):
         self.assertEqual(heldout.parse_cell("OTHER: Salsa20"), ({"OTHER:SALSA20"}, []))
         self.assertEqual(heldout.parse_cell("AES; SHA256"), ({"AES"}, ["SHA256"]))
 
+    def test_vocabulary_is_frozen(self):
+        self.assertEqual(len(heldout.VOCABULARY), 49)
+        self.assertEqual(heldout.label_family("Salsa20"), "OTHER:SALSA20")
+        self.assertEqual(heldout.label_family("AES"), "AES")
+        self.assertEqual(heldout.parse_cell("Salsa20"), (set(), ["Salsa20"]))
+
     def test_used_wins_over_declared_and_blanks_are_reported(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "r.csv"
@@ -47,7 +53,7 @@ class Scoring(unittest.TestCase):
                 w = csv.writer(f)
                 w.writerow(heldout.COLUMNS)
                 for file, fams in truth.items():
-                    w.writerow([file, "; ".join(fams) or "-", "-", ""])
+                    w.writerow([file, "; ".join(heldout.label_family(f) for f in fams) or "-", "-", ""])
             labels, problems = heldout.load_labels(sheet)
         self.assertEqual(problems, [])
         row = heldout.prf(heldout.wolfpack_pairs(corpus, set(labels)), heldout.gold(labels, "strict"))

@@ -119,5 +119,17 @@
     "SHA-256",
     "PBKDF2",
     "SHA-1"
-  ]
+  ],
+  "c/sodium.c": [
+    "BLAKE2",
+    "Ed25519",
+    "scrypt",
+    "Salsa20"
+  ],
+  "js/hmac_bits.js": [
+    "HMAC"
+  ],
+  "go/flags.go": [],
+  "cs/Blob.cs": [],
+  "c/sodium_api.h": []
 }
