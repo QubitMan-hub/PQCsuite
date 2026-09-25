@@ -48,7 +48,7 @@ class FleetTest(unittest.TestCase):
 
     def route(self, port):
         return (f'[[edge]]\nname = "web"\nmode = "terminate"\nlisten = "127.0.0.1:{port}"\ntarget = "127.0.0.1:{self.upstream}"\n'
-                f'cert = "{self.edge_cert / "chain.pem"}"\nkey = "{self.edge_cert / "key.pem"}"\n')
+                f"cert = '{self.edge_cert / 'chain.pem'}'\nkey = '{self.edge_cert / 'key.pem'}'\n")
 
     def fetch(self, port, path="/x"):
         ctx = tls.client_context(self.d / "pki" / "ca.crt")
