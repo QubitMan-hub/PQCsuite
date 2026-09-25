@@ -26,8 +26,6 @@ def main(argv=None):
     s.add_argument("--threshold", type=float, default=0.6)
     s.add_argument("--without", action="append", default=[], choices=ROLES, metavar="ROLE",
                    help=f"leave a member of the pack out (ablation, repeatable): {', '.join(ROLES)}")
-    s.add_argument("--raw", action="store_true", help="same as --without den")
-    s.add_argument("--no-second-look", action="store_true", help="same as --without second-look")
     s.add_argument("--include-vendor", action="store_true", help="also scan vendor/, node_modules/ and similar")
     s.add_argument("--fail-on", choices=TIERS[:-1], help="exit 2 if any asset is at this tier or worse (for CI)")
     s.add_argument("-q", "--quiet", action="store_true")
@@ -48,8 +46,7 @@ def main(argv=None):
         sys.exit(f"wolfpack: {a.path} does not exist")
     name = a.name or ((a.tls + a.ssh)[0] if targets_only else root.name)
     h = Horizon(a.shelf_life, a.migration, a.crqc_year)
-    roles = pack.Roles.without(*a.without, *(["den"] if a.raw else []), *(["second-look"] if a.no_second_look else []))
-    r = pack.run(root, name, a.tls, h, a.threshold, roles, a.include_vendor, a.ssh, a.baseline)
+    r = pack.run(root, name, a.tls, h, a.threshold, pack.Roles.without(*a.without), a.include_vendor, a.ssh, a.baseline)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "cbom.json").write_text(json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2), encoding="utf-8")

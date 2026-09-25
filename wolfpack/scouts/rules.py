@@ -7,8 +7,8 @@ Q = r"""['"`]"""
 RULES = {}
 
 
-def rule(langs, pattern, flags=0):
-    rx = re.compile(pattern, flags)
+def rule(langs, pattern):
+    rx = re.compile(pattern)
 
     def deco(fn):
         for l in langs.split():
@@ -17,15 +17,19 @@ def rule(langs, pattern, flags=0):
     return deco
 
 
-def lit(s):
-    return [(lookup(s) or pq_from_text(s), {})]
+def simple(langs, pattern, what=None, **params):
+    """A rule with no logic. `what` is an algorithm, a tuple of them, a {last group: algorithm(s)} map, or None to look the last group up."""
+    def fn(m, x):
+        g = m.group(m.lastindex) if m.lastindex else None
+        v = (lookup(g) or pq_from_text(g)) if what is None else what.get(g) if isinstance(what, dict) else what
+        return [(a, dict(params)) for a in ((v,) if isinstance(v, str) else v or ()) if a]
+    rule(langs, pattern)(fn)
 
 
 # JVM
 @rule("java", r'Cipher\.getInstance\(\s*"([^"]+)"(?=\s*[,)])')
 def _(m, x):
-    a, p = parse_transformation(m.group(1))
-    return [(a, p)]
+    return [parse_transformation(m.group(1))]
 
 
 @rule("java", r'\b(KeyPairGenerator|KeyGenerator|KeyAgreement|KeyFactory|MessageDigest|Mac|SecretKeyFactory|KEM)\.getInstance\(\s*"([^"]+)"(?=\s*[,)])')
@@ -40,9 +44,7 @@ def _(m, x):
     if kind == "KeyGenerator" and s.lower().startswith("hmac"):
         return [("HMAC", {"hash": lookup(s[4:])})]
     a = lookup(s) or pq_from_text(s) or parse_transformation(s)[0]
-    if kind == "KeyAgreement" and a == "ECC":
-        a = "ECDH"
-    return [(a, {})]
+    return [("ECDH" if kind == "KeyAgreement" and a == "ECC" else a, {})]
 
 
 @rule("java", r'\bSignature\.getInstance\(\s*"([^"]+)"(?=\s*[,)])')
@@ -70,9 +72,7 @@ def _(m, x):
     return [parse_transformation(m.group(1))]
 
 
-@rule("java", r'SSLContext\.getInstance\(\s*"([^"]+)"')
-def _(m, x):
-    return lit(m.group(1)) if m.group(1).upper() not in ("TLS", "SSL", "DEFAULT") else []
+simple("java", r'SSLContext\.getInstance\(\s*"([^"]+)"')
 
 
 @rule("java", r'setEnabledProtocols\((.*)\)')
@@ -88,11 +88,14 @@ BC = {"RSAKeyPairGenerator": "RSA", "RSAEngine": "RSA", "RSADigestSigner": "RSA"
 
 @rule("java", r'new\s+(\w+(?:Engine|Digest|Signer|Agreement|KeyPairGenerator|KEMGenerator|KEMExtractor))\s*\(')
 def _(m, x):
-    c = m.group(1)
-    return [(BC.get(c) or pq_from_text(c), {"lib": "org.bouncycastle"})]
+    return [(BC.get(m.group(1)) or pq_from_text(m.group(1)), {"lib": "org.bouncycastle"})]
 
 
-# libsodium: the same crypto_* names in C, PHP (sodium_crypto_*) and the JS wrappers
+simple("java", r'\bMessageDigestAlgorithms\.(MD5|SHA_1|SHA_224|SHA_256|SHA_384|SHA_512(?:_224|_256)?|SHA3_256|SHA3_384|SHA3_512)\b', lib="commons-codec")
+simple("java", r'\bgetDigest\(\s*"([^"]+)"(?=\s*[,)])', lib="commons-codec")
+simple("java", r'\bDigestUtils\.(?:get(\w+?)Digest|(md5|sha1|sha256|sha384|sha512(?:_224|_256)?|sha3_256|sha3_384|sha3_512)(?:Hex)?)\s*\(', lib="commons-codec")
+
+# libsodium: the same crypto_* names in C, PHP (sodium_crypto_*), the JS wrappers and C# bindings
 SODIUM = [("aead_xchacha20poly1305", "ChaCha20-Poly1305"), ("aead_chacha20poly1305", "ChaCha20-Poly1305"), ("secretstream_xchacha20poly1305", "ChaCha20-Poly1305"),
           ("aead_aes256gcm", "AES"), ("stream_xchacha20", "ChaCha20"), ("stream_chacha20", "ChaCha20"), ("stream_xsalsa20", "Salsa20"),
           ("stream_salsa20", "Salsa20"), ("secretbox", "Salsa20"), ("box", ("X25519", "Salsa20")), ("sign", "Ed25519"), ("kx", "X25519"),
@@ -103,60 +106,27 @@ SODIUM = [("aead_xchacha20poly1305", "ChaCha20-Poly1305"), ("aead_chacha20poly13
 
 @rule("c js csharp", r'(?<![A-Za-z0-9])(?:sodium_)?crypto_([a-z0-9]+(?:_[a-z0-9]+)*)\s*\(')
 def _(m, x):
-    name = m.group(1)
     before = x.text[x.text.rfind("\n", 0, m.start()) + 1:m.start()]
     if re.search(r"\bextern\b", before) or x.path.endswith((".h", ".hpp")) and re.match(r"\s*(?!return\b)(?:[A-Za-z_]\w*\s+|\*\s*)+$", before):
         return []
-    for key, algos in SODIUM:
-        if name == key or name.startswith(key + "_"):
-            return [(a, {"lib": "libsodium"}) for a in ((algos,) if isinstance(algos, str) else algos)]
-    return []
+    name = m.group(1)
+    algos = next((a for key, a in SODIUM if name == key or name.startswith(key + "_")), ())
+    return [(a, {"lib": "libsodium"}) for a in ((algos,) if isinstance(algos, str) else algos)]
 
 
-SODIUM_NET = {"SecretBox": ("Salsa20",), "PublicKeyBox": ("X25519", "Salsa20"), "SealedPublicKeyBox": ("X25519", "Salsa20"),
-              "PublicKeyAuth": ("Ed25519",), "SecretAeadAes": ("AES",), "SecretAeadChaCha20Poly1305": ("ChaCha20-Poly1305",),
-              "SecretAeadXChaCha20Poly1305": ("ChaCha20-Poly1305",), "GenericHash": ("BLAKE2",), "ScalarMult": ("X25519",)}
+SODIUM_NET = {"SecretBox": "Salsa20", "PublicKeyBox": ("X25519", "Salsa20"), "SealedPublicKeyBox": ("X25519", "Salsa20"), "PublicKeyAuth": "Ed25519",
+              "SecretAeadAes": "AES", "SecretAeadChaCha20Poly1305": "ChaCha20-Poly1305", "SecretAeadXChaCha20Poly1305": "ChaCha20-Poly1305",
+              "GenericHash": "BLAKE2", "ScalarMult": "X25519"}
 SODIUM_NET_METHODS = {"ArgonHash": "Argon2", "ScryptHash": "scrypt", "Sha256": "SHA-256", "Sha512": "SHA-512", "EncryptChaCha20": "ChaCha20",
                       "EncryptXChaCha20": "ChaCha20", "EncryptSalsa20": "Salsa20", "EncryptXSalsa20": "Salsa20", "SignHmacSha256": ("HMAC", "SHA-256"),
                       "SignHmacSha512": ("HMAC", "SHA-512")}
-
-
-@rule("csharp", r'\b(' + "|".join(SODIUM_NET) + r')\.\w+\s*\(')
-def _(m, x):
-    return [(a, {"lib": "libsodium"}) for a in SODIUM_NET[m.group(1)]]
-
-
-@rule("csharp", r'\b(?:PasswordHash|CryptoHash|StreamEncryption|SecretKeyAuth)\.(' + "|".join(SODIUM_NET_METHODS) + r')\w*\s*\(')
-def _(m, x):
-    a = SODIUM_NET_METHODS[m.group(1)]
-    return [(v, {"lib": "libsodium"}) for v in ((a,) if isinstance(a, str) else a)]
-
+simple("csharp", r'\b(' + "|".join(SODIUM_NET) + r')\.\w+\s*\(', SODIUM_NET, lib="libsodium")
+simple("csharp", r'\b(?:PasswordHash|CryptoHash|StreamEncryption|SecretKeyAuth)\.(' + "|".join(SODIUM_NET_METHODS) + r')\w*\s*\(', SODIUM_NET_METHODS, lib="libsodium")
 
 # sjcl: its namespaces name the algorithm, both where it is implemented and where it is called
 SJCL = {"cipher.aes": "AES", "hash.sha1": "SHA-1", "hash.sha256": "SHA-256", "hash.sha512": "SHA-512", "misc.hmac": "HMAC",
         "misc.pbkdf2": "PBKDF2", "misc.scrypt": "scrypt", "misc.hkdf": "HKDF", "ecc.ecdsa": "ECDSA", "ecc.elGamal": "ECDH", "encrypt": "AES", "json.encrypt": "AES"}
-
-
-@rule("js", r'\bsjcl\.(' + "|".join(re.escape(k) for k in sorted(SJCL, key=len, reverse=True)) + r')\b')
-def _(m, x):
-    return [(SJCL[m.group(1)], {"lib": "sjcl"})]
-
-
-# Apache commons-codec
-@rule("java", r'\bMessageDigestAlgorithms\.(MD5|SHA_1|SHA_224|SHA_256|SHA_384|SHA_512(?:_224|_256)?|SHA3_256|SHA3_384|SHA3_512)\b')
-def _(m, x):
-    return [(lookup(m.group(1)) or lookup(m.group(1).replace("_", "-")), {"lib": "commons-codec"})]
-
-
-@rule("java", r'\bgetDigest\(\s*"([^"]+)"(?=\s*[,)])')
-def _(m, x):
-    return [(lookup(m.group(1)), {"lib": "commons-codec"})]
-
-
-@rule("java", r'\bDigestUtils\.(?:get(\w+?)Digest|(md5|sha1|sha256|sha384|sha512(?:_224|_256)?|sha3_256|sha3_384|sha3_512)(?:Hex)?)\s*\(')
-def _(m, x):
-    name = m.group(1) or m.group(2)
-    return [(lookup(name) or lookup(name.replace("_", "-")), {"lib": "commons-codec"})]
+simple("js", r'\bsjcl\.(' + "|".join(re.escape(k) for k in sorted(SJCL, key=len, reverse=True)) + r')\b', SJCL, lib="sjcl")
 
 
 # Go
@@ -184,29 +154,20 @@ def _(m, x):
     return [("ECDSA", {"curve": curve(m.group(1)) if m.group(1) else None})]
 
 
-@rule("go", r'\becdsa\.(Sign\w*|Verify\w*)\(')
-def _(m, x):
-    return [("ECDSA", {})]
-
-
 @rule("go", r'\becdh\.(P256|P384|P521|X25519)\(\)')
 def _(m, x):
     return [("X25519", {})] if m.group(1) == "X25519" else [("ECDH", {"curve": curve(m.group(1))})]
 
 
-@rule("go", r'\bed25519\.(GenerateKey|Sign|Verify|NewKeyFromSeed|PublicKey|PrivateKey)\b')
-def _(m, x):
-    return [("Ed25519", {})]
-
-
-@rule("go", r'\bcurve25519\.(X25519|ScalarMult|ScalarBaseMult)\(')
-def _(m, x):
-    return [("X25519", {})]
-
-
-@rule("go", r'\baes\.NewCipher\(')
-def _(m, x):
-    return [("AES", {})]
+simple("go", r'\becdsa\.(?:Sign\w*|Verify\w*)\(', "ECDSA")
+simple("go", r'\bed25519\.(?:GenerateKey|Sign|Verify|NewKeyFromSeed|PublicKey|PrivateKey)\b', "Ed25519")
+simple("go", r'\bcurve25519\.(?:X25519|ScalarMult|ScalarBaseMult)\(', "X25519")
+simple("go", r'\baes\.NewCipher\(', "AES")
+simple("go", r'\bdes\.(NewTripleDESCipher|NewCipher)\(', {"NewTripleDESCipher": "3DES", "NewCipher": "DES"})
+simple("go", r'\brc4\.NewCipher\(', "RC4")
+simple("go", r'\bchacha20poly1305\.New\w*\(', "ChaCha20-Poly1305")
+simple("go", r'\b(scrypt)\.Key\(|\b(hkdf)\.(?:New|Extract|Expand|Key)\(|\b(pbkdf2)\.Key\(|\b(argon2)\.(?:ID)?Key\(|\b(bcrypt)\.GenerateFromPassword\(')
+simple("go", r'\bdsa\.(?:GenerateParameters|GenerateKey|Sign|Verify)\(', "DSA")
 
 
 @rule("go", r'\bcipher\.New(GCM|CBCEncrypter|CBCDecrypter|CTR|CFBEncrypter|CFBDecrypter|OFB)\w*\(')
@@ -214,27 +175,12 @@ def _(m, x):
     x.attach({"mode": m.group(1)[:3].upper() if m.group(1) != "OFB" else "OFB"}, ("AES", "3DES", "DES"), window=12)
 
 
-@rule("go", r'\bdes\.(NewTripleDESCipher|NewCipher)\(')
-def _(m, x):
-    return [("3DES" if "Triple" in m.group(1) else "DES", {})]
-
-
-@rule("go", r'\brc4\.NewCipher\(')
-def _(m, x):
-    return [("RC4", {})]
-
-
-@rule("go", r'\bchacha20poly1305\.New\w*\(')
-def _(m, x):
-    return [("ChaCha20-Poly1305", {})]
-
-
 @rule("go", r'\btls\.(VersionTLS1[0-3]|VersionSSL30|X25519MLKEM768|X25519|CurveP256|CurveP384|CurveP521)\b')
 def _(m, x):
     t = m.group(1)
     if t.startswith("Curve"):
         return [("ECDH", {"curve": curve(t[5:])})]
-    return lit("SSLv3" if t == "VersionSSL30" else t)
+    return [(lookup("SSLv3" if t == "VersionSSL30" else t), {})]
 
 
 @rule("go", r'\bmlkem\.(GenerateKey|NewDecapsulationKey|NewEncapsulationKey)(768|1024)\(')
@@ -247,23 +193,9 @@ def _(m, x):
     return [("HMAC", {"hash": lookup(m.group(1))})]
 
 
-@rule("go", r'\b(scrypt\.Key|hkdf\.(?:New|Extract|Expand|Key)|pbkdf2\.Key|argon2\.(?:ID)?Key|bcrypt\.GenerateFromPassword)\(')
-def _(m, x):
-    f = m.group(1).split(".")[0]
-    return [({"scrypt": "scrypt", "hkdf": "HKDF", "pbkdf2": "PBKDF2", "argon2": "Argon2", "bcrypt": "bcrypt"}[f], {})]
-
-
-@rule("go", r'\bdsa\.(GenerateParameters|GenerateKey|Sign|Verify)\(')
-def _(m, x):
-    return [("DSA", {})]
 
 
 # JavaScript / TypeScript
-@rule("js", r'\bcreateHash\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
-def _(m, x):
-    return lit(m.group(1))
-
-
 @rule("js", r'\bcreateHmac\(\s*(?:' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)]))?')
 def _(m, x):
     return [("HMAC", {"hash": lookup(m.group(1)) if m.group(1) else None})]
@@ -274,18 +206,15 @@ def _(m, x):
     return [parse_symmetric_name(m.group(1))]
 
 
-@rule("js", r'\bgenerateKeyPair(?:Sync)?\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
-def _(m, x):
-    a = lookup(m.group(1)) or pq_from_text(m.group(1))
-    near = x.window_text(6)
-    p = {}
+def key_params(near):
     ml = re.search(r"modulusLength\s*:\s*(\d+)", near)
     nc = re.search(r"namedCurve\s*:\s*" + Q + r"([\w-]+)", near)
-    if ml:
-        p["key_size"] = int(ml.group(1))
-    if nc:
-        p["curve"] = curve(nc.group(1))
-    return [(a, p)]
+    return {"key_size": int(ml.group(1)) if ml else None, "curve": curve(nc.group(1)) if nc else None}
+
+
+@rule("js", r'\bgenerateKeyPair(?:Sync)?\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
+def _(m, x):
+    return [(lookup(m.group(1)) or pq_from_text(m.group(1)), key_params(x.window_text(6)))]
 
 
 @rule("js", r'\bcreate(?:Sign|Verify)\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
@@ -298,42 +227,25 @@ def _(m, x):
     return [("ECDH", {"curve": curve(m.group(1))})]
 
 
-@rule("js", r'\bcreateDiffieHellman(?:Group)?\(')
-def _(m, x):
-    return [("DH", {})]
-
-
 @rule("js", r'\bpbkdf2(?:Sync)?\([^;]*?' + Q + r'(sha\w+|md5)' + Q + r'(?=\s*[,)])')
 def _(m, x):
     return [("PBKDF2", {"hash": lookup(m.group(1))})]
 
 
-@rule("js", r'\bcrypto\.scrypt(?:Sync)?\(')
-def _(m, x):
-    return [("scrypt", {})]
-
-
 @rule("js", r'\bsubtle\.(generateKey|importKey|sign|verify|encrypt|decrypt|deriveKey|deriveBits|digest)\(')
 def _(m, x):
     near = x.window_text(4)
-    out = []
     nm = re.search(r"name\s*:\s*" + Q + r"([\w-]+)" + Q, near) or (re.search(r"digest\(\s*" + Q + r"([\w-]+)" + Q, near) if m.group(1) == "digest" else None)
-    if nm:
-        a = lookup(nm.group(1)) or parse_symmetric_name(nm.group(1))[0]
-        p = {}
-        ml = re.search(r"modulusLength\s*:\s*(\d+)", near)
-        nc = re.search(r"namedCurve\s*:\s*" + Q + r"([\w-]+)", near)
+    if not nm:
+        return []
+    a = lookup(nm.group(1)) or parse_symmetric_name(nm.group(1))[0]
+    p = key_params(near)
+    if a == "AES":
+        p.update(parse_symmetric_name(nm.group(1))[1])
         ln = re.search(r"length\s*:\s*(128|192|256)\b", near)
-        if ml:
-            p["key_size"] = int(ml.group(1))
-        if nc:
-            p["curve"] = curve(nc.group(1))
-        if a == "AES":
-            p.update(parse_symmetric_name(nm.group(1))[1])
-            if ln:
-                p["key_size"] = int(ln.group(1))
-        out.append((a, p))
-    return out
+        if ln:
+            p["key_size"] = int(ln.group(1))
+    return [(a, p)]
 
 
 @rule("js", r'\bjwt\.sign\(')
@@ -345,12 +257,12 @@ def _(m, x):
 @rule("js", r'\bnew\s+NodeRSA\(')
 def _(m, x):
     b = re.search(r"\bb\s*:\s*(\d+)", x.window_text(2))
-    return [("RSA", {"key_size": int(b.group(1))} if b else {})]
+    return [("RSA", {"key_size": int(b.group(1)) if b else None})]
 
 
 @rule("js", r'\bpki\.rsa\.generateKeyPair\(\s*\{?\s*(?:bits\s*:\s*)?(\d+)?')
 def _(m, x):
-    return [("RSA", {"key_size": int(m.group(1))} if m.group(1) else {})]
+    return [("RSA", {"key_size": int(m.group(1)) if m.group(1) else None})]
 
 
 @rule("js", r'\bnew\s+(?:elliptic\.)?(?:ec|EC)\(\s*' + Q + r'(\w+)' + Q)
@@ -358,20 +270,21 @@ def _(m, x):
     return [("ECC", {"curve": curve(m.group(1))})]
 
 
-@rule("js", r'\b(?:minVersion|maxVersion)\s*:\s*' + Q + r'(TLSv1(?:\.\d)?)' + Q)
-def _(m, x):
-    return lit(m.group(1))
-
-
-@rule("js", r'\bsecureProtocol\s*:\s*' + Q + r'(\w+?)_method' + Q)
-def _(m, x):
-    return lit(m.group(1)) if m.group(1).upper() not in ("TLS", "SSLV23") else []
+simple("js", r'\bcreateHash\(\s*' + Q + r'([\w-]+)' + Q + r'(?=\s*[,)])')
+simple("js", r'\bcreateDiffieHellman(?:Group)?\(', "DH")
+simple("js", r'\bcrypto\.scrypt(?:Sync)?\(', "scrypt")
+simple("js", r'\b(?:minVersion|maxVersion)\s*:\s*' + Q + r'(TLSv1(?:\.\d)?)' + Q)
+simple("js", r'\bsecureProtocol\s*:\s*' + Q + r'(\w+?)_method' + Q)
 
 
 # C / C++ (OpenSSL)
-@rule("c", r'\bEVP_(md5|md4|sha1|sha224|sha256|sha384|sha512|sha3_256|sha3_384|sha3_512|blake2b512|blake2s256)\s*\(\s*\)')
-def _(m, x):
-    return lit(m.group(1))
+simple("c", r'\bEVP_(md5|md4|sha1|sha224|sha256|sha384|sha512|sha3_256|sha3_384|sha3_512|blake2b512|blake2s256)\s*\(\s*\)')
+simple("c", r'\bRSA_(?:public_encrypt|private_decrypt|sign|verify|new)\s*\(', "RSA")
+simple("c", r'\bEVP_PKEY_CTX_new_id\(\s*(EVP_PKEY_\w+)')
+simple("c", r'\b(ECDSA|ECDH|DH|DSA)_(?:do_sign|sign|verify|do_verify|compute_key|generate_key|new|generate_parameters_ex)\s*\(')
+simple("c", r'\b(MD5|SHA1|SHA256|SHA512)(?:_Init|_Update|_Final)?\s*\(')
+simple("c", r'\bSSL_CTX_set_(?:min|max)_proto_version\([^,]+,\s*(\w+)')
+simple("c", r'\bPKCS5_PBKDF2_HMAC(?:_SHA1)?\(', "PBKDF2")
 
 
 @rule("c", r'\bEVP_(aes_\d+_\w+|des_ede3\w*|des_\w+|rc4|rc2_\w+|bf_\w+|chacha20_poly1305|chacha20)\s*\(\s*\)')
@@ -382,16 +295,6 @@ def _(m, x):
 @rule("c", r'\bRSA_generate_key(?:_ex)?\s*\([^,]*,\s*(\d+)')
 def _(m, x):
     return [("RSA", {"key_size": int(m.group(1))})]
-
-
-@rule("c", r'\bRSA_(public_encrypt|private_decrypt|sign|verify|new)\s*\(')
-def _(m, x):
-    return [("RSA", {})]
-
-
-@rule("c", r'\bEVP_PKEY_CTX_new_id\(\s*(EVP_PKEY_\w+)')
-def _(m, x):
-    return lit(m.group(1))
 
 
 @rule("c", r'\bEVP_PKEY_CTX_set_rsa_keygen_bits\([^,]+,\s*(\d+)')
@@ -407,7 +310,7 @@ def _(m, x):
 @rule("c", r'\bEVP_PKEY_(?:CTX_new_from_name|Q_keygen)\([^"]*"([^"]+)"(?:\s*,\s*(\d+))?')
 def _(m, x):
     a = lookup(m.group(1)) or pq_from_text(m.group(1))
-    return [(a, {"key_size": int(m.group(2))} if m.group(2) and a == "RSA" else {})]
+    return [(a, {"key_size": int(m.group(2)) if m.group(2) and a == "RSA" else None})]
 
 
 @rule("c", r'\bEC_KEY_new_by_curve_name\(\s*(NID_\w+)')
@@ -415,25 +318,9 @@ def _(m, x):
     return [("ECC", {"curve": curve(m.group(1))})]
 
 
-@rule("c", r'\b(ECDSA_do_sign|ECDSA_sign|ECDSA_verify|ECDSA_do_verify|ECDH_compute_key|DH_generate_key|DH_compute_key|DH_new|DSA_generate_parameters_ex|DSA_sign|DSA_do_sign)\s*\(')
-def _(m, x):
-    f = m.group(1)
-    return [(f.split("_")[0], {})]
-
-
-@rule("c", r'\b(MD5|SHA1|SHA256|SHA512)(?:_Init|_Update|_Final)?\s*\(')
-def _(m, x):
-    return lit(m.group(1))
-
-
-@rule("c", r'\bSSL_CTX_set_(?:min|max)_proto_version\([^,]+,\s*(\w+)')
-def _(m, x):
-    return lit(m.group(1))
-
-
 @rule("c", r'\b(TLSv1_method|TLSv1_1_method|SSLv3_method|SSLv2_method|TLSv1_client_method|TLSv1_server_method)\s*\(')
 def _(m, x):
-    return lit(m.group(1).split("_method")[0].split("_client")[0].split("_server")[0])
+    return [(lookup(re.sub(r"_(client_|server_)?method$", "", m.group(1))), {})]
 
 
 @rule("c", r'\bSSL_CTX_set1_(?:groups|curves)_list\([^,]+,\s*"([^"]+)"')
@@ -451,36 +338,25 @@ def _(m, x):
     return [("HMAC", {"hash": lookup(m.group(1))})]
 
 
-@rule("c", r'\bPKCS5_PBKDF2_HMAC(?:_SHA1)?\(')
-def _(m, x):
-    return [("PBKDF2", {})]
-
 
 # C#
 CS = {"RSA": "RSA", "DSA": "DSA", "ECDsa": "ECDSA", "ECDiffieHellman": "ECDH", "Aes": "AES", "TripleDES": "3DES", "DES": "DES", "RC2": "RC2",
-      "MD5": "MD5", "SHA1": "SHA-1", "SHA256": "SHA-256", "SHA384": "SHA-384", "SHA512": "SHA-512", "HMACSHA256": "HMAC", "HMACSHA384": "HMAC", "HMACSHA512": "HMAC", "HMACSHA3_256": "HMAC", "HMACSHA3_384": "HMAC", "HMACSHA3_512": "HMAC", "HMACSHA1": "HMAC",
-      "HMACMD5": "HMAC", "Rfc2898DeriveBytes": "PBKDF2", "RSACryptoServiceProvider": "RSA", "DSACryptoServiceProvider": "DSA",
-      "TripleDESCryptoServiceProvider": "3DES", "DESCryptoServiceProvider": "DES", "RC2CryptoServiceProvider": "RC2", "MD5CryptoServiceProvider": "MD5",
-      "SHA1CryptoServiceProvider": "SHA-1", "SHA1Managed": "SHA-1", "SHA256Managed": "SHA-256", "RijndaelManaged": "AES", "AesManaged": "AES",
-      "AesGcm": "AES", "AesCcm": "AES", "ChaCha20Poly1305": "ChaCha20-Poly1305", "ECDsaCng": "ECDSA", "ECDsaOpenSsl": "ECDSA", "ECDiffieHellmanCng": "ECDH", "ECDiffieHellmanOpenSsl": "ECDH", "RSACng": "RSA", "RSAOpenSsl": "RSA",
-      "SHA384Managed": "SHA-384", "SHA512Managed": "SHA-512", "SHA3_256": "SHA3-256", "SHA3_384": "SHA3-384", "SHA3_512": "SHA3-512", "MLKem": "ML-KEM", "MLDsa": "ML-DSA"}
+      "MD5": "MD5", "SHA1": "SHA-1", "SHA256": "SHA-256", "SHA384": "SHA-384", "SHA512": "SHA-512", "SHA3_256": "SHA3-256", "SHA3_384": "SHA3-384",
+      "SHA3_512": "SHA3-512", "HMACMD5": "HMAC", "HMACSHA1": "HMAC", "HMACSHA256": "HMAC", "HMACSHA384": "HMAC", "HMACSHA512": "HMAC",
+      "HMACSHA3_256": "HMAC", "HMACSHA3_384": "HMAC", "HMACSHA3_512": "HMAC", "Rfc2898DeriveBytes": "PBKDF2", "RSACryptoServiceProvider": "RSA",
+      "DSACryptoServiceProvider": "DSA", "TripleDESCryptoServiceProvider": "3DES", "DESCryptoServiceProvider": "DES", "RC2CryptoServiceProvider": "RC2",
+      "MD5CryptoServiceProvider": "MD5", "SHA1CryptoServiceProvider": "SHA-1", "SHA1Managed": "SHA-1", "SHA256Managed": "SHA-256",
+      "SHA384Managed": "SHA-384", "SHA512Managed": "SHA-512", "RijndaelManaged": "AES", "AesManaged": "AES", "AesGcm": "AES", "AesCcm": "AES",
+      "ChaCha20Poly1305": "ChaCha20-Poly1305", "ECDsaCng": "ECDSA", "ECDsaOpenSsl": "ECDSA", "ECDiffieHellmanCng": "ECDH",
+      "ECDiffieHellmanOpenSsl": "ECDH", "RSACng": "RSA", "RSAOpenSsl": "RSA", "MLKem": "ML-KEM", "MLDsa": "ML-DSA"}
 
 
-def _cs(m, x):
-    c, n = m.group(1), m.group(2)
-    a = CS.get(c)
-    p = {}
-    if a in ("RSA", "DSA") and n:
-        p["key_size"] = int(n)
-    if a == "HMAC":
-        p["hash"] = lookup(c[4:])
-    if c in ("AesGcm", "AesCcm"):
-        p["mode"] = c[3:].upper()
-    return [(a, p)]
-
-
-rule("csharp", r'\b(' + "|".join(CS) + r')\.Create\s*\(\s*(\d+)?')(_cs)
-rule("csharp", r'\bnew\s+(' + "|".join(CS) + r')\s*\(\s*(\d+)?')(_cs)
+@rule("csharp", r'\b(?:new\s+(' + "|".join(CS) + r')\s*\(|(' + "|".join(CS) + r')\.Create\s*\()\s*(\d+)?')
+def _(m, x):
+    c, n = m.group(1) or m.group(2), m.group(3)
+    a = CS[c]
+    return [(a, {"key_size": int(n) if a in ("RSA", "DSA") and n else None, "hash": lookup(c[4:]) if a == "HMAC" else None,
+                 "mode": c[3:].upper() if c in ("AesGcm", "AesCcm") else None})]
 
 
 @rule("csharp", r'\bCipherMode\.(ECB|CBC|CFB|OFB|CTS)\b')
@@ -488,20 +364,14 @@ def _(m, x):
     x.attach({"mode": m.group(1)}, ("AES", "3DES", "DES", "RC2"))
 
 
-@rule("csharp", r'\bSslProtocols\.(Tls13|Tls12|Tls11|Tls|Ssl3|Ssl2)\b')
-def _(m, x):
-    t = {"Tls": "TLSv1", "Tls11": "TLSv1.1", "Tls12": "TLSv1.2", "Tls13": "TLSv1.3", "Ssl3": "SSLv3", "Ssl2": "SSLv2"}[m.group(1)]
-    return lit(t)
-
-
 @rule("csharp", r'\bECCurve\.NamedCurves\.nistP(256|384|521)')
 def _(m, x):
     x.attach({"curve": f"P-{m.group(1)}"}, ("ECDSA", "ECDH", "ECC"), window=4)
 
 
-@rule("csharp", r'\bHashAlgorithmName\.(SHA1|SHA256|SHA384|SHA512|MD5)\b')
-def _(m, x):
-    return lit(m.group(1))
+simple("csharp", r'\bSslProtocols\.(Tls13|Tls12|Tls11|Tls|Ssl3|Ssl2)\b',
+       {"Tls": "TLS 1.0", "Tls11": "TLS 1.1", "Tls12": "TLS 1.2", "Tls13": "TLS 1.3", "Ssl3": "SSL 3.0", "Ssl2": "SSL 2.0"})
+simple("csharp", r'\bHashAlgorithmName\.(SHA1|SHA256|SHA384|SHA512|MD5)\b')
 
 
 # Rust
@@ -518,17 +388,12 @@ RING = {"ECDSA_P256": ("ECDSA", "P-256"), "ECDSA_P384": ("ECDSA", "P-384"), "ED2
 def _(m, x):
     a, c = RING[m.group(1) or m.group(2)]
     h = re.search(r"SHA(256|384|512)", m.group(0))
-    return [(a, {"curve": c, "lib": "ring"} if c else {"lib": "ring"})] + ([(f"SHA-{h.group(1)}", {"lib": "ring"})] if h else [])
+    return [(a, {"curve": c, "lib": "ring"})] + ([(f"SHA-{h.group(1)}", {"lib": "ring"})] if h else [])
 
 
 @rule("rust", r'\baead::(AES_128_GCM|AES_256_GCM|CHACHA20_POLY1305)\b')
 def _(m, x):
     return [parse_symmetric_name(m.group(1))]
-
-
-@rule("rust", r'\b(Md5|Sha1|Sha224|Sha256|Sha384|Sha512)::(?:new|digest)\b|\bmd5::compute\(')
-def _(m, x):
-    return lit(m.group(1) or "MD5")
 
 
 @rule("rust", r'\bAes(128|192|256)(Gcm|GcmSiv|Ctr|Cbc)?\b')
@@ -539,6 +404,9 @@ def _(m, x):
 @rule("rust", r'\b(?:MlKem|ml_kem::MlKem)(512|768|1024)\b')
 def _(m, x):
     return [(f"ML-KEM-{m.group(1)}", {})]
+
+
+simple("rust", r'\b(Md5|Sha1|Sha224|Sha256|Sha384|Sha512)::(?:new|digest)\b|\b(md5)::compute\(')
 
 
 @rule("java go js c csharp rust", r'\b[\w.]*(?:ml[-_]?kem|ml[-_]?dsa|slh[-_]?dsa|MLKem|MLDsa|MlKem|MlDsa|mlkem|mldsa)[-_]?(?:512|768|1024|44|65|87)?\w*')

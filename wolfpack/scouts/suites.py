@@ -2,7 +2,7 @@ import re
 
 from ..elders import lookup, pq_from_text, curve, parse_symmetric_name
 
-SUITE_HASH = {"SHA": "SHA-1", "SHA1": "SHA-1", "SHA256": "SHA-256", "SHA384": "SHA-384", "MD5": "MD5"}
+SUITE_HASHES = {"SHA", "SHA1", "SHA256", "SHA384", "MD5"}
 KX = {"ECDHE": "ECDH", "ECDH": "ECDH", "EECDH": "ECDH", "DHE": "DH", "EDH": "DH", "DH": "DH", "RSA": "RSA", "ECDSA": "ECDSA", "DSS": "DSA",
       "KRSA": "RSA", "AECDSA": "ECDSA", "ARSA": "RSA", "KEECDH": "ECDH", "KEDH": "DH"}
 KEYWORDS = {"HIGH", "MEDIUM", "LOW", "EXPORT", "DEFAULT", "ALL", "COMPLEMENTOFALL", "COMPLEMENTOFDEFAULT", "ANULL", "ENULL", "NULL",
@@ -42,8 +42,8 @@ def suite(name):
             out.append(("DES", {}))
         elif t in ("RC4", "RC2"):
             out.append((t, {}))
-        elif t in SUITE_HASH and i == len(toks) - 1:
-            out.append((SUITE_HASH[t], {}))
+        elif t in SUITE_HASHES and i == len(toks) - 1:
+            out.append((lookup(t), {}))
         elif t == "AESGCM":
             out.append(("AES", {"mode": "GCM"}))
         i += 1
@@ -63,16 +63,10 @@ def cipher_string(s):
                     out.append((KX[u], {}))
                 elif u in ("AESGCM", "AES256", "AES128", "AES"):
                     out.extend(suite(u))
-                elif u in SUITE_HASH:
-                    out.append((SUITE_HASH[u], {}))
                 elif lookup(u):
                     out.append((lookup(u), {}))
             continue
-        parts = suite(item)
-        if parts:
-            out.extend(parts)
-        elif item.upper() not in KEYWORDS and lookup(item):
-            out.append((lookup(item), {}))
+        out.extend(suite(item) or ([(lookup(item), {})] if lookup(item) else []))
     return out
 
 

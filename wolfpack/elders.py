@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 SHOR, LEGACY, GROVER, SAFE = "shor", "legacy", "grover", "safe"
 HYBRIDS = {"X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "sntrup761x25519"}
-CONFIDENTIALITY = {"pke", "key-agree", "kem", "protocol", "block-cipher", "stream-cipher", "ae"}
 
 
 @dataclass(frozen=True)
@@ -155,16 +154,15 @@ _ALIASES = {
 ALIAS = {a.upper(): k for k, v in _ALIASES.items() for a in v}
 AMBIGUOUS = {"SHA", "EC", "BF", "DSS", "DH", "SHA2", "SHA-2", "TLS1", "DES", "P-256"}
 
-CURVES = {
-    "SECP256R1": ("P-256", 128), "PRIME256V1": ("P-256", 128), "P256": ("P-256", 128), "P-256": ("P-256", 128), "NISTP256": ("P-256", 128),
-    "X9_62_PRIME256V1": ("P-256", 128), "SECP384R1": ("P-384", 192), "P384": ("P-384", 192), "P-384": ("P-384", 192), "NISTP384": ("P-384", 192),
-    "SECP521R1": ("P-521", 256), "P521": ("P-521", 256), "P-521": ("P-521", 256), "NISTP521": ("P-521", 256),
-    "SECP256K1": ("secp256k1", 128), "SECP224R1": ("P-224", 112), "P224": ("P-224", 112), "P-224": ("P-224", 112),
-    "SECP192R1": ("P-192", 80), "PRIME192V1": ("P-192", 80), "BRAINPOOLP256R1": ("brainpoolP256r1", 128),
-}
-
-HASH_ALIASES = {"SHA1": "SHA-1", "SHA-1": "SHA-1", "SHA224": "SHA-224", "SHA256": "SHA-256", "SHA-256": "SHA-256", "SHA384": "SHA-384",
-                "SHA512": "SHA-512", "MD5": "MD5", "SHA3_256": "SHA3-256", "SHA3-256": "SHA3-256", "SHA3_512": "SHA3-512"}
+CURVES = {"P-256": (128, "secp256r1 prime256v1 P256 nistp256 X9_62_prime256v1"), "P-384": (192, "secp384r1 P384 nistp384"),
+          "P-521": (256, "secp521r1 P521 nistp521"), "P-224": (112, "secp224r1 P224"), "P-192": (80, "secp192r1 prime192v1"),
+          "secp256k1": (128, ""), "brainpoolP256r1": (128, "")}
+_norm = lambda s: re.sub(r"[^A-Z0-9]", "", s.upper())
+CURVE_OF = {_norm(a): c for c, (_, names) in CURVES.items() for a in [c, *names.split()]}
+_flat = lambda s: re.sub(r"[-_\s/.]", "", s)
+FLAT_ALIAS = {}
+for _k, _v in ALIAS.items():
+    FLAT_ALIAS.setdefault(_flat(_k), _v)
 
 MODES = {"ECB", "CBC", "CCM", "GCM", "CFB", "OFB", "CTR", "SIV", "OCB", "XTS", "EAX", "CFB8", "OCB3", "KW"}
 PADDINGS = {"PKCS1PADDING": "pkcs1v15", "PKCS1": "pkcs1v15", "PKCS1V15": "pkcs1v15", "OAEP": "oaep", "PKCS5PADDING": "pkcs5",
@@ -175,16 +173,7 @@ def lookup(token):
     if not token:
         return None
     t = token.strip().strip("'\"`").upper()
-    if t in ALIAS:
-        return ALIAS[t]
-    t2 = re.sub(r"[\s_]", "-", t)
-    if t2 in ALIAS:
-        return ALIAS[t2]
-    t3 = re.sub(r"[-_\s/.]", "", t)
-    for k, v in ALIAS.items():
-        if re.sub(r"[-_\s/.]", "", k) == t3:
-            return v
-    return None
+    return ALIAS.get(t) or ALIAS.get(re.sub(r"[\s_]", "-", t)) or FLAT_ALIAS.get(_flat(t))
 
 
 def pq_from_text(text):
@@ -234,7 +223,7 @@ def parse_symmetric_name(s):
         return None, {}
     head = toks[0].upper()
     params = {}
-    if head.startswith("AES") or head == "AES":
+    if head.startswith("AES"):
         algo = "AES"
         m = re.search(r"(128|192|256)", s0)
         if m:
@@ -242,7 +231,7 @@ def parse_symmetric_name(s):
     elif head == "CHACHA20" and any(t.upper() == "POLY1305" for t in toks):
         algo = "ChaCha20-Poly1305"
     else:
-        algo = lookup("-".join(toks[:2])) if len(toks) > 1 and lookup("-".join(toks[:2])) in ("3DES",) else lookup(head)
+        algo = "3DES" if len(toks) > 1 and lookup("-".join(toks[:2])) == "3DES" else lookup(head)
     for t in toks[1:]:
         if t.upper() in MODES:
             params["mode"] = t.upper()
@@ -250,14 +239,8 @@ def parse_symmetric_name(s):
 
 
 def curve(name):
-    if not name:
-        return None
-    k = re.sub(r"[^A-Z0-9_]", "", name.upper().replace("-", ""))
-    k = k.replace("NID_", "").replace("X962", "X9_62")
-    for key, v in CURVES.items():
-        if re.sub(r"[^A-Z0-9]", "", key) == re.sub(r"[^A-Z0-9]", "", k):
-            return v[0]
-    return None
+    k = _norm(name or "")
+    return CURVE_OF.get(k[3:] if k.startswith("NID") else k)
 
 
 def classical_bits(algo, params):
@@ -268,8 +251,7 @@ def classical_bits(algo, params):
             return None
         return 80 if n < 2048 else 112 if n < 3072 else 128 if n < 7680 else 192 if n < 15360 else 256
     if algo in ("ECC", "ECDSA", "ECDH"):
-        c = params.get("curve")
-        return next((v[1] for v in CURVES.values() if v[0] == c), None)
+        return CURVES.get(params.get("curve"), (None,))[0]
     if algo == "AES":
         return params.get("key_size")
     return a.bits if a else None
@@ -286,21 +268,16 @@ def quantum_level(algo, params):
     return a.level
 
 
-def variant(algo, params):
-    p = params
+def variant(algo, p):
     if algo in ("RSA", "DSA", "DH") and p.get("key_size"):
-        v = f"{algo}-{p['key_size']}"
-    elif algo in ("ECC", "ECDSA", "ECDH") and p.get("curve"):
-        v = f"{algo}-{p['curve']}"
-    elif algo == "AES":
-        v = "AES" + (f"-{p['key_size']}" if p.get("key_size") else "") + (f"-{p['mode']}" if p.get("mode") else "")
-    elif algo == "HMAC" and p.get("hash"):
-        v = f"HMAC-{p['hash']}"
-    elif algo == "PBKDF2" and p.get("hash"):
-        v = f"PBKDF2-{p['hash']}"
-    else:
-        v = algo
-    return v
+        return f"{algo}-{p['key_size']}"
+    if algo in ("ECC", "ECDSA", "ECDH") and p.get("curve"):
+        return f"{algo}-{p['curve']}"
+    if algo == "AES":
+        return "-".join(str(x) for x in ("AES", p.get("key_size"), p.get("mode")) if x)
+    if algo in ("HMAC", "PBKDF2") and p.get("hash"):
+        return f"{algo}-{p['hash']}"
+    return algo
 
 
 def nist_status(algo, params):
