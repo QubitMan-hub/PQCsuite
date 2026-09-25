@@ -1,6 +1,8 @@
 # Pre-registration: Wolf Pack held-out benchmark
 
-Status: **draft, awaiting the owner's sign-off.** Once signed off, this file is committed before the first label is written, and it is not edited afterwards except to append dated amendments at the bottom.
+Status: **signed off by the owner, QubitMan, on 25 September 2026**, before any label was written. From this commit on, the file is not edited except to append dated amendments at the bottom.
+
+The labelling conventions in `LABELLING.md` were confirmed at the same time. The strict policy is primary. An HMAC or KDF is labelled together with its hash (`HmacSHA256` is HMAC and SHA-256), and SHA-512/224 and SHA-512/256 are labelled SHA-512. Wolf Pack was aligned with both conventions before labelling, using only the development corpus.
 
 ## Question
 
