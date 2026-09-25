@@ -228,6 +228,15 @@ class Scope(unittest.TestCase):
 
 
 class Regressions(unittest.TestCase):
+    def test_bare_sighting_joins_its_only_variant(self):
+        from wolfpack import den
+        from wolfpack.model import Sighting
+        S = lambda f, line, ev, **p: Sighting("RSA", f, line, ev, "t", params=p, verdict="accepted", confidence=.7)
+        one = [S("a.py", 1, "import"), S("a.py", 5, "call", key_size=2048)]
+        two = [S("b.py", 1, "import"), S("b.py", 5, "call", key_size=2048), S("b.py", 9, "call", key_size=4096)]
+        self.assertEqual([a.variant for a in den.assets(one)], ["RSA-2048"])
+        self.assertEqual(sorted(a.variant for a in den.assets(two)), ["RSA", "RSA-2048", "RSA-4096"])
+
     def test_ssh_probe_survives_early_close(self):
         import socket, threading
         from wolfpack.scouts import tls
