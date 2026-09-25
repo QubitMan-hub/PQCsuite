@@ -5,7 +5,7 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 from . import den, alpha
-from .scouts import source, config, artifacts, deps, tls, binary
+from .scouts import source, config, artifacts, deps, tls, binary, carried_hashes
 
 SCOUTS = ("source", "config", "artifacts", "binary")
 
@@ -83,6 +83,7 @@ def hunt(root, roles=Roles(), include_vendor=False, tls_targets=(), ssh_targets=
         h.sightings += s
         h.notes += n
         h.endpoints.append(ep)
+    h.sightings += carried_hashes(h.sightings)
     return h
 
 

@@ -121,10 +121,10 @@ _ALIASES = {
     "MD4": ["MD4"],
     "MD5": ["MD5", "HMACMD5", "HMAC-MD5"],
     "SHA-1": ["SHA1", "SHA-1", "SHA", "HMACSHA1", "HMAC-SHA1", "SHA1PRNG"],
-    "SHA-224": ["SHA224", "SHA-224", "SHA512/224", "SHA-512/224"],
-    "SHA-256": ["SHA256", "SHA-256", "SHA2", "SHA-2", "SHA512/256", "SHA-512/256"],
+    "SHA-224": ["SHA224", "SHA-224"],
+    "SHA-256": ["SHA256", "SHA-256", "SHA2", "SHA-2"],
     "SHA-384": ["SHA384", "SHA-384"],
-    "SHA-512": ["SHA512", "SHA-512"],
+    "SHA-512": ["SHA512", "SHA-512", "SHA512/224", "SHA-512/224", "SHA512/256", "SHA-512/256", "SHA512_224", "SHA512_256"],
     "SHA3-256": ["SHA3-256", "SHA3_256", "SHA3256"],
     "SHA3-384": ["SHA3-384", "SHA3_384", "SHA3384"],
     "SHA3-512": ["SHA3-512", "SHA3_512", "SHA3512"],
@@ -194,10 +194,16 @@ def pq_from_text(text):
     return None
 
 
+def named_hash(name):
+    """The hash inside names like HmacSHA256, HMAC-SHA-512 or PBKDF2WithHmacSHA1."""
+    m = re.search(r"(?i)hmac[-_]?(sha3[-_]?(?:224|256|384|512)|sha[-_]?(?:1|224|256|384|512)|md5)(?!\d)", name)
+    return lookup(m.group(1)) if m else None
+
+
 def parse_transformation(s):
     parts = s.split("/")
     algo = lookup(parts[0]) or pq_from_text(parts[0])
-    params = {}
+    params = {"hash": named_hash(parts[0])} if algo in ("HMAC", "PBKDF2") and named_hash(parts[0]) else {}
     m = re.search(r"(128|192|256)", parts[0])
     if algo == "AES" and m:
         params["key_size"] = int(m.group(1))

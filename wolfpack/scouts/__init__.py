@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 
+from ..elders import CATALOG
+from ..model import Sighting
+
 SKIP_DIRS = {".git", ".hg", ".svn", "node_modules", "vendor", "venv", ".venv", "env", "__pycache__", "dist", "build", "target", ".tox",
              "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "wolfpack-out"}
 TEST_PARTS = {"test", "tests", "spec", "specs", "__tests__", "testdata", "test_data", "fixtures", "mocks", "examples", "example", "samples", "sample", "demo"}
@@ -45,3 +48,17 @@ def read(p):
         return Path(p).read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
+
+
+def carried_hashes(sightings):
+    """A primitive parameterised with a hash (HMAC-SHA256, PBKDF2 over SHA-1, SHA256withRSA) also reports the hash itself."""
+    have = {(s.file, s.line, s.algo) for s in sightings}
+    out = []
+    for s in sightings:
+        h = s.params.get("hash")
+        if h in CATALOG and h != s.algo and (s.file, s.line, h) not in have:
+            have.add((s.file, s.line, h))
+            params = {"role": f"hash of {s.algo}"} | ({"literal": s.params["literal"]} if "literal" in s.params else {})
+            out.append(Sighting(algo=h, file=s.file, line=s.line, evidence=s.evidence, scout=s.scout, snippet=s.snippet, lang=s.lang,
+                                params=params, context=set(s.context)))
+    return out

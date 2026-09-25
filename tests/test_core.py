@@ -14,6 +14,7 @@ class Elders(unittest.TestCase):
         self.assertEqual(lookup("mlkem768x25519-sha256"), "X25519MLKEM768")
         self.assertEqual(parse_transformation("AES/ECB/PKCS5Padding"), ("AES", {"mode": "ECB", "padding": "pkcs5"}))
         self.assertEqual(curve("NID_X9_62_prime256v1"), "P-256")
+        self.assertEqual(lookup("SHA-512/256"), "SHA-512")
 
 
 class Suites(unittest.TestCase):
@@ -50,6 +51,9 @@ class Pack(unittest.TestCase):
 
     def test_jwt_default_only_when_algorithm_is_absent(self):
         self.assertEqual(self.accepted("py/jwt_calls.py"), {"ECDSA", "SHA-256"})
+
+    def test_hmac_and_kdf_report_their_hash(self):
+        self.assertEqual(self.accepted("java/Macs.java"), {"HMAC", "SHA-256", "PBKDF2", "SHA-1"})
 
     def test_second_look(self):
         self.assertIn("SHA-1", self.accepted("java/Hasher.java"))

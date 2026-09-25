@@ -113,5 +113,11 @@
   ],
   "java/KeySizes.java": [
     "RSA"
+  ],
+  "java/Macs.java": [
+    "HMAC",
+    "SHA-256",
+    "PBKDF2",
+    "SHA-1"
   ]
 }

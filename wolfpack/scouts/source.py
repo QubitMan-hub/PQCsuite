@@ -2,7 +2,7 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-from ..elders import lookup, pq_from_text, parse_transformation, parse_symmetric_name, AMBIGUOUS, MODES
+from ..elders import lookup, pq_from_text, parse_transformation, parse_symmetric_name, named_hash, AMBIGUOUS, MODES
 from ..model import Sighting
 from . import iter_files, rel, is_test, read
 from .lexer import LANGS, split, line_of
@@ -141,7 +141,9 @@ def classify_literal(v):
         return hits, True
     if SSH_LIKE.match(v):
         hits = [(a, p) for a, p in ssh_token(v) if a]
-        return (hits[:1] if v.lower().startswith(("ssh-rsa", "ssh-dss")) else hits), False
+        if v.lower().startswith(("ssh-rsa", "ssh-dss")):
+            return [(a, {k: x for k, x in p.items() if k != "hash"}) for a, p in hits[:1]], False
+        return hits, False
     if SIG_LIKE.match(v):
         return sig_scheme(v), False
     if "/" in v:
@@ -151,7 +153,7 @@ def classify_literal(v):
         return [], False
     a = lookup(v) or pq_from_text(v)
     if a:
-        return [(a, {})], False
+        return [(a, {"hash": named_hash(v)} if a in ("HMAC", "PBKDF2") and named_hash(v) else {})], False
     if re.match(r"(?i)^(aes|des|3des|chacha20|rc4|bf)[-_]", v) and all(
             t.isdigit() or t.upper() in MODES or t.upper() in ("EDE", "EDE3", "POLY1305") for t in re.split(r"[-_]", v)[1:]):
         a, p = parse_symmetric_name(v)
