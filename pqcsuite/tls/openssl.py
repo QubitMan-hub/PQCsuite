@@ -163,7 +163,8 @@ class Context:
 
     def _use_key(self, path, passphrase):
         L_ = lib()
-        data = open(path, "rb").read()
+        with open(path, "rb") as f:
+            data = f.read()
         bio = L_.BIO_new_mem_buf(data, len(data))
         try:
             pkey = L_.PEM_read_bio_PrivateKey(bio, None, None, passphrase or b"")

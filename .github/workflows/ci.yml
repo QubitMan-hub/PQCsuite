@@ -50,7 +50,7 @@ jobs:
             ./configure --prefix=/opt/pqc --disable-defaults --enable-openssl --enable-ml --enable-vici --enable-swanctl --enable-charon \
             --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce --enable-hmac \
             --enable-kdf --enable-kernel-netlink --enable-socket-default --enable-updown --enable-resolve --enable-attr --enable-constraints \
-            --enable-revocation && make -j4 && sudo make install
+            --enable-revocation && make -j4 && sudo make install && sudo chmod -R a+rX /opt/pqc
       - run: pip install -e ".[vpn]"
       - name: Two sites in network namespaces, real ESP traffic
         run: |

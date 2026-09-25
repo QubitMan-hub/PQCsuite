@@ -18,13 +18,15 @@ class Revocation:
     """Checks client certificates against a CRL file, re-reading it whenever it changes. Fails closed."""
 
     def __init__(self, crl_path, ca_path):
-        self.crl_path, self.ca = crl_path, x509.load_pem_x509_certificate(open(ca_path, "rb").read())
+        with open(ca_path, "rb") as f:
+            self.crl_path, self.ca = crl_path, x509.load_pem_x509_certificate(f.read())
         self.mtime, self.data = None, None
 
     def check(self, serial):
         m = os.stat(self.crl_path).st_mtime
         if m != self.mtime:
-            self.data, self.mtime = open(self.crl_path, "rb").read(), m
+            with open(self.crl_path, "rb") as f:
+                self.data, self.mtime = f.read(), m
         check_revocation(serial, self.data, self.ca)
 
 

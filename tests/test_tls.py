@@ -183,7 +183,9 @@ class EdgeTest(unittest.TestCase):
         app = ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
         threading.Thread(target=app.serve_forever, daemon=True).start()
         self.addCleanup(app.shutdown)
-        free = lambda: socket.create_server(("127.0.0.1", 0)).getsockname()[1]
+        def free():
+            with socket.create_server(("127.0.0.1", 0)) as s:
+                return s.getsockname()[1]
         edge_port, tunnel_port = free(), free()
         edge = Edge(Route("web", "terminate", f"127.0.0.1:{edge_port}", f"127.0.0.1:{app.server_address[1]}", cert=str(srv / "chain.pem"),
                           key=str(srv / "key.pem"), ca=str(d / "pki/ca.crt"), require_client_cert=True, crl=str(d / "pki/crl.pem")))
