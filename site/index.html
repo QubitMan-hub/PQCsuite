@@ -76,7 +76,7 @@ a:hover { text-decoration-color: var(--ink); }
 /* ---------- hero ---------- */
 .hero { display: grid; grid-template-columns: auto 1fr; gap: 48px; align-items: center; padding-block: 56px 72px; }
 .hero > * { min-width: 0; }
-.badge { width: 220px; height: 220px; }
+.badge { width: 184px; height: 184px; }
 .badge .disc { fill: var(--moon); }
 .badge .rim { fill: none; stroke: var(--moon-rim); }
 .title { margin: 0 0 6px; line-height: 0; }
@@ -101,7 +101,7 @@ a:hover { text-decoration-color: var(--ink); }
 .facts li::before { content: ""; width: 5px; height: 5px; background: var(--faint); }
 @media (max-width: 760px) {
   .hero { grid-template-columns: 1fr; gap: 28px; padding-block: 24px 48px; }
-  .badge { width: 132px; height: 132px; }
+  .badge { width: 112px; height: 112px; }
   .lede { font-size: 16.5px; }
 }
 
@@ -486,8 +486,8 @@ document.querySelectorAll("svg[data-icon]").forEach((s) => bitmap(s, ICONS[s.dat
   const svg = document.getElementById("badge");
   el("circle", { class: "disc", cx: 100, cy: 100, r: 97 }, svg);
   el("circle", { class: "rim", cx: 100, cy: 100, r: 91, "stroke-width": 1 }, svg);
-  const g = el("g", { class: "px", transform: "translate(40 38)" }, svg);
-  const px = 8;
+  const px = 7;
+  const g = el("g", { class: "px", transform: `translate(${(200 - 15 * px) / 2} ${(200 - 16 * px) / 2 + 2})` }, svg);
   WOLF.forEach((row, y) => [...row].forEach((ch, x) => {
     if (ch === ".") return;
     const r = el("rect", { x: x * px + .5, y: y * px + .5, width: px - 1, height: px - 1 }, g);

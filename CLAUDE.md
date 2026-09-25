@@ -15,7 +15,7 @@ Current version: 0.2.0. It was built in a Claude.ai chat, then moved here.
 ```powershell
 py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 26 tests, must stay green
+python -m unittest discover -s tests -v          # 31 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -63,6 +63,7 @@ bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)
 tests/test_core.py
 eval/cbomkit/     CBOMkit head-to-head harness (compare.py) and first results
+eval/heldout/     held-out benchmark kit: 18 pinned repos, labelling guide, pre-registration, heldout.py
 docs/HANDOFF.md  history, decisions, validation evidence, open questions
 docs/PACK.md     role map, switches, glossary, naming rules
 ```
@@ -98,7 +99,7 @@ New scout: return a list of `Sighting`s with the right evidence type, add a swit
 
 ## Next work, in priority order
 
-1. Held-out benchmark for the paper: 15 to 20 real GitHub repos across Java, Python, Go, JS, C and C#, labelled blind by someone other than the author before running any tool. Store under `eval/` (not bench/), with a labelling guide.
+1. Held-out benchmark for the paper: 15 to 20 real GitHub repos across Java, Python, Go, JS, C and C#, labelled blind by someone other than the author before running any tool. Kit is in `eval/heldout/`; next: owner signs off PREREGISTRATION.md, labellers label. Never run Wolf Pack on `eval/heldout/repos/` (including `score --partial`) before the labels are committed.
 2. Head-to-head with CBOMkit on the Java/Python/Go subset: run sonar-cryptography via its Docker setup, convert both CBOMs to (file, family) pairs, and score both against the same labels. Harness and a first unlabelled six-repo run are in `eval/cbomkit/`.
 3. Known false positive: algorithm lists used only for key-format detection (pyjwt `utils.py` SSH prefixes). Find a principled fix or document it.
 4. Cross-file constant propagation for non-Python languages (currently intra-file only).
