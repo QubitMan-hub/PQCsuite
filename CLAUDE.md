@@ -15,7 +15,7 @@ Current version: 0.2.0. It was built in a Claude.ai chat, then moved here.
 ```powershell
 py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 43 tests, must stay green
+python -m unittest discover -s tests -v          # 44 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -38,7 +38,8 @@ wolfpack/
   scouts/        deliberately noisy; over-reporting is the design
     __init__.py  iter_files (SKIP_DIRS, BUILD_DIRS), rel, is_test, read
     lexer.py     splits code / comments / string literals per language family
-    implementations.py  algorithms implemented in source, by published constants (IVs, round constants, S-boxes, primes)
+    implementations.py  algorithms implemented in source, by published constants (IVs, round constants, S-boxes, primes);
+                 the one constant table, also packed into byte patterns for binaries
     pysrc.py     Python AST scout: import aliasing, constant propagation, params, lib attribution
     rules.py     regex rules per language (java, go, js, c, csharp, rust); rule decorator
     source.py    runs rules on code and comments, constant propagation (in-file and shared_constants
@@ -46,7 +47,7 @@ wolfpack/
     suites.py    TLS cipher suites, OpenSSL cipher strings (skips ! and -), SSH names, sig schemes
     config.py    nginx, Apache, HAProxy, sshd, openssl.cnf, properties, YAML/INI/TOML; DENY skips disabled lists
     artifacts.py certs, keys, OpenSSH keys, embedded PEM; OID maps incl. ML-DSA/ML-KEM
-    binary.py    native constants, embedded lib versions, JAR/WAR class constants
+    binary.py    native constants (from implementations.py), embedded lib versions, JAR/WAR class constants
     deps.py      manifests across 6 ecosystems, KNOWN crypto libs, usage cross-check
     probe.py     raw TLS ClientHello (empty key_share -> HelloRetryRequest reveals groups), SSH KEXINIT
     tls.py       live TLS scout (handshake, cert, legacy probes, groups) and SSH scout

@@ -27,7 +27,7 @@ Each switch is passed as `wolfpack hunt PATH --without ROLE`, or as `pack.Roles.
 | Implementation scouts | `scouts/implementations.py` | Algorithms implemented in source, recognised by published constants (round constants, IVs, S-boxes, curve primes) | `implementations` | recall → 0.967 |
 | Config scouts | `scouts/config.py`, `suites.py` | TLS/SSH/OpenSSL/app configs, including extensionless files with 2+ TLS/SSH directives | `config` | recall → 0.802 |
 | Artifact scouts | `scouts/artifacts.py` | Certificates, keys, embedded PEM | `artifacts` | recall → 0.967 |
-| Binary scouts | `scouts/binary.py` | Native constants, library versions, JAR/class constants | `binary` | recall → 0.978 |
+| Binary scouts | `scouts/binary.py` | Native constants (the implementation scout's tables as bytes), library versions, JAR/class constants | `binary` | recall → 0.978 |
 | Dependency scouts | `scouts/deps.py` | Crypto libraries in manifests, checked against imports | none (libraries, not sightings) | n/a |
 | Live scouts | `scouts/tls.py`, `probe.py` | TLS handshake and group probe, SSH KEXINIT | only when `--tls`/`--ssh` given | n/a |
 | Scouts' memory | `source.propagate`, `PyScout.consts` | Constant propagation inside a file: strings from any declaration, integers only from `final`/`const`/`readonly`/`#define` | `propagation` | recall → 0.989; also recovers key sizes (RSA-1024 instead of RSA) |

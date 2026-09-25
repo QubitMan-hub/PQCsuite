@@ -82,6 +82,17 @@ v0.2 ("100x better, but don't overcomplicate") added:
   - **New:** an implementation scout (constants), SM2/SM3/SM4/SHA-3, libsodium in C#, sjcl, commons-codec, extensionless configs, Go/C#/Python key-construction gaps, and test and benchmark directory detection.
   - **Result:** 542 pairs grew to 649 with none lost. CBOMkit's remaining extra pairs are all outside the labelling guide (RNGs, MGF1, internal hashes).
 
+## Simplification pass
+
+- **What changed:** the package went from 3,694 to 3,500 lines.
+  - Language rules without logic are one-line `simple(...)` entries.
+  - Tables that restated other tables are now derived: binary constants come from the implementation scout, certificate key OIDs from the elders, tier weights, evidence rank, library import markers, FFDHE sizes and PQ groups.
+  - One deny-list pattern is shared by configs and algorithm lists.
+  - Dead code and the duplicate CLI flags `--raw` and `--no-second-look` were removed (use `--without den` and `--without second-look`).
+- **How it was checked:** a snapshot of every sighting, verdict, asset, tier and CBOM component on 54 roots (the dev corpus, the 6 comparison repos, the 7 fresh repos and the 40 stress repos, never the held-out set) was compared before and after each step.
+  - **Only intended differences:** occurrence order inside 10 components, and the secp256k1 prime is now recognised in source as well as binaries (noble-curves, python-ecdsa).
+  - The bench is unchanged and the CBOM validates with 0 errors.
+
 ## Design decisions worth knowing
 
 Scoring is at (file, algorithm family) granularity, not line level, so labelling stays tractable. Signature schemes such as SHA256withECDSA, RS256 and certificate signatures emit the hash as its own finding, consistently everywhere.
