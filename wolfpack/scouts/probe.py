@@ -4,12 +4,13 @@ import os
 import socket
 import struct
 
+from ..elders import pq_from_text
+
 GROUPS = {
     0x11EC: "X25519MLKEM768", 0x11EB: "SecP256r1MLKEM768", 0x11ED: "SecP384r1MLKEM1024",
     0x0200: "MLKEM512", 0x0201: "MLKEM768", 0x0202: "MLKEM1024", 0x6399: "X25519Kyber768Draft00",
     0x001D: "X25519", 0x001E: "X448", 0x0017: "secp256r1", 0x0018: "secp384r1", 0x0019: "secp521r1", 0x0100: "ffdhe2048",
 }
-PQ_GROUPS = {0x11EC, 0x11EB, 0x11ED, 0x0200, 0x0201, 0x0202, 0x6399}
 HRR = hashlib.sha256(b"HelloRetryRequest").digest()
 SUITES = [0x1301, 0x1302, 0x1303, 0xC02B, 0xC02F, 0xC02C, 0xC030, 0xCCA9, 0xCCA8, 0x009C, 0x002F]
 SIGALGS = [0x0403, 0x0503, 0x0603, 0x0804, 0x0805, 0x0806, 0x0401, 0x0501, 0x0601, 0x0807, 0x0808, 0x0904, 0x0905, 0x0906, 0x0201, 0x0203]
@@ -106,7 +107,7 @@ def tls_groups(host, port, timeout=5.0):
         k, inf = server_hello(host, port, [g], timeout)
         if k == "hrr" and inf.get("group") == g:
             out["supported"].append(name)
-    out["pq"] = [n for g, n in GROUPS.items() if g in PQ_GROUPS and n in out["supported"]]
+    out["pq"] = [n for n in GROUPS.values() if pq_from_text(n) and n in out["supported"]]
     return out
 
 

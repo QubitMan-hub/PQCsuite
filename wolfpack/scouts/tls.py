@@ -1,16 +1,16 @@
+import re
 import socket
 import ssl
 
 from cryptography import x509
 
-from ..elders import lookup, curve, pq_from_text
+from ..elders import lookup, curve, pq_from_text, HYBRIDS
 from ..model import Sighting
 from .artifacts import cert_record
 from .probe import tls_groups, ssh_kexinit
 from .suites import suite, ssh_token
 
 LEGACY = [("TLS 1.0", ssl.TLSVersion.TLSv1), ("TLS 1.1", ssl.TLSVersion.TLSv1_1)]
-FFDHE = {"ffdhe2048": 2048, "ffdhe3072": 3072, "ffdhe4096": 4096}
 
 
 def _ctx(minv=None, maxv=None, legacy=False):
@@ -43,8 +43,8 @@ def _split(target, default):
 
 
 def group_algo(name):
-    if name in FFDHE:
-        return "DH", {"key_size": FFDHE[name]}
+    if m := re.fullmatch(r"ffdhe(\d+)", name):
+        return "DH", {"key_size": int(m.group(1))}
     c = curve(name)
     if c:
         return "ECDH", {"curve": c}
@@ -108,12 +108,10 @@ def probe_ssh(target, timeout=6.0):
         return [], [], [f"{loc}: SSH probe failed ({ep['error']})"], ep
     r["kex"] = [k for k in r["kex"] if not k.startswith(("kex-strict", "ext-info"))]
     ep.update(version=r["banner"], preferred_group=r["kex"][0] if r["kex"] else None, groups=r["kex"], hostkeys=r["hostkey"],
-              pq_groups=[k for k in r["kex"] if lookup(k.split("@")[0]) in ("X25519MLKEM768", "sntrup761x25519") or lookup(k) in ("X25519MLKEM768", "sntrup761x25519")])
+              pq_groups=[k for k in r["kex"] if lookup(k.split("@")[0]) in HYBRIDS])
     sights = []
     for field, role in (("kex", "key-exchange"), ("hostkey", "host-key"), ("ciphers", "cipher"), ("macs", "mac")):
         for tok in r[field]:
-            if tok.startswith(("kex-strict", "ext-info")):
-                continue
             for a, p in ssh_token(tok):
                 if a:
                     sights.append(Sighting(algo=a, file=loc, line=0, evidence="live", scout="ssh", snippet=f"{field}: {tok}", lang="ssh",
