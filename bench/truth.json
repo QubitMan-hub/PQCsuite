@@ -80,6 +80,9 @@
   "java/Hasher.java": [
     "SHA-1"
   ],
+  "java/Digests.java": [
+    "SHA-256"
+  ],
   "js/tokens.js": [
     "SHA-1"
   ],

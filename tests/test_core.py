@@ -42,6 +42,9 @@ class Pack(unittest.TestCase):
         self.assertEqual(self.accepted("config/java.security"), set())
         self.assertNotIn("DES", self.accepted("java/TokenSigner.java"))
 
+    def test_runtime_name_prefix_is_not_an_algorithm(self):
+        self.assertEqual(self.accepted("java/Digests.java"), {"SHA-256"})
+
     def test_second_look(self):
         self.assertIn("SHA-1", self.accepted("java/Hasher.java"))
         self.assertNotIn("AES", self.accepted("java/Hasher.java"))

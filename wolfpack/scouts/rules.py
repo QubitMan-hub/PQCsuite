@@ -22,13 +22,13 @@ def lit(s):
 
 
 # JVM
-@rule("java", r'Cipher\.getInstance\(\s*"([^"]+)"')
+@rule("java", r'Cipher\.getInstance\(\s*"([^"]+)"(?=\s*[,)])')
 def _(m, x):
     a, p = parse_transformation(m.group(1))
     return [(a, p)]
 
 
-@rule("java", r'\b(KeyPairGenerator|KeyGenerator|KeyAgreement|KeyFactory|MessageDigest|Mac|SecretKeyFactory|KEM)\.getInstance\(\s*"([^"]+)"')
+@rule("java", r'\b(KeyPairGenerator|KeyGenerator|KeyAgreement|KeyFactory|MessageDigest|Mac|SecretKeyFactory|KEM)\.getInstance\(\s*"([^"]+)"(?=\s*[,)])')
 def _(m, x):
     kind, s = m.group(1), m.group(2)
     if kind == "Mac":
@@ -45,7 +45,7 @@ def _(m, x):
     return [(a, {})]
 
 
-@rule("java", r'\bSignature\.getInstance\(\s*"([^"]+)"')
+@rule("java", r'\bSignature\.getInstance\(\s*"([^"]+)"(?=\s*[,)])')
 def _(m, x):
     return sig_scheme(m.group(1))
 

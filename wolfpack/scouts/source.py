@@ -97,7 +97,7 @@ def classify_literal(v):
     if "/" in v:
         a, p = parse_transformation(v)
         return ([(a, p)] if a else []), False
-    if v.upper() in AMBIGUOUS:
+    if re.sub(r"[-_\s/.]", "", v).upper() in AMBIGUOUS:
         return [], False
     a = lookup(v) or pq_from_text(v)
     if a:
