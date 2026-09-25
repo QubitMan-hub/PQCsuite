@@ -6,13 +6,14 @@ from pathlib import Path
 
 from . import __version__, pack, cbom, report
 from .alpha import Horizon, TIERS
+from .pack import ROLES
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="wolfpack", description="Cryptographic inventory (CycloneDX 1.6 CBOM) and quantum migration planner")
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    s = sub.add_parser("scan", help="scan a repository and/or live TLS endpoints")
+    s = sub.add_parser("scan", aliases=["hunt"], help="send the pack over a repository and/or live TLS and SSH endpoints")
     s.add_argument("path", nargs="?", default=None, help="folder to scan (default: current folder, or none if only --tls/--ssh are given)")
     s.add_argument("--tls", action="append", default=[], metavar="HOST:PORT", help="probe a live TLS endpoint, including which key-exchange groups it accepts (repeatable)")
     s.add_argument("--ssh", action="append", default=[], metavar="HOST[:PORT]", help="read a live SSH server's algorithm lists (repeatable)")
@@ -23,19 +24,23 @@ def main(argv=None):
     s.add_argument("--migration", type=float, default=5, help="years your migration will take (Mosca Y)")
     s.add_argument("--crqc-year", type=int, default=2035, help="assumed year a cryptographically relevant quantum computer exists")
     s.add_argument("--threshold", type=float, default=0.6)
-    s.add_argument("--raw", action="store_true", help="disable the den (ablation: every scout sighting is trusted)")
-    s.add_argument("--no-second-look", action="store_true", help="disable the alpha's re-inspection pass (ablation)")
+    s.add_argument("--without", action="append", default=[], choices=ROLES, metavar="ROLE",
+                   help=f"leave a member of the pack out (ablation, repeatable): {', '.join(ROLES)}")
+    s.add_argument("--raw", action="store_true", help="same as --without den")
+    s.add_argument("--no-second-look", action="store_true", help="same as --without second-look")
     s.add_argument("--include-vendor", action="store_true", help="also scan vendor/, node_modules/ and similar")
     s.add_argument("--fail-on", choices=TIERS[:-1], help="exit 2 if any asset is at this tier or worse (for CI)")
     s.add_argument("-q", "--quiet", action="store_true")
-    b = sub.add_parser("bench", help="score the scanner against a labelled corpus")
+    b = sub.add_parser("bench", help="score the full pack and each ablation against a labelled corpus")
     b.add_argument("corpus")
     b.add_argument("--truth", default=None)
+    b.add_argument("--detail", action="store_true", help="list the false positives and negatives of every configuration")
+    b.add_argument("--json", metavar="FILE", help="also write the table as JSON")
     a = ap.parse_args(argv)
 
     if a.cmd == "bench":
         from .bench import main as bench
-        return bench(a.corpus, a.truth)
+        return bench(a.corpus, a.truth, a.detail, a.json)
 
     targets_only = a.path is None and (a.tls or a.ssh)
     root = Path(tempfile.mkdtemp()) if targets_only else Path(a.path or ".").resolve()
@@ -43,7 +48,8 @@ def main(argv=None):
         sys.exit(f"wolfpack: {a.path} does not exist")
     name = a.name or ((a.tls + a.ssh)[0] if targets_only else root.name)
     h = Horizon(a.shelf_life, a.migration, a.crqc_year)
-    r = pack.run(root, name, a.tls, h, a.threshold, a.raw, not a.no_second_look, a.include_vendor, a.ssh, a.baseline)
+    roles = pack.Roles.without(*a.without, *(["den"] if a.raw else []), *(["second-look"] if a.no_second_look else []))
+    r = pack.run(root, name, a.tls, h, a.threshold, roles, a.include_vendor, a.ssh, a.baseline)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "cbom.json").write_text(json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2), encoding="utf-8")

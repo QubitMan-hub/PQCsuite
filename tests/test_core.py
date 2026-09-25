@@ -45,6 +45,12 @@ class Pack(unittest.TestCase):
     def test_runtime_name_prefix_is_not_an_algorithm(self):
         self.assertEqual(self.accepted("java/Digests.java"), {"SHA-256"})
 
+    def test_split_literal_shares_fate_but_neighbours_do_not(self):
+        self.assertEqual(self.accepted("py/token_kind.py"), {"RSA", "SHA-256"})
+
+    def test_jwt_default_only_when_algorithm_is_absent(self):
+        self.assertEqual(self.accepted("py/jwt_calls.py"), {"ECDSA", "SHA-256"})
+
     def test_second_look(self):
         self.assertIn("SHA-1", self.accepted("java/Hasher.java"))
         self.assertNotIn("AES", self.accepted("java/Hasher.java"))
@@ -90,6 +96,36 @@ class Pack2(unittest.TestCase):
         b = cbom.build("corpus", self.r.assets, self.r.artifacts, self.r.libraries)
         prov = {d["ref"]: d.get("provides", []) for d in b["dependencies"]}
         self.assertIn("crypto/ML-KEM-768", prov["lib/pypi/liboqs-python"])
+
+
+class Roles(unittest.TestCase):
+    def accepted(self, off, f):
+        r = pack.run(CORPUS, "corpus", roles=pack.Roles.without(*off))
+        return {s.algo for s in r.sightings if s.file == f and s.verdict == "accepted"}
+
+    def test_unknown_role(self):
+        with self.assertRaises(ValueError):
+            pack.Roles.without("sheep")
+
+    def test_second_look_covers_its_parts(self):
+        self.assertEqual(pack.Roles.without("second-look").off, ["flow", "registries", "siblings"])
+
+    def test_propagation_recovers_key_size(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "k.py").write_text("from cryptography.hazmat.primitives.asymmetric import rsa\n\nKEY_BITS = 1024\n\n\n"
+                                          "def make():\n    return rsa.generate_private_key(public_exponent=65537, key_size=KEY_BITS)\n", encoding="utf-8")
+            full = {a.variant: a.tier for a in pack.run(d, "k").assets}
+            blind = {a.variant: a.tier for a in pack.run(d, "k", roles=pack.Roles.without("propagation")).assets}
+        self.assertEqual(full.get("RSA-1024"), "critical")
+        self.assertNotIn("RSA-1024", blind)
+
+    def test_each_role_is_live(self):
+        self.assertNotIn("SHA-256", self.accepted(["corroboration"], "py/token_kind.py"))
+        self.assertNotIn("SHA-256", self.accepted(["siblings"], "py/token_kind.py"))
+        self.assertNotIn("AES", self.accepted(["registries"], "py/policy.py"))
+        self.assertEqual(self.accepted(["source"], "java/TokenSigner.java"), set())
+        self.assertIn("MD5", self.accepted(["den"], "py/notes.py"))
 
 
 class Probe(unittest.TestCase):

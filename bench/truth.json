@@ -10,6 +10,14 @@
     "AES"
   ],
   "py/notes.py": [],
+  "py/jwt_calls.py": [
+    "ECDSA",
+    "SHA-256"
+  ],
+  "py/token_kind.py": [
+    "RSA",
+    "SHA-256"
+  ],
   "py/pq.py": [
     "ML-KEM",
     "ML-DSA"

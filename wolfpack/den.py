@@ -10,7 +10,6 @@ RANK = {k: i for i, k in enumerate(["string", "import", "identifier", "binary", 
 KIN = {"ECC": "EC", "ECDSA": "EC", "ECDH": "EC"}
 HARD = {"comment": "appears only inside a comment", "doc": "appears only in a docstring", "prose": "mentioned in human-readable text, not used"}
 KEY_PARAMS = ("key_size", "curve", "mode", "hash", "padding")
-NOISE = re.compile(r"\b(print\w*|log\w*|debug|info|warn\w*|error|trace|format|printf|append|equals\w*|contains|includes|startsWith|endsWith|assert\w*|expect)\s*\(", re.I)
 
 
 def _kin(a):
@@ -52,7 +51,8 @@ def suppressed(s, lines):
     return any(0 < k <= len(ls) and "wolfpack:ignore" in ls[k - 1] for k in (s.line, s.line - 1))
 
 
-def verify(sightings, threshold=0.6, lines=None):
+def verify(sightings, threshold=0.6, lines=None, corroboration=True):
+    """The den: every sighting gets a confidence from its evidence; only what clears the threshold enters the CBOM."""
     sightings = dedupe(sightings)
     by_file = defaultdict(list)
     for s in sightings:
@@ -70,7 +70,7 @@ def verify(sightings, threshold=0.6, lines=None):
         by_file[s.file].append(s)
     for f, group in by_file.items():
         for s in group:
-            others = [o for o in group if o is not s and _kin(o.algo) == _kin(s.algo) and o.evidence != s.evidence]
+            others = [o for o in group if o is not s and _kin(o.algo) == _kin(s.algo) and o.evidence != s.evidence] if corroboration else []
             if others:
                 s.confidence += 0.25
                 s.reason = f"corroborated by {others[0].evidence} evidence on line {others[0].line}"
@@ -85,86 +85,12 @@ def verify(sightings, threshold=0.6, lines=None):
     return sightings
 
 
-DENY_NAME = re.compile(r"disabl|deny|denied|block|forbid|reject|insecure|weak|deprecat|legacy_only|exclude|blacklist", re.I)
-
-
-def siblings(sightings):
-    """A literal like "RS256" yields RSA and SHA-256; if one half is accepted, so is the other."""
-    ok = {(s.file, s.line, s.snippet) for s in sightings if s.verdict == "accepted" and s.evidence == "string"}
-    n = 0
-    for s in sightings:
-        if s.verdict == "quarantined" and s.evidence == "string" and (s.file, s.line, s.snippet) in ok:
-            s.verdict, s.confidence, s.reason = "accepted", 0.7, "same literal as an accepted sighting"
-            n += 1
-    return n
-
-
-def list_name(ls, first):
-    """Name of the variable a list is assigned to, read from the nearest code line at or above its first entry."""
-    for k in range(first, max(0, first - 8), -1):
-        if k > len(ls):
-            continue
-        line = ls[k - 1].split("#")[0].split("//")[0]
-        m = re.search(r"([A-Za-z_][\w.]*)['\"]?\s*(?::[^=\n]{1,40})?(?::=|=|:)\s*[\[({]", line)
-        if m:
-            return m.group(1)
-    return ""
-
-
-def registries(sightings, lines, size=3, gap=2):
-    """Three or more crypto literals packed into one list or table form an algorithm registry, unless it is a deny-list."""
-    by_file = defaultdict(list)
-    for s in sightings:
-        if s.evidence == "string" and s.verdict in ("quarantined", "accepted") and s.line:
-            by_file[s.file].append(s)
-    n = 0
-    for f, group in by_file.items():
-        group.sort(key=lambda s: s.line)
-        cluster = [group[0]]
-        for s in group[1:] + [None]:
-            if s is not None and s.line - cluster[-1].line <= gap:
-                cluster.append(s)
-                continue
-            if len({c.line for c in cluster}) >= size:
-                if not DENY_NAME.search(list_name(lines(f), cluster[0].line)):
-                    for c in cluster:
-                        if c.verdict == "quarantined":
-                            c.verdict, c.confidence, c.reason = "accepted", 0.65, f"part of an algorithm list of {len(cluster)} entries (lines {cluster[0].line}-{cluster[-1].line})"
-                            n += 1
-            cluster = [s] if s is not None else []
-    return n
-
-
-def second_look(sightings, lines, threshold=0.6):
-    """Re-inspects quarantined string literals: accept only if the literal visibly flows into a call."""
-    promoted = 0
-    for s in sightings:
-        if s.verdict != "quarantined" or s.evidence != "string":
-            continue
-        ls = lines(s.file)
-        if not (0 < s.line <= len(ls)):
-            continue
-        line = ls[s.line - 1]
-        lits = re.findall(r"""(['"`])(.*?)\1""", line)
-        hit = None
-        for _, lit in lits:
-            e = re.escape(lit)
-            m = re.match(r"\s*(?:(?:const|let|var|final|static|private|public|protected|readonly|val)\s+)*(?:[\w<>\[\]]+\s+)?([A-Za-z_]\w*)\s*[:=]\s*['\"`]" + e, line)
-            if m:
-                var = re.escape(m.group(1))
-                for k in range(s.line, min(len(ls), s.line + 40)):
-                    if (re.search(r"\w\s*\([^)]*\b" + var + r"\b", ls[k]) and not NOISE.search(ls[k])) or re.search(r"\b\w+\s*=\s*" + var + r"\b\s*[,)]", ls[k]):
-                        hit = f"constant {m.group(1)} flows into a call on line {k + 1}"
-                        break
-            elif re.search(r"\w\s*\([^)]*['\"`]" + e + r"['\"`]", line) and not NOISE.search(line) or re.search(
-                    r"(alg\w*|cipher\w*|hash\w*|digest\w*|curve\w*|kex\w*|sig\w*|scheme\w*|transformation\w*|protocol\w*|padding\w*)['\"]?\s*(?::[^=\n]{1,40})?[:=]\s*[\[(]?\s*['\"`]" + e, line, re.I):
-                hit = "literal is passed directly into a call or algorithm setting"
-            if hit:
-                break
-        if hit:
-            s.verdict, s.confidence, s.reason = "accepted", max(threshold, 0.7), f"second look: {hit}"
-            promoted += 1
-    return promoted + registries(sightings, lines) + siblings(sightings)
+def admit_all(sightings):
+    """Ablation: the den is bypassed and every scout sighting of a known algorithm is trusted."""
+    out = [s for s in sightings if s.algo in CATALOG]
+    for s in out:
+        s.verdict, s.confidence, s.reason = "accepted", 1.0, "den disabled (ablation)"
+    return out
 
 
 def assets(sightings):

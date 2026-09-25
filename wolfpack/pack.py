@@ -1,13 +1,87 @@
+"""The hunt, start to finish: scouts range wide, the den verifies, the alpha takes a second look and leads."""
 import json
-import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 from . import den, alpha
-from .elders import CATALOG
-from .scouts import source, config, artifacts, deps, tls, binary, iter_files, rel, read
-from .scouts.lexer import LANGS
+from .scouts import source, config, artifacts, deps, tls, binary
+
+SCOUTS = ("source", "config", "artifacts", "binary")
+
+
+@dataclass(frozen=True)
+class Roles:
+    """Which members of the pack take part. Switching one off is an ablation; docs/PACK.md says what each one does."""
+    source: bool = True
+    config: bool = True
+    artifacts: bool = True
+    binary: bool = True
+    propagation: bool = True
+    den: bool = True
+    corroboration: bool = True
+    flow: bool = True
+    registries: bool = True
+    siblings: bool = True
+    trails: bool = True
+
+    @classmethod
+    def without(cls, *names):
+        off = set()
+        for n in names:
+            n = n.replace("-", "_")
+            off |= set(alpha.LOOKS) if n == "second_look" else {n}
+        unknown = off - {f.name for f in fields(cls)}
+        if unknown:
+            raise ValueError(f"unknown pack role: {', '.join(sorted(unknown))}")
+        return cls(**dict.fromkeys(off, False))
+
+    @property
+    def off(self):
+        return [f.name.replace("_", "-") for f in fields(self) if not getattr(self, f.name)]
+
+
+ROLES = [f.name.replace("_", "-") for f in fields(Roles)] + ["second-look"]
+
+
+@dataclass
+class Hunt:
+    sightings: list
+    artifacts: list
+    libraries: list
+    files: dict
+    notes: list = field(default_factory=list)
+    endpoints: list = field(default_factory=list)
+
+
+def hunt(root, roles=Roles(), include_vendor=False, tls_targets=(), ssh_targets=()):
+    """The scouts go out. Each reports everything it saw; nothing is filtered until the den."""
+    h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
+    if roles.source:
+        s, h.files["source"] = source.scan(root, include_vendor, roles.propagation)
+        h.sightings += s
+    if roles.config:
+        s, h.files["config"] = config.scan(root, include_vendor)
+        h.sightings += s
+    if roles.artifacts:
+        h.artifacts, s, h.files["artifacts"] = artifacts.scan(root, include_vendor)
+        h.sightings += s
+    if roles.binary:
+        s, h.libraries, h.files["binary"] = binary.scan(root, include_vendor)
+        h.sightings += s
+    h.libraries = deps.scan(root, include_vendor) + h.libraries
+    for t in tls_targets:
+        s, a, n, ep = tls.probe(t)
+        h.sightings += s
+        h.artifacts += a
+        h.notes += n
+        h.endpoints.append(ep)
+    for t in ssh_targets:
+        s, _, n, ep = tls.probe_ssh(t)
+        h.sightings += s
+        h.notes += n
+        h.endpoints.append(ep)
+    return h
 
 
 @dataclass
@@ -25,35 +99,6 @@ class Result:
     baseline: str = ""
 
 
-def follow_trails(root, arts, sightings, include_vendor=False):
-    """Alpha's hunt: find where keys and certificates are referenced, so deployed material is weighted as deployed."""
-    local = [a for a in arts if "://" not in a.file]
-    if not local or not Path(root).is_dir():
-        return 0
-    names = {Path(a.file).name: a for a in local}
-    rx = re.compile(r"(?<![\w.-])(" + "|".join(re.escape(n) for n in names) + r")(?![\w-])")
-    found = 0
-    for p in iter_files(root, include_vendor):
-        if p.suffix.lower() not in LANGS and not config.is_config(p):
-            continue
-        text = read(p)
-        if not text:
-            continue
-        r = rel(root, p)
-        for m in rx.finditer(text):
-            a = names[m.group(1)]
-            if r == a.file:
-                continue
-            line = text.count("\n", 0, m.start()) + 1
-            a.details.setdefault("referenced_by", []).append(f"{r}:{line}")
-            found += 1
-            if config.is_config(p):
-                for s in sightings:
-                    if s.file == a.file:
-                        s.context.add("deployed")
-    return found
-
-
 def load_baseline(path):
     bom = json.loads(Path(path).read_text(encoding="utf-8"))
     seen = set()
@@ -65,49 +110,27 @@ def load_baseline(path):
     return seen
 
 
-def run(root, project, tls_targets=(), horizon=None, threshold=0.6, raw=False, second_look=True, include_vendor=False,
-        ssh_targets=(), baseline=None):
+def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(), include_vendor=False, ssh_targets=(), baseline=None):
     t0 = time.time()
     horizon = horizon or alpha.Horizon()
-    src, n_code = source.scan(root, include_vendor)
-    cfg, n_cfg = config.scan(root, include_vendor)
-    arts, art_s, n_art = artifacts.scan(root, include_vendor)
-    bin_s, bin_libs, n_bin = binary.scan(root, include_vendor)
-    libs = deps.scan(root, include_vendor) + bin_libs
-    live, notes, endpoints = [], [], []
-    for t in tls_targets:
-        s, a, n, ep = tls.probe(t)
-        live += s
-        arts += a
-        notes += n
-        endpoints.append(ep)
-    for t in ssh_targets:
-        s, a, n, ep = tls.probe_ssh(t)
-        live += s
-        notes += n
-        endpoints.append(ep)
-    sightings = src + cfg + art_s + bin_s + live
-    raw_count = len(sightings)
+    h = hunt(root, roles, include_vendor, tls_targets, ssh_targets)
     lines = den.Lines(root)
-    trails = follow_trails(root, arts, sightings, include_vendor)
-    if raw:
-        sightings = [s for s in sightings if s.algo in CATALOG]
-        for s in sightings:
-            s.verdict, s.confidence, s.reason = "accepted", 1.0, "raw mode (den disabled)"
-        promoted = 0
+    trails = alpha.follow_trails(root, h.artifacts, h.sightings, include_vendor) if roles.trails else 0
+    if roles.den:
+        sightings = den.verify(h.sightings, threshold, lines, roles.corroboration)
+        looks = alpha.second_look(sightings, lines, threshold, [k for k in alpha.LOOKS if getattr(roles, k)])
     else:
-        sightings = den.verify(sightings, threshold, lines)
-        promoted = den.second_look(sightings, lines, threshold) if second_look else 0
+        sightings, looks = den.admit_all(h.sightings), dict.fromkeys(alpha.LOOKS, 0)
     assets = alpha.lead(den.assets(sightings), horizon)
     if baseline:
         seen = load_baseline(baseline)
         for a in assets:
             a.new_files = sorted({s.file.split("!")[0] for s in a.sightings if (a.variant, s.file.split("!")[0]) not in seen})
-    al = alpha.alerts(arts, libs, sightings)
-    stats = {"files_code": n_code, "files_config": n_cfg, "files_artifacts": n_art, "files_binary": n_bin, "libraries": len(libs),
-             "endpoints": len(endpoints), "raw_sightings": raw_count,
+    al = alpha.alerts(h.artifacts, h.libraries, sightings)
+    stats = {"files_code": h.files["source"], "files_config": h.files["config"], "files_artifacts": h.files["artifacts"], "files_binary": h.files["binary"],
+             "libraries": len(h.libraries), "endpoints": len(h.endpoints), "raw_sightings": len(h.sightings),
              "accepted": sum(s.verdict == "accepted" for s in sightings), "quarantined": sum(s.verdict == "quarantined" for s in sightings),
              "rejected": sum(s.verdict == "rejected" for s in sightings), "suppressed": sum(s.verdict == "suppressed" for s in sightings),
-             "promoted_on_second_look": promoted, "trails_followed": trails,
+             "promoted_on_second_look": sum(looks.values()), "second_look": looks, "trails_followed": trails, "roles_off": roles.off,
              "seconds": round(time.time() - t0, 2), "horizon": vars(horizon) | {"years_to_crqc": horizon.z}}
-    return Result(project, sightings, assets, arts, libs, al, alpha.readiness(assets), stats, notes, endpoints, str(baseline or ""))
+    return Result(project, sightings, assets, h.artifacts, h.libraries, al, alpha.readiness(assets), stats, h.notes, h.endpoints, str(baseline or ""))

@@ -1,5 +1,4 @@
 import re
-from pathlib import Path
 
 from ..elders import lookup, pq_from_text, parse_transformation, parse_symmetric_name, AMBIGUOUS, MODES
 from ..model import Sighting
@@ -118,10 +117,10 @@ def string_scout(path, lang, strings, lines, sink, base_ctx, docs):
                 c.add("prose")
             if line in docs:
                 c.add("doc")
-            _emit(sink, path, lang, line, lines, a, p, "string", "strings", c)
+            _emit(sink, path, lang, line, lines, a, dict(p, literal=val), "string", "strings", c)
 
 
-def scan_file(root, p, sink):
+def scan_file(root, p, sink, constants=True):
     lang = LANGS.get(p.suffix.lower())
     if not lang:
         return False
@@ -133,10 +132,10 @@ def scan_file(root, p, sink):
     lines = text.splitlines()
     code, comments, strings, docs = split(text, lang)
     if lang == "python":
-        for algo, ln, ev, snip, params in scan_python(path, text) or []:
+        for algo, ln, ev, snip, params in scan_python(path, text, constants) or []:
             _emit(sink, path, lang, ln, lines, algo, params, ev, "source", base | ({"doc"} if ln in docs else set()))
     else:
-        run_rules(path, propagate(code), lang, sink, base)
+        run_rules(path, propagate(code) if constants else code, lang, sink, base)
         run_rules(path, comments, lang, sink, base, comment=True)
     string_scout(path, lang, strings, lines, sink, base, docs)
     for m in re.finditer(r"[^\n]+", comments):
@@ -145,8 +144,8 @@ def scan_file(root, p, sink):
     return True
 
 
-def scan(root, include_vendor=False):
+def scan(root, include_vendor=False, constants=True):
     sink, n = [], 0
     for p in iter_files(root, include_vendor):
-        n += scan_file(root, p, sink)
+        n += scan_file(root, p, sink, constants)
     return sink, n

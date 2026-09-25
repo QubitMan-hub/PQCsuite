@@ -39,6 +39,11 @@ footer{margin-top:56px;color:var(--mid);font-size:12px}
 """
 
 
+def _ablation(st):
+    off = st.get("roles_off")
+    return f" Ablation run without: {', '.join(off)}." if off else ""
+
+
 def _plural(n, word):
     return f"{n} {word}{'s' * (n != 1)}"
 
@@ -92,7 +97,7 @@ def html(r):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(r.project)}: Wolf Pack CBOM</title><style>{CSS}</style></head><body><main>
 <h1>{e(r.project)}</h1>
-<p class="sub">Cryptographic inventory and quantum migration plan. Wolf Pack {__version__}, scanned in {st['seconds']}s.</p>
+<p class="sub">Cryptographic inventory and quantum migration plan. Wolf Pack {__version__}, scanned in {st['seconds']}s.{_ablation(st)}</p>
 <div class="pack">
 <div><span>Elders</span><b>{scanned + st['endpoints']}</b><small>{_plural(scanned, 'file')} and {_plural(st['endpoints'], 'endpoint')} checked against the rule base</small></div>
 <div><span>Scouts</span><b>{st['raw_sightings']}</b><small>raw sightings, noisy by design</small></div>
@@ -124,7 +129,7 @@ def html(r):
 
 def terminal(r):
     st, rd = r.stats, r.readiness
-    out = [f"\nwolfpack {__version__}  {r.project}",
+    out = [f"\nwolfpack {__version__}  {r.project}{_ablation(st)}",
            f"scouts {st['raw_sightings']} raw  ->  den {st['accepted']} verified, {st['quarantined']} held, {st['rejected']} rejected, "
            f"{st['suppressed']} suppressed  ->  alpha {st['promoted_on_second_look']} promoted, {st['trails_followed']} trails  ->  {len(r.assets)} assets",
            f"quantum-safe asymmetric: {rd['pq_safe']}/{rd['asymmetric']} ({rd['percent']}%)   hybrid KEX: {'yes' if rd['hybrid'] else 'no'}"]

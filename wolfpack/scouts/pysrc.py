@@ -1,5 +1,4 @@
 import ast
-import re
 
 from ..elders import lookup, pq_from_text, curve, parse_transformation
 from .suites import sig_scheme
@@ -17,8 +16,9 @@ def _norm(q):
 
 
 class PyScout(ast.NodeVisitor):
-    def __init__(self, path, src):
+    def __init__(self, path, src, constants=True):
         self.path, self.lines, self.alias, self.consts, self.out, self.seen = path, src.splitlines(), {}, {}, [], set()
+        self.constants = constants
         self.root = None
 
     def emit(self, node, algo, params=None, evidence="call"):
@@ -88,7 +88,7 @@ class PyScout(ast.NodeVisitor):
 
     def visit_Assign(self, node):
         v = node.value
-        if isinstance(v, ast.Constant) and isinstance(v.value, (str, int)):
+        if self.constants and isinstance(v, ast.Constant) and isinstance(v.value, (str, int)):
             for t in node.targets:
                 if isinstance(t, ast.Name):
                     self.consts[t.id] = v.value
@@ -209,8 +209,9 @@ class PyScout(ast.NodeVisitor):
                 if pkg == "Protocol" and last in ("PBKDF2", "scrypt", "HKDF"):
                     return self.emit(n, lookup(last)) or True
         if q in ("jwt.encode", "jwt.decode", "jose.jwt.encode", "jose.jwt.decode", "jwt.PyJWT.encode"):
-            v = self.val(a(None, "algorithm")) or self.val(a(None, "algorithms"))
-            vals = v if isinstance(v, list) else [v] if v else (["HS256"] if last == "encode" else [])
+            e = a(2, "algorithm" if last == "encode" else "algorithms")
+            v = self.val(e)
+            vals = v if isinstance(v, list) else [v] if v else (["HS256"] if last == "encode" and e is None else [])
             for s in vals:
                 for algo, p in sig_scheme(str(s)) if s else []:
                     self.emit(n, algo, p)
@@ -248,11 +249,11 @@ class PyScout(ast.NodeVisitor):
         return a
 
 
-def scan_python(path, src):
+def scan_python(path, src, constants=True):
     try:
         tree = ast.parse(src)
     except (SyntaxError, ValueError):
         return None
-    s = PyScout(path, src)
+    s = PyScout(path, src, constants)
     s.visit(tree)
     return s.out

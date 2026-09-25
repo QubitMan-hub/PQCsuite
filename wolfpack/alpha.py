@@ -1,7 +1,12 @@
+import re
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 
 from .elders import CATALOG, SHOR, LEGACY, GROVER, SAFE, HYBRIDS, classical_bits, nist_status
+from .scouts import config, iter_files, read, rel
+from .scouts.lexer import LANGS
 
 TIERS = ["critical", "high", "medium", "low", "ok"]
 WEIGHT = {"critical": 40, "high": 30, "medium": 20, "low": 10, "ok": 0}
@@ -9,6 +14,128 @@ EXPOSURE = [("live", "live network endpoint", 5), ("config", "deployed configura
             ("call", "application code", 3), ("constant", "application code", 3), ("identifier", "application code", 2.5),
             ("import", "application code", 2), ("string", "application code", 2)]
 CONFIDENTIALITY = {"pke", "key-agree", "kem", "protocol", "other"}
+
+
+LOOKS = ("flow", "registries", "siblings")
+NOISE = re.compile(r"\b(print\w*|log\w*|debug|info|warn\w*|error|trace|format|printf|append|equals\w*|contains|includes|startsWith|endsWith|assert\w*|expect)\s*\(", re.I)
+
+
+DENY_NAME = re.compile(r"disabl|deny|denied|block|forbid|reject|insecure|weak|deprecat|legacy_only|exclude|blacklist", re.I)
+
+
+def siblings(sightings):
+    """A literal like "RS256" yields RSA and SHA-256; if one half is accepted, so is the other."""
+    key = lambda s: (s.file, s.line, s.params.get("literal"))
+    ok = {key(s) for s in sightings if s.verdict == "accepted" and s.evidence == "string"}
+    n = 0
+    for s in sightings:
+        if s.verdict == "quarantined" and s.evidence == "string" and key(s) in ok:
+            s.verdict, s.confidence, s.reason = "accepted", 0.7, "same literal as an accepted sighting"
+            n += 1
+    return n
+
+
+def list_name(ls, first):
+    """Name of the variable a list is assigned to, read from the nearest code line at or above its first entry."""
+    for k in range(first, max(0, first - 8), -1):
+        if k > len(ls):
+            continue
+        line = ls[k - 1].split("#")[0].split("//")[0]
+        m = re.search(r"([A-Za-z_][\w.]*)['\"]?\s*(?::[^=\n]{1,40})?(?::=|=|:)\s*[\[({]", line)
+        if m:
+            return m.group(1)
+    return ""
+
+
+def registries(sightings, lines, size=3, gap=2):
+    """Three or more crypto literals packed into one list or table form an algorithm registry, unless it is a deny-list."""
+    by_file = defaultdict(list)
+    for s in sightings:
+        if s.evidence == "string" and s.verdict in ("quarantined", "accepted") and s.line:
+            by_file[s.file].append(s)
+    n = 0
+    for f, group in by_file.items():
+        group.sort(key=lambda s: s.line)
+        cluster = [group[0]]
+        for s in group[1:] + [None]:
+            if s is not None and s.line - cluster[-1].line <= gap:
+                cluster.append(s)
+                continue
+            if len({c.line for c in cluster}) >= size:
+                if not DENY_NAME.search(list_name(lines(f), cluster[0].line)):
+                    for c in cluster:
+                        if c.verdict == "quarantined":
+                            c.verdict, c.confidence, c.reason = "accepted", 0.65, f"part of an algorithm list of {len(cluster)} entries (lines {cluster[0].line}-{cluster[-1].line})"
+                            n += 1
+            cluster = [s] if s is not None else []
+    return n
+
+
+def flows(sightings, lines, threshold=0.6):
+    """Held string literals are accepted only if the literal visibly flows into a call."""
+    promoted = 0
+    for s in sightings:
+        if s.verdict != "quarantined" or s.evidence != "string":
+            continue
+        ls = lines(s.file)
+        if not (0 < s.line <= len(ls)):
+            continue
+        line = ls[s.line - 1]
+        lits = re.findall(r"""(['"`])(.*?)\1""", line)
+        hit = None
+        for _, lit in lits:
+            e = re.escape(lit)
+            m = re.match(r"\s*(?:(?:const|let|var|final|static|private|public|protected|readonly|val)\s+)*(?:[\w<>\[\]]+\s+)?([A-Za-z_]\w*)\s*[:=]\s*['\"`]" + e, line)
+            if m:
+                var = re.escape(m.group(1))
+                for k in range(s.line, min(len(ls), s.line + 40)):
+                    if (re.search(r"\w\s*\([^)]*\b" + var + r"\b", ls[k]) and not NOISE.search(ls[k])) or re.search(r"\b\w+\s*=\s*" + var + r"\b\s*[,)]", ls[k]):
+                        hit = f"constant {m.group(1)} flows into a call on line {k + 1}"
+                        break
+            elif re.search(r"\w\s*\([^)]*['\"`]" + e + r"['\"`]", line) and not NOISE.search(line) or re.search(
+                    r"(alg\w*|cipher\w*|hash\w*|digest\w*|curve\w*|kex\w*|sig\w*|scheme\w*|transformation\w*|protocol\w*|padding\w*)['\"]?\s*(?::[^=\n]{1,40})?[:=]\s*[\[(]?\s*['\"`]" + e, line, re.I):
+                hit = "literal is passed directly into a call or algorithm setting"
+            if hit:
+                break
+        if hit:
+            s.verdict, s.confidence, s.reason = "accepted", max(threshold, 0.7), f"second look: {hit}"
+            promoted += 1
+    return promoted
+
+
+def second_look(sightings, lines, threshold=0.6, looks=LOOKS):
+    """The alpha sends the pack back over what the den held. Returns how many sightings each look promoted."""
+    run = {"flow": lambda: flows(sightings, lines, threshold), "registries": lambda: registries(sightings, lines), "siblings": lambda: siblings(sightings)}
+    return {k: run[k]() if k in looks else 0 for k in LOOKS}
+
+
+def follow_trails(root, arts, sightings, include_vendor=False):
+    """Alpha's hunt: find where keys and certificates are referenced, so deployed material is weighted as deployed."""
+    local = [a for a in arts if "://" not in a.file]
+    if not local or not Path(root).is_dir():
+        return 0
+    names = {Path(a.file).name: a for a in local}
+    rx = re.compile(r"(?<![\w.-])(" + "|".join(re.escape(n) for n in names) + r")(?![\w-])")
+    found = 0
+    for p in iter_files(root, include_vendor):
+        if p.suffix.lower() not in LANGS and not config.is_config(p):
+            continue
+        text = read(p)
+        if not text:
+            continue
+        r = rel(root, p)
+        for m in rx.finditer(text):
+            a = names[m.group(1)]
+            if r == a.file:
+                continue
+            line = text.count("\n", 0, m.start()) + 1
+            a.details.setdefault("referenced_by", []).append(f"{r}:{line}")
+            found += 1
+            if config.is_config(p):
+                for s in sightings:
+                    if s.file == a.file:
+                        s.context.add("deployed")
+    return found
 
 
 @dataclass
