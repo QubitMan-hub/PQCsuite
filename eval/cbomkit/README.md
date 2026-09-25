@@ -43,6 +43,24 @@ One reviewer (not blind) checked every Wolf Pack-only pair:
 - **8 known false positives:** SSH key-format prefixes in pyjwt `utils.py` and python-jose `utils.py` (DSA, ECDSA, Ed25519, RSA in each). This is CLAUDE.md next-work item 3; python-jose has the same key-format list.
 - The rest are direct use or declared support as described above.
 
+### After stage 3 (tuned on these repos)
+
+Stage 3 fixed the two Wolf Pack misses and the eight false positives found above: cross-file constant propagation, and the alpha's recognition check for format-sniffing lists. Because those fixes came from these six repos, the numbers below are **after tuning on them** and are not a fair comparison any more. The first run above is the untuned record. The fair test is the held-out benchmark in `eval/heldout/`.
+
+| Repo | Wolf Pack pairs | CBOMkit pairs | Both | Wolf Pack only | CBOMkit only |
+|---|---:|---:|---:|---:|---:|
+| java-jwt | 6 | 0 | 0 | 6 | 0 |
+| jjwt | 53 | 7 | 4 | 49 | 3 |
+| pyjwt | 17 | 1 | 1 | 16 | 0 |
+| paramiko | 39 | 8 | 3 | 36 | 5 |
+| python-jose | 21 | 2 | 2 | 19 | 0 |
+| python-rsa | 12 | 0 | 0 | 12 | 0 |
+| **Total** | **148** | **18** | **10** | **138** | **8** |
+
+- **CBOMkit-only pairs (8):** the 5 CBOMkit false positives and the 3 HMAC-hash convention pairs remain.
+- **Wolf Pack-only pairs (138):** by strongest evidence, 104 rest on string literals and 34 on calls or imports.
+- **What changed:** nothing else moved on these repos. Only the 2 recovered misses and the 8 removed false positives changed.
+
 ### Things that make CBOMkit look worse than it may be
 
 - **java-jwt returned 0 findings.** Its log warns about unresolved imports/types even with compiled classes in `lib/build/classes/java/main` and Jackson in `CBOMKIT_JAVA_JAR_DIR`. java-jwt passes the algorithm name through constructor fields (`Signature.getInstance(algorithm)`), and CBOMkit did not follow it. A real Gradle build might change the result.

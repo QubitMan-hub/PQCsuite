@@ -51,6 +51,14 @@ v0.2 ("100x better, but don't overcomplicate") added:
   - Propagation's only family-level effect was masking another bug: `jwt.encode` assumed HS256 whenever it could not read the algorithm, including positional or unresolvable arguments (`py/jwt_calls.py`).
   - Propagation's real value is parameters (RSA-1024 vs RSA), which family-level scoring cannot see. Java integer constants are not propagated at all yet.
 
+## Stage 3: closing the gaps CBOMkit exposed
+
+- **Recognition (alpha):** a list whose entries are only searched for inside input data is format sniffing. It is never promoted, and `alpha.recognise` holds its entries back even when the den let them in through corroboration, which is what happened in pyjwt. This removed all 8 SSH-list false positives on pyjwt and python-jose.
+- **Cross-file (scouts' shared memory):** `Owner.NAME` constants in Java, Kotlin and C#, exported Go `pkg.Name`, and `#define` in included C headers. A name with two different values is dropped. This recovered jjwt's two AES misses.
+- **Integer constants:** these now propagate, but only from `final`/`const`/`readonly`/`#define` declarations. A reassigned local is left unknown on purpose.
+- **Tuned status:** the six comparison repos are now "tuned on"; `eval/cbomkit/README.md` keeps the untuned first run.
+- **Still open:** the HMAC-hash and SHA-512/256 labelling conventions, pending the owner.
+
 ## Design decisions worth knowing
 
 Scoring is at (file, algorithm family) granularity, not line level, so labelling stays tractable. Signature schemes such as SHA256withECDSA, RS256 and certificate signatures emit the hash as its own finding, consistently everywhere.

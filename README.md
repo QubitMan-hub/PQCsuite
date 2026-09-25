@@ -55,28 +55,39 @@ CBOMkit's scanner (sonar-cryptography) does deep semantic analysis of Java (JCA,
 
 ## Evaluation so far
 
-Development corpus: `bench/corpus` has 27 files across 7 languages plus configs, certificates, a compiled binary and manifests. It is full of traps: algorithms in comments, docstrings and log messages; a Java `disabledAlgorithms` list; OpenSSL `!MD5` exclusions; a `WEAK_ALGORITHMS` deny-list; an unused import; a suppressed line; a digest name built at runtime (`"SHA-" + bits`); an unrelated literal on the same line as `"RS256"`; and a `jwt.encode` whose algorithm cannot be resolved. Ground truth is 58 (file, algorithm family) pairs.
+Development corpus: `bench/corpus` has 32 files across 7 languages plus configs, certificates, a compiled binary and manifests. It is full of traps:
+- algorithms in comments, docstrings and log messages;
+- a Java `disabledAlgorithms` list, OpenSSL `!MD5` exclusions and a `WEAK_ALGORITHMS` deny-list;
+- an unused import and a suppressed line;
+- a digest name built at runtime (`"SHA-" + bits`), and an unrelated literal on the same line as `"RS256"`;
+- a `jwt.encode` whose algorithm cannot be resolved;
+- an SSH key-prefix list used only to sniff formats;
+- a same-named constant in the wrong class, and a reassigned local key size.
+
+Ground truth is 61 (file, algorithm family) pairs.
 
 | configuration | precision | recall | F1 |
 |---|---|---|---|
 | full pack | 1.000 | 1.000 | 1.000 |
-| without den | 0.763 | 1.000 | 0.866 |
-| without corroboration | 1.000 | 0.983 | 0.991 |
-| without second look | 1.000 | 0.931 | 0.964 |
-| &nbsp;&nbsp;without flow | 1.000 | 0.983 | 0.991 |
-| &nbsp;&nbsp;without registries | 1.000 | 0.966 | 0.982 |
-| &nbsp;&nbsp;without siblings | 1.000 | 0.983 | 0.991 |
-| without propagation | 1.000 | 1.000 | 1.000 |
-| without source scouts | 1.000 | 0.310 | 0.474 |
-| without config scouts | 1.000 | 0.776 | 0.874 |
-| without artifact scouts | 1.000 | 0.948 | 0.973 |
-| without binary scouts | 1.000 | 0.966 | 0.982 |
+| without den | 0.726 | 1.000 | 0.841 |
+| without corroboration | 1.000 | 0.984 | 0.992 |
+| without second look | 1.000 | 0.934 | 0.966 |
+| &nbsp;&nbsp;without flow | 1.000 | 0.984 | 0.992 |
+| &nbsp;&nbsp;without registries | 1.000 | 0.967 | 0.983 |
+| &nbsp;&nbsp;without siblings | 1.000 | 0.984 | 0.992 |
+| without recognition | 0.953 | 1.000 | 0.976 |
+| without propagation | 1.000 | 0.984 | 0.992 |
+| without cross-file | 1.000 | 0.984 | 0.992 |
+| without source scouts | 1.000 | 0.295 | 0.456 |
+| without config scouts | 1.000 | 0.787 | 0.881 |
+| without artifact scouts | 1.000 | 0.951 | 0.975 |
+| without binary scouts | 1.000 | 0.967 | 0.983 |
 
-Propagation shows no change here because it mostly recovers parameters (RSA-1024 rather than RSA), which family-level scoring does not see.
+This corpus was written alongside the scanner, so treat it as a regression test and ablation demo, not a result. Propagation also recovers parameters (RSA-1024 rather than RSA), which family-level scoring does not see.
 
-This corpus was written alongside the scanner, so treat it as a regression test and ablation demo, not a result.
+Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3.5.0, each scanned in under 2.5 seconds. Every accepted (file, algorithm) pair in non-test code was reviewed by hand: 98 pairs, 3 false positives, about 97% precision. The 3 were pyjwt listing SSH key-format names it uses only to detect key types; the alpha's recognition check has since removed them. This was a single, non-blind reviewer, and recall on these repos was not measured.
 
-Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3.5.0, each scanned in under 2.5 seconds. Every accepted (file, algorithm) pair in non-test code was reviewed by hand: 98 pairs, 3 false positives (pyjwt listing SSH key-format names it uses only to detect key types), about 97% precision. This is a single, non-blind reviewer, and recall on these repos is not measured.
+The real held-out test is being prepared in [eval/heldout](eval/heldout/README.md): 18 pinned repositories, to be labelled blind before any tool runs on them.
 
 A first head-to-head against IBM CBOMkit on six real repositories, with a hand review of every disagreement, is in [eval/cbomkit](eval/cbomkit/README.md). Those repos are unlabelled, so it is an agreement study, not a precision or recall result.
 
@@ -84,13 +95,13 @@ Live probes were verified against a real OpenSSL 3.5 server (hybrid X25519MLKEM7
 
 ## Limitations
 
-Only Python gets true AST analysis. Other languages use rules with intra-file constant propagation, which misses values passed across functions or files, reflection, and dynamically built names.
+Only Python gets true AST analysis. Other languages use rules plus constant propagation: within a file, and across files for `Owner.NAME` constants in Java, Kotlin and C#, exported Go constants, and C header macros. Values passed through function parameters, JavaScript imports, reflection and dynamically built names are still missed.
 
 Key sizes and modes are found only when they are visible near the call; otherwise assets are reported without them (`AES` rather than `AES-256-GCM`).
 
 Generic EC keys are assumed to be used for confidentiality, which errs toward over-prioritising.
 
-Algorithm lists are treated as declared support. A list that only names formats for detection, as in pyjwt's SSH key sniffing, will be counted.
+Algorithm lists are treated as declared support. Lists used only to sniff formats are recognised when the code searches for their entries inside input data (`startswith`, `in`, `HasPrefix`); a sniffer written some other way will still be counted.
 
 The binary scout misses constants that compilers emit as instruction immediates (OpenSSL's MD5 and SHA-1 initial values, for example), and finding an algorithm in a binary means it is implemented or linked, not necessarily used.
 
