@@ -1,6 +1,7 @@
 """The hunt, start to finish: scouts range wide, the den verifies, the alpha takes a second look and leads."""
 import json
 import time
+from collections import Counter
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 
@@ -135,10 +136,10 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
         for a in assets:
             a.new_files = sorted({s.file.split("!")[0] for s in a.sightings if (a.variant, s.file.split("!")[0]) not in seen})
     al = alpha.alerts(h.artifacts, h.libraries, sightings)
+    verdicts = Counter(s.verdict for s in sightings)
     stats = {"files_code": h.files["source"], "files_config": h.files["config"], "files_artifacts": h.files["artifacts"], "files_binary": h.files["binary"],
              "libraries": len(h.libraries), "endpoints": len(h.endpoints), "raw_sightings": len(h.sightings),
-             "accepted": sum(s.verdict == "accepted" for s in sightings), "quarantined": sum(s.verdict == "quarantined" for s in sightings),
-             "rejected": sum(s.verdict == "rejected" for s in sightings), "suppressed": sum(s.verdict == "suppressed" for s in sightings),
+             **{v: verdicts[v] for v in ("accepted", "quarantined", "rejected", "suppressed")},
              "promoted_on_second_look": sum(looks.values()), "second_look": looks, "held_as_formats": held, "trails_followed": trails, "roles_off": roles.off,
              "seconds": round(time.time() - t0, 2), "horizon": vars(horizon) | {"years_to_crqc": horizon.z}}
     return Result(project, sightings, assets, h.artifacts, h.libraries, al, alpha.readiness(assets), stats, h.notes, h.endpoints, str(baseline or ""))

@@ -5,8 +5,8 @@ from pathlib import Path
 from .elders import CATALOG, variant
 from .model import Asset
 
-BASE = {"live": 1.0, "binary": 0.8, "artifact": 0.95, "config": 0.9, "call": 0.9, "constant": 0.85, "identifier": 0.65, "import": 0.45, "string": 0.35}
-RANK = {k: i for i, k in enumerate(["string", "import", "identifier", "binary", "constant", "call", "config", "artifact", "live"])}
+BASE = {"string": 0.35, "import": 0.45, "identifier": 0.65, "binary": 0.8, "constant": 0.85, "call": 0.9, "config": 0.9, "artifact": 0.95, "live": 1.0}
+RANK = {k: i for i, k in enumerate(BASE)}
 KIN = {"ECC": "EC", "ECDSA": "EC", "ECDH": "EC"}
 HARD = {"comment": "appears only inside a comment", "doc": "appears only in a docstring", "prose": "mentioned in human-readable text, not used"}
 KEY_PARAMS = ("key_size", "curve", "mode", "hash", "padding")
@@ -20,15 +20,12 @@ def dedupe(sightings):
     best = {}
     for s in sightings:
         k = (s.file, s.line, s.algo, "comment" in s.context)
-        cur = best.get(k)
-        if cur is None or RANK[s.evidence] > RANK[cur.evidence]:
-            if cur:
-                for p, v in cur.params.items():
-                    s.params.setdefault(p, v)
-            best[k] = s
-        else:
-            for p, v in s.params.items():
-                cur.params.setdefault(p, v)
+        cur = best.setdefault(k, s)
+        if cur is not s:
+            win, lose = (s, cur) if RANK[s.evidence] > RANK[cur.evidence] else (cur, s)
+            for p, v in lose.params.items():
+                win.params.setdefault(p, v)
+            best[k] = win
     return list(best.values())
 
 

@@ -6,8 +6,8 @@ from pathlib import PurePosixPath
 from . import __version__
 from .elders import CATALOG, classical_bits, quantum_level
 
-MODES = {"ECB": "ecb", "CBC": "cbc", "CCM": "ccm", "GCM": "gcm", "CFB": "cfb", "OFB": "ofb", "CTR": "ctr"}
-PADS = {"pkcs5": "pkcs5", "pkcs7": "pkcs7", "pkcs1v15": "pkcs1v15", "oaep": "oaep", "raw": "raw"}
+MODES = {"ecb", "cbc", "ccm", "gcm", "cfb", "ofb", "ctr"}
+PADS = {"pkcs5", "pkcs7", "pkcs1v15", "oaep", "raw"}
 FUNCS = {"pke": ["keygen", "encrypt", "decrypt", "sign", "verify"], "signature": ["keygen", "sign", "verify"], "key-agree": ["keygen", "keyderive"],
          "kem": ["keygen", "encapsulate", "decapsulate"], "hash": ["digest"], "mac": ["tag"], "kdf": ["keyderive"],
          "block-cipher": ["encrypt", "decrypt"], "stream-cipher": ["encrypt", "decrypt"], "ae": ["encrypt", "decrypt"], "other": ["unknown"]}
@@ -41,15 +41,15 @@ def algorithm_component(a):
         return {"type": "cryptographic-asset", "bom-ref": a.ref, "name": a.variant,
                 "cryptoProperties": {"assetType": "protocol", "protocolProperties": pp}, "evidence": ev, "properties": props}
     ap = {"primitive": c.primitive, "cryptoFunctions": FUNCS.get(c.primitive, ["unknown"]), "executionEnvironment": "unknown", "implementationPlatform": "unknown"}
-    psi = a.params.get("key_size") or (re.search(r"-(\d+)$", a.algo).group(1) if re.search(r"-(\d+)$", a.algo) else None)
+    psi = a.params.get("key_size") or "".join(re.findall(r"-(\d+)$", a.algo))
     if psi:
         ap["parameterSetIdentifier"] = str(psi)
     if a.params.get("curve"):
         ap["curve"] = a.params["curve"]
     if a.params.get("mode"):
-        ap["mode"] = MODES.get(a.params["mode"], "other")
+        ap["mode"] = m if (m := a.params["mode"].lower()) in MODES else "other"
     if a.params.get("padding"):
-        ap["padding"] = PADS.get(a.params["padding"], "other")
+        ap["padding"] = a.params["padding"] if a.params["padding"] in PADS else "other"
     bits = classical_bits(a.algo, a.params)
     if bits is not None:
         ap["classicalSecurityLevel"] = bits
@@ -118,14 +118,15 @@ def build(project, assets, arts, libs, endpoints=()):
         lib_refs.append(ref)
         provides[ref] = _provides(lib, assets)
         ver = re.sub(r"^[=~^<>!\s]+", "", lib.version or "").split(",")[0].strip()
+        ver = ver if re.match(r"^[\w.\-+]+$", ver) else ""
         name = lib.name.split(":")[-1] if lib.ecosystem == "maven" else lib.name
         ns = lib.name.split(":")[0] if lib.ecosystem == "maven" and ":" in lib.name else None
-        purl = f"pkg:{PURL[lib.ecosystem]}/" + (f"{ns}/" if ns else "") + name + (f"@{ver}" if ver and re.match(r"^[\w.\-+]+$", ver) else "")
+        purl = f"pkg:{PURL[lib.ecosystem]}/" + (f"{ns}/" if ns else "") + name + (f"@{ver}" if ver else "")
         comp = {"type": "library", "bom-ref": ref, "name": name, "purl": purl,
                 "properties": _props(manifest=f"{lib.manifest}:{lib.line}" if lib.line else lib.manifest, used_in=len(lib.used_in), pq_capable=lib.pq or None, note=lib.note)}
         if ns:
             comp["group"] = ns
-        if ver and re.match(r"^[\w.\-+]+$", ver):
+        if ver:
             comp["version"] = ver
         comps.append(comp)
     services, svc_deps = [], []

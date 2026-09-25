@@ -9,7 +9,7 @@ from .scouts import config, iter_files, read, rel
 from .scouts.lexer import LANGS
 
 TIERS = ["critical", "high", "medium", "low", "ok"]
-WEIGHT = {"critical": 40, "high": 30, "medium": 20, "low": 10, "ok": 0}
+WEIGHT = {t: 40 - 10 * i for i, t in enumerate(TIERS)}
 EXPOSURE = [("live", "live network endpoint", 5), ("config", "deployed configuration", 4), ("artifact", "key or certificate material", 3.5), ("binary", "compiled artifact", 3),
             ("call", "application code", 3), ("constant", "application code", 3), ("identifier", "application code", 2.5),
             ("import", "application code", 2), ("string", "application code", 2)]
@@ -196,7 +196,7 @@ def exposure(a):
     return "application code", 2
 
 
-def assess(a, h, hybrid_files=None):
+def assess(a, h, hybrid_files):
     c = CATALOG[a.algo]
     bits = classical_bits(a.algo, a.params)
     label, w = exposure(a)
@@ -232,15 +232,13 @@ def assess(a, h, hybrid_files=None):
             a.why = "Breakable by Shor's algorithm on a future quantum computer" + ("" if conf else "; no harvest-now risk for signatures, but forgery risk once a CRQC exists")
         if a.algo == "ECC":
             a.why += ". Key use (signing or key agreement) not determined, so confidentiality is assumed"
-        if hybrid_files is not None:
-            files = {s.file for s in a.sightings}
-            if files and files <= hybrid_files and a.algo in ("TLS 1.3", "X25519", "X448", "ECDH", "DH"):
-                if a.algo == "TLS 1.3":
-                    tier, a.why, a.action = "ok", "TLS 1.3 with a hybrid ML-KEM group configured alongside it", ""
-                else:
-                    tier = "medium"
-                    a.why = "Classical fallback next to a configured hybrid PQ group; keep only while peers lack hybrid support"
-                    a.action = "Remove once clients support X25519MLKEM768"
+        if a.algo in ("TLS 1.3", "X25519", "X448", "ECDH", "DH") and {s.file for s in a.sightings} <= hybrid_files:
+            if a.algo == "TLS 1.3":
+                tier, a.why, a.action = "ok", "TLS 1.3 with a hybrid ML-KEM group configured alongside it", ""
+            else:
+                tier = "medium"
+                a.why = "Classical fallback next to a configured hybrid PQ group; keep only while peers lack hybrid support"
+                a.action = "Remove once clients support X25519MLKEM768"
     elif c.threat == GROVER and (bits or 0) >= 192:
         tier = "ok"
         a.why = "At least 96-bit security even against Grover"
@@ -285,8 +283,7 @@ def alerts(arts, libs, sightings):
             out.append(("high" if "CVE" in lib.note or "Unmaintained" in lib.note else "low", f"{lib.name}: {lib.note}", f"{lib.manifest}:{lib.line}", ""))
         if not lib.used_in:
             out.append(("info", f"{lib.name} is declared but no import was found", f"{lib.manifest}:{lib.line}", "Remove it or confirm indirect use"))
-    order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
-    return sorted(out, key=lambda x: order[x[0]])
+    return sorted(out, key=lambda x: (TIERS + ["info"]).index(x[0]))
 
 
 def readiness(assets):
