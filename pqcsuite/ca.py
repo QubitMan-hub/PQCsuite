@@ -1,4 +1,5 @@
-"""A post-quantum certificate authority: ML-DSA root, server and client certificates, revocation and CRLs."""
+"""A post-quantum certificate authority: ML-DSA or SLH-DSA roots, intermediate CAs, server and client certificates, revocation
+and CRLs. The CA key can live in a file, in AWS KMS, or behind any HSM signing tool (see signers.py)."""
 import contextlib
 import datetime as dt
 import ipaddress
@@ -9,14 +10,18 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import mldsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+
+from . import signers
 
 ALGORITHMS = {"ML-DSA-44": mldsa.MLDSA44PrivateKey, "ML-DSA-65": mldsa.MLDSA65PrivateKey, "ML-DSA-87": mldsa.MLDSA87PrivateKey}
 PUBLIC = {"ML-DSA-44": mldsa.MLDSA44PublicKey, "ML-DSA-65": mldsa.MLDSA65PublicKey, "ML-DSA-87": mldsa.MLDSA87PublicKey}
 USAGE = {"server": [ExtendedKeyUsageOID.SERVER_AUTH], "client": [ExtendedKeyUsageOID.CLIENT_AUTH],
          "site": [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]}
+CA_ALGORITHMS = list(PUBLIC) + signers.SLH_DSA
 REASONS = {r.value: r for r in x509.ReasonFlags if r not in (x509.ReasonFlags.unspecified, x509.ReasonFlags.remove_from_crl)}
 
 
@@ -111,28 +116,68 @@ class CA:
             raise CAError(f"no CA at {self.root}; run 'pqcsuite ca init' first")
         self.cert = x509.load_pem_x509_certificate((self.root / "ca.crt").read_bytes())
         try:
-            self.key = serialization.load_pem_private_key((self.root / "ca.key").read_bytes(), passphrase)
-        except (TypeError, ValueError) as e:
+            self.signer = signers.from_config(self.root, passphrase)
+        except (signers.SignerError, OSError, KeyError, ValueError) as e:
             raise CAError(f"cannot open the CA key: {e}") from None
+        if self.signer.spki != _spki(self.cert):
+            raise CAError("the CA key does not match ca.crt")
+        self.ski = self.cert.extensions.get_extension_for_class(x509.SubjectKeyIdentifier).value
+
+    @property
+    def anchor(self):
+        """The file clients and servers should trust: this CA's root."""
+        return self.root / "root.crt" if (self.root / "root.crt").exists() else self.root / "ca.crt"
+
+    def chain(self):
+        """This CA's certificate and every CA above it, the part of a chain a leaf appends to itself."""
+        f = self.root / "chain.pem"
+        return f.read_bytes() if f.exists() else cert_pem(self.cert)
 
     @classmethod
-    def init(cls, root, name, algorithm="ML-DSA-87", days=3650, passphrase=None):
+    def init(cls, root, name, algorithm="ML-DSA-87", days=3650, passphrase=None, parent=None, signer_config=None):
+        """A self-signed root, or with `parent` an intermediate CA it signs. `signer_config` (a dict written to signer.json)
+        keeps the key in AWS KMS or an HSM instead of ca.key."""
         root = Path(root)
         if (root / "ca.crt").exists():
             raise CAError(f"a CA already exists at {root}")
-        key = generate(algorithm)
+        if algorithm not in CA_ALGORITHMS:
+            raise CAError(f"unknown algorithm {algorithm}; choose from {', '.join(CA_ALGORITHMS)}")
+        if parent and parent.cert.extensions.get_extension_for_class(x509.BasicConstraints).value.path_length == 0:
+            raise CAError(f"{parent.cert.subject.rfc4514_string()} was created with path length 0 and cannot sign CAs; start a new root")
+        root.mkdir(parents=True, exist_ok=True)
+        if signer_config:
+            write(root / "signer.json", json.dumps(signer_config, indent=1).encode())
+        elif algorithm in ALGORITHMS:
+            write(root / "ca.key", key_pem(generate(algorithm), passphrase), secret=True)
+        else:
+            write(root / "ca.key", signers.OpenSSLSigner.generate(algorithm, passphrase), secret=True)
+        try:
+            signer = signers.from_config(root, passphrase)
+        except (signers.SignerError, OSError, KeyError, ValueError) as e:
+            raise CAError(f"cannot use the CA key: {e}") from None
         subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)])
-        ski = x509.SubjectKeyIdentifier.from_public_key(key.public_key())
-        cert = (x509.CertificateBuilder().subject_name(subject).issuer_name(subject).public_key(key.public_key())
-                .serial_number(x509.random_serial_number()).not_valid_before(now()).not_valid_after(now() + dt.timedelta(days=days))
-                .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
-                .add_extension(x509.KeyUsage(False, False, False, False, False, True, True, False, False), critical=True)
-                .add_extension(ski, critical=False)
-                .sign(key, None))
-        write(root / "ca.key", key_pem(key, passphrase), secret=True)
+        not_after = now() + dt.timedelta(days=days)
+        b = (x509.CertificateBuilder().subject_name(subject).issuer_name(parent.cert.subject if parent else subject)
+             .serial_number(x509.random_serial_number()).not_valid_before(now())
+             .not_valid_after(min(not_after, parent.cert.not_valid_after_utc) if parent else not_after)
+             .add_extension(x509.BasicConstraints(ca=True, path_length=0 if parent else None), critical=True)
+             .add_extension(x509.KeyUsage(False, False, False, False, False, True, True, False, False), critical=True)
+             .add_extension(x509.SubjectKeyIdentifier(signer.key_id), critical=False))
+        if parent:
+            b = b.add_extension(parent.aki(), critical=False)
+            with locked(parent.root):
+                cert = signers.sign(b, parent.signer, signer.spki)
+                parent._record(cert, name, "ca", signer.algorithm, cert.not_valid_after_utc, [], str(root.resolve()))
+            write(root / "root.crt", parent.anchor.read_bytes())
+            write(root / "chain.pem", cert_pem(cert) + parent.chain())
+        else:
+            cert = signers.sign(b, signer, signer.spki)
         write(root / "ca.crt", cert_pem(cert))
         write(root / "index.json", b"[]")
         return cls(root, passphrase)
+
+    def aki(self):
+        return x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(self.ski)
 
     def records(self):
         return [Record(**r) for r in json.loads((self.root / "index.json").read_text(encoding="utf-8"))]
@@ -163,17 +208,17 @@ class CA:
              .add_extension(x509.KeyUsage(True, False, False, False, False, False, False, False, False), critical=True)
              .add_extension(x509.ExtendedKeyUsage(USAGE[kind]), critical=False)
              .add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key), critical=False)
-             .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(self.key.public_key()), critical=False))
+             .add_extension(self.aki(), critical=False))
         if names:
             b = b.add_extension(x509.SubjectAlternativeName(general_names(names)), critical=False)
-        cert = b.sign(self.key, None)
+        cert = signers.sign(b, self.signer)
         with locked(self.root):
             rec = self._record(cert, common_name, kind, algorithm, not_after, names)
         return cert, rec
 
-    def _record(self, cert, common_name, kind, algorithm, not_after, names):
+    def _record(self, cert, common_name, kind, algorithm, not_after, names, path=""):
         rec = Record(serial=format(cert.serial_number, "x"), common_name=common_name, kind=kind,
-                     algorithm=algorithm, not_after=not_after.isoformat(), names=names)
+                     algorithm=algorithm, not_after=not_after.isoformat(), names=names, path=path)
         self._save(self.records() + [rec])
         return rec
 
@@ -185,7 +230,7 @@ class CA:
         out = Path(out or self.root / "issued" / f"{common_name}-{rec.serial[:8]}")
         write(out / "key.pem", key_pem(key, passphrase), secret=True)
         write(out / "cert.pem", cert_pem(cert))
-        write(out / "chain.pem", cert_pem(cert) + cert_pem(self.cert))
+        write(out / "chain.pem", cert_pem(cert) + self.chain())
         rec.path = str(out.resolve())
         with locked(self.root):
             self._save([rec if r.serial == rec.serial else r for r in self.records()])
@@ -229,7 +274,7 @@ class CA:
                 if r.reason in REASONS:
                     rb = rb.add_extension(x509.CRLReason(REASONS[r.reason]), critical=False)
                 b = b.add_revoked_certificate(rb.build())
-        crl = b.add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(self.key.public_key()), critical=False).sign(self.key, None)
+        crl = signers.sign(b.add_extension(self.aki(), critical=False), self.signer)
         data = crl.public_bytes(serialization.Encoding.PEM)
         write(self.root / "crl.pem", data)
         return data
@@ -244,7 +289,7 @@ class CA:
         edges and VPN gateways pick them up without a restart. Run it daily. Encrypted leaf keys are reported, not renewed."""
         newest = {}
         for r in self.records():
-            if r.status == "valid" and r.path and (r.path not in newest or r.not_after > newest[r.path].not_after):
+            if r.status == "valid" and r.kind != "ca" and r.path and (r.path not in newest or r.not_after > newest[r.path].not_after):
                 newest[r.path] = r
         cutoff, renewed, skipped = now() + dt.timedelta(days=renew_within), [], []
         for r in newest.values():
@@ -263,10 +308,27 @@ class CA:
         return [r for r in self.records() if r.status == "valid" and dt.datetime.fromisoformat(r.not_after) <= cutoff]
 
 
-def check_revocation(serial, crl_pem, ca_cert):
-    """Raise if the certificate with this serial number is revoked, or if the CRL is forged or stale. Fails closed."""
+def _spki(cert):
+    return signers.children(signers.children(cert.public_bytes(serialization.Encoding.DER))[0])[6]
+
+
+def signed_by(issuer, tbs, signature):
+    """True if `issuer`'s key made this signature; SLH-DSA keys, which pyca/cryptography cannot load, go through OpenSSL."""
+    try:
+        issuer.public_key().verify(signature, tbs)
+        return True
+    except UnsupportedAlgorithm:
+        return signers.verify(_spki(issuer), tbs, signature)
+    except Exception:
+        return False
+
+
+def check_revocation(serial, crl_pem, ca_certs):
+    """Raise if the certificate with this serial number is revoked, or if the CRL is forged or stale. Fails closed.
+    `ca_certs` is the issuing CA's certificate, or several of which one issued the CRL."""
     crl = x509.load_pem_x509_crl(crl_pem)
-    if crl.issuer != ca_cert.subject or not crl.is_signature_valid(ca_cert.public_key()):
+    issuers = [c for c in (ca_certs if isinstance(ca_certs, (list, tuple)) else [ca_certs]) if c.subject == crl.issuer]
+    if not any(signed_by(c, crl.tbs_certlist_bytes, crl.signature) for c in issuers):
         raise CAError("the CRL was not signed by this CA")
     if crl.next_update_utc and crl.next_update_utc < now():
         raise CAError(f"the CRL expired at {crl.next_update_utc.isoformat()}")

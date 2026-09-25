@@ -138,6 +138,7 @@ class SSHTest(unittest.TestCase):
             port = s.getsockname()[1]
         (d / "conf").write_text(f"Port {port}\nListenAddress 127.0.0.1\nHostKey {d / 'key'}\nPidFile {d / 'pid'}\n")
         proc = subprocess.Popen(["/usr/sbin/sshd", "-D", "-f", str(d / "conf")])
+        self.addCleanup(proc.wait, 10)
         self.addCleanup(proc.terminate)
         for _ in range(50):
             r = scan.probe(f"ssh://127.0.0.1:{port}", timeout=2)

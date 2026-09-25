@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 
 from . import NAME, __version__, tls
-from .ca import ALGORITHMS, CA, CAError
+from .ca import ALGORITHMS, CA, CA_ALGORITHMS, CAError
 from .vault import VaultError
 from .vpn.charon import CharonError
 
@@ -65,8 +65,20 @@ def cmd_doctor(a):
 
 def cmd_ca(a):
     if a.ca_cmd == "init":
-        ca = CA.init(a.dir, a.name, a.algorithm, a.days, ca_passphrase(a.dir, new=True) if a.encrypt else None)
-        print(f"created {a.algorithm} root '{a.name}' in {a.dir} (serial {ca.cert.serial_number:x})")
+        parent = None
+        if a.parent:
+            key = Path(a.parent) / "ca.key"
+            pw = None
+            if key.exists() and b"ENCRYPTED" in key.read_bytes()[:64]:
+                pw = (os.environ.get("PQCSUITE_PARENT_CA_PASSPHRASE") or getpass.getpass("Parent CA passphrase: ")).encode()
+            parent = CA(a.parent, pw)
+        if a.signer_command and not a.signer_public_key:
+            raise CAError("--signer-command needs --signer-public-key")
+        signer = ({"type": "aws-kms", "key_id": a.kms, **({"region": a.kms_region} if a.kms_region else {})} if a.kms else
+                  {"type": "command", "command": a.signer_command, "public_key": str(Path(a.signer_public_key).resolve())} if a.signer_command else None)
+        ca = CA.init(a.dir, a.name, a.algorithm, a.days, ca_passphrase(a.dir, new=True) if a.encrypt and not signer else None, parent, signer)
+        what = f"intermediate CA under '{parent.cert.subject.rfc4514_string()}'" if parent else "root"
+        print(f"created {ca.signer.algorithm} {what} '{a.name}' in {a.dir} (serial {ca.cert.serial_number:x}); clients trust {ca.anchor}")
         return 0
     ca = CA(a.dir, ca_passphrase(a.dir))
     if a.ca_cmd == "issue":
@@ -92,9 +104,10 @@ def cmd_ca(a):
         t = create_token(ca, a.common_name, a.kind, a.san, a.hours)
         print(f"one-time enrollment token for {a.common_name} ({a.kind}), valid {a.hours} h. It is shown only once:\n{t}")
     elif a.ca_cmd == "serve":
+        from cryptography.x509 import load_pem_x509_certificate
         from .est import fingerprint, serve
         srv = serve(a.dir, a.listen, a.cert, a.key, ca_passphrase(a.dir), env_passphrase(a.key_passphrase_env))
-        print(f"EST enrollment on https://{a.listen}/.well-known/est; CA fingerprint (give it to clients):\n{fingerprint(ca.cert)}")
+        print(f"EST enrollment on https://{a.listen}/.well-known/est; CA fingerprint (give it to clients):\n{fingerprint(load_pem_x509_certificate(ca.anchor.read_bytes()))}")
         run_until_signal(srv.serve_forever, srv.stop)
     elif a.ca_cmd == "maintain":
         renewed, skipped = ca.maintain(a.renew_within, a.crl_days)
@@ -396,9 +409,14 @@ def parser():
     ca = sub.add_parser("ca", help="post-quantum certificate authority").add_subparsers(dest="ca_cmd", required=True)
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--dir", default="pki", help="CA folder (default: pki)")
-    p = ca.add_parser("init", parents=[common], help="create a root CA")
+    p = ca.add_parser("init", parents=[common], help="create a root or intermediate CA")
     p.add_argument("--name", required=True)
-    p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-87")
+    p.add_argument("--algorithm", choices=CA_ALGORITHMS, default="ML-DSA-87", help="SLH-DSA keys need OpenSSL 3.5+")
+    p.add_argument("--parent", help="the CA folder that signs this one, making it an intermediate CA")
+    p.add_argument("--kms", metavar="KEY_ID", help="keep the CA key in AWS KMS (an ML_DSA_* key); needs boto3")
+    p.add_argument("--kms-region")
+    p.add_argument("--signer-command", nargs="+", metavar="ARG", help="an HSM tool that reads data on stdin and writes the signature")
+    p.add_argument("--signer-public-key", help="PEM public key of the --signer-command key")
     p.add_argument("--days", type=int, default=3650)
     p.add_argument("--encrypt", action="store_true", help=f"encrypt the CA key (passphrase from {CA_PASS_ENV} or a prompt)")
     for name in ("issue", "renew"):

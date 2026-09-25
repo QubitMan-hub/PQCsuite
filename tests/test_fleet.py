@@ -40,6 +40,7 @@ class FleetTest(unittest.TestCase):
         self.service = Service(d / "fleet")
         app = ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
         threading.Thread(target=app.serve_forever, daemon=True).start()
+        self.addCleanup(app.server_close)
         self.addCleanup(app.shutdown)
         self.upstream = app.server_address[1]
         self.agent = Agent(f"https://localhost:{self.server.port}", d / "agent", interval=1)

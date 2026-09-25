@@ -22,7 +22,7 @@ from cryptography.hazmat.primitives import serialization as ser
 from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from .ca import PUBLIC as MLDSA_PUBLIC, CAError, check_revocation
+from .ca import PUBLIC as MLDSA_PUBLIC, CAError, check_revocation, signed_by
 
 MAGIC, SIG_MAGIC = b"PQV1\n", b"SIG1"
 class Suite:
@@ -274,17 +274,15 @@ def verify_signer(h, ca=None, crl=None, expected=None):
     except Exception:
         raise VaultError("the signature does not verify: the file was altered or signed by someone else") from None
     if ca:
-        root = x509.load_pem_x509_certificate(Path(ca).read_bytes())
-        try:
-            cert.verify_directly_issued_by(root)
-        except Exception:
+        cas = x509.load_pem_x509_certificates(Path(ca).read_bytes())
+        if not any(c.subject == cert.issuer and signed_by(c, cert.tbs_certificate_bytes, cert.signature) for c in cas):
             raise VaultError("the signer's certificate was not issued by this CA") from None
         now = dt.datetime.now(dt.timezone.utc)
         if not cert.not_valid_before_utc <= now <= cert.not_valid_after_utc:
             raise VaultError("the signer's certificate has expired")
         if crl:
             try:
-                check_revocation(cert.serial_number, Path(crl).read_bytes(), root)
+                check_revocation(cert.serial_number, Path(crl).read_bytes(), cas)
             except CAError as e:
                 raise VaultError(f"signer: {e}") from None
     name = cert.subject.rfc4514_string()

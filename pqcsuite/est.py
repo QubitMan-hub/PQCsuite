@@ -68,6 +68,9 @@ class Service:
         self.ca = ca
         self.audit_log = Path(audit_log or Path(ca.root) / "est-audit.jsonl")
 
+    def chain(self):
+        return x509.load_pem_x509_certificates(self.ca.chain())
+
     def audit(self, event, **detail):
         with open(self.audit_log, "a", encoding="utf-8") as f:
             f.write(json.dumps({"time": now().isoformat(), "event": event, **detail}) + "\n")
@@ -75,7 +78,7 @@ class Service:
     def __call__(self, method, path, headers, body, conn):
         try:
             if path == f"{PREFIX}/cacerts" and method == "GET":
-                return 200, _pkcs7([self.ca.cert]), PKCS7
+                return 200, _pkcs7(self.chain()), PKCS7
             if path in (f"{PREFIX}/simpleenroll", f"{PREFIX}/simplereenroll") and method == "POST":
                 try:
                     csr = x509.load_der_x509_csr(base64.b64decode(b"".join(body.split()), validate=True))
@@ -84,7 +87,7 @@ class Service:
                 if not csr.is_signature_valid:
                     raise HTTPError(400, "the request's signature does not verify")
                 cert = self.renew(csr, conn) if path.endswith("reenroll") else self.enroll(csr, headers)
-                return 200, _pkcs7([cert]), PKCS7
+                return 200, _pkcs7([cert] + self.chain()), PKCS7
             raise HTTPError(404, "no such EST endpoint")
         except CAError as e:
             raise HTTPError(403, str(e)) from None
@@ -188,11 +191,11 @@ def _csr(key, common_name, names):
     return base64.encodebytes(b.sign(key, None).public_bytes(Encoding.DER))
 
 
-def _save(out, key, cert, ca_cert, passphrase):
+def _save(out, key, certs, ca_cert, passphrase):
     out = Path(out)
     write(out / "key.pem", key_pem(key, passphrase), secret=True)
-    write(out / "cert.pem", cert_pem(cert))
-    write(out / "chain.pem", cert_pem(cert) + cert_pem(ca_cert))
+    write(out / "cert.pem", cert_pem(certs[0]))
+    write(out / "chain.pem", b"".join(cert_pem(c) for c in certs))
     write(out / "ca.crt", cert_pem(ca_cert))
 
 
@@ -204,9 +207,9 @@ def enroll(url, token, common_name, names=(), out=".", ca=None, algorithm="ML-DS
     auth = base64.b64encode(f"{tid}:{secret}".encode()).decode()
     body = _call(url, tls.client_context(ca), "/simpleenroll", _csr(key, common_name, names),
                  {"Content-Type": "application/pkcs10", "Authorization": f"Basic {auth}"}, server_name)
-    cert = _parse_certs(body)[0]
-    _save(out, key, cert, ca_cert, passphrase)
-    return cert
+    certs = _parse_certs(body)
+    _save(out, key, certs, ca_cert, passphrase)
+    return certs[0]
 
 
 def renew(url, folder, algorithm="ML-DSA-65", within_days=None, passphrase=None, server_name=None):
@@ -224,9 +227,9 @@ def renew(url, folder, algorithm="ML-DSA-65", within_days=None, passphrase=None,
         names = []
     key = generate(algorithm)
     ctx = tls.client_context(folder / "ca.crt", folder / "chain.pem", folder / "key.pem", key_passphrase=passphrase)
-    cert = _parse_certs(_call(url, ctx, "/simplereenroll", _csr(key, cn, names), {"Content-Type": "application/pkcs10"}, server_name))[0]
-    _save(folder, key, cert, x509.load_pem_x509_certificate((folder / "ca.crt").read_bytes()), passphrase)
-    return cert
+    certs = _parse_certs(_call(url, ctx, "/simplereenroll", _csr(key, cn, names), {"Content-Type": "application/pkcs10"}, server_name))
+    _save(folder, key, certs, x509.load_pem_x509_certificate((folder / "ca.crt").read_bytes()), passphrase)
+    return certs[0]
 
 
 def serve(ca_dir, listen, cert, key, passphrase=None, key_passphrase=None):
@@ -235,7 +238,7 @@ def serve(ca_dir, listen, cert, key, passphrase=None, key_passphrase=None):
     from .tls.http import handler
     from .tls.server import Server
     ca = CA(ca_dir, passphrase)
-    cafile = str(Path(ca_dir) / "ca.crt")
+    cafile = str(ca.anchor)
     make = lambda: tls.server_context(cert, key, cafile, policy_name="strict", key_passphrase=key_passphrase,
                                          request_client_cert=True, any_purpose=True)
     return Server(hostport(listen), make, handler(Service(ca)), watch=[cert, key], name="est")

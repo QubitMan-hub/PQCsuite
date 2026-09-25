@@ -182,6 +182,7 @@ class EdgeTest(unittest.TestCase):
         ca.crl()
         app = ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
         threading.Thread(target=app.serve_forever, daemon=True).start()
+        self.addCleanup(app.server_close)
         self.addCleanup(app.shutdown)
         def free():
             with socket.create_server(("127.0.0.1", 0)) as s:

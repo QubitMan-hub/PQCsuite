@@ -28,6 +28,14 @@ PROTOTYPES = {
         ("PEM_read_bio_PrivateKey", [P, P, P, B], P), ("EVP_PKEY_free", [P], None),
         ("i2d_X509", [P, ctypes.POINTER(P)], I), ("X509_free", [P], None),
         ("X509_verify_cert_error_string", [L], S), ("X509_VERIFY_PARAM_set1_ip_asc", [P, S], I),
+        ("OPENSSL_sk_num", [P], I), ("OPENSSL_sk_value", [P, I], P),
+        ("BIO_new", [P], P), ("BIO_s_mem", [], P), ("BIO_ctrl", [P, I, L, P], L), ("EVP_aes_256_cbc", [], P),
+        ("PEM_write_bio_PKCS8PrivateKey", [P, P, P, B, I, P, P], I), ("EVP_PKEY_get0_type_name", [P], S),
+        ("EVP_PKEY_CTX_new_from_name", [P, S, S], P), ("EVP_PKEY_CTX_free", [P], None), ("EVP_PKEY_keygen_init", [P], I),
+        ("EVP_PKEY_generate", [P, ctypes.POINTER(P)], I), ("i2d_PUBKEY", [P, ctypes.POINTER(P)], I), ("d2i_PUBKEY", [P, ctypes.POINTER(P), L], P),
+        ("EVP_MD_CTX_new", [], P), ("EVP_MD_CTX_free", [P], None), ("EVP_DigestSignInit_ex", [P, P, S, P, S, P, P], I),
+        ("EVP_DigestSign", [P, P, ctypes.POINTER(ctypes.c_size_t), B, ctypes.c_size_t], I),
+        ("EVP_DigestVerifyInit_ex", [P, P, S, P, S, P, P], I), ("EVP_DigestVerify", [P, B, ctypes.c_size_t, B, ctypes.c_size_t], I),
     ],
     "ssl": [
         ("TLS_server_method", [], P), ("TLS_client_method", [], P),
@@ -40,7 +48,7 @@ PROTOTYPES = {
         ("SSL_read", [P, P, I], I), ("SSL_write", [P, B, I], I), ("SSL_pending", [P], I), ("SSL_shutdown", [P], I),
         ("SSL_get_error", [P, I], I), ("SSL_get_version", [P], S), ("SSL_get_current_cipher", [P], P),
         ("SSL_CIPHER_get_name", [P], S), ("SSL_get0_group_name", [P], S), ("SSL_get_verify_result", [P], L),
-        ("SSL_get1_peer_certificate", [P], P), ("SSL_set1_host", [P, S], I), ("SSL_get0_param", [P], P),
+        ("SSL_get1_peer_certificate", [P], P), ("SSL_get0_verified_chain", [P], P), ("SSL_set1_host", [P, S], I), ("SSL_get0_param", [P], P),
         ("SSL_export_keying_material", [P, P, ctypes.c_size_t, S, ctypes.c_size_t, B, ctypes.c_size_t, I], I),
     ],
 }
@@ -115,6 +123,14 @@ def errors(default="unknown OpenSSL error"):
         L_.ERR_error_string_n(code, buf, len(buf))
         out.append(buf.value.decode(errors="replace").split(":", 4)[-1])
     return "; ".join(dict.fromkeys(out)) or default
+
+
+def _certificate(x):
+    from cryptography import x509
+    L_ = lib()
+    buf = ctypes.create_string_buffer(L_.i2d_X509(x, None))
+    L_.i2d_X509(x, ctypes.byref(ctypes.c_void_p(ctypes.addressof(buf))))
+    return x509.load_der_x509_certificate(buf.raw)
 
 
 def is_ip(name):
@@ -290,17 +306,20 @@ class Connection:
 
     def peer_certificate(self):
         """The peer's certificate as a cryptography x509.Certificate, or None."""
-        from cryptography import x509
         L_ = lib()
         x = L_.SSL_get1_peer_certificate(self.ssl)
         if not x:
             return None
         try:
-            buf = ctypes.create_string_buffer(L_.i2d_X509(x, None))
-            L_.i2d_X509(x, ctypes.byref(ctypes.c_void_p(ctypes.addressof(buf))))
-            return x509.load_der_x509_certificate(buf.raw)
+            return _certificate(x)
         finally:
             L_.X509_free(x)
+
+    def peer_chain(self):
+        """The chain OpenSSL verified, leaf first, up to the trust anchor; empty when the peer was not verified."""
+        L_ = lib()
+        sk = L_.SSL_get0_verified_chain(self.ssl)
+        return [_certificate(L_.OPENSSL_sk_value(sk, i)) for i in range(L_.OPENSSL_sk_num(sk))] if sk else []
 
     def export(self, label, context, length=32):
         """Keying material from this session (RFC 8446 section 7.5): both peers get the same bytes, nobody else can."""

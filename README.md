@@ -172,6 +172,25 @@ Every endpoint gets a grade:
 
 The report also covers the negotiated group, the certificate's key (RSA, ECDSA or ML-DSA) and certificate expiry. The HTML report is one self-contained file, and the exit code is non-zero until every endpoint offers post-quantum key exchange, so it can gate CI.
 
+## CA hierarchy, SLH-DSA roots and keys in KMS or an HSM
+
+```
+# a hash-based SLH-DSA root (FIPS 205) that stays offline, and an ML-DSA issuing CA under it
+pqcsuite ca init --dir root --name "Acme Root" --algorithm SLH-DSA-SHA2-256s --encrypt
+pqcsuite ca init --dir issuing --name "Acme Issuing CA" --parent root
+pqcsuite ca issue --dir issuing server api.example.com     # chain.pem = leaf + issuing CA + root; clients trust issuing/root.crt
+
+# an issuing CA whose key never leaves AWS KMS (an ML_DSA_65 or ML_DSA_87 key; needs boto3)
+pqcsuite ca init --dir kms-ca --name "Acme KMS CA" --parent root --kms alias/acme-issuing --kms-region eu-central-1
+
+# any HSM with a command-line signer: it reads the bytes on stdin and writes the signature to stdout
+pqcsuite ca init --dir hsm-ca --name "Acme HSM CA" --parent root --signer-public-key hsm.pub.pem --signer-command hsm-sign --label acme-issuing
+```
+
+- An SLH-DSA root rests on hash functions only, a different assumption from ML-DSA's lattices, so one broken scheme does not break the hierarchy. It signs slowly and its signatures are large (8 to 50 KB), which is fine for a root that signs a few CA certificates. SLH-DSA keys need OpenSSL 3.5+ (pyca/cryptography does not support them yet).
+- Intermediate CAs are recorded in their parent's index as kind `ca`; revoking one lists it in the parent's CRL. Servers check a client's certificate against the CRL of the CA that issued it, taking that CA's certificate from the chain OpenSSL verified.
+- KMS signing sends only the 64-byte ML-DSA "external mu" (FIPS 204), so certificates and CRLs of any size fit in one call and never leave the machine. It is tested against a stand-in for the KMS API, not against AWS itself.
+
 ## Enrollment: certificates for many machines (EST, RFC 7030)
 
 ```

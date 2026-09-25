@@ -19,15 +19,16 @@ class Revocation:
 
     def __init__(self, crl_path, ca_path):
         with open(ca_path, "rb") as f:
-            self.crl_path, self.ca = crl_path, x509.load_pem_x509_certificate(f.read())
+            self.crl_path, self.cas = crl_path, x509.load_pem_x509_certificates(f.read())
         self.mtime, self.data = None, None
 
-    def check(self, serial):
+    def check(self, serial, chain=()):
+        """`chain` is the verified chain above the certificate, where an intermediate CA's certificate comes from."""
         m = os.stat(self.crl_path).st_mtime
         if m != self.mtime:
             with open(self.crl_path, "rb") as f:
                 self.data, self.mtime = f.read(), m
-        check_revocation(serial, self.data, self.ca)
+        check_revocation(serial, self.data, self.cas + list(chain))
 
 
 class Stats:
@@ -112,7 +113,7 @@ class Server:
                 conn = ctx.wrap(sock, timeout=self.handshake_timeout)
                 cert = conn.peer_certificate()
                 if self.revocation and cert:
-                    self.revocation.check(cert.serial_number)
+                    self.revocation.check(cert.serial_number, conn.peer_chain()[1:])
             except (TLSError, CAError, OSError) as e:
                 self.stats.add("handshake_failed")
                 log.warning("%s: rejected %s: %s", self.name, peer, e)
