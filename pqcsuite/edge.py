@@ -96,18 +96,36 @@ class Edge:
         route.validate()
         self.route = route
         self.stats = Stats()
-        self.server = None
+        self.server = self.listener = None
 
-    def serve_forever(self):
-        if self.route.mode == "terminate":
-            r = self.route
+    def bind(self):
+        """Open the listening socket now, so start() and stop() cannot race the serving thread."""
+        r = self.route
+        if r.mode == "terminate":
             make = lambda: tls.server_context(r.cert, r.key, r.ca or None, r.require_client_cert, r.policy, r.passphrase())
             self.server = Server(hostport(r.listen), make, self._terminate, watch=[r.cert, r.key, r.ca], crl=r.crl or None,
                                  ca=r.ca or None, max_connections=r.max_connections, handshake_timeout=r.handshake_timeout, name=r.name)
             self.stats = self.server.stats
+            self.port = self.server.port
+        else:
+            self.ctx = tls.client_context(r.ca, r.cert or None, r.key or None, r.policy, r.passphrase())
+            self.listener = socket.create_server(hostport(r.listen, "127.0.0.1"), backlog=128)
+            self.port = self.listener.getsockname()[1]
+            log.info("%s: listening on %s, tunnelling to %s", r.name, r.listen, r.target)
+        return self
+
+    def serve_forever(self):
+        if not (self.server or self.listener):
+            self.bind()
+        if self.server:
             self.server.serve_forever()
         else:
             self._originate_forever()
+
+    def start(self):
+        self.bind()
+        threading.Thread(target=self.serve_forever, daemon=True, name=self.route.name).start()
+        return self
 
     def _terminate(self, conn, addr):
         r = self.route
@@ -117,17 +135,12 @@ class Edge:
             pump(conn, up, r.idle_timeout)
 
     def _originate_forever(self):
-        r = self.route
-        make = lambda: tls.client_context(r.ca, r.cert or None, r.key or None, r.policy, r.passphrase())
-        ctx, host_port = make(), hostport(r.target)
+        r, host_port = self.route, hostport(self.route.target)
         slots = threading.BoundedSemaphore(r.max_connections)
-        self.listener = socket.create_server(hostport(r.listen, "127.0.0.1"), backlog=128)
-        self.port = self.listener.getsockname()[1]
-        log.info("%s: listening on %s, tunnelling to %s", r.name, r.listen, r.target)
 
         def run(client):
             try:
-                with tls.connect(*host_port, ctx, r.server_name or host_port[0], r.handshake_timeout) as conn:
+                with tls.connect(*host_port, self.ctx, r.server_name or host_port[0], r.handshake_timeout) as conn:
                     info = conn.info()
                     with self.stats.lock:
                         self.stats.counts["handshakes"] += 1
@@ -159,7 +172,11 @@ class Edge:
     def stop(self):
         if self.server:
             self.server.stop()
-        elif getattr(self, "listener", None):
+        elif self.listener:
+            try:
+                self.listener.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
             self.listener.close()
 
 

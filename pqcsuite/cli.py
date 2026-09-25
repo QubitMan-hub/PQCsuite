@@ -263,6 +263,7 @@ def cmd_console(a):
     s.edges += a.edge
     s.vpn += a.vici
     s.backups += a.backups
+    s.fleet = a.fleet or s.fleet
     app = App(s)
     httpd = serve(app)
     host, port = httpd.server_address[:2]
@@ -293,6 +294,21 @@ def cmd_enroll(a):
     cert = est.enroll(a.url, a.token, a.common_name, a.san, a.out, ca, passphrase=env_passphrase(a.key_passphrase_env), server_name=a.server_name)
     print(f"enrolled {a.common_name}: serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}, files in {a.out}")
     print(f"renew it daily from cron: pqcsuite enroll {a.url} --renew {a.out} --within-days 30")
+    return 0
+
+
+def cmd_fleet(a):
+    from .fleet import serve
+    srv = serve(a.dir, a.listen, a.cert, a.key, a.ca, a.crl, env_passphrase(a.key_passphrase_env))
+    print(f"fleet service on {a.listen}; agents report here, desired configs live in {Path(a.dir) / 'desired'}")
+    run_until_signal(srv.serve_forever, srv.stop)
+    return 0
+
+
+def cmd_agent(a):
+    from .fleet import Agent
+    agent = Agent(a.url, a.cert_dir, a.interval, a.server_name)
+    run_until_signal(agent.run, agent.shutdown)
     return 0
 
 
@@ -482,6 +498,7 @@ def parser():
     p.add_argument("--edge", action="append", default=[], help="an edge's metrics address, e.g. http://127.0.0.1:9100 (repeatable)")
     p.add_argument("--vici", action="append", default=[], help="strongSwan VICI address (repeatable)")
     p.add_argument("--backups", action="append", default=[], help="folder of vault archives (repeatable)")
+    p.add_argument("--fleet", help="the fleet service's folder")
 
     p = sub.add_parser("enroll", help="get or renew a certificate from an EST enrollment service; the key stays on this machine")
     p.add_argument("url", help="https://ca.example.com:9443")
@@ -495,6 +512,21 @@ def parser():
     p.add_argument("--within-days", type=int, help="with --renew: only when it expires within this many days")
     p.add_argument("--server-name")
     p.add_argument("--key-passphrase-env")
+
+    f = sub.add_parser("fleet", help="central fleet service: agents report and receive their edge configuration")
+    p = f.add_subparsers(dest="fleet_cmd", required=True).add_parser("serve", help="run the fleet service")
+    p.add_argument("--dir", default="fleet")
+    p.add_argument("--listen", default="0.0.0.0:9444")
+    p.add_argument("--cert", required=True)
+    p.add_argument("--key", required=True)
+    p.add_argument("--key-passphrase-env")
+    p.add_argument("--ca", required=True, help="CA that issued the agents' certificates")
+    p.add_argument("--crl")
+    p = sub.add_parser("agent", help="report to the fleet service and run the edge routes it assigns")
+    p.add_argument("url", help="https://fleet.example.com:9444")
+    p.add_argument("--cert-dir", required=True, help="folder with cert.pem, chain.pem, key.pem and ca.crt (as written by `enroll`)")
+    p.add_argument("--interval", type=int, default=30)
+    p.add_argument("--server-name")
 
     from .bundles import SERVICES
     p = sub.add_parser("bundle", help="a PQCready service: nginx, postgres, pgvector or mqtt behind the PQC edge")
@@ -524,7 +556,7 @@ def main(argv=None):
     if a.cmd == "edge" and not a.config and not a.target:
         parser().error("edge needs --config or --target")
     try:
-        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console, "enroll": cmd_enroll}[a.cmd](a))
+        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console, "enroll": cmd_enroll, "fleet": cmd_fleet, "agent": cmd_agent}[a.cmd](a))
     except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)

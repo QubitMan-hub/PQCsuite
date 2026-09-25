@@ -193,6 +193,24 @@ How it's secured:
 - **Trust:** the client pins the CA by its fingerprint before trusting anything.
 - **Audit:** every enrollment and every refusal goes to `est-audit.jsonl`.
 
+## Fleet management
+
+```
+# central: the fleet service (post-quantum mutual TLS; agents are identified by their CA certificate)
+pqcsuite fleet serve --dir fleet --cert fleet-srv/chain.pem --key fleet-srv/key.pem --ca pki/ca.crt --crl pki/crl.pem
+# each machine: enroll once, then run the agent
+pqcsuite agent https://fleet.acme.example:9444 --cert-dir /etc/pqc
+# assign routes from the console's Fleet page, or by writing fleet/desired/<agent>.toml (default.toml for everyone)
+pqcsuite console --ca pki --fleet fleet
+```
+
+How it works:
+
+- **Reporting:** every 30 seconds each agent reports its host, version, certificate expiry and the live stats of its edge routes, and receives its assigned configuration.
+- **Applying config:** the agent applies changes route by route. Unchanged routes keep their connections.
+- **Bad config:** it is refused twice, first by the console and then by the agent, which keeps running the last good one and reports the error.
+- **Revoked agents:** revoking an agent's certificate shuts it out of the fleet.
+
 ## Keeping it running
 
 ```

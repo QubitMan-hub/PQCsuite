@@ -146,6 +146,10 @@ class Server:
     def stop(self, grace=10.0):
         """Stop accepting, then give open connections up to `grace` seconds to finish."""
         self.stopping.set()
+        try:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
         self.sock.close()
         deadline = time.monotonic() + grace
         for t in list(self.threads):
