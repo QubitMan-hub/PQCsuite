@@ -172,6 +172,27 @@ Every endpoint gets a grade:
 
 The report also covers the negotiated group, the certificate's key (RSA, ECDSA or ML-DSA) and certificate expiry. The HTML report is one self-contained file, and the exit code is non-zero until every endpoint offers post-quantum key exchange, so it can gate CI.
 
+## Enrollment: certificates for many machines (EST, RFC 7030)
+
+```
+# on the CA
+pqcsuite ca issue server ca.acme.example --out est
+pqcsuite ca serve --cert est/chain.pem --key est/key.pem       # prints the CA fingerprint
+pqcsuite ca token server web1.acme.example --san 10.0.0.7     # one-time token, shown once
+
+# on the new machine: the ML-DSA key is generated here and never leaves it
+pqcsuite enroll https://ca.acme.example:9443 --token <token> --cn web1.acme.example --san 10.0.0.7 --ca-fingerprint <sha256> --out /etc/pqc
+# daily from cron: renews in place 30 days before expiry, over mutual TLS with the current certificate
+pqcsuite enroll https://ca.acme.example:9443 --renew /etc/pqc --within-days 30
+```
+
+How it's secured:
+
+- **Tokens:** a token works once and only before it expires. It is only good for the name and addresses it was created for, and only its hash is stored.
+- **Renewal:** it keeps the machine's identity. A certificate cannot renew itself into another name, and a revoked one cannot renew.
+- **Trust:** the client pins the CA by its fingerprint before trusting anything.
+- **Audit:** every enrollment and every refusal goes to `est-audit.jsonl`.
+
 ## Keeping it running
 
 ```

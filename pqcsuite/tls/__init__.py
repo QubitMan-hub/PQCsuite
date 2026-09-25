@@ -31,11 +31,15 @@ def policy(name):
     return POLICIES[name]
 
 
-def server_context(cert, key, ca=None, require_client_cert=False, policy_name="strict", key_passphrase=None):
+def server_context(cert, key, ca=None, require_client_cert=False, policy_name="strict", key_passphrase=None, request_client_cert=False,
+                   any_purpose=False):
+    """`request_client_cert` asks for a client certificate and verifies it if one is sent, but lets clients without one in.
+    `any_purpose` accepts a client certificate whose extended key usage is not clientAuth (the chain is still verified)."""
     p = policy(policy_name)
-    if require_client_cert and not ca:
-        raise TLSError("requiring client certificates needs the CA that issued them")
-    return Context(True, p.groups, p.sigalgs, p.ciphersuites, cert, key, key_passphrase, ca, True, require_client_cert)
+    if (require_client_cert or request_client_cert) and not ca:
+        raise TLSError("checking client certificates needs the CA that issued them")
+    return Context(True, p.groups, p.sigalgs, p.ciphersuites, cert, key, key_passphrase, ca, True, require_client_cert, request_client_cert,
+                   any_purpose)
 
 
 def client_context(ca=None, cert=None, key=None, policy_name="strict", key_passphrase=None, verify=True):

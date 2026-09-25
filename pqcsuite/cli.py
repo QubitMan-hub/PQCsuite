@@ -87,6 +87,15 @@ def cmd_ca(a):
     elif a.ca_cmd == "renew":
         out, r = ca.renew(a.serial, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
         print(f"renewed as {r.serial}, valid until {r.not_after}, in {out}")
+    elif a.ca_cmd == "token":
+        from .est import create_token
+        t = create_token(ca, a.common_name, a.kind, a.san, a.hours)
+        print(f"one-time enrollment token for {a.common_name} ({a.kind}), valid {a.hours} h. It is shown only once:\n{t}")
+    elif a.ca_cmd == "serve":
+        from .est import fingerprint, serve
+        srv = serve(a.dir, a.listen, a.cert, a.key, ca_passphrase(a.dir), env_passphrase(a.key_passphrase_env))
+        print(f"EST enrollment on https://{a.listen}/.well-known/est; CA fingerprint (give it to clients):\n{fingerprint(ca.cert)}")
+        run_until_signal(srv.serve_forever, srv.stop)
     elif a.ca_cmd == "maintain":
         renewed, skipped = ca.maintain(a.renew_within, a.crl_days)
         for r in renewed:
@@ -266,6 +275,27 @@ def cmd_console(a):
     return 0
 
 
+def cmd_enroll(a):
+    from . import est
+    if a.renew:
+        cert = est.renew(a.url, a.renew, within_days=a.within_days, passphrase=env_passphrase(a.key_passphrase_env), server_name=a.server_name)
+        print(f"{a.renew}: " + (f"renewed, new serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}" if cert
+                                else f"still valid for more than {a.within_days} days, nothing to do"))
+        return 0
+    if not (a.token and a.common_name):
+        raise CAError("first enrollment needs --token and --cn (renewal needs --renew FOLDER)")
+    ca = a.ca
+    if not ca:
+        if not a.ca_fingerprint:
+            raise CAError("give --ca FILE or --ca-fingerprint SHA256 (from `pqcsuite ca serve`) so the CA can be trusted")
+        ca = Path(a.out) / "ca.crt"
+        est.fetch_ca(a.url, a.ca_fingerprint, ca, a.server_name)
+    cert = est.enroll(a.url, a.token, a.common_name, a.san, a.out, ca, passphrase=env_passphrase(a.key_passphrase_env), server_name=a.server_name)
+    print(f"enrolled {a.common_name}: serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}, files in {a.out}")
+    print(f"renew it daily from cron: pqcsuite enroll {a.url} --renew {a.out} --within-days 30")
+    return 0
+
+
 def serve_json(address, routes):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -355,6 +385,16 @@ def parser():
     p.add_argument("--reason", default="unspecified")
     p = ca.add_parser("crl", parents=[common], help="re-sign the CRL (do this before it expires)")
     p.add_argument("--days", type=int, default=7)
+    p = ca.add_parser("token", parents=[common], help="one-time enrollment token for one name (for `pqcsuite enroll`)")
+    p.add_argument("kind", choices=["server", "client", "site"])
+    p.add_argument("common_name")
+    p.add_argument("--san", action="append", default=[])
+    p.add_argument("--hours", type=float, default=24)
+    p = ca.add_parser("serve", parents=[common], help="EST enrollment service (RFC 7030) over post-quantum TLS")
+    p.add_argument("--listen", default="0.0.0.0:9443")
+    p.add_argument("--cert", required=True, help="the service's own server chain.pem")
+    p.add_argument("--key", required=True)
+    p.add_argument("--key-passphrase-env")
     p = ca.add_parser("maintain", parents=[common], help="renew what expires soon and refresh the CRL (run daily)")
     p.add_argument("--renew-within", type=int, default=30, metavar="DAYS")
     p.add_argument("--crl-days", type=int, default=7)
@@ -443,6 +483,19 @@ def parser():
     p.add_argument("--vici", action="append", default=[], help="strongSwan VICI address (repeatable)")
     p.add_argument("--backups", action="append", default=[], help="folder of vault archives (repeatable)")
 
+    p = sub.add_parser("enroll", help="get or renew a certificate from an EST enrollment service; the key stays on this machine")
+    p.add_argument("url", help="https://ca.example.com:9443")
+    p.add_argument("--token", help="one-time token from `pqcsuite ca token`")
+    p.add_argument("--cn", dest="common_name")
+    p.add_argument("--san", action="append", default=[])
+    p.add_argument("--out", default=".")
+    p.add_argument("--ca", help="trusted CA certificate")
+    p.add_argument("--ca-fingerprint", help="or the CA's SHA-256 fingerprint, to download and pin it")
+    p.add_argument("--renew", metavar="FOLDER", help="renew the certificate in FOLDER in place")
+    p.add_argument("--within-days", type=int, help="with --renew: only when it expires within this many days")
+    p.add_argument("--server-name")
+    p.add_argument("--key-passphrase-env")
+
     from .bundles import SERVICES
     p = sub.add_parser("bundle", help="a PQCready service: nginx, postgres, pgvector or mqtt behind the PQC edge")
     p.add_argument("service", choices=list(SERVICES))
@@ -471,7 +524,7 @@ def main(argv=None):
     if a.cmd == "edge" and not a.config and not a.target:
         parser().error("edge needs --config or --target")
     try:
-        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console}[a.cmd](a))
+        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console, "enroll": cmd_enroll}[a.cmd](a))
     except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)

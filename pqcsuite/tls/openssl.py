@@ -17,6 +17,7 @@ SSL_FILETYPE_PEM = 1
 CTRL_SET_GROUPS_LIST, CTRL_SET_SIGALGS_LIST, CTRL_SET_TLSEXT_HOSTNAME = 92, 98, 55
 CTRL_SET_MIN_PROTO_VERSION, CTRL_SET_MAX_PROTO_VERSION = 123, 124
 VERIFY_NONE, VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT = 0, 1, 2
+X509_PURPOSE_ANY = 7
 ERROR_SSL, WANT_READ, WANT_WRITE, ERROR_SYSCALL, ZERO_RETURN = 1, 2, 3, 5, 6
 
 P, I, L, S, B = ctypes.c_void_p, ctypes.c_int, ctypes.c_long, ctypes.c_char_p, ctypes.c_char_p
@@ -33,7 +34,7 @@ PROTOTYPES = {
         ("SSL_CTX_new", [P], P), ("SSL_CTX_free", [P], None), ("SSL_CTX_ctrl", [P, I, L, P], L),
         ("SSL_CTX_set_ciphersuites", [P, S], I), ("SSL_CTX_use_certificate_chain_file", [P, S], I),
         ("SSL_CTX_use_PrivateKey", [P, P], I), ("SSL_CTX_check_private_key", [P], I),
-        ("SSL_CTX_load_verify_locations", [P, S, S], I), ("SSL_CTX_set_verify", [P, I, P], None),
+        ("SSL_CTX_load_verify_locations", [P, S, S], I), ("SSL_CTX_set_verify", [P, I, P], None), ("SSL_CTX_set_purpose", [P, I], I),
         ("SSL_new", [P], P), ("SSL_free", [P], None), ("SSL_set_fd", [P, I], I), ("SSL_ctrl", [P, I, L, P], L),
         ("SSL_set_accept_state", [P], None), ("SSL_set_connect_state", [P], None), ("SSL_do_handshake", [P], I),
         ("SSL_read", [P, P, I], I), ("SSL_write", [P, B, I], I), ("SSL_pending", [P], I), ("SSL_shutdown", [P], I),
@@ -128,7 +129,7 @@ class Context:
     """A TLS 1.3-only SSL_CTX. `groups` and `sigalgs` are OpenSSL list strings, e.g. "X25519MLKEM768" and "mldsa65"."""
 
     def __init__(self, server, groups, sigalgs=None, ciphersuites=None, cert=None, key=None, key_passphrase=None,
-                 ca=None, verify=True, require_client_cert=False):
+                 ca=None, verify=True, require_client_cert=False, request_client_cert=False, any_purpose=False):
         L_ = lib()
         L_.ERR_clear_error()
         self.server = server
@@ -150,9 +151,11 @@ class Context:
             if ca:
                 self._check(L_.SSL_CTX_load_verify_locations(self.ptr, os.fsencode(ca), None), f"load CA {ca}")
             mode = VERIFY_NONE
-            if verify and (not server or require_client_cert):
-                mode = VERIFY_PEER | (VERIFY_FAIL_IF_NO_PEER_CERT if server else 0)
+            if verify and (not server or require_client_cert or request_client_cert):
+                mode = VERIFY_PEER | (VERIFY_FAIL_IF_NO_PEER_CERT if server and require_client_cert else 0)
             L_.SSL_CTX_set_verify(self.ptr, mode, None)
+            if any_purpose:
+                self._check(L_.SSL_CTX_set_purpose(self.ptr, X509_PURPOSE_ANY), "accept certificates of any purpose")
         except Exception:
             self.close()
             raise

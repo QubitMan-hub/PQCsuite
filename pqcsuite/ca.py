@@ -1,8 +1,10 @@
 """A post-quantum certificate authority: ML-DSA root, server and client certificates, revocation and CRLs."""
+import contextlib
 import datetime as dt
 import ipaddress
 import json
 import os
+import threading
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
@@ -20,6 +22,29 @@ REASONS = {r.value: r for r in x509.ReasonFlags if r not in (x509.ReasonFlags.un
 
 class CAError(Exception):
     pass
+
+
+_THREAD_LOCKS = {}
+
+
+@contextlib.contextmanager
+def locked(root):
+    """Serialise changes to one CA across threads and processes (the CLI, the console and the enrollment server may share it)."""
+    tl = _THREAD_LOCKS.setdefault(str(Path(root).resolve()), threading.RLock())
+    with tl, open(Path(root) / ".lock", "a+b") as f:
+        if os.name == "nt":
+            import msvcrt
+            f.seek(0)
+            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 @dataclass
@@ -142,10 +167,15 @@ class CA:
         if names:
             b = b.add_extension(x509.SubjectAlternativeName(general_names(names)), critical=False)
         cert = b.sign(self.key, None)
+        with locked(self.root):
+            rec = self._record(cert, common_name, kind, algorithm, not_after, names)
+        return cert, rec
+
+    def _record(self, cert, common_name, kind, algorithm, not_after, names):
         rec = Record(serial=format(cert.serial_number, "x"), common_name=common_name, kind=kind,
                      algorithm=algorithm, not_after=not_after.isoformat(), names=names)
         self._save(self.records() + [rec])
-        return cert, rec
+        return rec
 
     def issue(self, common_name, kind, names=(), days=397, algorithm="ML-DSA-65", out=None, passphrase=None):
         """Generate a key pair and certificate; writes cert.pem, key.pem and chain.pem to `out`."""
@@ -157,7 +187,8 @@ class CA:
         write(out / "cert.pem", cert_pem(cert))
         write(out / "chain.pem", cert_pem(cert) + cert_pem(self.cert))
         rec.path = str(out.resolve())
-        self._save([rec if r.serial == rec.serial else r for r in self.records()])
+        with locked(self.root):
+            self._save([rec if r.serial == rec.serial else r for r in self.records()])
         return out, rec
 
     def sign_csr(self, csr_pem, kind, days=397):
@@ -175,6 +206,11 @@ class CA:
     def revoke(self, serial, reason="unspecified"):
         if reason != "unspecified" and reason not in REASONS:
             raise CAError(f"reason must be one of: unspecified, {', '.join(REASONS)}")
+        with locked(self.root):
+            self._revoke(serial, reason)
+        return self.crl()
+
+    def _revoke(self, serial, reason):
         recs = self.records()
         rec = self.find(serial)
         for r in recs:
@@ -183,7 +219,6 @@ class CA:
                     raise CAError(f"{r.serial} is already revoked")
                 r.status, r.revoked_at, r.reason = "revoked", now().isoformat(), reason
         self._save(recs)
-        return self.crl()
 
     def crl(self, days=7):
         """Sign and write a fresh CRL listing every revoked certificate."""
