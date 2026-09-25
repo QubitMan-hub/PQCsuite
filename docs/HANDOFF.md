@@ -176,4 +176,4 @@ Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3
 - **Duplicate assets:** a bare sighting, such as an import, used to become its own asset next to its parameterised use, for example RSA beside RSA-2048 from the same file.
   - It now joins that variant when the file has exactly one variant of the algorithm (`den.assets`).
   - Sightings and the bench are unchanged. Across 54 roots, assets went from 722 to 718, and counts moved to the specific variants.
-- **Site demo:** the "Watch a hunt" demo shows `site/demo/app.py` and the real output of `wolfpack hunt site/demo`. Regenerate its data if the pack's verdicts on that file change.
+- **Site demo:** the "Watch a hunt" demo shows `site/demo/app.py` and the real output of `wolfpack hunt site/demo`. `test_site_demo_matches_the_pack` fails if the page drifts from what the pack reports on that file.

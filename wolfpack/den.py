@@ -92,15 +92,19 @@ def admit_all(sightings):
 
 def assets(sightings):
     """Accepted sightings grouped by variant. A sighting with no parameters joins the one parameterised variant of its algorithm in its file."""
-    kept = [(s, {k: v for k, v in s.params.items() if k in KEY_PARAMS and v}) for s in sightings if s.verdict == "accepted"]
+    kept = []
+    for s in sightings:
+        if s.verdict == "accepted":
+            p = {k: v for k, v in s.params.items() if k in KEY_PARAMS and v}
+            kept.append((s, p, variant(s.algo, p) if p else None))
     known = defaultdict(set)
-    for s, p in kept:
-        if p:
-            known[s.file, s.algo].add(variant(s.algo, p))
+    for s, p, v in kept:
+        if v:
+            known[s.file, s.algo].add(v)
     groups = defaultdict(list)
-    for s, p in kept:
-        v = known[s.file, s.algo]
-        groups[next(iter(v)) if not p and len(v) == 1 else variant(s.algo, p)].append((s, p))
+    for s, p, v in kept:
+        one = known[s.file, s.algo]
+        groups[v or (next(iter(one)) if len(one) == 1 else s.algo)].append((s, p))
     out = []
     for v, items in sorted(groups.items()):
         algo = items[0][0].algo

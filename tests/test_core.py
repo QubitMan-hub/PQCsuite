@@ -228,6 +228,19 @@ class Scope(unittest.TestCase):
 
 
 class Regressions(unittest.TestCase):
+    def test_site_demo_matches_the_pack(self):
+        import json, re
+        site = Path(__file__).parent.parent / "site"
+        page = (site / "index.html").read_text(encoding="utf-8")
+        grab = lambda name: json.loads(re.search(rf"const {name} = (\[.*?\n?\]);", page, re.S).group(1))
+        self.assertEqual(grab("DEMO_CODE"), (site / "demo" / "app.py").read_text(encoding="utf-8").splitlines())
+        r = pack.run(site / "demo", "demo")
+        final = {"accepted": "a", "quarantined": "q", "rejected": "r"}
+        got = {(s.line, s.algo, "p" if "second look" in s.reason else final[s.verdict]) for s in r.sightings}
+        self.assertEqual({tuple(d[:3]) for d in grab("DEMO")}, got)
+        self.assertEqual([(q[0], q[1]) for q in re.findall(r'\["(\w+)", "([\w-]+)", "', page.split("const QUEUE = ")[1].split("];")[0])],
+                         [(a.tier, a.variant) for a in r.assets])
+
     def test_bare_sighting_joins_its_only_variant(self):
         from wolfpack import den
         from wolfpack.model import Sighting

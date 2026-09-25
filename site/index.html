@@ -207,10 +207,7 @@ h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em; tex
 .ln .chips { flex: none; display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; max-width: 45%; padding-top: 3px; }
 .chip { padding: 0 6px; border-radius: 4px; font: 500 11px/1.7 var(--mono); white-space: nowrap; transition: all 300ms ease; cursor: default; }
 .chip.seen { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); }
-.chip.a { background: var(--ink); color: var(--on-ink); }
-.chip.q { background: var(--sunken); color: var(--muted); outline: 1px dashed var(--mid); outline-offset: -1px; }
-.chip.r { background: transparent; color: var(--faint); text-decoration: line-through; box-shadow: inset 0 0 0 1px var(--line); }
-.chip.p { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.chip.v-a { color: var(--on-ink); } .chip.v-q { color: var(--on-ink); } .chip.v-r { color: var(--faint); text-decoration: line-through; } .chip.v-p { color: var(--ink); }
 .demo-side { padding: 20px 22px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; background: var(--sunken); border-radius: 10px; }
 .steps button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 0; border-radius: 7px; background: none;
@@ -219,9 +216,6 @@ h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em; tex
 .steps button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
 .say h3 { margin: 0 0 4px; font-size: 17px; font-weight: 600; }
 .say p { margin: 0; color: var(--ink-2); font-size: 14px; }
-.tally { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; font: 12px var(--mono); color: var(--muted); }
-.tally li { display: inline-flex; align-items: center; gap: 6px; }
-.tally i { width: 22px; height: 12px; border-radius: 3px; display: inline-block; }
 .queue { margin: 0; padding: 0; list-style: none; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .queue li { display: grid; grid-template-columns: 62px 1fr; gap: 12px; padding: 10px 12px; background: var(--card); font-size: 13px; }
 .queue .tier { font: 500 11px var(--mono); letter-spacing: .04em; text-transform: uppercase; padding-top: 2px; }
@@ -308,7 +302,7 @@ footer .sig svg { width: 150px; height: auto; }
       <div class="demo-side">
         <div class="steps" role="group" aria-label="Hunt stages" id="demo-steps"></div>
         <div class="say" id="demo-say" aria-live="polite"></div>
-        <ul class="tally" id="demo-tally"></ul>
+        <ul class="legend" id="demo-tally"></ul>
         <div id="demo-out"></div>
         <button type="button" class="play" id="demo-play">Play the hunt</button>
       </div>
@@ -571,29 +565,28 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 })();
 
 /* ---------- watch a hunt: site/demo/app.py and the output of wolfpack hunt site/demo ---------- */
-const DEMO_CODE = [
-  "import hashlib", "from cryptography.hazmat.primitives.asymmetric import rsa, ec", "from cryptography.hazmat.primitives.ciphers.aead import AESGCM", "",
-  "# Old builds signed tokens with DSA; kept only as a note.", 'DISABLED = ["MD5", "RC4", "3DES"]', "",
-  "key = rsa.generate_private_key(public_exponent=65537, key_size=2048)", "signer = ec.generate_private_key(ec.SECP256R1())",
-  "box = AESGCM(AESGCM.generate_key(bit_length=256))", "", "", "def fingerprint(blob):", "    return hashlib.sha1(blob).hexdigest()", "", "",
-  'log.info("never use MD5 for passwords")', 'TOKEN_ALG = "HS256"', "jwt.encode(claims, secret, algorithm=TOKEN_ALG)",
-];
-// [line, algo, den verdict, final verdict, why]
+const DEMO_CODE = ["import hashlib", "from cryptography.hazmat.primitives.asymmetric import rsa, ec", "from cryptography.hazmat.primitives.ciphers.aead import AESGCM", "", "# Old builds signed tokens with DSA; kept only as a note.", "DISABLED = [\"MD5\", \"RC4\", \"3DES\"]", "", "key = rsa.generate_private_key(public_exponent=65537, key_size=2048)", "signer = ec.generate_private_key(ec.SECP256R1())", "box = AESGCM(AESGCM.generate_key(bit_length=256))", "", "", "def fingerprint(blob):", "    return hashlib.sha1(blob).hexdigest()", "", "", "log.info(\"never use MD5 for passwords\")", "TOKEN_ALG = \"HS256\"", "jwt.encode(claims, secret, algorithm=TOKEN_ALG)"];
+// [line, algo, final verdict, why]; a promoted sighting was held by the den
 const DEMO = [
-  [2, "RSA", "a", "a", "import, backed up by the key generation on line 8"], [2, "ECC", "a", "a", "import, backed up by the key generation on line 9"],
-  [3, "AES", "a", "a", "import, backed up by the call on line 10"],
-  [5, "DSA", "r", "r", "only inside a comment"],
-  [6, "MD5", "q", "q", "a name in a list called DISABLED: never used"], [6, "RC4", "q", "q", "a name in a list called DISABLED: never used"],
-  [6, "3DES", "q", "q", "a name in a list called DISABLED: never used"],
-  [8, "RSA", "a", "a", "key generation, 2048-bit"], [9, "ECC", "a", "a", "key generation on curve P-256"], [10, "AES", "a", "a", "AES-GCM with a 256-bit key"],
-  [14, "SHA-1", "a", "a", "a direct hashlib call"],
-  [17, "MD5", "r", "r", "prose in a log message, not a use"],
-  [18, "HMAC", "q", "p", "HS256 flows into jwt.encode on line 19"], [18, "SHA-256", "q", "p", "HS256 flows into jwt.encode on line 19"],
+  [2, "RSA", "a", "import, backed up by the key generation on line 8"],
+  [2, "ECC", "a", "import, backed up by the key generation on line 9"],
+  [3, "AES", "a", "import, backed up by the call on line 10"],
+  [5, "DSA", "r", "only inside a comment"],
+  [6, "MD5", "q", "a name in a list called DISABLED: never used"],
+  [6, "RC4", "q", "a name in a list called DISABLED: never used"],
+  [6, "3DES", "q", "a name in a list called DISABLED: never used"],
+  [8, "RSA", "a", "key generation, 2048-bit"],
+  [9, "ECC", "a", "key generation on curve P-256"],
+  [10, "AES", "a", "AES-GCM with a 256-bit key"],
+  [14, "SHA-1", "a", "a direct hashlib call"],
+  [17, "MD5", "r", "prose in a log message, not a use"],
+  [18, "HMAC", "p", "HS256 flows into jwt.encode on line 19"],
+  [18, "SHA-256", "p", "HS256 flows into jwt.encode on line 19"]
 ];
 const QUEUE = [
   ["critical", "SHA-1", "Broken today, no quantum computer needed. Use SHA-256."],
-  ["high", "RSA-2048", "Harvest now, decrypt later. Move to ML-KEM-768 or ML-DSA-65."],
-  ["high", "ECC-P-256", "Same risk as RSA. Move to ML-DSA-65 or ML-KEM-768."],
+  ["high", "ECC-P-256", "Harvest now, decrypt later. Move to ML-DSA-65 or ML-KEM-768."],
+  ["high", "RSA-2048", "Same risk as the curve. Move to ML-KEM-768 or ML-DSA-65."],
   ["ok", "AES-256-GCM", "Still strong against quantum attacks."],
   ["ok", "HMAC-SHA-256", "No known quantum break at this strength."],
   ["ok", "SHA-256", "The hash inside HS256, counted in its own right."],
@@ -623,27 +616,27 @@ const CBOM_SNIPPET = `{
 }`;
 const STAGES = [
   { name: "Scouts", icon: "paw", title: "The scouts report everything",
-    text: "Every mention of an algorithm is reported: code, imports, strings, even comments and a log message. 14 sightings, and several of them are not real use." },
+    text: `Every mention of an algorithm is reported: code, imports, strings, even comments and a log message. ${DEMO.length} sightings, and several of them are not real use.` },
   { name: "Den", icon: "den", title: "The den checks the evidence",
     text: "A call or key generation is trusted. A comment or prose is thrown out. A bare name in a string is held until something proves it is used." },
   { name: "Alpha", icon: "alpha", title: "The alpha takes a second look, then ranks",
     text: "HS256 was held, but it flows into jwt.encode, so it is promoted. The deny-list stays out. What's left is ranked by how soon it needs replacing." },
   { name: "CBOM", icon: "howl", title: "The howl: a standard CBOM",
-    text: "Six assets written as CycloneDX 1.6, with where each was found, why it matters and what to use instead. Here is one of them." },
+    text: `${QUEUE.length} assets written as CycloneDX 1.6, with where each was found, why it matters and what to use instead. Here is one of them.` },
 ];
-const VERDICT_WORD = { a: "kept", q: "held", r: "thrown out", p: "promoted" };
 (function demo() {
   const lines = document.getElementById("demo-lines"), steps = document.getElementById("demo-steps"), say = document.getElementById("demo-say");
   const tally = document.getElementById("demo-tally"), out = document.getElementById("demo-out"), count = document.getElementById("demo-count"), play = document.getElementById("demo-play");
   const chips = [];
   DEMO_CODE.forEach((code, i) => {
     const row = document.createElement("div");
-    row.className = "ln";
+    const hits = DEMO.filter((d) => d[0] === i + 1);
+    row.className = hits.length ? "ln hit" : "ln";
     row.innerHTML = `<span class="no">${i + 1}</span><code>${esc(code) || " "}</code><span class="chips"></span>`;
-    DEMO.filter((d) => d[0] === i + 1).forEach((d) => {
+    hits.forEach((d) => {
       const c = document.createElement("span");
       c.textContent = d[1]; row.querySelector(".chips").appendChild(c);
-      chips.push({ c, row, d });
+      chips.push({ c, d });
     });
     lines.appendChild(row);
   });
@@ -654,28 +647,27 @@ const VERDICT_WORD = { a: "kept", q: "held", r: "thrown out", p: "promoted" };
     b.addEventListener("click", () => { stop(); show(i); });
     steps.appendChild(b); return b;
   });
+  count.textContent = `${DEMO.length} sightings`;
   function show(i) {
     buttons.forEach((b, j) => b.setAttribute("aria-pressed", String(i === j)));
     say.innerHTML = `<h3>${esc(STAGES[i].title)}</h3><p>${esc(STAGES[i].text)}</p>`;
-    const n = { a: 0, q: 0, r: 0, p: 0 };
-    chips.forEach(({ c, row, d }) => {
-      const v = i === 0 ? "seen" : i === 1 ? d[2] : d[3];
-      c.className = "chip " + v; row.classList.add("hit");
-      if (v !== "seen") n[v]++;
-      c.dataset.tip = `<b>${esc(d[1])}</b> on line ${d[0]}<br>${i === 0 ? "sighted" : VERDICT_WORD[v]}: ${esc(d[4])}`;
+    const n = {};
+    chips.forEach(({ c, d }) => {
+      const v = i === 0 ? null : i === 1 && d[2] === "p" ? "q" : d[2];
+      c.className = v ? `chip v-${v}` : "chip seen";
+      if (v) n[v] = (n[v] || 0) + 1;
+      c.dataset.tip = `<b>${esc(d[1])}</b> on line ${d[0]}<br>${v ? VERDICT[v] : "sighted"}: ${esc(d[3])}`;
     });
-    count.textContent = `${chips.length} sightings`;
-    tally.innerHTML = i === 0 ? "" : [["a", "kept"], ["p", "promoted"], ["q", "held"], ["r", "thrown out"]]
-      .filter(([k]) => n[k]).map(([k, w]) => `<li><i class="chip ${k}"></i>${n[k]} ${w}</li>`).join("");
+    tally.innerHTML = Object.keys(VERDICT).filter((k) => n[k]).map((k) => `<li><i class="v-${k}"></i>${VERDICT[k]} <span class="n">${n[k]}</span></li>`).join("");
     out.innerHTML = i === 2 ? `<ul class="queue">${QUEUE.map(([t, a, w]) => `<li><span class="tier ${t}">${t}</span><span><b>${a}</b><span class="w">${esc(w)}</span></span></li>`).join("")}</ul>`
       : i === 3 ? `<pre class="json">${CBOM_SNIPPET}</pre>` : "";
   }
-  let timer = null, at = 0;
+  let timer = null;
   function stop() { clearInterval(timer); timer = null; play.textContent = "Play the hunt"; }
   play.addEventListener("click", () => {
     if (timer) return stop();
-    at = 0; show(0); play.textContent = "Pause";
-    timer = setInterval(() => { at++; if (at >= STAGES.length) return stop(); show(at); }, reduced ? 4000 : 2600);
+    let at = 0; show(0); play.textContent = "Pause";
+    timer = setInterval(() => { if (++at >= STAGES.length) return stop(); show(at); }, reduced ? 4000 : 2600);
   });
   show(2);
 })();
