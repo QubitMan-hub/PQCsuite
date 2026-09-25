@@ -59,6 +59,17 @@ v0.2 ("100x better, but don't overcomplicate") added:
 - **Tuned status:** the six comparison repos are now "tuned on"; `eval/cbomkit/README.md` keeps the untuned first run.
 - **Still open:** the HMAC-hash and SHA-512/256 labelling conventions, pending the owner.
 
+## Conventions, pre-registration, fresh repos
+
+- **Conventions:** the owner confirmed both labelling conventions (HMAC and KDFs count their hash; SHA-512/t is SHA-512) and signed off the held-out pre-registration. The scanner was aligned on the dev corpus only (`scouts.carried_hashes`, `elders.named_hash`, aliases). The held-out kit's vocabulary is frozen, so catalog growth cannot change what labellers write.
+- **Fresh-repo check:** seven unseen repos, recorded in `eval/fresh/`. The first run had 13 of 16 pairs right (excluding Mozilla's TLS profile data, which is declared support), with 10 misses found by spot-check.
+- **Fixes from it:**
+  - libsodium rules (header prototypes excluded) and Salsa20;
+  - `HMACSHA1` as HMAC;
+  - JS literal completeness;
+  - flow exclusions for flag and serialization-name calls.
+- **Result after the fixes:** everything right on the six non-profile repos, with RSA/ECDSA via runtime names in node-jwa and the bcrypt implementation still missed. CBOMkit, run on the four repos in its languages, found nothing Wolf Pack missed except a random-number generator.
+
 ## Design decisions worth knowing
 
 Scoring is at (file, algorithm family) granularity, not line level, so labelling stays tractable. Signature schemes such as SHA256withECDSA, RS256 and certificate signatures emit the hash as its own finding, consistently everywhere.

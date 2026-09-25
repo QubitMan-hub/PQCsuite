@@ -15,7 +15,7 @@ Current version: 0.2.0. It was built in a Claude.ai chat, then moved here.
 ```powershell
 py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 34 tests, must stay green
+python -m unittest discover -s tests -v          # 38 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -60,17 +60,21 @@ wolfpack/
   report.py      self-contained monochrome HTML report and terminal summary
   cli.py         scan / bench subcommands
   bench.py       scores at (file, algorithm family) granularity across 3 configs
-bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 61 labelled pairs
+bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 70 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)
 tests/test_core.py
 eval/cbomkit/     CBOMkit head-to-head harness (compare.py) and first results
-eval/heldout/     held-out benchmark kit: 18 pinned repos, labelling guide, pre-registration, heldout.py
+eval/heldout/     held-out benchmark kit: 18 pinned repos, labelling guide, signed-off pre-registration, heldout.py
+                  (VOCABULARY is frozen; tool families outside it score as OTHER:<NAME>)
+eval/fresh/       hand-checked run on 7 unseen repos, with before and after fixes
 docs/HANDOFF.md  history, decisions, validation evidence, open questions
 docs/PACK.md     role map, switches, glossary, naming rules
 ```
 
 ## Key concepts
+
+Counting conventions (owner-confirmed, also in eval/heldout/LABELLING.md): a primitive parameterised with a hash also reports the hash (`scouts.carried_hashes`: HmacSHA256 is HMAC and SHA-256); SHA-512/224 and SHA-512/256 are SHA-512; `ssh-rsa` in code is RSA only.
 
 Evidence types and base confidence (den.BASE): live 1.0, artifact .95, config .9, call .9, constant .85, binary .8, identifier .65, import .45, string .35. Params found add .05. Same-file corroboration from a different evidence type adds .25 (ECC/ECDSA/ECDH count as kin). Threshold is 0.6.
 
@@ -103,11 +107,12 @@ New scout: return a list of `Sighting`s with the right evidence type, add a swit
 
 ## Next work, in priority order
 
-1. Held-out benchmark for the paper: 15 to 20 real GitHub repos across Java, Python, Go, JS, C and C#, labelled blind by someone other than the author before running any tool. Kit is in `eval/heldout/`; next: owner signs off PREREGISTRATION.md, labellers label. Never run Wolf Pack on `eval/heldout/repos/` (including `score --partial`) before the labels are committed.
+1. Held-out benchmark for the paper: 15 to 20 real GitHub repos across Java, Python, Go, JS, C and C#, labelled blind by someone other than the author before running any tool. Kit is in `eval/heldout/`; PREREGISTRATION.md is signed off; next: two labellers label. Never run Wolf Pack on `eval/heldout/repos/` (including `score --partial`) before the labels are committed.
 2. Head-to-head with CBOMkit on the Java/Python/Go subset: run sonar-cryptography via its Docker setup, convert both CBOMs to (file, family) pairs, and score both against the same labels. Harness and a first unlabelled six-repo run are in `eval/cbomkit/`.
 3. Done in stage 3: format-sniffing lists (`recognition` role). Sniffers not written as startswith/in/HasPrefix are still counted.
 4. Done in stage 3 for Java/Kotlin/C# `Owner.NAME`, Go `pkg.Name` and C header macros (`cross-file` role). Not done: JavaScript imports, values passed through parameters. Integer constants now propagate from constant declarations only.
 5. Container images (walk layers, reuse existing scouts) and cloud KMS/HSM config.
+5a. Gaps from eval/fresh: names built at runtime (`'RSA-SHA' + bits`), implementations with no library call (a bcrypt class), multi-line JSON/YAML arrays in the config scout.
 6. Recall measurement on real code.
 
 Before starting any of these, propose a short plan and confirm with the owner. Work one stage at a time.

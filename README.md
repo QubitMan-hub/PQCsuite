@@ -55,37 +55,40 @@ CBOMkit's scanner (sonar-cryptography) does deep semantic analysis of Java (JCA,
 
 ## Evaluation so far
 
-Development corpus: `bench/corpus` has 32 files across 7 languages plus configs, certificates, a compiled binary and manifests. It is full of traps:
+Development corpus: `bench/corpus` has 38 files across 7 languages plus configs, certificates, a compiled binary and manifests. It is full of traps:
 - algorithms in comments, docstrings and log messages;
 - a Java `disabledAlgorithms` list, OpenSSL `!MD5` exclusions and a `WEAK_ALGORITHMS` deny-list;
 - an unused import and a suppressed line;
 - a digest name built at runtime (`"SHA-" + bits`), and an unrelated literal on the same line as `"RS256"`;
 - a `jwt.encode` whose algorithm cannot be resolved;
 - an SSH key-prefix list used only to sniff formats;
-- a same-named constant in the wrong class, and a reassigned local key size.
+- a same-named constant in the wrong class, and a reassigned local key size;
+- a JS `'sha' + bits`, a command-line flag named `ecdsa`, a JSON field named `hmac`, and libsodium prototypes in a header.
 
-Ground truth is 61 (file, algorithm family) pairs.
+Ground truth is 70 (file, algorithm family) pairs.
 
 | configuration | precision | recall | F1 |
 |---|---|---|---|
 | full pack | 1.000 | 1.000 | 1.000 |
-| without den | 0.726 | 1.000 | 0.841 |
-| without corroboration | 1.000 | 0.984 | 0.992 |
-| without second look | 1.000 | 0.934 | 0.966 |
-| &nbsp;&nbsp;without flow | 1.000 | 0.984 | 0.992 |
-| &nbsp;&nbsp;without registries | 1.000 | 0.967 | 0.983 |
-| &nbsp;&nbsp;without siblings | 1.000 | 0.984 | 0.992 |
-| without recognition | 0.953 | 1.000 | 0.976 |
-| without propagation | 1.000 | 0.984 | 0.992 |
-| without cross-file | 1.000 | 0.984 | 0.992 |
-| without source scouts | 1.000 | 0.295 | 0.456 |
-| without config scouts | 1.000 | 0.787 | 0.881 |
-| without artifact scouts | 1.000 | 0.951 | 0.975 |
-| without binary scouts | 1.000 | 0.967 | 0.983 |
+| without den | 0.729 | 1.000 | 0.843 |
+| without corroboration | 1.000 | 0.986 | 0.993 |
+| without second look | 1.000 | 0.943 | 0.971 |
+| &nbsp;&nbsp;without flow | 1.000 | 0.986 | 0.993 |
+| &nbsp;&nbsp;without registries | 1.000 | 0.971 | 0.986 |
+| &nbsp;&nbsp;without siblings | 1.000 | 0.986 | 0.993 |
+| without recognition | 0.959 | 1.000 | 0.979 |
+| without propagation | 1.000 | 0.986 | 0.993 |
+| without cross-file | 1.000 | 0.986 | 0.993 |
+| without source scouts | 1.000 | 0.257 | 0.409 |
+| without config scouts | 1.000 | 0.814 | 0.898 |
+| without artifact scouts | 1.000 | 0.957 | 0.978 |
+| without binary scouts | 1.000 | 0.971 | 0.986 |
 
 This corpus was written alongside the scanner, so treat it as a regression test and ablation demo, not a result. Propagation also recovers parameters (RSA-1024 rather than RSA), which family-level scoring does not see.
 
 Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3.5.0, each scanned in under 2.5 seconds. Every accepted (file, algorithm) pair in non-test code was reviewed by hand: 98 pairs, 3 false positives, about 97% precision. The 3 were pyjwt listing SSH key-format names it uses only to detect key types; the alpha's recognition check has since removed them. This was a single, non-blind reviewer, and recall on these repos was not measured.
+
+Seven more unseen repos (mkcert, itsdangerous, node-jwa, patrickfav/bcrypt, minisign, Mozilla's ssl-config-generator, SecureStore) were checked by hand in [eval/fresh](eval/fresh/README.md). The first run had 13 of 16 pairs right, with 10 misses found by spot-check. The fixes that followed are listed there. On the four repos in CBOMkit's languages, Wolf Pack found every algorithm pair CBOMkit found.
 
 The real held-out test is being prepared in [eval/heldout](eval/heldout/README.md): 18 pinned repositories, to be labelled blind before any tool runs on them.
 
