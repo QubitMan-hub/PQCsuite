@@ -88,6 +88,22 @@ class CATest(unittest.TestCase):
         self.assertNotEqual((out1 / "key.pem").read_bytes(), (out2 / "key.pem").read_bytes())
         self.assertEqual({r.common_name for r in self.ca.expiring(within_days=400)}, {"svc"})
 
+    def test_maintain_renews_in_place_and_refreshes_the_crl(self):
+        out, soon = self.ca.issue("edge.local", "server", days=10, out=Path(self.tmp.name) / "edge")
+        self.ca.issue("far.local", "server", days=300)
+        self.ca.issue("locked.local", "server", days=5, passphrase=b"x", out=Path(self.tmp.name) / "locked")
+        before = (out / "cert.pem").read_bytes()
+        renewed, skipped = self.ca.maintain(renew_within=30)
+        self.assertEqual([r.common_name for r in renewed], ["edge.local"])
+        self.assertEqual([r.common_name for r in skipped], ["locked.local"])
+        self.assertNotEqual((out / "cert.pem").read_bytes(), before)
+        cert = x509.load_pem_x509_certificate((out / "cert.pem").read_bytes())
+        self.assertGreater(cert.not_valid_after_utc - dt.datetime.now(dt.timezone.utc), dt.timedelta(days=300))
+        self.assertEqual(self.ca.maintain(renew_within=30)[0], [], "a renewed certificate is not renewed again")
+        crl = x509.load_pem_x509_crl((self.root / "crl.pem").read_bytes())
+        self.assertGreater(crl.next_update_utc, dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=6))
+        self.assertTrue(soon)
+
     def test_bad_inputs_are_clear_errors(self):
         with self.assertRaisesRegex(CAError, "kind"):
             self.ca.issue("x", "admin")

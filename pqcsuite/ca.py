@@ -33,6 +33,7 @@ class Record:
     status: str = "valid"
     revoked_at: str = ""
     reason: str = ""
+    path: str = ""
 
 
 def now():
@@ -155,6 +156,8 @@ class CA:
         write(out / "key.pem", key_pem(key, passphrase), secret=True)
         write(out / "cert.pem", cert_pem(cert))
         write(out / "chain.pem", cert_pem(cert) + cert_pem(self.cert))
+        rec.path = str(out.resolve())
+        self._save([rec if r.serial == rec.serial else r for r in self.records()])
         return out, rec
 
     def sign_csr(self, csr_pem, kind, days=397):
@@ -200,6 +203,25 @@ class CA:
         """A new key and certificate with the same name and SANs; the old one stays valid until it expires or is revoked."""
         r = self.find(serial)
         return self.issue(r.common_name, r.kind, r.names, days, algorithm, out, passphrase)
+
+    def maintain(self, renew_within=30, crl_days=7, algorithm="ML-DSA-65"):
+        """Re-sign the CRL, and renew certificates expiring within `renew_within` days into the folder they were issued to, where
+        edges and VPN gateways pick them up without a restart. Run it daily. Encrypted leaf keys are reported, not renewed."""
+        newest = {}
+        for r in self.records():
+            if r.status == "valid" and r.path and (r.path not in newest or r.not_after > newest[r.path].not_after):
+                newest[r.path] = r
+        cutoff, renewed, skipped = now() + dt.timedelta(days=renew_within), [], []
+        for r in newest.values():
+            if dt.datetime.fromisoformat(r.not_after) > cutoff:
+                continue
+            key = Path(r.path) / "key.pem"
+            if not key.exists() or b"ENCRYPTED" in key.read_bytes()[:64]:
+                skipped.append(r)
+                continue
+            renewed.append(self.renew(r.serial, algorithm=algorithm, out=r.path)[1])
+        self.crl(crl_days)
+        return renewed, skipped
 
     def expiring(self, within_days=30):
         cutoff = now() + dt.timedelta(days=within_days)

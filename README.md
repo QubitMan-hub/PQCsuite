@@ -142,6 +142,44 @@ How it's built:
 - **Sharing:** `share` re-wraps the file key for new recipients. The encrypted data is copied unchanged, so granting access to a large archive is cheap.
 - **Speed:** about 100 MB/s on the build machine. The `.pqv` files can be synced to any storage (S3, Azure, a NAS, tape) with the tools you already use.
 
+## PQCready bundles
+
+One command gives a Docker Compose project with a common service behind the post-quantum edge. It includes a certificate from your CA, and only the edge is published:
+
+```
+pqcsuite bundle nginx    --host www.acme.example
+pqcsuite bundle postgres --host db.acme.example --ca pki --mtls
+pqcsuite bundle pgvector --host vectors.acme.example
+pqcsuite bundle mqtt     --host broker.acme.example
+```
+
+Each bundle has a README with the exact client command. Postgres needs libpq 17+ (`sslnegotiation=direct`). Clients negotiate ML-KEM only if their TLS library supports it (OpenSSL 3.5+, BoringSSL, Go 1.24+). Otherwise, put `pqcsuite edge --mode originate` next to them.
+
+## Readiness scan
+
+```
+pqcsuite scan hosts.txt api.acme.example:443 --html readiness.html --json readiness.json
+```
+
+Every endpoint gets a grade:
+
+| Grade | Meaning |
+|---|---|
+| A | Post-quantum key exchange only |
+| B | Post-quantum preferred, classical still accepted |
+| C | Classical only (harvest-now risk) |
+| F | Unreachable or no TLS 1.3 |
+
+The report also covers the negotiated group, the certificate's key (RSA, ECDSA or ML-DSA) and certificate expiry. The HTML report is one self-contained file, and the exit code is non-zero until every endpoint offers post-quantum key exchange, so it can gate CI.
+
+## Keeping it running
+
+```
+pqcsuite ca maintain --dir pki     # daily, from cron or a scheduled task
+```
+
+It renews certificates that expire within 30 days, in the folder they were issued to (edges and VPN gateways reload them within seconds), and re-signs the CRL. Mutual TLS refuses everyone once the CRL expires, so this matters. Encrypted keys are reported for manual renewal.
+
 ## Policies
 
 | Policy | Key exchange | Certificates | Use |

@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import signal
-import socket
 import sys
 import threading
 from pathlib import Path
@@ -88,6 +87,14 @@ def cmd_ca(a):
     elif a.ca_cmd == "renew":
         out, r = ca.renew(a.serial, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
         print(f"renewed as {r.serial}, valid until {r.not_after}, in {out}")
+    elif a.ca_cmd == "maintain":
+        renewed, skipped = ca.maintain(a.renew_within, a.crl_days)
+        for r in renewed:
+            print(f"renewed {r.common_name} -> {r.serial[:16]} in {r.path}, valid until {r.not_after[:10]}")
+        for r in skipped:
+            print(f"NOT renewed {r.common_name} ({r.serial[:16]}, expires {r.not_after[:10]}): its key is encrypted; renew it by hand")
+        print(f"CRL re-signed, valid {a.crl_days} days")
+        return 1 if skipped else 0
     elif a.ca_cmd == "list":
         rows = ca.expiring(a.expiring) if a.expiring is not None else ca.records()
         if a.json:
@@ -111,7 +118,11 @@ def cmd_tls(a):
         return 0
     host, port = parse_addr(a.target, "")
     if a.tls_cmd == "probe":
-        return probe(host, port, a)
+        from .scan import GRADES, probe
+        r = probe(a.target, a.server_name, a.timeout)
+        r["verdict"] = f"{r['grade']}: {GRADES[r['grade']]}"
+        show(r, a.json)
+        return 0 if r["grade"] in "AB" else 2
     ctx = tls.client_context(a.ca, a.cert, a.key, a.policy, env_passphrase(a.key_passphrase_env))
     with tls.connect(host, port, ctx, a.server_name, a.timeout) as conn:
         out = conn.info()
@@ -129,23 +140,19 @@ def cmd_tls(a):
     return 0
 
 
-def probe(host, port, a):
-    """Which post-quantum and classical groups does a server accept? One handshake per group, certificate not checked."""
-    from .tls.openssl import Context
-    results = {}
-    for g in ["X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "X25519", "secp256r1", "secp384r1"]:
-        try:
-            ctx = Context(False, g, None, tls.CIPHERSUITES, verify=False)
-            with ctx.wrap(socket.create_connection((host, port), timeout=a.timeout), a.server_name or host, a.timeout) as conn:
-                results[g] = f"accepted ({conn.info()['peer_key'] or 'no certificate'})"
-        except (tls.TLSError, OSError) as e:
-            results[g] = "refused" if "handshake" in str(e) else f"error: {e}"
-    pq = [g for g, r in results.items() if r.startswith("accepted") and "MLKEM" in g]
-    classical = [g for g, r in results.items() if r.startswith("accepted") and "MLKEM" not in g]
-    results["verdict"] = ("post-quantum only" if pq and not classical else "post-quantum, with classical fallback" if pq
-                          else "classical only: vulnerable to harvest-now, decrypt-later" if classical else "no TLS 1.3 handshake succeeded")
-    show(results, a.json)
-    return 0 if pq else 2
+def cmd_scan(a):
+    from . import scan
+    results = scan.scan(scan.load_targets(a.targets), a.workers, a.timeout)
+    if a.html:
+        Path(a.html).write_text(scan.report_html(results), encoding="utf-8")
+    if a.json:
+        Path(a.json).write_text(scan.to_json(results), encoding="utf-8")
+    for r in sorted(results, key=lambda r: (r["grade"], r["target"])):
+        cert = r["certificate"] or {}
+        print(f"{r['grade']}  {r['target']:32} {r['negotiated'] or r['error'] or '':24} {cert.get('key', ''):14} {cert.get('expires', '')}")
+    s = scan.summary(results)
+    print(f"\n{s['pq_key_exchange']}/{s['endpoints']} offer post-quantum key exchange; {s['pq_certificates']} use ML-DSA certificates")
+    return 0 if s["pq_key_exchange"] == s["endpoints"] else 2
 
 
 def cmd_edge(a):
@@ -228,6 +235,13 @@ def cmd_vault(a):
         print(f"{a.file} now opens for {n} recipient(s); the encrypted data was not rewritten")
     elif a.vault_cmd == "inspect":
         show(vault.inspect(a.file), a.json)
+    return 0
+
+
+def cmd_bundle(a):
+    from .bundles import create
+    out = create(a.service, a.out or f"{a.service}-pqc", a.host, a.ca, a.mtls, a.policy)
+    print((out / "README.txt").read_text())
     return 0
 
 
@@ -320,6 +334,9 @@ def parser():
     p.add_argument("--reason", default="unspecified")
     p = ca.add_parser("crl", parents=[common], help="re-sign the CRL (do this before it expires)")
     p.add_argument("--days", type=int, default=7)
+    p = ca.add_parser("maintain", parents=[common], help="renew what expires soon and refresh the CRL (run daily)")
+    p.add_argument("--renew-within", type=int, default=30, metavar="DAYS")
+    p.add_argument("--crl-days", type=int, default=7)
     p = ca.add_parser("list", parents=[common], help="list issued certificates")
     p.add_argument("--expiring", type=int, metavar="DAYS", help="only those expiring within DAYS")
     p.add_argument("--json", action="store_true")
@@ -390,6 +407,22 @@ def parser():
     p.add_argument("file")
     p.add_argument("--json", action="store_true")
 
+    p = sub.add_parser("scan", help="post-quantum readiness report for many TLS endpoints")
+    p.add_argument("targets", nargs="+", help="host:port entries, or .txt files with one per line")
+    p.add_argument("--html", help="write a self-contained HTML report")
+    p.add_argument("--json", help="write JSON results")
+    p.add_argument("--workers", type=int, default=16)
+    p.add_argument("--timeout", type=float, default=8.0)
+
+    from .bundles import SERVICES
+    p = sub.add_parser("bundle", help="a PQCready service: nginx, postgres, pgvector or mqtt behind the PQC edge")
+    p.add_argument("service", choices=list(SERVICES))
+    p.add_argument("--host", required=True, help="the name clients use; goes in the certificate")
+    p.add_argument("--out", help="folder to create (default: SERVICE-pqc)")
+    p.add_argument("--ca", help="use this existing CA folder instead of creating one")
+    p.add_argument("--mtls", action="store_true", help="clients must present a certificate from the CA")
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+
     v = sub.add_parser("vpn", help="post-quantum site-to-site IPsec (strongSwan)").add_subparsers(dest="vpn_cmd", required=True)
     p = v.add_parser("up", help="run a site: key agreement, rotation, revocation, metrics")
     p.add_argument("--config", required=True, help="site TOML (see examples/vpn-hq.toml)")
@@ -409,7 +442,7 @@ def main(argv=None):
     if a.cmd == "edge" and not a.config and not a.target:
         parser().error("edge needs --config or --target")
     try:
-        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault}[a.cmd](a))
+        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan}[a.cmd](a))
     except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
