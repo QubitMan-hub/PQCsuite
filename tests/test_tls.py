@@ -72,11 +72,12 @@ class TLSTest(unittest.TestCase):
     def test_large_transfer(self):
         s = self.server()
         blob = bytes(range(256)) * 20000
+        got = b""
         with tls.connect("127.0.0.1", s.port, self.client(), "localhost", timeout=5) as c:
-            c.sendall(blob)
-            got = b""
-            while len(got) < len(blob):
-                got += c.recv(timeout=5)
+            for i in range(0, len(blob), 65536):
+                c.sendall(blob[i:i + 65536])
+                while len(got) < min(i + 65536, len(blob)):
+                    got += c.recv(timeout=5)
         self.assertEqual(got, blob)
 
     def test_strict_server_refuses_classical_key_exchange(self):
