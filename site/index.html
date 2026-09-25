@@ -1,0 +1,670 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wolf Pack CBOM</title>
+<meta name="description" content="Wolf Pack CBOM by QubitMan: a cryptographic inventory and post-quantum migration planner built as a hunting pack.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --page: #f4f5f6;
+  --card: #ffffff;
+  --sunken: #eef0f2;
+  --ink: #141516;
+  --ink-2: #3b3d40;
+  --muted: #6c6f73;
+  --faint: #a4a7ab;
+  --line: #e3e5e7;
+  --line-2: #d2d5d8;
+  --moon: #c9ccd0;
+  --moon-rim: rgba(20, 21, 22, 0.14);
+  --mid: #8d9094;
+  --ink-rgb: 20, 21, 22;
+  --on-ink: #ffffff;
+  --shadow: 0 1px 2px rgba(20, 21, 22, 0.04), 0 6px 20px rgba(20, 21, 22, 0.05);
+  --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --radius: 12px;
+  --ease: 160ms ease;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #0c0d0e; --card: #141517; --sunken: #1a1c1e; --ink: #eceef0; --ink-2: #c3c6ca; --muted: #8f9398; --faint: #5c6065;
+    --line: #25272a; --line-2: #33363a; --moon: #3a3d41; --moon-rim: rgba(236, 238, 240, 0.12); --mid: #6c7075; --ink-rgb: 236, 238, 240;
+    --on-ink: #0c0d0e; --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #0c0d0e; --card: #141517; --sunken: #1a1c1e; --ink: #eceef0; --ink-2: #c3c6ca; --muted: #8f9398; --faint: #5c6065;
+  --line: #25272a; --line-2: #33363a; --moon: #3a3d41; --moon-rim: rgba(236, 238, 240, 0.12); --mid: #6c7075; --ink-rgb: 236, 238, 240;
+  --on-ink: #0c0d0e; --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-underline-offset: 3px; text-decoration-color: var(--line-2); }
+a:hover { text-decoration-color: var(--ink); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+#bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.wrap { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding-inline: 24px; }
+@media (max-width: 560px) { .wrap { padding-inline: 16px; } }
+
+/* ---------- top bar ---------- */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 20px; flex-wrap: wrap; }
+.by { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--muted); font-size: 13px; }
+.by svg { height: 14px; width: auto; }
+.nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.nav a { text-decoration: none; color: var(--muted); font-size: 13.5px; padding: 6px 10px; border-radius: 8px; transition: color var(--ease), background var(--ease); }
+.nav a:hover { color: var(--ink); background: var(--sunken); }
+.theme { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; margin-left: 6px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--card); color: var(--ink-2); font: 500 12.5px var(--mono); cursor: pointer; transition: border-color var(--ease); }
+.theme:hover { border-color: var(--line-2); }
+.px-icon { width: 16px; height: 16px; flex: none; }
+.px-icon rect, .px rect { fill: var(--ink); }
+.px-icon rect.mid, .px rect.mid { fill: var(--mid); }
+
+/* ---------- hero ---------- */
+.hero { display: grid; grid-template-columns: auto 1fr; gap: 48px; align-items: center; padding-block: 56px 72px; }
+.hero > * { min-width: 0; }
+.badge { width: 220px; height: 220px; }
+.badge .disc { fill: var(--moon); }
+.badge .rim { fill: none; stroke: var(--moon-rim); }
+.title { margin: 0 0 6px; line-height: 0; }
+.title svg { width: min(100%, 520px); height: auto; overflow: visible; }
+.title rect, .sub-mark rect { transition: transform 120ms ease, fill 120ms ease; transform-box: fill-box; }
+.sub-mark { margin: 0 0 24px; line-height: 0; }
+.sub-mark svg { width: min(46%, 212px); height: auto; }
+.sub-mark rect { fill: var(--mid); }
+.px-in { transform-box: fill-box; transform-origin: center; animation: pxin 460ms cubic-bezier(.2, .9, .3, 1.3) both; }
+@keyframes pxin { from { transform: translateY(-10px) scale(.4); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .px-in { animation: none; } }
+.lede { margin: 0 0 24px; font-size: 18px; line-height: 1.55; color: var(--ink-2); max-width: 52ch; text-wrap: pretty; }
+.cmd { display: flex; align-items: center; gap: 12px; max-width: 520px; padding: 6px 6px 6px 16px; background: var(--card);
+  border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+.cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font: 14px var(--mono); color: var(--ink); }
+.cmd code::before { content: "> "; color: var(--faint); }
+.copy { flex: none; height: 32px; padding: 0 12px; border: 0; border-radius: 7px; background: var(--ink); color: var(--on-ink);
+  font: 500 12.5px var(--sans); cursor: pointer; transition: opacity var(--ease); }
+.copy:hover { opacity: .86; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 20px 0 0; padding: 0; list-style: none; color: var(--muted); font: 12.5px var(--mono); }
+.facts li { display: inline-flex; align-items: center; gap: 8px; }
+.facts li::before { content: ""; width: 5px; height: 5px; background: var(--faint); }
+@media (max-width: 760px) {
+  .hero { grid-template-columns: 1fr; gap: 28px; padding-block: 24px 48px; }
+  .badge { width: 132px; height: 132px; }
+  .lede { font-size: 16.5px; }
+}
+
+/* ---------- sections ---------- */
+section { padding-block: 40px; }
+.head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.bullet { width: 10px; height: 10px; background: var(--ink); box-shadow: 4px 4px 0 var(--moon); flex: none; }
+h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em; text-wrap: balance; }
+.intro { margin: 0 0 24px 22px; color: var(--muted); max-width: 68ch; }
+.note { margin: 14px 0 0; color: var(--muted); font-size: 13px; max-width: 80ch; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+/* ---------- the hunt ---------- */
+.stages { display: grid; grid-template-columns: repeat(5, 1fr); }
+.stage { padding: 20px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.stage:last-child { border-right: 0; }
+.stage .role { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.stage b { font: 500 34px/1.1 var(--mono); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.stage .what { font-size: 13.5px; color: var(--ink-2); }
+.stage .job { font-size: 12.5px; color: var(--muted); margin-top: auto; padding-top: 8px; }
+@media (max-width: 900px) {
+  .stages { grid-template-columns: 1fr 1fr; }
+  .stage { border-right: 0; border-bottom: 1px solid var(--line); }
+  .stage:nth-child(odd) { border-right: 1px solid var(--line); }
+  .stage:last-child { grid-column: 1 / -1; border-bottom: 0; border-right: 0; }
+}
+@media (max-width: 480px) { .stages { grid-template-columns: 1fr; } .stage:nth-child(odd) { border-right: 0; } }
+.field { border-top: 1px solid var(--line); padding: 20px; }
+.field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.field-head span { font-size: 13px; color: var(--muted); }
+.cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(14px, 1fr)); gap: 4px; }
+.cell { aspect-ratio: 1; max-width: 100%; border-radius: 2px; transition: transform var(--ease); }
+.cell:hover { transform: scale(1.35); }
+.v-a { background: var(--ink); }
+.v-p { background: var(--card); box-shadow: inset 0 0 0 2px var(--ink); }
+.v-q { background: var(--mid); }
+.v-r { background: var(--line-2); }
+.v-s { background: repeating-linear-gradient(45deg, var(--mid) 0 2px, transparent 2px 4px); box-shadow: inset 0 0 0 1px var(--mid); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 16px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.legend li { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.legend .n { color: var(--muted); font-family: var(--mono); }
+
+/* ---------- ablation chart ---------- */
+.abl { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+.abl-rows { padding: 12px 8px 16px; border-right: 1px solid var(--line); min-width: 0; }
+.scale, .arow { display: grid; grid-template-columns: 190px minmax(0, 1fr) 118px; gap: 14px; align-items: center; }
+.scale { padding: 4px 12px 8px; color: var(--faint); font: 11px var(--mono); }
+.ticks { position: relative; height: 14px; }
+.ticks span { position: absolute; transform: translateX(-50%); }
+.ticks span:first-child { transform: none; }
+.ticks span:last-child { transform: translateX(-100%); }
+.arow { width: 100%; padding: 9px 12px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background var(--ease); }
+.arow:hover { background: var(--sunken); }
+.arow[aria-pressed="true"] { background: var(--sunken); box-shadow: inset 2px 0 0 var(--ink); }
+.arow .lab { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arow .lab.sub { padding-left: 16px; color: var(--ink-2); }
+.arow .lab.full { font-weight: 600; }
+.track { position: relative; height: 12px; background: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 25%); background-size: calc(100% - 1px) 100%; background-repeat: no-repeat; }
+.track .rec { position: absolute; left: 0; top: 2px; bottom: 2px; background: var(--ink); border-radius: 0 4px 4px 0; transition: width 500ms cubic-bezier(.2, .8, .2, 1); }
+.track .prec { position: absolute; top: -3px; width: 10px; height: 18px; margin-left: -5px; background: var(--card); border: 2px solid var(--mid); border-radius: 3px; }
+.arow .vals { font: 12px var(--mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.arow .vals b { color: var(--ink); font-weight: 500; }
+.key { display: flex; gap: 18px; flex-wrap: wrap; padding: 4px 12px 10px; font-size: 12.5px; color: var(--ink-2); }
+.key span { display: inline-flex; align-items: center; gap: 8px; }
+.key .k-rec { width: 18px; height: 8px; background: var(--ink); border-radius: 0 3px 3px 0; }
+.key .k-prec { width: 8px; height: 14px; border: 2px solid var(--mid); border-radius: 3px; background: var(--card); }
+.detail { padding: 22px; min-width: 0; }
+.detail h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+.detail .what { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; }
+.nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+.nums div { background: var(--card); padding: 10px 12px; }
+.nums span { display: block; font-size: 11.5px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.nums b { font: 500 20px var(--mono); font-variant-numeric: tabular-nums; }
+.pairs { margin: 0; padding: 0; list-style: none; max-height: 240px; overflow: auto; font: 12.5px/1.5 var(--mono); }
+.pairs li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.pairs li:last-child { border-bottom: 0; }
+.pairs .tag { flex: none; width: 26px; color: var(--muted); }
+.pairs .f { color: var(--ink-2); overflow-wrap: anywhere; }
+.pairs .al { margin-left: auto; color: var(--ink); white-space: nowrap; }
+.empty { color: var(--muted); font-size: 13.5px; margin: 0; }
+@media (max-width: 900px) { .abl { grid-template-columns: 1fr; } .abl-rows { border-right: 0; border-bottom: 1px solid var(--line); } }
+@media (max-width: 560px) { .scale, .arow { grid-template-columns: 124px minmax(0, 1fr) 72px; gap: 10px; } .arow .vals .p { display: none; } }
+
+/* ---------- CBOMkit ---------- */
+.vs { padding: 12px 8px 8px; }
+.vrow, .vscale { display: grid; grid-template-columns: 120px minmax(0, 1fr) 150px; gap: 14px; align-items: center; padding: 8px 12px; }
+.vscale { color: var(--faint); font: 11px var(--mono); padding-block: 0 6px; }
+.vrow .lab { font: 13px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stack { display: flex; gap: 2px; height: 14px; }
+.seg { height: 100%; min-width: 3px; }
+.seg:last-child { border-radius: 0 4px 4px 0; }
+.s-both { background: var(--ink); }
+.s-wp { background: var(--mid); }
+.s-ck { background: repeating-linear-gradient(135deg, var(--ink) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--ink); }
+.vrow .vals { font: 12px var(--mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vrow.total { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 14px; }
+.vrow.total .lab, .vrow.total .vals { color: var(--ink); font-weight: 500; }
+.k-both, .k-wp, .k-ck { width: 14px; height: 10px; }
+.k-both { background: var(--ink); } .k-wp { background: var(--mid); }
+.k-ck { background: repeating-linear-gradient(135deg, var(--ink) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--ink); }
+@media (max-width: 560px) { .vrow, .vscale { grid-template-columns: 84px minmax(0, 1fr) 88px; gap: 10px; } }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+.review { padding: 20px 22px; }
+.review h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+.review ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.review li { display: grid; grid-template-columns: 44px 1fr; gap: 12px; font-size: 13.5px; color: var(--ink-2); }
+.review li b { font: 500 20px/1.2 var(--mono); color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.scope-wrap { overflow-x: auto; }
+table.scope { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 440px; }
+.scope th, .scope td { padding: 9px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+.scope thead th { font-size: 11.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.scope td.y, .scope td.n { width: 120px; font-family: var(--mono); font-size: 12.5px; }
+.scope td.n { color: var(--faint); }
+.scope tr:last-child td { border-bottom: 0; }
+.dot { display: inline-block; width: 8px; height: 8px; background: var(--ink); margin-right: 8px; vertical-align: 1px; }
+
+/* ---------- start ---------- */
+.code { position: relative; }
+.code pre { margin: 0; padding: 20px 22px; overflow-x: auto; font: 13.5px/1.75 var(--mono); color: var(--ink); }
+.code .c { color: var(--faint); }
+.code .copy { position: absolute; top: 12px; right: 12px; }
+.outs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
+.outs div { padding: 14px 20px; border-right: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.outs div:last-child { border-right: 0; }
+.outs b { display: block; color: var(--ink); font: 500 13px var(--mono); margin-bottom: 2px; }
+@media (max-width: 760px) { .outs { grid-template-columns: 1fr 1fr; } .outs div:nth-child(2) { border-right: 0; } .outs div:nth-child(-n+2) { border-bottom: 1px solid var(--line); } }
+
+/* ---------- footer ---------- */
+footer { display: flex; align-items: center; gap: 20px; padding-block: 56px 64px; margin-top: 24px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+footer .qm { width: 64px; height: 64px; flex: none; }
+.qm .lg-disc { fill: var(--moon); } .qm .lg-rim { stroke: var(--moon-rim); } .qm .lg-line { stroke: var(--ink); }
+.qm .lg-noise circle { fill: var(--page); } .qm .lg-ring { fill: var(--page); stroke: var(--ink); }
+.qm .lg-text { fill: var(--ink); font-family: var(--sans); font-weight: 500; }
+footer p { margin: 0; font-size: 13.5px; color: var(--muted); }
+footer p strong { color: var(--ink); font-weight: 600; }
+footer .sig { margin-left: auto; line-height: 0; }
+footer .sig svg { width: 150px; height: auto; }
+
+.tip { position: fixed; z-index: 10; pointer-events: none; padding: 8px 10px; background: var(--ink); color: var(--on-ink); border-radius: 8px;
+  font: 12px/1.45 var(--mono); max-width: 280px; box-shadow: var(--shadow); }
+.tip span { opacity: .7; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="wrap">
+  <header class="bar">
+    <a class="by" href="https://github.com/QubitMan-hub" target="_blank" rel="noopener"><svg id="qm-mark" class="px" role="img" aria-label="QubitMan"></svg><span>presents</span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#hunt">The hunt</a><a href="#pack">The pack</a><a href="#cbomkit">vs CBOMkit</a><a href="#start">Start</a>
+      <button type="button" class="theme" id="theme"><svg class="px-icon" id="theme-icon" aria-hidden="true"></svg><span id="theme-label">dark</span></button>
+    </nav>
+  </header>
+
+  <section class="hero" aria-labelledby="t">
+    <svg class="badge" id="badge" viewBox="0 0 200 200" role="img" aria-label="Wolf Pack badge: a pixel wolf on a grey moon"></svg>
+    <div>
+      <h1 class="title" id="t"><svg id="title" class="px" role="img" aria-label="Wolf Pack"></svg></h1>
+      <p class="sub-mark"><svg id="cbom" role="img" aria-label="CBOM"></svg></p>
+      <p class="lede">Scouts range over your code, configs, keys, binaries and live servers, and report every trace of cryptography they find. The den keeps only what it can verify. The alpha takes a second look and ranks what to migrate first before quantum computers break it.</p>
+      <div class="cmd"><code id="hero-cmd">wolfpack hunt path\to\repo --tls api.example.com:443</code><button type="button" class="copy" data-copy="hero-cmd">Copy</button></div>
+      <ul class="facts"><li>CycloneDX 1.6 CBOM</li><li>SARIF 2.1.0</li><li>pure Python, one dependency</li><li>Windows, macOS, Linux</li></ul>
+    </div>
+  </section>
+
+  <section id="hunt" aria-labelledby="h-hunt">
+    <div class="head"><span class="bullet"></span><h2 id="h-hunt">One hunt, start to finish</h2></div>
+    <p class="intro">Each member of the pack has one job. These are the numbers from one hunt over the development corpus: 26 files in seven languages, with configs, certificates, a key and a compiled binary, all seeded with traps.</p>
+    <div class="panel">
+      <div class="stages">
+        <div class="stage"><span class="role"><svg class="px-icon" data-icon="elders"></svg>Elders</span><b>56</b><span class="what">algorithms known</span><span class="job">OIDs, security levels, NIST IR 8547 dates and a replacement for each one</span></div>
+        <div class="stage"><span class="role"><svg class="px-icon" data-icon="paw"></svg>Scouts</span><b>110</b><span class="what">raw sightings</span><span class="job">Noisy on purpose: comments, prose and deny-lists get reported too</span></div>
+        <div class="stage"><span class="role"><svg class="px-icon" data-icon="den"></svg>Den</span><b>77</b><span class="what">verified</span><span class="job">7 held, 11 rejected, 1 suppressed, each with a written reason</span></div>
+        <div class="stage"><span class="role"><svg class="px-icon" data-icon="alpha"></svg>Alpha</span><b>11</b><span class="what">assets to act on first</span><span class="job">5 held sightings promoted on a second look, 1 key trail followed</span></div>
+        <div class="stage"><span class="role"><svg class="px-icon" data-icon="howl"></svg>Howl</span><b>32</b><span class="what">CBOM components</span><span class="job">CBOM, SARIF, HTML report and a full audit trail</span></div>
+      </div>
+      <div class="field">
+        <div class="field-head"><strong>Every sighting, after duplicates merge</strong><span id="cell-caption">Hover a square to see what a scout found.</span></div>
+        <div class="cells" id="cells" role="img" aria-label="96 sightings: 72 verified by the den, 5 promoted by the alpha, 7 held, 11 rejected, 1 suppressed"></div>
+        <ul class="legend">
+          <li><i class="v-a"></i>Verified by the den <span class="n">72</span></li>
+          <li><i class="v-p"></i>Promoted by the alpha <span class="n">5</span></li>
+          <li><i class="v-q"></i>Held in the den <span class="n">7</span></li>
+          <li><i class="v-r"></i>Rejected <span class="n">11</span></li>
+          <li><i class="v-s"></i>Suppressed <span class="n">1</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="pack" aria-labelledby="h-pack">
+    <div class="head"><span class="bullet"></span><h2 id="h-pack">Switch a wolf off</h2></div>
+    <p class="intro">Every role can be left out of a hunt with <span class="mono">--without</span>. Leaving one out shows what it contributes. Pick a row to see which (file, algorithm) pairs the pack gets wrong without it.</p>
+    <div class="panel abl">
+      <div class="abl-rows">
+        <div class="key"><span><i class="k-rec"></i>Recall</span><span><i class="k-prec"></i>Precision</span></div>
+        <div class="scale" aria-hidden="true"><span></span><div class="ticks"><span style="left:0">0</span><span style="left:50%">0.5</span><span style="left:100%">1.0</span></div><span style="text-align:right">P / R</span></div>
+        <div id="abl-rows"></div>
+      </div>
+      <div class="detail" id="abl-detail" aria-live="polite"></div>
+    </div>
+    <p class="note">Scored on 58 labelled (file, algorithm family) pairs in the development corpus. That corpus was written alongside the scanner, so these numbers show that each role is live. They are not a measure of real-world accuracy. That needs a blind, held-out benchmark, which is the next stage of the work. Propagation shows no change here because it recovers parameters such as RSA-1024 rather than RSA, which family-level scoring cannot see.</p>
+  </section>
+
+  <section id="cbomkit" aria-labelledby="h-ck">
+    <div class="head"><span class="bullet"></span><h2 id="h-ck">Against IBM CBOMkit</h2></div>
+    <p class="intro">Both tools ran on six real open-source repositories. Results are compared as (file, algorithm family) pairs, only in the languages CBOMkit supports, with test files left out. Java projects were built first, as CBOMkit requires.</p>
+    <div class="panel vs">
+      <div class="key"><span><i class="k-both"></i>Found by both</span><span><i class="k-wp"></i>Wolf Pack only</span><span><i class="k-ck"></i>CBOMkit only</span></div>
+      <div class="vscale" aria-hidden="true"><span></span><span></span><span style="text-align:right">both / WP / CK</span></div>
+      <div id="vs-rows"></div>
+    </div>
+    <div class="split">
+      <div class="panel review">
+        <h3>The 10 pairs only CBOMkit found</h3>
+        <ul>
+          <li><b>5</b><span>CBOMkit false positives: Ed25519, Ed448, X448, SHA-512 and SHAKE256 reported on paramiko's ML-KEM key generation, where it also missed ML-KEM</span></li>
+          <li><b>2</b><span>Real Wolf Pack misses in jjwt: AES named through a constant defined in another file</span></li>
+          <li><b>3</b><span>A labelling convention: <span class="mono">HmacSHA256</span> counted as HMAC plus SHA-256 by CBOMkit, HMAC only by Wolf Pack</span></li>
+        </ul>
+      </div>
+      <div class="panel review">
+        <h3>The 146 pairs only Wolf Pack found</h3>
+        <ul>
+          <li><b>112</b><span>Algorithm names in registries, enums and negotiation lists. Whether declared support counts is a labelling decision the benchmark has to make</span></li>
+          <li><b>34</b><span>Direct calls or imports that CBOMkit does not model</span></li>
+          <li><b>8</b><span>Known false positives: SSH key-format lists in pyjwt and python-jose used only to detect key types</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel scope-wrap" style="margin-top:16px">
+      <table class="scope">
+        <thead><tr><th scope="col">What gets scanned</th><th scope="col">Wolf Pack</th><th scope="col">CBOMkit-action</th></tr></thead>
+        <tbody id="scope"></tbody>
+      </table>
+    </div>
+    <p class="note">This is an agreement study on unlabelled repos, reviewed by one person, not blind. It is not a precision or recall result. CBOMkit analyses Java semantically, which is deeper than Wolf Pack's rules there. It found nothing in java-jwt even after a build, and python-rsa calls no library it models. IBM's separate CBOMkit-theia scans certificates and keys in container images and was not part of this test.</p>
+  </section>
+
+  <section id="start" aria-labelledby="h-start">
+    <div class="head"><span class="bullet"></span><h2 id="h-start">Start hunting</h2></div>
+    <p class="intro">Python 3.11 or newer. The commands below are for PowerShell; on macOS and Linux use <span class="mono">source .venv/bin/activate</span>.</p>
+    <div class="panel">
+      <div class="code">
+        <button type="button" class="copy" data-copy="start-cmd">Copy</button>
+<pre id="start-cmd"><span class="c"># set up once</span>
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+
+<span class="c"># hunt a repository, and optionally its live endpoints</span>
+wolfpack hunt C:\path\to\repo
+wolfpack hunt C:\path\to\repo --tls api.example.com:443 --ssh bastion.example.com
+
+<span class="c"># in CI: fail only on crypto added since main</span>
+wolfpack hunt . --baseline main-cbom.json --fail-on high
+
+<span class="c"># leave a member of the pack out, or score every ablation</span>
+wolfpack hunt . --without den
+wolfpack bench bench\corpus</pre>
+      </div>
+      <div class="outs">
+        <div><b>cbom.json</b>CycloneDX 1.6, schema-valid</div>
+        <div><b>report.html</b>Migration queue, offline</div>
+        <div><b>wolfpack.sarif</b>For GitHub code scanning</div>
+        <div><b>findings.json</b>Every verdict and reason</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <svg class="qm" id="qm-badge" viewBox="0 0 200 200" role="img" aria-label="QubitMan"></svg>
+    <p><strong>Wolf Pack CBOM</strong> 0.2.0<br>Built by QubitMan. Work in progress toward a paper; every number on this page comes from a run you can reproduce.</p>
+    <a class="sig" href="https://github.com/QubitMan-hub" target="_blank" rel="noopener" aria-label="QubitMan on GitHub"><svg id="qm-sig" class="px"></svg></a>
+  </footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+"use strict";
+const SIGHTINGS = [["AES","bin/legacy_tool:0","binary","a"],["MD5","bin/legacy_tool:0","binary","a"],["MD5","c/legacy.c:7","call","a"],["RSA","c/legacy.c:11","call","a"],["RSA","c/legacy.c:14","call","a"],["AES","c/legacy.c:19","call","a"],["RSA","certs/server.crt:1","artifact","a"],["SHA-256","certs/server.crt:1","artifact","a"],["ECC","certs/signing.key:1","artifact","a"],["TLS 1.2","config/nginx.conf:3","config","a"],["TLS 1.3","config/nginx.conf:3","config","a"],["ECDH","config/nginx.conf:4","config","a"],["RSA","config/nginx.conf:4","config","a"],["AES","config/nginx.conf:4","config","a"],["SHA-256","config/nginx.conf:4","config","a"],["X25519MLKEM768","config/nginx.conf:5","config","a"],["X25519","config/nginx.conf:5","config","a"],["X25519MLKEM768","config/sshd_config:1","config","a"],["X25519","config/sshd_config:1","config","a"],["Ed25519","config/sshd_config:2","config","a"],["RSA","config/sshd_config:2","config","a"],["SHA-512","config/sshd_config:2","config","a"],["RSA","cs/Crypto.cs:5","call","a"],["SHA-1","cs/Crypto.cs:9","call","a"],["AES","cs/Crypto.cs:15","call","a"],["TLS 1.0","go/server.go:14","call","a"],["X25519MLKEM768","go/server.go:15","call","a"],["X25519","go/server.go:15","call","a"],["ECDSA","go/server.go:20","call","a"],["SHA-1","go/server.go:24","call","a"],["ML-KEM-768","go/server.go:28","call","a"],["SHA-256","java/Digests.java:12","string","p"],["SHA-1","java/Hasher.java:6","string","a"],["SHA-1","java/Hasher.java:10","call","a"],["ECC","java/TokenSigner.java:10","call","a"],["ECDSA","java/TokenSigner.java:16","call","a"],["SHA-256","java/TokenSigner.java:16","call","a"],["AES","java/TokenSigner.java:23","call","a"],["RSA","java/TokenSigner.java:29","call","a"],["MD5","js/crypto.js:6","call","a"],["RSA","js/crypto.js:10","call","a"],["AES","js/crypto.js:16","call","a"],["SHA-1","js/tokens.js:2","string","a"],["SHA-1","js/tokens.js:6","call","a"],["RSA","py/auth.py:3","import","a"],["AES","py/auth.py:5","import","a"],["RSA","py/auth.py:7","string","a"],["SHA-256","py/auth.py:7","string","a"],["RSA","py/auth.py:11","call","a"],["RSA","py/auth.py:16","call","a"],["SHA-256","py/auth.py:16","call","a"],["SHA-256","py/auth.py:20","call","a"],["AES","py/auth.py:24","call","a"],["AES","py/auth.py:25","call","a"],["RSA","py/auth.py:29","call","a"],["SHA-256","py/auth.py:29","call","a"],["ECDSA","py/jwt_calls.py:9","call","a"],["SHA-256","py/jwt_calls.py:9","call","a"],["3DES","py/legacy.py:2","import","a"],["MD5","py/legacy.py:7","call","a"],["3DES","py/legacy.py:11","call","a"],["AES","py/legacy.py:15","call","a"],["AES","py/policy.py:8","string","p"],["ChaCha20-Poly1305","py/policy.py:9","string","p"],["AES","py/policy.py:10","string","p"],["ML-KEM-768","py/pq.py:5","call","a"],["ML-DSA-65","py/pq.py:12","call","a"],["RSA","py/token_kind.py:1","import","a"],["RSA","py/token_kind.py:3","string","a"],["SHA-256","py/token_kind.py:3","string","p"],["RSA","py/token_kind.py:7","call","a"],["ECDSA","rust/lib.rs:1","call","a"],["SHA-256","rust/lib.rs:1","call","a"],["ECDSA","rust/lib.rs:5","call","a"],["SHA-256","rust/lib.rs:5","call","a"],["SHA-256","rust/lib.rs:9","call","a"],["MD5","tests/test_legacy.py:5","call","a"],["AES","java/Hasher.java:7","string","q"],["RSA","js/tokens.js:3","string","q"],["MD5","py/policy.py:2","string","q"],["SHA-1","py/policy.py:3","string","q"],["RC4","py/policy.py:4","string","q"],["MD5","py/token_kind.py:3","string","q"],["DSA","py/unused_import.py:1","import","q"],["3DES","c/legacy.c:4","call","r"],["SSL 3.0","config/nginx.conf:7","config","r"],["TLS 1.0","config/nginx.conf:7","config","r"],["3DES","config/sshd_config:3","config","r"],["DES","java/TokenSigner.java:8","call","r"],["RC4","js/crypto.js:3","string","r"],["RSA","py/notes.py:1","string","r"],["SHA-1","py/notes.py:1","string","r"],["MD5","py/notes.py:6","string","r"],["SHA-1","py/notes.py:11","string","r"],["RC4","py/notes.py:11","string","r"],["MD5","py/suppressed.py:5","call","s"]];
+const ABLATION = [{"configuration":"full pack","without":[],"precision":1.0,"recall":1.0,"f1":1.0,"fp":[],"fn":[]},{"configuration":"without den","without":["den"],"precision":0.763,"recall":1.0,"f1":0.866,"fp":[["c/legacy.c","3DES"],["config/nginx.conf","SSL 3.0"],["config/nginx.conf","TLS 1.0"],["config/sshd_config","3DES"],["java/Hasher.java","AES"],["java/TokenSigner.java","DES"],["js/crypto.js","RC4"],["js/tokens.js","RSA"],["py/notes.py","MD5"],["py/notes.py","RC4"],["py/notes.py","RSA"],["py/notes.py","SHA-1"],["py/policy.py","MD5"],["py/policy.py","RC4"],["py/policy.py","SHA-1"],["py/suppressed.py","MD5"],["py/token_kind.py","MD5"],["py/unused_import.py","DSA"]],"fn":[]},{"configuration":"without corroboration","without":["corroboration"],"precision":1.0,"recall":0.983,"f1":0.991,"fp":[],"fn":[["py/token_kind.py","SHA-256"]]},{"configuration":"without second look","without":["second-look"],"precision":1.0,"recall":0.931,"f1":0.964,"fp":[],"fn":[["java/Digests.java","SHA-256"],["py/policy.py","AES"],["py/policy.py","ChaCha20"],["py/token_kind.py","SHA-256"]]},{"configuration":"without flow","without":["flow"],"precision":1.0,"recall":0.983,"f1":0.991,"fp":[],"fn":[["java/Digests.java","SHA-256"]]},{"configuration":"without registries","without":["registries"],"precision":1.0,"recall":0.966,"f1":0.982,"fp":[],"fn":[["py/policy.py","AES"],["py/policy.py","ChaCha20"]]},{"configuration":"without siblings","without":["siblings"],"precision":1.0,"recall":0.983,"f1":0.991,"fp":[],"fn":[["py/token_kind.py","SHA-256"]]},{"configuration":"without propagation","without":["propagation"],"precision":1.0,"recall":1.0,"f1":1.0,"fp":[],"fn":[]},{"configuration":"without source scouts","without":["source"],"precision":1.0,"recall":0.31,"f1":0.474,"fp":[],"fn":[["c/legacy.c","AES"],["c/legacy.c","MD5"],["c/legacy.c","RSA"],["cs/Crypto.cs","AES"],["cs/Crypto.cs","RSA"],["cs/Crypto.cs","SHA-1"],["go/server.go","ECDSA"],["go/server.go","ML-KEM"],["go/server.go","SHA-1"],["go/server.go","TLS 1.0"],["go/server.go","X25519"],["go/server.go","X25519MLKEM768"],["java/Digests.java","SHA-256"],["java/Hasher.java","SHA-1"],["java/TokenSigner.java","AES"],["java/TokenSigner.java","ECC"],["java/TokenSigner.java","ECDSA"],["java/TokenSigner.java","RSA"],["java/TokenSigner.java","SHA-256"],["js/crypto.js","AES"],["js/crypto.js","MD5"],["js/crypto.js","RSA"],["js/tokens.js","SHA-1"],["py/auth.py","AES"],["py/auth.py","RSA"],["py/auth.py","SHA-256"],["py/jwt_calls.py","ECDSA"],["py/jwt_calls.py","SHA-256"],["py/legacy.py","3DES"],["py/legacy.py","AES"],["py/legacy.py","MD5"],["py/policy.py","AES"],["py/policy.py","ChaCha20"],["py/pq.py","ML-DSA"],["py/pq.py","ML-KEM"],["py/token_kind.py","RSA"],["py/token_kind.py","SHA-256"],["rust/lib.rs","ECDSA"],["rust/lib.rs","SHA-256"],["tests/test_legacy.py","MD5"]]},{"configuration":"without config scouts","without":["config"],"precision":1.0,"recall":0.776,"f1":0.874,"fp":[],"fn":[["config/nginx.conf","AES"],["config/nginx.conf","ECDH"],["config/nginx.conf","RSA"],["config/nginx.conf","SHA-256"],["config/nginx.conf","TLS 1.2"],["config/nginx.conf","TLS 1.3"],["config/nginx.conf","X25519"],["config/nginx.conf","X25519MLKEM768"],["config/sshd_config","Ed25519"],["config/sshd_config","RSA"],["config/sshd_config","SHA-512"],["config/sshd_config","X25519"],["config/sshd_config","X25519MLKEM768"]]},{"configuration":"without artifact scouts","without":["artifacts"],"precision":1.0,"recall":0.948,"f1":0.973,"fp":[],"fn":[["certs/server.crt","RSA"],["certs/server.crt","SHA-256"],["certs/signing.key","ECC"]]},{"configuration":"without binary scouts","without":["binary"],"precision":1.0,"recall":0.966,"f1":0.982,"fp":[],"fn":[["bin/legacy_tool","AES"],["bin/legacy_tool","MD5"]]}];
+const VS = [
+  ["java-jwt", 0, 6, 0], ["jjwt", 2, 49, 5], ["pyjwt", 1, 20, 0], ["paramiko", 3, 36, 5], ["python-jose", 2, 23, 0], ["python-rsa", 0, 12, 0],
+];
+const SCOPE = [
+  ["Java, Python, Go, C#", "yes", "yes"], ["JavaScript and TypeScript, C and C++, Rust", "yes", "no"],
+  ["Server configs: nginx, Apache, HAProxy, sshd, OpenSSL", "yes", "no"], ["Certificates, private keys, OpenSSH keys", "yes", "no"],
+  ["Binaries, JARs and class files", "yes", "no"], ["Dependency manifests in six ecosystems", "yes", "no"],
+  ["Live TLS, including hybrid ML-KEM groups", "yes", "no"], ["Live SSH key exchange and host keys", "yes", "no"],
+  ["Migration tiers (Mosca), SARIF, CI baseline gating", "yes", "no"], ["Needs a build or a server", "no", "Java build"],
+];
+const ROLE_TEXT = {
+  "full pack": "Every scout, the den and the alpha. The reference line.",
+  "without den": "Every scout sighting of a known algorithm is trusted. Comments, prose, deny-lists and unused imports all get in.",
+  "without corroboration": "A weak sighting no longer gains confidence from a different kind of evidence in the same file.",
+  "without second look": "The alpha never goes back over what the den held. Flow, registries and siblings are all off.",
+  "without flow": "A held literal that visibly flows into a crypto call stays held.",
+  "without registries": "A list of three or more algorithm names is no longer treated as declared support.",
+  "without siblings": "The two halves of one literal, like RS256 giving RSA and SHA-256, no longer share fate.",
+  "without propagation": "Scouts stop inlining string and number constants inside a file.",
+  "without source scouts": "No code is read: no Python AST, no language rules, no string literals.",
+  "without config scouts": "nginx, sshd, OpenSSL and application configs are skipped.",
+  "without artifact scouts": "Certificates and keys are skipped.",
+  "without binary scouts": "Compiled binaries, JARs and class files are skipped.",
+};
+
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+
+/* ---------- pixel art: '#' ink, '+' mid grey, '.' empty ---------- */
+const UPPER = {
+  W: ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "##.##", "#...#"], O: [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+  L: ["#....", "#....", "#....", "#....", "#....", "#....", "#####"], F: ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+  P: ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."], A: [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+  C: [".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."], K: ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+  B: ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."], M: ["#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#"],
+  " ": ["..", "..", "..", "..", "..", "..", ".."],
+  Q: [".###.", "#...#", "#...#", "#...#", "#.#.#", "#..#.", ".##.#"], u: [".....", ".....", "#...#", "#...#", "#...#", "#..##", ".##.#"],
+  b: ["#....", "#....", "####.", "#...#", "#...#", "#...#", "####."], i: ["#", ".", "#", "#", "#", "#", "#"],
+  t: [".#..", ".#..", "####", ".#..", ".#..", ".#.#", "..#."], a: [".....", ".....", ".###.", "....#", ".####", "#...#", ".####"],
+  n: [".....", ".....", "####.", "#...#", "#...#", "#...#", "#...#"],
+};
+const WOLF = [
+  "#.............#", "##...........##", "#+#.........#+#", "#++#.......#++#", "#++##.....##++#", "#+++#######+++#", "###############",
+  "##+..#####..+##", "###+.#####.+###", "###############", ".#############.", "..#####+#####..", "...####+####...", "....#######....",
+  ".....#####.....", "......###......",
+];
+const ICONS = {
+  elders: ["..####..", ".###....", "###.....", "###.....", "###.....", "###.....", ".###....", "..####.."],
+  paw: [".#....#.", ".#.##.#.", "...##...", "........", "..####..", ".######.", ".######.", "..#..#.."],
+  den: ["..####..", ".#....#.", "#......#", "#..##..#", "#.#..#.#", "#.#..#.#", "#.#..#.#", "########"],
+  alpha: ["#......#", "##....##", "########", "#.####.#", "########", ".######.", "..####..", "...##..."],
+  howl: ["......#.", "...#...#", "#...#..#", "##..#..#", "##..#..#", "#...#..#", "...#...#", "......#."],
+  moon: ["..####..", ".###....", "###.....", "###.....", "###.....", "###.....", ".###....", "..####.."],
+  sun: ["...#....", ".#.#.#..", "..###...", "#######.", "..###...", ".#.#.#..", "...#....", "........"],
+};
+
+function text(str) {
+  const rows = Array.from({ length: 7 }, () => "");
+  for (const ch of str) UPPER[ch].forEach((l, i) => { rows[i] += l + "."; });
+  return rows.map((r) => r.slice(0, -1));
+}
+
+function bitmap(svg, rows, px, { gap = 1, animate = false, step = 8, ripple = false } = {}) {
+  const w = Math.max(...rows.map((r) => r.length));
+  svg.setAttribute("viewBox", `0 0 ${w * px} ${rows.length * px}`);
+  svg.setAttribute("shape-rendering", "crispEdges");
+  const cells = [];
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch === ".") return;
+    const r = el("rect", { x: x * px + gap / 2, y: y * px + gap / 2, width: px - gap, height: px - gap }, svg);
+    if (ch === "+") r.classList.add("mid");
+    if (animate && !reduced) { r.classList.add("px-in"); r.style.animationDelay = `${(x + y) * step}ms`; }
+    cells.push({ r, x, y });
+  }));
+  if (ripple && !reduced) {
+    svg.addEventListener("pointermove", (e) => {
+      const b = svg.getBoundingClientRect(), s = b.width / svg.viewBox.baseVal.width;
+      const mx = (e.clientX - b.left) / s / px, my = (e.clientY - b.top) / s / px;
+      for (const c of cells) {
+        const d = Math.hypot(c.x + .5 - mx, c.y + .5 - my);
+        c.r.style.transform = d < 3.2 ? `translateY(${-(3.2 - d) * 1.3}px)` : "";
+        c.r.style.fill = d < 1.6 ? "var(--mid)" : "";
+      }
+    });
+    svg.addEventListener("pointerleave", () => cells.forEach((c) => { c.r.style.transform = ""; c.r.style.fill = ""; }));
+  }
+  return cells;
+}
+
+bitmap(document.getElementById("title"), text("WOLF PACK"), 10, { gap: 1.5, animate: true, step: 9, ripple: true });
+bitmap(document.getElementById("cbom"), text("CBOM"), 7, { gap: 1, animate: true, step: 12 });
+bitmap(document.getElementById("qm-mark"), text("QubitMan"), 3, { gap: 0 });
+bitmap(document.getElementById("qm-sig"), text("QubitMan"), 6, { gap: 1, ripple: true });
+document.querySelectorAll("svg[data-icon]").forEach((s) => bitmap(s, ICONS[s.dataset.icon], 3, { gap: 0 }));
+
+(function badge() {
+  const svg = document.getElementById("badge");
+  el("circle", { class: "disc", cx: 100, cy: 100, r: 97 }, svg);
+  el("circle", { class: "rim", cx: 100, cy: 100, r: 91, "stroke-width": 1 }, svg);
+  const g = el("g", { class: "px", transform: "translate(40 38)" }, svg);
+  const px = 8;
+  WOLF.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch === ".") return;
+    const r = el("rect", { x: x * px + .5, y: y * px + .5, width: px - 1, height: px - 1 }, g);
+    if (ch === "+") r.classList.add("mid");
+    if (!reduced) { r.classList.add("px-in"); r.style.animationDelay = `${120 + (15 - y) * 22 + Math.abs(7 - x) * 10}ms`; }
+  }));
+})();
+
+(function qmBadge() {
+  const svg = document.getElementById("qm-badge");
+  const wave = []; for (let x = 50; x <= 150; x++) wave.push(`${x},${(45 - 5 * Math.sin(((x - 50) / 100) * Math.PI * 13)).toFixed(2)}`);
+  const noise = [[53, 50, 2.3], [59, 38, 2.9], [66, 51, 2], [72, 41, 1.8], [79, 48, 2.6], [87, 36, 3.1], [94, 50, 2.2], [101, 40, 1.9], [108, 48, 2.9], [115, 37, 2.1], [121, 50, 1.8], [129, 40, 2.7], [136, 48, 2], [143, 37, 2.4], [148, 49, 1.8]];
+  const tr = ["M60 125 H74 L80 130 H92 L99.5 135.5", "M40 130 H64 L69 134 H84", "M13 137 H30 L35 141 H68 L73 137.5 H100", "M44 146 H66 L71 142 H100", "M52 151 H78 L83 146.5 H94", "M63 156 H85"].map((d) => `<path d="${d}"/>`).join("");
+  svg.innerHTML = `<circle class="lg-disc" cx="100" cy="100" r="97"/><circle class="lg-rim" cx="100" cy="100" r="92.5" fill="none" stroke-width="1"/>
+    <polyline class="lg-line" points="${wave.join(" ")}" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <g class="lg-noise">${noise.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join("")}</g>
+    <text class="lg-text" x="100" y="83" text-anchor="middle" font-size="29">Qubit</text><text class="lg-text" x="100" y="112" text-anchor="middle" font-size="29">Man</text>
+    <circle class="lg-ring" cx="47" cy="92" r="5.5" stroke-width="2.2"/><circle class="lg-ring" cx="153" cy="92" r="5.5" stroke-width="2.2"/>
+    <g class="lg-line" fill="none" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">${tr}<g transform="translate(200 0) scale(-1 1)">${tr}</g></g>`;
+})();
+
+/* ---------- tooltip ---------- */
+const tip = document.getElementById("tip");
+function showTip(e, html) { tip.innerHTML = html; tip.hidden = false; moveTip(e); }
+function moveTip(e) {
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(innerWidth - w - 8, e.clientX + 14) + "px";
+  tip.style.top = (e.clientY - h - 12 < 8 ? e.clientY + 16 : e.clientY - h - 12) + "px";
+}
+document.addEventListener("pointermove", (e) => {
+  const t = e.target.closest && e.target.closest("[data-tip]");
+  if (t) showTip(e, t.dataset.tip); else tip.hidden = true;
+});
+
+/* ---------- sightings ---------- */
+const VERDICT = { a: "verified by the den", p: "promoted by the alpha", q: "held in the den", r: "rejected", s: "suppressed" };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+(function cells() {
+  const host = document.getElementById("cells"), cap = document.getElementById("cell-caption");
+  const frag = document.createDocumentFragment();
+  SIGHTINGS.forEach(([algo, where, ev, v]) => {
+    const c = document.createElement("span");
+    c.className = `cell v-${v}`;
+    c.dataset.tip = `<b>${esc(algo)}</b><br><span>${esc(where.replace(/:0$/, ""))}</span><br>${esc(ev)} evidence, ${VERDICT[v]}`;
+    c.addEventListener("pointerenter", () => { cap.textContent = `${algo} in ${where.replace(/:0$/, "")}: ${VERDICT[v]}`; });
+    frag.appendChild(c);
+  });
+  host.appendChild(frag);
+})();
+
+/* ---------- ablation ---------- */
+(function ablation() {
+  const rows = document.getElementById("abl-rows"), detail = document.getElementById("abl-detail");
+  const buttons = [];
+  function show(i) {
+    const r = ABLATION[i];
+    buttons.forEach((b, j) => b.setAttribute("aria-pressed", String(i === j)));
+    const pairs = [...r.fp.map((p) => ["FP", ...p]), ...r.fn.map((p) => ["FN", ...p])];
+    detail.innerHTML = `<h3>${esc(r.configuration.replace(/^without/, "Without"))}</h3><p class="what">${esc(ROLE_TEXT[r.configuration] || "")}</p>
+      <div class="nums"><div><span>Precision</span><b>${r.precision.toFixed(3)}</b></div><div><span>Recall</span><b>${r.recall.toFixed(3)}</b></div><div><span>F1</span><b>${r.f1.toFixed(3)}</b></div></div>
+      ${pairs.length ? `<ul class="pairs">${pairs.map(([k, f, a]) => `<li><span class="tag">${k}</span><span class="f">${esc(f)}</span><span class="al">${esc(a)}</span></li>`).join("")}</ul>`
+        : `<p class="empty">No mistakes on the corpus with this configuration.</p>`}`;
+  }
+  ABLATION.forEach((r, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "arow";
+    const sub = /^(flow|registries|siblings)$/.test(r.without[0] || "") && r.without.length === 1;
+    b.innerHTML = `<span class="lab${i === 0 ? " full" : ""}${sub ? " sub" : ""}">${esc(r.configuration)}</span>
+      <span class="track"><span class="rec" style="width:${reduced ? r.recall * 100 : 0}%"></span><span class="prec" style="left:${r.precision * 100}%"></span></span>
+      <span class="vals"><span class="p">${r.precision.toFixed(2)} / </span><b>${r.recall.toFixed(2)}</b></span>`;
+    b.dataset.tip = `<b>${esc(r.configuration)}</b><br>precision ${r.precision.toFixed(3)}<br>recall ${r.recall.toFixed(3)}<br><span>${r.fp.length} false positives, ${r.fn.length} misses</span>`;
+    b.addEventListener("click", () => show(i));
+    rows.appendChild(b); buttons.push(b);
+  });
+  if (!reduced) requestAnimationFrame(() => requestAnimationFrame(() => rows.querySelectorAll(".rec").forEach((bar, i) => { bar.style.width = ABLATION[i].recall * 100 + "%"; })));
+  show(1);
+})();
+
+/* ---------- CBOMkit ---------- */
+(function vs() {
+  const host = document.getElementById("vs-rows");
+  const total = VS.reduce((t, r) => [t[0] + r[1], t[1] + r[2], t[2] + r[3]], [0, 0, 0]);
+  const max = Math.max(...VS.map((r) => r[1] + r[2] + r[3]));
+  function row(name, b, w, c, isTotal) {
+    const d = document.createElement("div");
+    d.className = "vrow" + (isTotal ? " total" : "");
+    const scale = isTotal ? b + w + c : max;
+    const seg = (n, cls, label) => n ? `<span class="seg ${cls}" style="flex:0 0 calc(${(n / scale) * 100}% - 2px)" data-tip="<b>${esc(name)}</b><br>${label}: ${n}"></span>` : "";
+    d.innerHTML = `<span class="lab">${esc(name)}</span><span class="stack">${seg(b, "s-both", "found by both")}${seg(w, "s-wp", "Wolf Pack only")}${seg(c, "s-ck", "CBOMkit only")}</span>
+      <span class="vals">${b} / ${w} / ${c}</span>`;
+    d.setAttribute("aria-label", `${name}: ${b} found by both, ${w} by Wolf Pack only, ${c} by CBOMkit only`);
+    host.appendChild(d);
+  }
+  VS.forEach((r) => row(...r));
+  row("all six", ...total, true);
+  document.getElementById("scope").innerHTML = SCOPE.map(([what, wp, ck]) =>
+    `<tr><td>${esc(what)}</td><td class="${wp === "no" ? "n" : "y"}">${wp === "yes" ? '<span class="dot"></span>yes' : esc(wp)}</td><td class="${ck === "no" ? "n" : "y"}">${ck === "yes" ? '<span class="dot"></span>yes' : esc(ck)}</td></tr>`).join("");
+})();
+
+/* ---------- copy ---------- */
+document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
+  const src = document.getElementById(b.dataset.copy);
+  const txt = src.innerText.split("\n").filter((l) => !l.startsWith("#")).join("\n").trim();
+  const done = (msg) => { b.textContent = msg; setTimeout(() => { b.textContent = "Copy"; }, 1600); };
+  navigator.clipboard.writeText(txt).then(() => done("Copied"), () => {
+    const r = document.createRange(); r.selectNodeContents(src); const s = getSelection(); s.removeAllRanges(); s.addRange(r); done("Selected");
+  });
+}));
+
+/* ---------- theme ---------- */
+(function theme() {
+  const root = document.documentElement, btn = document.getElementById("theme"), icon = document.getElementById("theme-icon"), label = document.getElementById("theme-label");
+  try { const t = localStorage.getItem("wp-theme"); if (t === "dark" || t === "light") root.dataset.theme = t; } catch (e) {}
+  const isDark = () => root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  function paint() { const d = isDark(); icon.replaceChildren(); bitmap(icon, ICONS[d ? "sun" : "moon"], 3, { gap: 0 }); label.textContent = d ? "light" : "dark"; btn.setAttribute("aria-label", `Switch to ${d ? "light" : "dark"} mode`); }
+  btn.addEventListener("click", () => { root.dataset.theme = isDark() ? "light" : "dark"; try { localStorage.setItem("wp-theme", root.dataset.theme); } catch (e) {} paint(); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", paint);
+  paint();
+})();
+
+/* ---------- background: a faint network with a pack of five crossing it ---------- */
+(function pack() {
+  const canvas = document.getElementById("bg"), ctx = canvas.getContext("2d");
+  let W, H, nodes = [], leader = 0, from = null, to = null, hopStart = 0, wolves = [], pings = [], last = 0, running = true;
+  const HOP = 1300;
+  function build() {
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    W = innerWidth; H = innerHeight;
+    canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.round(Math.min(80, (W * H) / 18000));
+    nodes = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H }));
+    leader = 0; from = nodes[0]; to = nodes[0];
+    wolves = Array.from({ length: 5 }, (_, i) => ({ x: from.x - i * 14, y: from.y + (i % 2 ? 10 : -10), trail: [] }));
+  }
+  function near(i) { const a = nodes[i]; return nodes.map((b, j) => [j, Math.hypot(a.x - b.x, a.y - b.y)]).filter(([j, d]) => j !== i && d < 180).map(([j]) => j); }
+  function frame(t) {
+    if (!running) return;
+    const ink = getComputedStyle(document.documentElement).getPropertyValue("--ink-rgb").trim();
+    const dt = Math.min(50, t - (last || t)); last = t;
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = 1;
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j], d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (d < 180) { ctx.strokeStyle = `rgba(${ink},${0.06 * (1 - d / 180)})`; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    }
+    for (const p of nodes) { ctx.fillStyle = `rgba(${ink},0.09)`; ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3); }
+    if (!reduced && t - hopStart > HOP) {
+      pings.push({ x: to.x, y: to.y, t });
+      const nb = near(leader);
+      leader = nb.length ? nb[Math.floor(Math.random() * nb.length)] : Math.floor(Math.random() * nodes.length);
+      from = to; to = nodes[leader]; hopStart = t;
+    }
+    const k = Math.min(1, (t - hopStart) / HOP), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    const lx = from.x + (to.x - from.x) * e, ly = from.y + (to.y - from.y) * e;
+    pings = pings.filter((p) => t - p.t < 2400);
+    for (const p of pings) {
+      const a = 1 - (t - p.t) / 2400, r = 4 + (1 - a) * 10;
+      ctx.strokeStyle = `rgba(${ink},${0.22 * a})`; ctx.strokeRect(p.x - r, p.y - r, r * 2, r * 2);
+    }
+    wolves.forEach((w, i) => {
+      const tx = i === 0 ? lx : wolves[i - 1].x - 10, ty = i === 0 ? ly : wolves[i - 1].y + (i % 2 ? 8 : -8);
+      const s = i === 0 ? 1 : Math.min(1, dt * 0.004);
+      w.x += (tx - w.x) * s; w.y += (ty - w.y) * s;
+      w.trail.push([w.x, w.y]); if (w.trail.length > 40) w.trail.shift();
+      w.trail.forEach(([x, y], j) => { if (j % 4) return; ctx.fillStyle = `rgba(${ink},${0.05 * j / 40})`; ctx.fillRect(x - 1, y - 1, 2, 2); });
+      const size = i === 0 ? 6 : 4;
+      ctx.fillStyle = `rgba(${ink},${i === 0 ? 0.34 : 0.22})`;
+      ctx.fillRect(w.x - size / 2, w.y - size / 2, size, size);
+    });
+    if (!reduced) requestAnimationFrame(frame);
+  }
+  build();
+  addEventListener("resize", () => { build(); if (reduced) frame(performance.now()); });
+  document.addEventListener("visibilitychange", () => { running = !document.hidden; if (running && !reduced) { last = 0; requestAnimationFrame(frame); } });
+  new MutationObserver(() => { if (reduced) frame(performance.now()); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  requestAnimationFrame(frame);
+})();
+</script>

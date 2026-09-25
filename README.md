@@ -4,6 +4,8 @@ A zero-setup scanner that inventories the cryptography in a codebase, its compil
 
 Pure Python, one dependency (`cryptography`), runs on Windows, macOS and Linux with Python 3.11 or newer.
 
+Project site: [`site/index.html`](site/index.html), a single self-contained page. Open it locally, or serve it with GitHub Pages from the `site/` folder.
+
 ## Quick start (PowerShell)
 
 ```powershell
