@@ -2,6 +2,10 @@
 
 You are building the answer key for a benchmark of cryptography scanners. For every file on your sheet, write down which cryptographic algorithms that file uses, and which it only declares. Your labels are the ground truth that both Wolf Pack and IBM CBOMkit are scored against, so they must come from reading the code, not from any tool.
 
+## Who labels
+
+Under amendment 1 of the pre-registration, two isolated AI labellers and an AI adjudicator write the labels, following this guide exactly. A person then audits a random 10% sample; the rules below about scanners and blindness apply to both. The auditor must not use an AI assistant.
+
 ## Before you start
 
 - **You must not be the author of Wolf Pack**, and you must not have seen any tool's output on these repositories.

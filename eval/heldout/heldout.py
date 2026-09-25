@@ -187,6 +187,53 @@ def cmd_agree(a):
     return 0
 
 
+def cmd_merge(a):
+    """Keeps cells where two labellers agree; leaves the rest blank, with both answers in notes, for adjudication."""
+    out = LABELS / a.to
+    out.mkdir(parents=True, exist_ok=True)
+    fmt = lambda fams: "; ".join(sorted(fams)) or "-"
+    agreed = disputed = 0
+    for sheet in sorted((LABELS / a.a).glob("*.csv")):
+        other = LABELS / a.b / sheet.name
+        if not other.exists():
+            continue
+        la, lb = load_labels(sheet)[0], load_labels(other)[0]
+        with open(out / sheet.name, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(COLUMNS)
+            for row in read_sheet(sheet):
+                file, cells, notes = row["file"], [], []
+                for i, col in enumerate(("used", "declared")):
+                    va, vb = (la[file][i] if file in la else None), (lb[file][i] if file in lb else None)
+                    if va is not None and va == vb:
+                        cells.append(fmt(va))
+                        agreed += 1
+                    else:
+                        cells.append("")
+                        notes.append(f"{col}: A={fmt(va) if va is not None else '?'} B={fmt(vb) if vb is not None else '?'}")
+                        disputed += 1
+                w.writerow([file, *cells, " | ".join(notes)])
+    print(f"{agreed} cells agreed, {disputed} left blank for adjudication in {out}")
+    return 0
+
+
+def cmd_sample(a):
+    """A stratified random sample of files for the human audit, as blank sheets (the audit must not see the labels)."""
+    rng, out, total = random.Random(a.seed), LABELS / a.to, 0
+    out.mkdir(parents=True, exist_ok=True)
+    for sheet in sorted((LABELS / a.src).glob("*.csv")):
+        files = [r["file"] for r in read_sheet(sheet)]
+        pick = sorted(rng.sample(files, max(1, round(len(files) * a.fraction))))
+        total += len(pick)
+        with open(out / sheet.name, "w", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(COLUMNS)
+            for file in pick:
+                w.writerow([file, "", "", ""])
+    print(f"{total} files sampled into {out}")
+    return 0
+
+
 def cmd_score(a):
     sheets = sorted((LABELS / a.labeller).glob("*.csv"))
     if not sheets:
@@ -246,6 +293,15 @@ def main(argv=None):
     g = sub.add_parser("agree", help="agreement between two labellers on the repos both labelled")
     g.add_argument("a")
     g.add_argument("b")
+    m = sub.add_parser("merge", help="combine two labellers: agreed cells kept, disagreements left blank for adjudication")
+    m.add_argument("a")
+    m.add_argument("b")
+    m.add_argument("--to", required=True)
+    sm = sub.add_parser("sample", help="blank audit sheets for a stratified random sample of files")
+    sm.add_argument("--from", dest="src", required=True)
+    sm.add_argument("--to", required=True)
+    sm.add_argument("--fraction", type=float, default=0.1)
+    sm.add_argument("--seed", type=int, default=0)
     sc = sub.add_parser("score", help="score Wolf Pack (and optionally CBOMkit) against one labeller's finished sheets")
     sc.add_argument("--labeller", required=True)
     sc.add_argument("--ablations", action="store_true", help="also score every single-role ablation")
@@ -254,7 +310,7 @@ def main(argv=None):
     sc.add_argument("--partial", action="store_true", help="score even if sheets are incomplete (never for reported results)")
     sc.add_argument("--json", metavar="FILE")
     a = ap.parse_args(argv)
-    return {"fetch": cmd_fetch, "sheets": cmd_sheets, "check": cmd_check, "agree": cmd_agree, "score": cmd_score}[a.cmd](a)
+    return {"fetch": cmd_fetch, "sheets": cmd_sheets, "check": cmd_check, "agree": cmd_agree, "merge": cmd_merge, "sample": cmd_sample, "score": cmd_score}[a.cmd](a)
 
 
 if __name__ == "__main__":

@@ -50,4 +50,18 @@ Any of these may turn out false, and the paper reports whichever way they fall.
 
 ## Amendments
 
-(none)
+### Amendment 1: 25 September 2026, by the owner (QubitMan), before any label was written
+
+Human labellers were not available, so labels come from AI labellers under these rules. They replace the "Labels" item under Data where they differ.
+
+1. **Two independent labellers per repository.** Labeller A runs on Claude Opus and labeller B on Claude Sonnet. Each starts with a fresh context and works in a separate workspace that contains only the 18 pinned repositories, `LABELLING.md` and blank sheets. Neither sees Wolf Pack's code, rules, corpus, results or documentation, nor any CBOMkit output. The instructions forbid running any scanner. Isolation is enforced by the workspace and the instructions, not by the operating system, and the paper says so.
+2. **Adjudication.** `heldout.py merge` keeps every cell where A and B agree. A third isolated instance (Claude Opus) resolves each disagreement, seeing both answers and the source file but nothing of Wolf Pack. These adjudicated sheets (`labels/final/`) are the gold labels.
+3. **Agreement.** A-versus-B agreement (`heldout.py agree ai-a ai-b`) is reported in place of human inter-labeller agreement.
+4. **Human audit.**
+   - `heldout.py sample --from final --to audit --fraction 0.1 --seed 0` draws a stratified 10% sample of files.
+   - A person labels that sample from the source, without seeing the AI labels or any tool output, and without using AI.
+   - Agreement between the audit and the final labels is reported as the accuracy of the gold labels.
+   - Scoring waits until the audit is committed.
+5. **Why no circularity:** Wolf Pack and CBOMkit contain no AI component, so the labellers and the tools cannot share a model.
+6. **Unchanged:** repositories, metrics, policies, hypotheses, and the rule that labels are committed before any tool runs on these repositories.
+7. **Stress repos:** the 40-repo stress test run at the same time uses different repositories. Wolf Pack is tuned on those, so they are never used as evidence.
