@@ -120,8 +120,8 @@ def parse_manifest(p, path, text, out):
         for k, v in (d.get("dependencies") or {}).items():
             _add(out, "cargo", k, v if isinstance(v, str) else str(v.get("version", "")), path, _lineno(text, k))
     elif p.suffix.lower() == ".csproj" or name == "packages.config":
-        for m in re.finditer(r'(?:PackageReference|package)\s+(?:Include|id)="([^"]+)"(?:\s+Version|\s+version)?="?([^"\s/>]*)', text):
-            _add(out, "nuget", m.group(1), m.group(2), path, text.count("\n", 0, m.start()) + 1)
+        for m in re.finditer(r'<(?:PackageReference|package)\s+(?:Include|id)="([^"]+)"(?:\s+[Vv]ersion="([^"]*)")?', text):
+            _add(out, "nuget", m.group(1), m.group(2) or "", path, text.count("\n", 0, m.start()) + 1)
 
 
 def used_by(lib, files):

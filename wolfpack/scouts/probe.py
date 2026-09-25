@@ -129,7 +129,10 @@ def ssh_kexinit(host, port=22, timeout=6.0):
         line, _, rest = buf.partition(b"\n")
         banner = line.strip().decode("ascii", "replace")
         while len(rest) < 5:
-            rest += sock.recv(4096)
+            chunk = sock.recv(4096)
+            if not chunk:
+                raise OSError("connection closed before KEXINIT")
+            rest += chunk
         plen = struct.unpack(">I", rest[:4])[0]
         while len(rest) < 4 + plen:
             chunk = sock.recv(65536)

@@ -24,7 +24,7 @@ def score(result, truth):
 def main(corpus, truth_path=None):
     corpus = Path(corpus)
     truth_path = Path(truth_path) if truth_path else corpus.parent / "truth.json"
-    truth = json.loads(truth_path.read_text())
+    truth = json.loads(truth_path.read_text(encoding="utf-8"))
     print(f"corpus {corpus}  labelled pairs {sum(len(v) for v in truth.values())}\n")
     print(f"{'configuration':<22}{'precision':>10}{'recall':>9}{'F1':>7}{'FP':>5}{'FN':>5}")
     detail = []

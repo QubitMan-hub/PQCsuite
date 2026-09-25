@@ -59,9 +59,6 @@ class Pack(unittest.TestCase):
         self.assertTrue({"algorithm", "protocol", "certificate", "related-crypto-material"} <= kinds)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class Pack2(unittest.TestCase):
     @classmethod
@@ -117,3 +114,68 @@ class Probe(unittest.TestCase):
         srv.close()
         self.assertEqual(r["preferred"], "X25519MLKEM768")
         self.assertEqual(r["pq"], ["X25519MLKEM768"])
+
+
+class Regressions(unittest.TestCase):
+    def test_ssh_probe_survives_early_close(self):
+        import socket, threading
+        from wolfpack.scouts import tls
+        srv = socket.socket()
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+
+        def serve():
+            c, _ = srv.accept()
+            c.sendall(b"SSH-2.0-test\r\n")
+            c.recv(100)
+            c.shutdown(socket.SHUT_RDWR)
+            c.close()
+        threading.Thread(target=serve, daemon=True).start()
+        out = []
+        t = threading.Thread(target=lambda: out.append(tls.probe_ssh(f"127.0.0.1:{srv.getsockname()[1]}", 3)), daemon=True)
+        t.start()
+        t.join(5)
+        srv.close()
+        self.assertFalse(t.is_alive())
+        self.assertIn("error", out[0][3])
+
+    def test_ipv6_target_without_port(self):
+        from wolfpack.scouts.tls import _split
+        self.assertEqual(_split("[::1]", 443), ("::1", 443))
+        self.assertEqual(_split("[::1]:8443", 443), ("::1", 8443))
+
+    def test_nuget_without_inline_version(self):
+        import tempfile
+        from wolfpack.scouts import deps
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "app.csproj").write_text('<PackageReference Include="BouncyCastle.Cryptography" />\n'
+                                                '<PackageReference Include="NSec.Cryptography" Version="24.4.0" />', encoding="utf-8")
+            libs = {(l.name, l.version) for l in deps.scan(d)}
+        self.assertEqual(libs, {("bouncycastle.cryptography", ""), ("nsec.cryptography", "24.4.0")})
+
+    def test_corrupt_jar_entry_is_skipped(self):
+        import io, tempfile, zipfile
+        from wolfpack.scouts import binary
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("Bad.class", b"javax/crypto" * 50)
+            z.writestr("Good.class", b"javax/crypto\x00\x03MD5\x00")
+        data = bytearray(buf.getvalue())
+        i = data.find(b"Bad.class") + len("Bad.class")
+        data[i + 2:i + 12] = b"\xff" * 10
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "app.jar").write_bytes(bytes(data))
+            sights, _, _ = binary.scan(d)
+        self.assertEqual({(s.algo, s.file) for s in sights}, {("MD5", "app.jar!Good.class")})
+
+    def test_config_key_size_does_not_blank_curve(self):
+        import tempfile
+        from wolfpack.scouts import config
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "keys.yaml").write_text("key_algorithm: ECDSA\nkey_size: 2048\n", encoding="utf-8")
+            s = config.scan(d)[0]
+        self.assertEqual([(x.algo, x.params) for x in s], [("ECDSA", {})])
+
+
+if __name__ == "__main__":
+    unittest.main()

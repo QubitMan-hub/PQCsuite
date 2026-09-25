@@ -88,7 +88,9 @@ def scan(root, include_vendor=False):
                         for s in reversed(sink):
                             if s.file == path and s.algo in ("RSA", "DSA", "DH", "ECDSA", "ECC") and 0 <= i - s.line <= 6 and not s.params.get("key_size"):
                                 if s.algo in ("ECDSA", "ECC"):
-                                    s.params.setdefault("curve", {"256": "P-256", "384": "P-384", "521": "P-521"}.get(m.group(1)))
+                                    cv = {"256": "P-256", "384": "P-384", "521": "P-521"}.get(m.group(1))
+                                    if cv:
+                                        s.params.setdefault("curve", cv)
                                 else:
                                     s.params["key_size"] = int(m.group(1))
                                 break

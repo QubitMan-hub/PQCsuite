@@ -38,7 +38,7 @@ def _handshake(host, port, ctx, timeout):
 def _split(target, default):
     host, _, port = target.rpartition(":")
     if not host or not port.isdigit():
-        return target, default
+        return target.strip("[]"), default
     return host.strip("[]"), int(port)
 
 

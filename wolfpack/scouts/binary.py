@@ -108,10 +108,16 @@ def scan_archive(data, path, base, depth=0):
         if info.file_size > MAX:
             continue
         n = info.filename
+        if not (n.endswith(".class") or depth == 0 and n.endswith(".jar")):
+            continue
+        try:
+            entry = z.read(info)
+        except Exception:
+            continue
         if n.endswith(".class"):
-            sights += scan_class(z.read(info), f"{path}!{n}", base)
-        elif depth == 0 and n.endswith(".jar"):
-            sights += scan_archive(z.read(info), f"{path}!{n}", base, 1)
+            sights += scan_class(entry, f"{path}!{n}", base)
+        else:
+            sights += scan_archive(entry, f"{path}!{n}", base, 1)
     return sights
 
 

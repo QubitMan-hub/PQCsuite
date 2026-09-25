@@ -1,5 +1,6 @@
 import re
 import hashlib
+import warnings
 from pathlib import Path
 
 from cryptography import x509
@@ -14,6 +15,9 @@ EXT = {".pem", ".crt", ".cer", ".der", ".key", ".pub", ".csr", ".cert"}
 SSH_NAMES = re.compile(r"^(id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|ssh_host_\w+_key(\.pub)?|authorized_keys|known_hosts)$")
 PEM = re.compile(rb"-----BEGIN ([A-Z0-9 ]+)-----\r?\n.*?-----END \1-----", re.S)
 SSH_LINE = re.compile(rb"^(?:[\w@.,*\[\]:-]+\s+)?((?:ssh|ecdsa|sk)-[\w@.-]+)\s+(AAAA[0-9A-Za-z+/=]+)", re.M)
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    DH_KEYS = tuple(c for c in (getattr(dh, "DHPublicKey", None), getattr(dh, "DHPrivateKey", None)) if c)
 CODE_EXT = {".py", ".java", ".go", ".js", ".ts", ".c", ".cpp", ".cs", ".rs", ".rb", ".php", ".kt", ".yaml", ".yml", ".json", ".env", ".txt", ".conf", ".xml"}
 
 OID = {
@@ -39,7 +43,7 @@ def key_info(k):
         return "ECC", {"curve": curve(k.curve.name)}
     if isinstance(k, (dsa.DSAPublicKey, dsa.DSAPrivateKey)):
         return "DSA", {"key_size": k.key_size}
-    if isinstance(k, (dh.DHPublicKey, dh.DHPrivateKey)):
+    if DH_KEYS and isinstance(k, DH_KEYS):
         return "DH", {"key_size": k.key_size}
     for cls, name in ((ed25519.Ed25519PublicKey, "Ed25519"), (ed25519.Ed25519PrivateKey, "Ed25519"), (ed448.Ed448PublicKey, "Ed448"),
                       (ed448.Ed448PrivateKey, "Ed448"), (x25519.X25519PublicKey, "X25519"), (x25519.X25519PrivateKey, "X25519"),

@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime, timezone
+from pathlib import PurePosixPath
 
 from . import __version__
 from .elders import CATALOG, classical_bits, quantum_level
@@ -88,7 +89,7 @@ def build(project, assets, arts, libs, endpoints=()):
             d = art.details
             fp = d["sha256"][:16]
             cp = {"subjectName": d["subject"], "issuerName": d["issuer"], "notValidBefore": d["not_before"], "notValidAfter": d["not_after"],
-                  "certificateFormat": "X.509", "certificateExtension": art.file.rsplit(".", 1)[-1] if "." in art.file and not art.file.startswith("tls://") else "der"}
+                  "certificateFormat": "X.509", "certificateExtension": "der" if art.file.startswith("tls://") else PurePosixPath(art.file).suffix.lstrip(".") or "der"}
             sig = _ref_for(assets, fp, "certificate-signature")
             pk = _ref_for(assets, fp, "subject-public-key")
             if sig:
