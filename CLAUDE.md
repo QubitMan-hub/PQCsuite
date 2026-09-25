@@ -15,18 +15,19 @@ Current version: 0.2.0. It was built in a Claude.ai chat, then moved here.
 ```powershell
 py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 20 tests, must stay green
-python -m wolfpack bench bench/corpus            # precision/recall + ablations
+python -m unittest discover -s tests -v          # 26 tests, must stay green
+python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
 python -m wolfpack scan PATH --tls host:443 --ssh host --baseline old.json --fail-on high
+python -m wolfpack hunt PATH --without den --without second-look   # ablation; hunt = scan
 ```
 
 Run tests, the bench, and schema validation after any change to scouts, den, alpha or cbom. Report the bench table before and after in your summary.
 
 ## Architecture (the wolf pack)
 
-Data flows one way: scouts produce `Sighting`s, the den gives each a verdict, the den groups accepted sightings into `Asset`s, the alpha tiers the assets, and `cbom.py` writes the outputs.
+Data flows one way through `pack.run`: `hunt` (scouts produce `Sighting`s), `alpha.follow_trails`, `den.verify` (verdicts), `alpha.second_look` (flow, registries, siblings), `den.assets`, `alpha.lead` (tiers). `cbom.py` and `report.py` write the outputs. Every role is switchable through `pack.Roles`; docs/PACK.md is the role map and glossary.
 
 ```
 wolfpack/
@@ -48,20 +49,22 @@ wolfpack/
     probe.py     raw TLS ClientHello (empty key_share -> HelloRetryRequest reveals groups), SSH KEXINIT
     tls.py       live TLS scout (handshake, cert, legacy probes, groups) and SSH scout
   den.py         verification: confidence by evidence, hard rejects, corroboration, suppression,
-                 second_look, registries, siblings, assets()
-  alpha.py       Horizon (Mosca), tiers critical/high/medium/low/ok, hybrid awareness,
+                 admit_all (den-off ablation), assets()
+  alpha.py       second_look (flows, registries, siblings), follow_trails (key/cert references),
+                 Horizon (Mosca), tiers critical/high/medium/low/ok, hybrid awareness,
                  exposure weighting, test demotion, alerts, readiness
-  pack.py        orchestration, follow_trails (key/cert references), baseline diff
+  pack.py        Roles (switchboard), hunt (scouts), run (the pipeline), baseline diff
   cbom.py        CycloneDX 1.6 builder (provides, services), SARIF 2.1.0, audit trail
   report.py      self-contained monochrome HTML report and terminal summary
   cli.py         scan / bench subcommands
   bench.py       scores at (file, algorithm family) granularity across 3 configs
-bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 54 labelled pairs
+bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 58 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)
 tests/test_core.py
 eval/cbomkit/     CBOMkit head-to-head harness (compare.py) and first results
 docs/HANDOFF.md  history, decisions, validation evidence, open questions
+docs/PACK.md     role map, switches, glossary, naming rules
 ```
 
 ## Key concepts
@@ -70,14 +73,14 @@ Evidence types and base confidence (den.BASE): live 1.0, artifact .95, config .9
 
 Verdicts: accepted, quarantined (held, still in findings.json), rejected (comment, docstring, prose, unknown algo), suppressed (`wolfpack:ignore` on the line or the line above).
 
-Alpha second hunt: a held literal is promoted if it flows into a call, sits in an algorithm list of 3+ entries whose variable name is not deny-like (weak, disabled, deny...), or shares a literal with an accepted sighting.
+Alpha second look: a held literal is promoted if it flows into a call, sits in an algorithm list of 3+ entries whose variable name is not deny-like (weak, disabled, deny...), or is the other half of the same literal as an accepted sighting (matched by literal, not by line).
 
 Tiers: legacy, sub-112-bit, ECB, or MD5/SHA-1 signatures are critical when exposure is code or stronger. Shor-vulnerable confidentiality is high when shelf_life + migration > years to CRQC. Classical groups next to a configured hybrid group become medium "fallback". AES-192/256 is ok.
 
 ## Rules you must not break
 
 1. Never edit `bench/truth.json` to make the detector look better. Labels follow what a human would say the file actually uses, at the family level (`CATALOG[algo].family`). If a label is wrong, say so explicitly and explain why.
-2. Every new heuristic ships with a trap in the corpus that it must NOT fire on, plus a case it must fire on, plus a test.
+2. Every new heuristic belongs to one pack role with a switch in `pack.Roles`, and ships with a trap in the corpus that it must NOT fire on, plus a case it must fire on, plus a test that switching it off changes the result.
 3. The dev corpus is overfit by construction. Never present its numbers as a result. Real-world claims need unseen repos.
 4. `cbom.json` must validate against CycloneDX 1.6 with 0 errors.
 5. Pure Python, one runtime dependency (`cryptography`). No C extensions, no OpenSSL CLI calls. Must run on Windows (pathlib, utf-8 with errors="replace", no fork, no shell-specific behaviour).
@@ -91,7 +94,7 @@ New algorithm: add to `CATALOG` and `_ALIASES` in elders.py, then check lookup()
 
 New language rule: add a `@rule("lang", pattern)` function in rules.py returning `[(algo, params)]`, or `(algo, params, evidence)`. Use `x.attach(params, algos)` for parameters found near an earlier call. Add a corpus file and truth labels.
 
-New scout: return a list of `Sighting`s with the right evidence type, and wire it into pack.run. Add its evidence type to den.BASE, den.RANK and alpha.EXPOSURE.
+New scout: return a list of `Sighting`s with the right evidence type, add a switch to `pack.Roles` and wire it into `pack.hunt`, add a row to `bench.CONFIGS`, and add its evidence type to den.BASE, den.RANK and alpha.EXPOSURE.
 
 ## Next work, in priority order
 

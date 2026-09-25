@@ -1,7 +1,6 @@
 import re
 import hashlib
 import warnings
-from pathlib import Path
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
@@ -89,7 +88,7 @@ def cert_record(cert, path, line, source="file"):
 
 def parse_pem(block, label, path, line):
     label = label.decode()
-    arts, sights = [], []
+    sights = []
     if label in ("CERTIFICATE", "TRUSTED CERTIFICATE", "X509 CERTIFICATE"):
         try:
             a, s = cert_record(x509.load_pem_x509_certificate(block), path, line)

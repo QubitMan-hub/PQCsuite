@@ -17,7 +17,8 @@ py -m wolfpack scan --tls api.example.com:443                 # endpoints only, 
 py -m wolfpack scan . --shelf-life 15 --migration 6 --crqc-year 2033
 py -m wolfpack scan . --fail-on critical                       # CI: exit 2 if anything critical
 py -m wolfpack scan . --baseline main-cbom.json --fail-on high # CI: fail only on crypto added since main
-py -m wolfpack bench bench\corpus
+py -m wolfpack hunt . --without den                          # ablation: leave a member of the pack out
+py -m wolfpack bench bench\corpus                            # full pack plus one ablation per role
 py -m unittest discover -s tests
 ```
 
@@ -44,23 +45,38 @@ The alpha (`alpha.py`) directs the second hunt and makes the call. It sends the 
 
 The CBOM records evidence locations, confidence and rationale on every asset, which library provides which algorithm (CycloneDX 1.6 `provides`), certificates linked to their key and signature algorithms, key material, and live endpoints as services.
 
+Every role can be left out of a hunt (`--without den`, `--without second-look`, `--without config`, and so on), and `wolfpack bench` runs one ablation per role. [docs/PACK.md](docs/PACK.md) maps each role to its module, its switch and what it contributes.
+
 ## Compared with IBM CBOMkit
 
 CBOMkit's scanner (sonar-cryptography) does deep semantic analysis of Java (JCA, BouncyCastle), Python (pyca/cryptography) and Go, and needs a SonarQube instance. Wolf Pack trades some of that depth outside Python for breadth and zero setup: seven languages, configs, keys and certificates, binaries and JARs, dependency manifests, live TLS and SSH with on-the-wire PQ group detection, a verification layer with an audit trail, risk-based prioritisation, SARIF, and baseline-aware CI gating from one `pip install`.
 
 ## Evaluation so far
 
-Development corpus: `bench/corpus` has 24 files across 7 languages plus configs, certificates, a compiled binary and manifests, full of traps (algorithms in comments, docstrings and log messages, a Java `disabledAlgorithms` list, OpenSSL `!MD5` exclusions, a `WEAK_ALGORITHMS` deny-list, an unused import, a suppressed line). Ground truth is 53 (file, algorithm) pairs.
+Development corpus: `bench/corpus` has 27 files across 7 languages plus configs, certificates, a compiled binary and manifests. It is full of traps: algorithms in comments, docstrings and log messages; a Java `disabledAlgorithms` list; OpenSSL `!MD5` exclusions; a `WEAK_ALGORITHMS` deny-list; an unused import; a suppressed line; a digest name built at runtime (`"SHA-" + bits`); an unrelated literal on the same line as `"RS256"`; and a `jwt.encode` whose algorithm cannot be resolved. Ground truth is 58 (file, algorithm family) pairs.
 
 | configuration | precision | recall | F1 |
 |---|---|---|---|
 | full pack | 1.000 | 1.000 | 1.000 |
-| no second look | 1.000 | 0.962 | 0.981 |
-| no den (raw scouts) | 0.757 | 1.000 | 0.862 |
+| without den | 0.763 | 1.000 | 0.866 |
+| without corroboration | 1.000 | 0.983 | 0.991 |
+| without second look | 1.000 | 0.931 | 0.964 |
+| &nbsp;&nbsp;without flow | 1.000 | 0.983 | 0.991 |
+| &nbsp;&nbsp;without registries | 1.000 | 0.966 | 0.982 |
+| &nbsp;&nbsp;without siblings | 1.000 | 0.983 | 0.991 |
+| without propagation | 1.000 | 1.000 | 1.000 |
+| without source scouts | 1.000 | 0.310 | 0.474 |
+| without config scouts | 1.000 | 0.776 | 0.874 |
+| without artifact scouts | 1.000 | 0.948 | 0.973 |
+| without binary scouts | 1.000 | 0.966 | 0.982 |
+
+Propagation shows no change here because it mostly recovers parameters (RSA-1024 rather than RSA), which family-level scoring does not see.
 
 This corpus was written alongside the scanner, so treat it as a regression test and ablation demo, not a result.
 
 Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3.5.0, each scanned in under 2.5 seconds. Every accepted (file, algorithm) pair in non-test code was reviewed by hand: 98 pairs, 3 false positives (pyjwt listing SSH key-format names it uses only to detect key types), about 97% precision. This is a single, non-blind reviewer, and recall on these repos is not measured.
+
+A first head-to-head against IBM CBOMkit on six real repositories, with a hand review of every disagreement, is in [eval/cbomkit](eval/cbomkit/README.md). Those repos are unlabelled, so it is an agreement study, not a precision or recall result.
 
 Live probes were verified against a real OpenSSL 3.5 server (hybrid X25519MLKEM768 detected), a classical OpenSSL server (correctly none), a paramiko SSH server, and github.com.
 

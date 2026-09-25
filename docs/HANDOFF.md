@@ -35,6 +35,22 @@ v0.2 ("100x better, but don't overcomplicate") added:
 - **CI baseline mode:** `--baseline` so CI can fail only on newly introduced crypto.
 - **Report and tests:** an endpoints table and baseline section in the report, and tests grown from 8 to 14.
 
+## Session 2: moved to Claude Code (25 September 2026)
+
+- **Bugs fixed, each with a regression test:**
+  - the SSH probe looped forever when a server closed after its banner;
+  - one corrupt JAR entry aborted the whole scan;
+  - NuGet references without an inline version were dropped;
+  - a config `key_size` blanked an ECDSA curve;
+  - `[::1]` kept its brackets;
+  - the `"SHA-" + bits` prefix was read as SHA-1 (found in jjwt).
+- **CBOMkit head-to-head:** CBOMkit was built from source (no Docker) and run on six real repos. Harness and hand-reviewed results are in `eval/cbomkit/`.
+- **Structure:** the second look and trail-following moved from den/pack into `alpha.py`, so each module is exactly one role. `pack.Roles` switches every role off individually, and `bench` prints one ablation per role (docs/PACK.md).
+- **What the ablation exposed:**
+  - Corroboration and siblings changed nothing on the corpus, so neither had a must-fire case. Adding one (`py/token_kind.py`) exposed a bug: siblings matched by source line, so an unrelated literal next to `"RS256"` was accepted. It now matches by literal.
+  - Propagation's only family-level effect was masking another bug: `jwt.encode` assumed HS256 whenever it could not read the algorithm, including positional or unresolvable arguments (`py/jwt_calls.py`).
+  - Propagation's real value is parameters (RSA-1024 vs RSA), which family-level scoring cannot see. Java integer constants are not propagated at all yet.
+
 ## Design decisions worth knowing
 
 Scoring is at (file, algorithm family) granularity, not line level, so labelling stays tractable. Signature schemes such as SHA256withECDSA, RS256 and certificate signatures emit the hash as its own finding, consistently everywhere.

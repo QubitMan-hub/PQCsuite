@@ -1,5 +1,4 @@
 import re
-from pathlib import Path
 
 from ..elders import lookup, pq_from_text, curve, CATALOG
 from ..model import Sighting

@@ -1,7 +1,6 @@
 import json
 import re
 import tomllib
-from pathlib import Path
 
 from ..model import Library
 from . import iter_files, rel, read

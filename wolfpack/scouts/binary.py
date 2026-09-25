@@ -1,6 +1,5 @@
 import io
 import re
-import struct
 import zipfile
 
 from ..elders import lookup, pq_from_text
