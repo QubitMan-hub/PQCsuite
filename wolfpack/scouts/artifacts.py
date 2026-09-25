@@ -1,12 +1,11 @@
 import re
 import hashlib
-import warnings
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519, ed448, x25519, x448, dsa, dh
 
-from ..elders import curve
+from ..elders import curve, CATALOG
 from ..model import Sighting, Artifact
 from . import iter_files, rel, is_test
 
@@ -14,17 +13,11 @@ EXT = {".pem", ".crt", ".cer", ".der", ".key", ".pub", ".csr", ".cert"}
 SSH_NAMES = re.compile(r"^(id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|ssh_host_\w+_key(\.pub)?|authorized_keys|known_hosts)$")
 PEM = re.compile(rb"-----BEGIN ([A-Z0-9 ]+)-----\r?\n.*?-----END \1-----", re.S)
 SSH_LINE = re.compile(rb"^(?:[\w@.,*\[\]:-]+\s+)?((?:ssh|ecdsa|sk)-[\w@.-]+)\s+(AAAA[0-9A-Za-z+/=]+)", re.M)
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    DH_KEYS = tuple(c for c in (getattr(dh, "DHPublicKey", None), getattr(dh, "DHPrivateKey", None)) if c)
+KEYS = [("RSA", rsa, "RSA"), ("ECC", ec, "EllipticCurve"), ("DSA", dsa, "DSA"), ("DH", dh, "DH"), ("Ed25519", ed25519, "Ed25519"),
+        ("Ed448", ed448, "Ed448"), ("X25519", x25519, "X25519"), ("X448", x448, "X448")]
 CODE_EXT = {".py", ".java", ".go", ".js", ".ts", ".c", ".cpp", ".cs", ".rs", ".rb", ".php", ".kt", ".yaml", ".yml", ".json", ".env", ".txt", ".conf", ".xml"}
 
-OID = {
-    "1.2.840.113549.1.1.1": ("RSA", {}), "1.2.840.10045.2.1": ("ECC", {}), "1.3.101.112": ("Ed25519", {}), "1.3.101.113": ("Ed448", {}),
-    "1.3.101.110": ("X25519", {}), "1.3.101.111": ("X448", {}), "1.2.840.10040.4.1": ("DSA", {}),
-    "2.16.840.1.101.3.4.3.17": ("ML-DSA-44", {}), "2.16.840.1.101.3.4.3.18": ("ML-DSA-65", {}), "2.16.840.1.101.3.4.3.19": ("ML-DSA-87", {}),
-    "2.16.840.1.101.3.4.4.1": ("ML-KEM-512", {}), "2.16.840.1.101.3.4.4.2": ("ML-KEM-768", {}), "2.16.840.1.101.3.4.4.3": ("ML-KEM-1024", {}),
-}
+OID = {c.oid: a for a, c in CATALOG.items() if c.oid}
 SIG_OID = {
     "1.2.840.113549.1.1.4": ("RSA", "MD5"), "1.2.840.113549.1.1.5": ("RSA", "SHA-1"), "1.2.840.113549.1.1.11": ("RSA", "SHA-256"),
     "1.2.840.113549.1.1.12": ("RSA", "SHA-384"), "1.2.840.113549.1.1.13": ("RSA", "SHA-512"), "1.2.840.113549.1.1.10": ("RSA", None),
@@ -36,19 +29,9 @@ SIG_OID = {
 
 
 def key_info(k):
-    if isinstance(k, (rsa.RSAPublicKey, rsa.RSAPrivateKey)):
-        return "RSA", {"key_size": k.key_size}
-    if isinstance(k, (ec.EllipticCurvePublicKey, ec.EllipticCurvePrivateKey)):
-        return "ECC", {"curve": curve(k.curve.name)}
-    if isinstance(k, (dsa.DSAPublicKey, dsa.DSAPrivateKey)):
-        return "DSA", {"key_size": k.key_size}
-    if DH_KEYS and isinstance(k, DH_KEYS):
-        return "DH", {"key_size": k.key_size}
-    for cls, name in ((ed25519.Ed25519PublicKey, "Ed25519"), (ed25519.Ed25519PrivateKey, "Ed25519"), (ed448.Ed448PublicKey, "Ed448"),
-                      (ed448.Ed448PrivateKey, "Ed448"), (x25519.X25519PublicKey, "X25519"), (x25519.X25519PrivateKey, "X25519"),
-                      (x448.X448PublicKey, "X448"), (x448.X448PrivateKey, "X448")):
-        if isinstance(k, cls):
-            return name, {}
+    for algo, mod, cls in KEYS:
+        if isinstance(k, (getattr(mod, cls + "PublicKey"), getattr(mod, cls + "PrivateKey"))):
+            return algo, {"curve": curve(k.curve.name)} if algo == "ECC" else {"key_size": k.key_size} if hasattr(k, "key_size") else {}
     return None, {}
 
 
@@ -56,7 +39,7 @@ def cert_record(cert, path, line, source="file"):
     try:
         pk_algo, pk_params = key_info(cert.public_key())
     except Exception:
-        pk_algo, pk_params = OID.get(cert.public_key_algorithm_oid.dotted_string, (None, {}))
+        pk_algo, pk_params = OID.get(cert.public_key_algorithm_oid.dotted_string), {}
     sig_algo, sig_hash = SIG_OID.get(cert.signature_algorithm_oid.dotted_string, (None, None))
     fp = hashlib.sha256(cert.public_bytes(serialization.Encoding.DER)).hexdigest()
     try:

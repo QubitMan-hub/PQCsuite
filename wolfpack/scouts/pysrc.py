@@ -1,6 +1,6 @@
 import ast
 
-from ..elders import lookup, pq_from_text, curve, parse_transformation
+from ..elders import lookup, pq_from_text, curve, parse_transformation, MODES
 from .suites import sig_scheme
 
 ROOTS = ("cryptography", "Crypto", "Cryptodome", "nacl", "ecdsa", "rsa", "oqs", "paramiko", "OpenSSL", "jwt", "jose", "hashlib", "hmac", "ssl", "bcrypt", "argon2")
@@ -126,7 +126,7 @@ class PyScout(ast.NodeVisitor):
             if last == "scrypt":
                 return self.emit(n, "scrypt") or True
         if q in ("hmac.new", "hmac.digest", "C.hmac.HMAC", "Crypto.Hash.HMAC.new"):
-            e = a(2, "digestmod") if q.startswith("hmac.") else a(1, "algorithm") if q.startswith("C.") else a(2, "digestmod")
+            e = a(1, "algorithm") if q.startswith("C.") else a(2, "digestmod")
             return self.emit(n, "HMAC", {"hash": self.hashname(e)}) or True
         if q.startswith("C.asymmetric."):
             mod = q.split(".")[2]
@@ -148,7 +148,7 @@ class PyScout(ast.NodeVisitor):
             if mod in ("ed25519", "ed448", "x25519", "x448"):
                 return self.emit(n, lookup(mod)) or True
             if last.endswith("Numbers") and mod in ("rsa", "dsa", "dh", "ec"):
-                return self.emit(n, {"rsa": "RSA", "dsa": "DSA", "dh": "DH", "ec": "ECC"}[mod]) or True
+                return self.emit(n, lookup(mod)) or True
             if mod == "padding" and last in ("OAEP", "PKCS1v15", "PSS"):
                 return self.emit(n, "RSA", {"padding": {"OAEP": "oaep", "PKCS1v15": "pkcs1v15", "PSS": "pss"}[last]}) or True
             if mod == "ec" and curve(last):
@@ -162,7 +162,7 @@ class PyScout(ast.NodeVisitor):
                 if isinstance(mode, ast.Call):
                     self.seen.add(id(mode))
                     m = _norm(self.qual(mode)).split(".")[-1].upper()
-                    p["mode"] = m if m in ("ECB", "CBC", "GCM", "CTR", "CFB", "OFB", "XTS", "CFB8") else None
+                    p["mode"] = m if m in MODES else None
                 return self.emit(n, algo, p) or True
         if q.startswith("C.ciphers.algorithms."):
             return self.emit(n, self._cipher_algo(last)) or True
@@ -203,7 +203,7 @@ class PyScout(ast.NodeVisitor):
                     algo = self._cipher_algo(mod)
                     m = a(1, "mode")
                     mode = self.qual(m).split(".")[-1].replace("MODE_", "") if m is not None else None
-                    return self.emit(n, algo, {"mode": mode if mode in ("ECB", "CBC", "GCM", "CTR", "CFB", "OFB", "EAX", "CCM", "SIV", "OCB") else None}) or True
+                    return self.emit(n, algo, {"mode": mode if mode in MODES else None}) or True
                 if pkg == "Signature" and mod in ("pkcs1_15", "PKCS1_v1_5", "pss", "PKCS1_PSS") and last == "new":
                     return self.emit(n, "RSA", {"padding": "pss" if "pss" in mod.lower() else "pkcs1v15"}) or True
                 if pkg == "Hash" and last == "new" and mod != "HMAC":
@@ -247,8 +247,7 @@ class PyScout(ast.NodeVisitor):
 
     def _cipher_algo(self, name):
         name = name.replace("Cipher", "")
-        a = lookup(name) or parse_transformation(name)[0]
-        return a
+        return lookup(name) or parse_transformation(name)[0]
 
 
 def scan_python(path, src, constants=True):
