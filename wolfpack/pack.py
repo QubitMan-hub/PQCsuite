@@ -5,15 +5,16 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 from . import den, alpha
-from .scouts import source, config, artifacts, deps, tls, binary, carried_hashes
+from .scouts import source, config, artifacts, deps, tls, binary, implementations, carried_hashes
 
-SCOUTS = ("source", "config", "artifacts", "binary")
+SCOUTS = ("source", "implementations", "config", "artifacts", "binary")
 
 
 @dataclass(frozen=True)
 class Roles:
     """Which members of the pack take part. Switching one off is an ablation; docs/PACK.md says what each one does."""
     source: bool = True
+    implementations: bool = True
     config: bool = True
     artifacts: bool = True
     binary: bool = True
@@ -61,6 +62,9 @@ def hunt(root, roles=Roles(), include_vendor=False, tls_targets=(), ssh_targets=
     h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
     if roles.source:
         s, h.files["source"] = source.scan(root, include_vendor, roles.propagation, roles.cross_file)
+        h.sightings += s
+    if roles.implementations:
+        s, h.files["implementations"] = implementations.scan(root, include_vendor)
         h.sightings += s
     if roles.config:
         s, h.files["config"] = config.scan(root, include_vendor)

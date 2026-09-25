@@ -1,0 +1,2 @@
+Ciphers AES and ChaCha20 were both considered for the new backend.
+The final choice is recorded in the design document.

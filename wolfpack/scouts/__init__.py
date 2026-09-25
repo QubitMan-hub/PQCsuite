@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 from ..elders import CATALOG
@@ -6,7 +7,9 @@ from ..model import Sighting
 
 SKIP_DIRS = {".git", ".hg", ".svn", "node_modules", "vendor", "venv", ".venv", "env", "__pycache__", "dist", "build", "target", ".tox",
              "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "wolfpack-out"}
-TEST_PARTS = {"test", "tests", "spec", "specs", "__tests__", "testdata", "test_data", "fixtures", "mocks", "examples", "example", "samples", "sample", "demo"}
+TEST_PARTS = {"test", "tests", "spec", "specs", "__tests__", "testdata", "test_data", "fixtures", "mocks", "examples", "example", "samples", "sample", "demo",
+              "bench", "benches", "benchmark", "benchmarks", "browsertest", "test-classes"}
+TEST_DIR = re.compile(r"(?:^|[._-])(?:unit|integration|functional)?tests?(?:net\d+|core)?$")
 BUILD_DIRS = {"dist", "build", "target", "bin", "obj"}
 MAX_BYTES = 2_000_000
 
@@ -39,7 +42,7 @@ def rel(root, p):
 def is_test(relpath):
     parts = [x.lower() for x in Path(relpath).parts]
     name = parts[-1] if parts else ""
-    return bool(TEST_PARTS & set(parts[:-1])) or name.startswith("test_") or any(
+    return bool(TEST_PARTS & set(parts[:-1])) or any(TEST_DIR.search(d) for d in parts[:-1]) or name.startswith("test_") or any(
         name.endswith(s) for s in ("_test.go", ".test.js", ".test.ts", ".spec.js", ".spec.ts", "test.java", "tests.cs", "_test.py", "_spec.rb"))
 
 

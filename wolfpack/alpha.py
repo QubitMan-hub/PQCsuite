@@ -18,7 +18,7 @@ CONFIDENTIALITY = {"pke", "key-agree", "kem", "protocol", "other"}
 
 LOOKS = ("flow", "registries", "siblings")
 NOISE = re.compile(r"\b(print\w*|log\w*|debug|info|warn\w*|error|trace|format|printf|append|equals\w*|contains|includes|startsWith|endsWith|assert\w*|expect"
-                   r"|flag\.\w+|add_argument|add_option|getenv|JsonProperty\w*|SerializedName|DataMember)\s*\(", re.I)
+                   r"|flag\.\w+|add_argument|add_option|getenv|JsonProperty\w*|SerializedName|DataMember|bench\w*|perf\w*|PerfCase|describe|it|test\w*|do_table)\s*\(", re.I)
 
 
 DENY_NAME = re.compile(r"disabl|deny|denied|block|forbid|reject|insecure|weak|deprecat|legacy_only|exclude|blacklist", re.I)

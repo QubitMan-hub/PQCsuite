@@ -16,6 +16,7 @@ CONFIGS = [
     ("without propagation", ("propagation",)),
     ("without cross-file", ("cross-file",)),
     ("without source scouts", ("source",)),
+    ("without implementation scouts", ("implementations",)),
     ("without config scouts", ("config",)),
     ("without artifact scouts", ("artifacts",)),
     ("without binary scouts", ("binary",)),
@@ -41,12 +42,12 @@ def main(corpus, truth_path=None, detail=False, json_path=None):
     truth_path = Path(truth_path) if truth_path else corpus.parent / "truth.json"
     truth = json.loads(truth_path.read_text(encoding="utf-8"))
     print(f"corpus {corpus}  labelled pairs {sum(len(v) for v in truth.values())}\n")
-    print(f"{'configuration':<26}{'precision':>10}{'recall':>9}{'F1':>7}{'FP':>5}{'FN':>5}")
+    print(f"{'configuration':<31}{'precision':>10}{'recall':>9}{'F1':>7}{'FP':>5}{'FN':>5}")
     rows = []
     for name, off in CONFIGS:
         r = pack.run(corpus, corpus.name, roles=pack.Roles.without(*off))
         p, rc, f1, fp, fn = score(r, truth)
-        print(f"{name:<26}{p:>10.3f}{rc:>9.3f}{f1:>7.3f}{len(fp):>5}{len(fn):>5}")
+        print(f"{name:<31}{p:>10.3f}{rc:>9.3f}{f1:>7.3f}{len(fp):>5}{len(fn):>5}")
         rows.append({"configuration": name.strip(), "without": list(off), "precision": round(p, 3), "recall": round(rc, 3), "f1": round(f1, 3),
                      "fp": fp, "fn": fn})
     for row in rows if detail else []:

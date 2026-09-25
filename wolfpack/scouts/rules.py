@@ -101,16 +101,62 @@ SODIUM = [("aead_xchacha20poly1305", "ChaCha20-Poly1305"), ("aead_chacha20poly13
           ("pwhash_scryptsalsa208sha256", "scrypt"), ("pwhash", "Argon2")]
 
 
-@rule("c js", r'(?<![A-Za-z0-9])(?:sodium_)?crypto_([a-z0-9]+(?:_[a-z0-9]+)*)\s*\(')
+@rule("c js csharp", r'(?<![A-Za-z0-9])(?:sodium_)?crypto_([a-z0-9]+(?:_[a-z0-9]+)*)\s*\(')
 def _(m, x):
     name = m.group(1)
     before = x.text[x.text.rfind("\n", 0, m.start()) + 1:m.start()]
-    if x.path.endswith((".h", ".hpp")) and re.match(r"\s*(?!return\b)(?:[A-Za-z_]\w*\s+|\*\s*)+$", before):
+    if re.search(r"\bextern\b", before) or x.path.endswith((".h", ".hpp")) and re.match(r"\s*(?!return\b)(?:[A-Za-z_]\w*\s+|\*\s*)+$", before):
         return []
     for key, algos in SODIUM:
         if name == key or name.startswith(key + "_"):
             return [(a, {"lib": "libsodium"}) for a in ((algos,) if isinstance(algos, str) else algos)]
     return []
+
+
+SODIUM_NET = {"SecretBox": ("Salsa20",), "PublicKeyBox": ("X25519", "Salsa20"), "SealedPublicKeyBox": ("X25519", "Salsa20"),
+              "PublicKeyAuth": ("Ed25519",), "SecretAeadAes": ("AES",), "SecretAeadChaCha20Poly1305": ("ChaCha20-Poly1305",),
+              "SecretAeadXChaCha20Poly1305": ("ChaCha20-Poly1305",), "GenericHash": ("BLAKE2",), "ScalarMult": ("X25519",)}
+SODIUM_NET_METHODS = {"ArgonHash": "Argon2", "ScryptHash": "scrypt", "Sha256": "SHA-256", "Sha512": "SHA-512", "EncryptChaCha20": "ChaCha20",
+                      "EncryptXChaCha20": "ChaCha20", "EncryptSalsa20": "Salsa20", "EncryptXSalsa20": "Salsa20", "SignHmacSha256": ("HMAC", "SHA-256"),
+                      "SignHmacSha512": ("HMAC", "SHA-512")}
+
+
+@rule("csharp", r'\b(' + "|".join(SODIUM_NET) + r')\.\w+\s*\(')
+def _(m, x):
+    return [(a, {"lib": "libsodium"}) for a in SODIUM_NET[m.group(1)]]
+
+
+@rule("csharp", r'\b(?:PasswordHash|CryptoHash|StreamEncryption|SecretKeyAuth)\.(' + "|".join(SODIUM_NET_METHODS) + r')\w*\s*\(')
+def _(m, x):
+    a = SODIUM_NET_METHODS[m.group(1)]
+    return [(v, {"lib": "libsodium"}) for v in ((a,) if isinstance(a, str) else a)]
+
+
+# sjcl: its namespaces name the algorithm, both where it is implemented and where it is called
+SJCL = {"cipher.aes": "AES", "hash.sha1": "SHA-1", "hash.sha256": "SHA-256", "hash.sha512": "SHA-512", "misc.hmac": "HMAC",
+        "misc.pbkdf2": "PBKDF2", "misc.scrypt": "scrypt", "misc.hkdf": "HKDF", "ecc.ecdsa": "ECDSA", "ecc.elGamal": "ECDH", "encrypt": "AES", "json.encrypt": "AES"}
+
+
+@rule("js", r'\bsjcl\.(' + "|".join(re.escape(k) for k in sorted(SJCL, key=len, reverse=True)) + r')\b')
+def _(m, x):
+    return [(SJCL[m.group(1)], {"lib": "sjcl"})]
+
+
+# Apache commons-codec
+@rule("java", r'\bMessageDigestAlgorithms\.(MD5|SHA_1|SHA_224|SHA_256|SHA_384|SHA_512(?:_224|_256)?|SHA3_256|SHA3_384|SHA3_512)\b')
+def _(m, x):
+    return [(lookup(m.group(1)) or lookup(m.group(1).replace("_", "-")), {"lib": "commons-codec"})]
+
+
+@rule("java", r'\bgetDigest\(\s*"([^"]+)"(?=\s*[,)])')
+def _(m, x):
+    return [(lookup(m.group(1)), {"lib": "commons-codec"})]
+
+
+@rule("java", r'\bDigestUtils\.(?:get(\w+?)Digest|(md5|sha1|sha256|sha384|sha512(?:_224|_256)?|sha3_256|sha3_384|sha3_512)(?:Hex)?)\s*\(')
+def _(m, x):
+    name = m.group(1) or m.group(2)
+    return [(lookup(name) or lookup(name.replace("_", "-")), {"lib": "commons-codec"})]
 
 
 # Go
@@ -122,9 +168,9 @@ def _(m, x):
     return [(lookup(name) or name, {})]
 
 
-@rule("go", r'\brsa\.GenerateKey\(\s*[^,]+,\s*(\d+)')
+@rule("go", r'\brsa\.GenerateKey\(\s*[^,]+,\s*(\d+)?')
 def _(m, x):
-    return [("RSA", {"key_size": int(m.group(1))})]
+    return [("RSA", {"key_size": int(m.group(1)) if m.group(1) else None})]
 
 
 @rule("go", r'\brsa\.(SignPKCS1v15|SignPSS|EncryptOAEP|EncryptPKCS1v15|DecryptOAEP|DecryptPKCS1v15|VerifyPKCS1v15|VerifyPSS)\(')
@@ -133,9 +179,9 @@ def _(m, x):
     return [("RSA", {"padding": "oaep" if "OAEP" in f else "pss" if "PSS" in f else "pkcs1v15"})]
 
 
-@rule("go", r'\becdsa\.GenerateKey\(\s*elliptic\.(P\d+)\(\)')
+@rule("go", r'\becdsa\.GenerateKey\(\s*(?:elliptic\.(P\d+)\(\))?')
 def _(m, x):
-    return [("ECDSA", {"curve": curve(m.group(1))})]
+    return [("ECDSA", {"curve": curve(m.group(1)) if m.group(1) else None})]
 
 
 @rule("go", r'\becdsa\.(Sign\w*|Verify\w*)\(')
@@ -412,11 +458,12 @@ def _(m, x):
 
 # C#
 CS = {"RSA": "RSA", "DSA": "DSA", "ECDsa": "ECDSA", "ECDiffieHellman": "ECDH", "Aes": "AES", "TripleDES": "3DES", "DES": "DES", "RC2": "RC2",
-      "MD5": "MD5", "SHA1": "SHA-1", "SHA256": "SHA-256", "SHA384": "SHA-384", "SHA512": "SHA-512", "HMACSHA256": "HMAC", "HMACSHA1": "HMAC",
+      "MD5": "MD5", "SHA1": "SHA-1", "SHA256": "SHA-256", "SHA384": "SHA-384", "SHA512": "SHA-512", "HMACSHA256": "HMAC", "HMACSHA384": "HMAC", "HMACSHA512": "HMAC", "HMACSHA3_256": "HMAC", "HMACSHA3_384": "HMAC", "HMACSHA3_512": "HMAC", "HMACSHA1": "HMAC",
       "HMACMD5": "HMAC", "Rfc2898DeriveBytes": "PBKDF2", "RSACryptoServiceProvider": "RSA", "DSACryptoServiceProvider": "DSA",
       "TripleDESCryptoServiceProvider": "3DES", "DESCryptoServiceProvider": "DES", "RC2CryptoServiceProvider": "RC2", "MD5CryptoServiceProvider": "MD5",
       "SHA1CryptoServiceProvider": "SHA-1", "SHA1Managed": "SHA-1", "SHA256Managed": "SHA-256", "RijndaelManaged": "AES", "AesManaged": "AES",
-      "AesGcm": "AES", "AesCcm": "AES", "ChaCha20Poly1305": "ChaCha20-Poly1305", "ECDsaCng": "ECDSA", "RSACng": "RSA", "MLKem": "ML-KEM", "MLDsa": "ML-DSA"}
+      "AesGcm": "AES", "AesCcm": "AES", "ChaCha20Poly1305": "ChaCha20-Poly1305", "ECDsaCng": "ECDSA", "ECDsaOpenSsl": "ECDSA", "ECDiffieHellmanCng": "ECDH", "ECDiffieHellmanOpenSsl": "ECDH", "RSACng": "RSA", "RSAOpenSsl": "RSA",
+      "SHA384Managed": "SHA-384", "SHA512Managed": "SHA-512", "SHA3_256": "SHA3-256", "SHA3_384": "SHA3-384", "SHA3_512": "SHA3-512", "MLKem": "ML-KEM", "MLDsa": "ML-DSA"}
 
 
 def _cs(m, x):

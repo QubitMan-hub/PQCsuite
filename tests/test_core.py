@@ -65,6 +65,25 @@ class Pack(unittest.TestCase):
         self.assertEqual(self.accepted("go/flags.go"), set())
         self.assertEqual(self.accepted("cs/Blob.cs"), set())
 
+    def test_implementations_by_their_constants(self):
+        self.assertEqual(self.accepted("c/keccak.c"), {"SHA-3"})
+        self.assertEqual(self.accepted("c/md5_impl.c"), {"MD5"})
+        self.assertEqual(self.accepted("go/sm4.go"), {"SM4"})
+
+    def test_sodium_bindings_sjcl_and_extensionless_config(self):
+        self.assertEqual(self.accepted("cs/SodiumInterop.cs"), set())
+        self.assertEqual(self.accepted("cs/SodiumUse.cs"), {"Ed25519", "BLAKE2"})
+        self.assertEqual(self.accepted("js/sjcl_use.js"), {"PBKDF2", "AES"})
+        self.assertIn("TLS 1.2", self.accepted("config/tls"))
+        self.assertEqual(self.accepted("config/NOTES"), set())
+        self.assertEqual(self.accepted("js/perf.js"), set())
+
+    def test_keys_by_variable_or_numbers_and_library_digests(self):
+        self.assertEqual(self.accepted("java/Codec.java"), {"SHA-256", "MD5"})
+        self.assertEqual(self.accepted("go/keygen.go"), {"RSA", "ECDSA"})
+        self.assertEqual(self.accepted("cs/Kdf.cs"), {"HMAC", "SHA-512", "ECDH"})
+        self.assertEqual(self.accepted("py/tpm_keys.py"), {"RSA", "ECC"})
+
     def test_second_look(self):
         self.assertIn("SHA-1", self.accepted("java/Hasher.java"))
         self.assertNotIn("AES", self.accepted("java/Hasher.java"))
@@ -149,6 +168,9 @@ class Roles(unittest.TestCase):
         self.assertEqual(sizes([]), {1024, None})
         self.assertEqual(sizes(["propagation"]), {None})
 
+    def test_implementation_scout_is_live(self):
+        self.assertEqual(self.accepted(["implementations"], "c/keccak.c"), set())
+
     def test_each_role_is_live(self):
         self.assertNotIn("SHA-256", self.accepted(["corroboration"], "py/token_kind.py"))
         self.assertNotIn("SHA-256", self.accepted(["siblings"], "py/token_kind.py"))
@@ -182,6 +204,15 @@ class Probe(unittest.TestCase):
         srv.close()
         self.assertEqual(r["preferred"], "X25519MLKEM768")
         self.assertEqual(r["pq"], ["X25519MLKEM768"])
+
+
+class Scope(unittest.TestCase):
+    def test_test_and_benchmark_directories(self):
+        from wolfpack.scouts import is_test
+        for p in ("UnitTestsNet46/jwk/JwkTest.cs", "src/Jose.Tests/A.cs", "benches/x25519.rs", "browserTest/perf.js", "tests/a.py"):
+            self.assertTrue(is_test(p), p)
+        for p in ("src/contests/a.py", "src/attestation/a.py", "latest/a.go", "src/jwt/a.py"):
+            self.assertFalse(is_test(p), p)
 
 
 class Regressions(unittest.TestCase):

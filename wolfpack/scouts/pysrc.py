@@ -147,6 +147,8 @@ class PyScout(ast.NodeVisitor):
                 return self.emit(n, "ECDH") or True
             if mod in ("ed25519", "ed448", "x25519", "x448"):
                 return self.emit(n, lookup(mod)) or True
+            if last.endswith("Numbers") and mod in ("rsa", "dsa", "dh", "ec"):
+                return self.emit(n, {"rsa": "RSA", "dsa": "DSA", "dh": "DH", "ec": "ECC"}[mod]) or True
             if mod == "padding" and last in ("OAEP", "PKCS1v15", "PSS"):
                 return self.emit(n, "RSA", {"padding": {"OAEP": "oaep", "PKCS1v15": "pkcs1v15", "PSS": "pss"}[last]}) or True
             if mod == "ec" and curve(last):

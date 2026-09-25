@@ -60,11 +60,20 @@ def parse_line(kind, m):
     return []
 
 
+SNIFF = re.compile(r"(?m)^[ \t]*(ssl_protocols|ssl_ciphers|ssl_ecdh_curve|SSLProtocol|SSLCipherSuite|KexAlgorithms|Ciphers|MACs|HostKeyAlgorithms|CipherString|MinProtocol)\b")
+
+
+def sniffed(p, text):
+    """A file with no extension, such as `conf`, counts as config when at least two different TLS/SSH directives start its lines."""
+    return not p.suffix and text is not None and len({m.group(1) for m in SNIFF.finditer(text[:50000])}) >= 2
+
+
 def scan(root, include_vendor=False):
     sink, n = [], 0
     for p in iter_files(root, include_vendor):
         if not is_config(p):
-            continue
+            if p.suffix or not sniffed(p, read(p)):
+                continue
         text = read(p)
         if text is None:
             continue

@@ -131,5 +131,49 @@
   ],
   "go/flags.go": [],
   "cs/Blob.cs": [],
-  "c/sodium_api.h": []
+  "c/sodium_api.h": [],
+  "c/keccak.c": [
+    "SHA-3"
+  ],
+  "c/md5_impl.c": [
+    "MD5"
+  ],
+  "go/sm4.go": [
+    "SM4"
+  ],
+  "cs/SodiumInterop.cs": [],
+  "cs/SodiumUse.cs": [
+    "Ed25519",
+    "BLAKE2"
+  ],
+  "js/sjcl_use.js": [
+    "PBKDF2",
+    "AES"
+  ],
+  "config/tls": [
+    "TLS 1.2",
+    "ECDH",
+    "RSA",
+    "AES",
+    "SHA-256"
+  ],
+  "config/NOTES": [],
+  "js/perf.js": [],
+  "java/Codec.java": [
+    "SHA-256",
+    "MD5"
+  ],
+  "go/keygen.go": [
+    "RSA",
+    "ECDSA"
+  ],
+  "cs/Kdf.cs": [
+    "HMAC",
+    "SHA-512",
+    "ECDH"
+  ],
+  "py/tpm_keys.py": [
+    "RSA",
+    "ECC"
+  ]
 }
