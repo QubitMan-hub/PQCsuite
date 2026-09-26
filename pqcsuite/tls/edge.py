@@ -38,6 +38,8 @@ class Route:
     max_connections: int = 512
     idle_timeout: float = 300.0
     handshake_timeout: float = 10.0
+    fallback_cert: str = ""
+    fallback_key: str = ""
 
     def passphrase(self):
         if not self.key_passphrase_env:
@@ -52,6 +54,10 @@ class Route:
         hostport(self.listen), hostport(self.target)
         if self.mode == "terminate" and not (self.cert and self.key):
             raise ValueError(f"{self.name}: terminate needs cert and key")
+        if bool(self.fallback_cert) != bool(self.fallback_key):
+            raise ValueError(f"{self.name}: fallback_cert and fallback_key go together")
+        if self.fallback_cert and (self.mode != "terminate" or self.policy != "transition"):
+            raise ValueError(f"{self.name}: a fallback certificate is for terminate routes with policy = \"transition\"")
         if self.mode == "originate" and not self.ca:
             raise ValueError(f"{self.name}: originate needs the ca that signed the remote's certificate")
         tls.policy(self.policy)
@@ -96,8 +102,9 @@ class Edge:
         """Open the listening socket now, so start() and stop() cannot race the serving thread."""
         r = self.route
         if r.mode == "terminate":
-            make = lambda: tls.server_context(r.cert, r.key, r.ca or None, r.require_client_cert, r.policy, r.passphrase())
-            self.server = Server(hostport(r.listen), make, self._terminate, watch=[r.cert, r.key, r.ca], crl=r.crl or None,
+            fallback = (r.fallback_cert, r.fallback_key) if r.fallback_cert else None
+            make = lambda: tls.server_context(r.cert, r.key, r.ca or None, r.require_client_cert, r.policy, r.passphrase(), fallback=fallback)
+            self.server = Server(hostport(r.listen), make, self._terminate, watch=[r.cert, r.key, r.ca, r.fallback_cert, r.fallback_key], crl=r.crl or None,
                                  ca=r.ca or None, max_connections=r.max_connections, handshake_timeout=r.handshake_timeout, name=r.name)
             self.stats = self.server.stats
             self.port = self.server.port

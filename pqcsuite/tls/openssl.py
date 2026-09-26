@@ -142,10 +142,11 @@ def is_ip(name):
 
 
 class Context:
-    """A TLS 1.3-only SSL_CTX. `groups` and `sigalgs` are OpenSSL list strings, e.g. "X25519MLKEM768" and "mldsa65"."""
+    """A TLS 1.3-only SSL_CTX. `groups` and `sigalgs` are OpenSSL list strings, e.g. "X25519MLKEM768" and "mldsa65".
+    `fallback` is (cert, key[, passphrase]) of a classical certificate that OpenSSL sends to clients that cannot verify ML-DSA."""
 
     def __init__(self, server, groups, sigalgs=None, ciphersuites=None, cert=None, key=None, key_passphrase=None,
-                 ca=None, verify=True, require_client_cert=False, request_client_cert=False, any_purpose=False):
+                 ca=None, verify=True, require_client_cert=False, request_client_cert=False, any_purpose=False, fallback=None):
         L_ = lib()
         L_.ERR_clear_error()
         self.server = server
@@ -164,6 +165,9 @@ class Context:
                 self._check(L_.SSL_CTX_use_certificate_chain_file(self.ptr, os.fsencode(cert)), f"load certificate {cert}")
             if key:
                 self._use_key(key, key_passphrase)
+            if fallback:
+                self._check(L_.SSL_CTX_use_certificate_chain_file(self.ptr, os.fsencode(fallback[0])), f"load certificate {fallback[0]}")
+                self._use_key(fallback[1], fallback[2] if len(fallback) > 2 else None)
             if ca:
                 self._check(L_.SSL_CTX_load_verify_locations(self.ptr, os.fsencode(ca), None), f"load CA {ca}")
             mode = VERIFY_NONE

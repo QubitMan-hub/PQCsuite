@@ -209,6 +209,10 @@ class EdgeTest(unittest.TestCase):
             Route("x", "terminate", "0.0.0.0:1", "127.0.0.1:2").validate()
         with self.assertRaisesRegex(ValueError, "mode"):
             Route("x", "sideways", "0.0.0.0:1", "127.0.0.1:2").validate()
+        with self.assertRaisesRegex(ValueError, "transition"):
+            Route("x", "terminate", "0.0.0.0:1", "127.0.0.1:2", cert="c", key="k", fallback_cert="f", fallback_key="g").validate()
+        with self.assertRaisesRegex(ValueError, "go together"):
+            Route("x", "terminate", "0.0.0.0:1", "127.0.0.1:2", policy="transition", cert="c", key="k", fallback_cert="f").validate()
 
 
 if __name__ == "__main__":

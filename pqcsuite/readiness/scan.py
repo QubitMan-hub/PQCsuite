@@ -104,7 +104,8 @@ def probe(target, server_name=None, timeout=8.0):
     if cert:
         days = (cert.not_valid_after_utc - dt.datetime.now(dt.timezone.utc)).days
         key = key_name(cert.public_key())
-        out["certificate"] = {"subject": cert.subject.rfc4514_string(), "key": key, "expires": cert.not_valid_after_utc.date().isoformat(),
+        out["certificate"] = {"subject": cert.subject.rfc4514_string(), "issuer": cert.issuer.rfc4514_string(), "key": key,
+                              "expires": cert.not_valid_after_utc.date().isoformat(),
                               "days_left": days, "quantum_safe": key.startswith("ML-DSA")}
     for g in PQ + CLASSICAL:
         try:
@@ -137,7 +138,8 @@ def report_html(results, title="Post-quantum readiness"):
     rows = "".join(
         f"<tr><td>{e(r['target'])}</td><td class=g{r['grade']}>{r['grade']}</td><td>{e(r['negotiated'] or '')}</td>"
         f"<td>{e(', '.join(r['accepts']) or (r['error'] or ''))}</td>"
-        f"<td>{e((r['certificate'] or {}).get('key', ''))}</td><td>{e((r['certificate'] or {}).get('expires', ''))}</td></tr>"
+        f"<td>{e((r['certificate'] or {}).get('key', ''))}<br><small>{e((r['certificate'] or {}).get('issuer', ''))}</small></td>"
+        f"<td>{e((r['certificate'] or {}).get('expires', ''))}</td></tr>"
         for r in sorted(results, key=lambda r: (r["grade"], r["target"])))
     legend = "".join(f"<li><b class=g{g}>{g}</b> {e(t)} <span>{s['grades'][g]}</span></li>" for g, t in GRADES.items())
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -154,7 +156,7 @@ th{{font-size:12px;color:var(--mute);font-weight:500}}.gA{{color:var(--a);font-w
 </style><main><h1>{e(title)}</h1><p>{s['endpoints']} endpoints scanned {now} by pqcsuite</p>
 <div class=stats><div><b>{s['pq_key_exchange']}/{s['endpoints']}</b><span>offer post-quantum key exchange</span></div>
 <div><b>{s['pq_certificates']}</b><span>use ML-DSA certificates</span></div><div><b>{s['cnsa2']}</b><span>meet CNSA 2.0</span></div><div><b>{s['expiring_30d']}</b><span>certificates expire within 30 days</span></div></div>
-<ul>{legend}</ul><div class=scroll><table><thead><tr><th>Endpoint</th><th>Grade</th><th>Negotiated</th><th>Accepted key exchanges</th><th>Certificate key</th><th>Expires</th></tr></thead>
+<ul>{legend}</ul><div class=scroll><table><thead><tr><th>Endpoint</th><th>Grade</th><th>Negotiated</th><th>Accepted key exchanges</th><th>Certificate key and issuer</th><th>Expires</th></tr></thead>
 <tbody>{rows}</tbody></table></div></main></html>"""
 
 

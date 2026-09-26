@@ -188,7 +188,8 @@ def cmd_edge(a):
     else:
         routes = [Route(name="edge", mode=a.mode, listen=a.listen, target=a.target, policy=a.policy, cert=a.cert or "", key=a.key or "",
                         key_passphrase_env=a.key_passphrase_env or "", ca=a.ca or "", require_client_cert=a.require_client_cert,
-                        crl=a.crl or "", server_name=a.server_name or "", proxy_protocol=a.proxy_protocol)]
+                        crl=a.crl or "", server_name=a.server_name or "", proxy_protocol=a.proxy_protocol,
+                        fallback_cert=a.fallback_cert or "", fallback_key=a.fallback_key or "")]
         metrics = a.metrics
     edges = [Edge(r) for r in routes]
     if metrics:
@@ -446,6 +447,8 @@ def parser():
     p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
     for flag in ("--cert", "--key", "--key-passphrase-env", "--ca", "--crl", "--server-name", "--metrics"):
         p.add_argument(flag)
+    p.add_argument("--fallback-cert", help="with --policy transition: an ECDSA or RSA certificate for browsers that cannot verify ML-DSA")
+    p.add_argument("--fallback-key")
     p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
     p.add_argument("--proxy-protocol", action="store_true", help="send a PROXY v1 header so the upstream sees the client address")
     from .tls.bundles import SERVICES

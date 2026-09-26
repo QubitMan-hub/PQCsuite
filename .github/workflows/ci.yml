@@ -19,7 +19,11 @@ jobs:
     container: python:3.13-slim-trixie
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -e . && pqcsuite doctor
+      - name: Real applications for the scenario tests
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends openssl curl nginx postgresql redis-server redis-tools \
+            mosquitto mosquitto-clients openssh-server
+      - run: pip install -e ".[test]" && pqcsuite doctor
       - run: python -m unittest discover -s tests -v
   docker:
     runs-on: ubuntu-latest
