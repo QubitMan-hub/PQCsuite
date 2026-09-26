@@ -1,37 +1,28 @@
 # CLAUDE.md
 
-pqcsuite is a company product for post-quantum secure communication, written in Python. "pqcsuite" is a working name (`NAME` in `pqcsuite/__init__.py`). The owner develops on Windows with PowerShell and prefers minimal code with few comments. Tell him the limits honestly; don't overclaim.
+Acxelin PQC Suite (working name `pqcsuite`, `NAME` in `pqcsuite/__init__.py`) is company work: four post-quantum products in Python. The owner develops on Windows with PowerShell and prefers minimal code with few comments. Tell him the limits honestly; don't overclaim.
 
-## Layout
+## Products and layout
 
-- `pqcsuite/ca.py`: ML-DSA certificate authority (pyca/cryptography >= 49, pure Python).
-- `pqcsuite/tls/openssl.py`: ctypes bridge to OpenSSL 3.5+ libssl. It is non-blocking with deadlines, and every call checks the OpenSSL error queue.
-- `pqcsuite/tls/__init__.py`: policies (`strict`, `transition`), contexts, `connect`.
-- `pqcsuite/tls/server.py`: threaded server with limits, CRL checks, certificate hot-reload and stats.
-- `pqcsuite/edge.py`: terminate and originate proxy, TOML config, metrics.
-- `pqcsuite/vpn/`: site-to-site IPsec. `charon.py` drives strongSwan through VICI. `controller.py` does the ML-DSA mTLS key agreement (PSK + RFC 8784 PPK from the TLS exporter), rotation and revocation.
-- `pqcsuite/vault.py`: file, folder and backup encryption (X25519 + ML-KEM-768 hybrid KEM, chunked AES-GCM, ML-DSA signatures).
-- `pqcsuite/bundles.py`: PQCready Compose bundles (nginx, postgres, pgvector, mqtt).
-- `pqcsuite/scan.py`: readiness scanner (grades A/B/C/F, HTML/JSON).
-- `pqcsuite/console/`: stdlib web console plus `console.html` (self-contained, offline).
-- `pqcsuite/cli.py`: the `pqcsuite` command.
+- **TLS 1.3 + mTLS:** `pqcsuite/tls/` (`openssl.py` ctypes bridge to OpenSSL 3.5+, policies in `__init__.py`, `server.py`, `edge.py`, `bundles.py`, `http.py`) and `pqcsuite/pki/` (CA in `__init__.py`, `signers.py` for SLH-DSA/KMS/HSM, `est.py`, `acme.py`).
+- **IPsec VPN:** `pqcsuite/vpn/` (`charon.py` drives strongSwan through VICI, `controller.py` does the ML-DSA mTLS key agreement for PSK + RFC 8784 PPK, `wireguard.py` is remote access).
+- **Vault:** `pqcsuite/vault.py`.
+- **Readiness assessment:** `pqcsuite/readiness/` (`scan.py` for TLS/SSH grades, `compliance.py` for NIST IR 8547 and CNSA 2.0 evidence).
+- `pqcsuite/console/` is the one dashboard; `pqcsuite/cli.py` groups commands by product. `site/` is the website, styled after acxelinquantum.com. `deploy/` holds Helm, Packer and systemd.
 
 ## Rules
 
-1. Python only, with few dependencies: `cryptography`, and later strongSwan's `vici` for IPsec. Never shell out to the `openssl` command.
-2. Must work on Windows. Use pathlib and `os.fsencode` for paths passed to OpenSSL, and nothing POSIX-only outside `edge`/`tls serve` signal handling.
+1. Python only, with few dependencies: `cryptography`, and `vici` for IPsec. Never shell out to the `openssl` command.
+2. Must work on Windows: pathlib, nothing POSIX-only outside the VPN and signal handling.
 3. Every security behaviour has a test that shows the attack being refused, not just the happy path.
-4. Real handshakes: on Linux, run the tests with `LD_LIBRARY_PATH` set to an OpenSSL 3.5+ lib folder. CI uses Debian 13.
+4. On Linux, run the tests with `LD_LIBRARY_PATH` set to an OpenSSL 3.5+ lib folder. CI uses Debian 13 and runs the VPN tests in network namespaces.
 5. The mentor's AcxelinPQC repo is a feature reference only. It is proprietary, so never copy its code.
+6. Wolf Pack CBOM integration is on hold until the owner says otherwise.
 
 ## Commands
 
 ```
-pip install -e .
+pip install -e ".[test]"
 python -m unittest discover -s tests -v
 pqcsuite doctor
 ```
-
-## Roadmap
-
-Stage 3 (IPsec) is done: run its integration test as root with PQCSUITE_STRONGSWAN set; kernel ESP is needed for the data-plane part (PQCSUITE_VPN_DATAPLANE=1). The vault, bundles, scan, maintenance and console are done. Next: Wolf Pack CBOM discovery inside the console (the owner will say when), remote-access VPN, and a WireGuard data plane. Propose a plan to the owner before starting each stage.

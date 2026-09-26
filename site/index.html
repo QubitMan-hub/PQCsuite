@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Acxelin PQC Suite</title>
+<meta name="description" content="Post-quantum TLS 1.3 and mTLS, IPsec VPN, Vault and Readiness assessment from Acxelin Quantum. ML-KEM and ML-DSA on the infrastructure you run today.">
+<link rel="icon" href="assets/acxelin-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600&family=Roboto:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #faf9f5;
+  --surface: #ffffff;
+  --sunk: #f2efe7;
+  --line: #e5e0d6;
+  --heading: #2e3c4e;
+  --body: #384653;
+  --muted: #6b7680;
+  --link: #3a6b7e;
+  --sky-1: #c7e0e7;
+  --sky-2: #64b8ce;
+  --clay: #c3643d;
+  --blush: #e9cfc9;
+  --ok: #2f7d5b;
+  --warn: #9a6a12;
+  --bad: #b04a2a;
+  --ink-on-sky: #1f3140;
+  --shadow: 0 1px 2px rgba(46, 60, 78, .06), 0 8px 24px rgba(46, 60, 78, .06);
+  --display: "Host Grotesk", "Segoe UI", system-ui, sans-serif;
+  --text: Roboto, "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #14191e; --surface: #1b2229; --sunk: #11161a; --line: #2a333c;
+    --heading: #e8eef2; --body: #c6ced5; --muted: #8f9aa4; --link: #8cc8da;
+    --sky-1: #24485a; --sky-2: #3f8fa6; --clay: #e08a62; --blush: #4a3531;
+    --ok: #6fcf9f; --warn: #e6b858; --bad: #ef8f6e; --ink-on-sky: #eaf5f8;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14191e; --surface: #1b2229; --sunk: #11161a; --line: #2a333c;
+  --heading: #e8eef2; --body: #c6ced5; --muted: #8f9aa4; --link: #8cc8da;
+  --sky-1: #24485a; --sky-2: #3f8fa6; --clay: #e08a62; --blush: #4a3531;
+  --ok: #6fcf9f; --warn: #e6b858; --bad: #ef8f6e; --ink-on-sky: #eaf5f8;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+body { margin: 0; background: var(--bg); color: var(--body); font: 400 16px/1.6 var(--text); -webkit-font-smoothing: antialiased; }
+img { max-width: 100%; }
+a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--sky-2); outline-offset: 3px; border-radius: 6px; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 500; color: var(--heading); line-height: 1.2; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-inline: 24px; }
+@media (max-width: 520px) { .wrap { padding-inline: 16px; } }
+.eyebrow { font: 500 12px/1.4 var(--text); letter-spacing: .14em; text-transform: uppercase; color: var(--clay); }
+.lede { font-size: 18px; max-width: 62ch; color: var(--body); }
+.mono { font-family: var(--mono); font-size: .92em; }
+section { padding-block: 88px; }
+@media (max-width: 720px) { section { padding-block: 60px; } }
+.section-head { display: grid; gap: 14px; margin-bottom: 40px; max-width: 760px; }
+.section-head h2 { font-size: clamp(28px, 3.6vw, 40px); }
+
+/* header */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--heading); }
+.brand img { width: 36px; height: 36px; border-radius: 9px; }
+.brand b { font: 600 17px/1.1 var(--display); display: block; }
+.brand span { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+nav.links { display: flex; gap: 26px; }
+nav.links a { color: var(--body); text-decoration: none; font-size: 15px; }
+nav.links a:hover { color: var(--heading); }
+@media (max-width: 900px) { nav.links { display: none; } }
+.btn { display: inline-flex; align-items: center; gap: 8px; font: 500 15px/1 var(--text); padding: 13px 20px; border-radius: 10px; text-decoration: none; border: 1px solid transparent; cursor: pointer; }
+.btn.primary { background: linear-gradient(225deg, var(--sky-1), var(--sky-2)); color: var(--ink-on-sky); }
+.btn.primary:hover { filter: brightness(1.04); }
+.btn.ghost { border-color: var(--line); color: var(--heading); background: var(--surface); }
+.btn.ghost:hover { border-color: var(--sky-2); }
+.btn.small { padding: 10px 14px; font-size: 14px; }
+
+/* hero */
+.hero { padding-block: 72px 56px; }
+.hero .wrap { display: grid; grid-template-columns: 1.15fr .85fr; gap: 56px; align-items: center; }
+@media (max-width: 960px) { .hero .wrap { grid-template-columns: 1fr; gap: 40px; } }
+.hero h1 { font-size: clamp(36px, 5.2vw, 60px); letter-spacing: -.01em; margin-block: 14px 20px; }
+.hero h1 em { font-style: normal; background: linear-gradient(225deg, var(--sky-2), var(--link)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lede + .lede { margin-top: 12px; color: var(--muted); }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.stats { display: flex; flex-wrap: wrap; gap: 20px 40px; margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line); }
+.stats b { display: block; font: 500 26px/1.1 var(--display); color: var(--heading); white-space: nowrap; }
+.stats span { font-size: 14px; color: var(--muted); }
+
+/* handshake readout */
+.readout { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+.readout .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 12px 16px; background: linear-gradient(225deg, var(--sky-1), var(--sky-2)); color: var(--ink-on-sky); font: 500 13px/1 var(--text); }
+.readout .bar .pill { flex: none; background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--heading); }
+.readout dl { margin: 0; padding: 8px 18px 16px; display: grid; grid-template-columns: auto 1fr; gap: 0 18px; }
+.readout dt, .readout dd { padding-block: 11px; border-bottom: 1px solid var(--line); margin: 0; }
+.readout dt { color: var(--muted); font-size: 13px; }
+.readout dd { font-family: var(--mono); font-size: 13.5px; color: var(--heading); text-align: right; overflow-wrap: anywhere; }
+.readout dl > :nth-last-child(-n+2) { border-bottom: 0; }
+.readout .foot { padding: 12px 18px; border-top: 1px solid var(--line); background: var(--sunk); font-size: 13px; color: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font: 500 12px/1 var(--text); }
+.pill.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.pill.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.pill.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+
+/* strip */
+.strip { padding-block: 26px; border-block: 1px solid var(--line); background: var(--sunk); }
+.strip .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 34px; }
+.strip .eyebrow { color: var(--muted); }
+.strip span:not(.eyebrow) { font: 500 15px/1.3 var(--display); color: var(--heading); opacity: .8; }
+
+/* why now */
+.threats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+@media (max-width: 960px) { .threats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .threats { grid-template-columns: 1fr; } }
+.threat { padding: 24px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 10px; align-content: start; }
+.threat h3 { font-size: 19px; }
+.threat .dl { font-family: var(--mono); font-size: 12.5px; color: var(--clay); }
+.bridge { margin-top: 22px; padding: 28px; border-radius: 16px; background: linear-gradient(225deg, var(--sky-1), color-mix(in srgb, var(--sky-2) 55%, var(--sky-1))); color: var(--ink-on-sky); display: grid; grid-template-columns: .9fr 1.1fr; gap: 28px; }
+.bridge h3 { color: var(--ink-on-sky); font-size: 24px; }
+.bridge p { margin-top: 10px; }
+.bridge ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.bridge li { padding-left: 22px; position: relative; }
+.bridge li::before { content: ""; position: absolute; left: 0; top: .6em; width: 10px; height: 2px; background: currentColor; }
+@media (max-width: 820px) { .bridge { grid-template-columns: 1fr; } }
+
+/* challenges */
+.challenges { display: grid; grid-template-columns: 340px 1fr; gap: 24px; }
+@media (max-width: 900px) { .challenges { grid-template-columns: 1fr; } }
+.tabs { display: grid; gap: 8px; align-content: start; }
+.tab { text-align: left; padding: 16px 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--body); font: 400 15px/1.45 var(--text); cursor: pointer; display: grid; gap: 4px; }
+.tab b { font: 500 16px/1.3 var(--display); color: var(--heading); }
+.tab[aria-selected="true"] { border-color: var(--sky-2); box-shadow: inset 3px 0 0 var(--sky-2); background: color-mix(in srgb, var(--sky-1) 30%, var(--surface)); }
+.answer { padding: 30px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); display: grid; gap: 18px; align-content: start; }
+.answer h3 { font-size: 26px; }
+.answer .product-tag { font: 500 13px/1 var(--text); color: var(--clay); letter-spacing: .06em; text-transform: uppercase; }
+.answer ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.answer pre { margin: 0; padding: 14px 16px; border-radius: 10px; background: var(--sunk); border: 1px solid var(--line); font: 13px/1.6 var(--mono); color: var(--heading); overflow-x: auto; }
+
+/* products */
+.products { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; }
+@media (max-width: 900px) { .products { grid-template-columns: 1fr; } }
+.product { padding: 30px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 18px; align-content: start; }
+.product .num { font: 500 13px/1 var(--mono); color: var(--muted); }
+.product h3 { font-size: 26px; }
+.product .sub { color: var(--muted); }
+.product h4 { font: 500 12px/1 var(--text); letter-spacing: .12em; text-transform: uppercase; color: var(--clay); margin-bottom: 10px; }
+.product ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 12.5px/1 var(--mono); padding: 7px 10px; border-radius: 8px; background: var(--sunk); border: 1px solid var(--line); color: var(--heading); }
+.product code { font: 13px/1.5 var(--mono); display: block; padding: 12px 14px; border-radius: 10px; background: var(--sunk); border: 1px solid var(--line); color: var(--heading); overflow-x: auto; white-space: pre; }
+
+/* journey */
+.journey { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--surface); }
+@media (max-width: 1000px) { .journey { grid-template-columns: 1fr; } }
+.stage { padding: 26px 22px; display: grid; gap: 10px; align-content: start; border-right: 1px solid var(--line); }
+.stage:last-child { border-right: 0; }
+@media (max-width: 1000px) { .stage { border-right: 0; border-bottom: 1px solid var(--line); } .stage:last-child { border-bottom: 0; } }
+.stage .when { font: 500 12px/1 var(--mono); color: var(--clay); letter-spacing: .06em; }
+.stage h3 { font-size: 20px; }
+.stage ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 14.5px; }
+.stage.lit { background: linear-gradient(180deg, color-mix(in srgb, var(--sky-1) 45%, var(--surface)), var(--surface)); }
+
+/* platforms */
+.platforms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+@media (max-width: 900px) { .platforms { grid-template-columns: 1fr; } }
+.platforms > div { display: grid; gap: 14px; align-content: start; padding: 24px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+.platforms h3 { font-size: 13px; font-family: var(--text); letter-spacing: .12em; text-transform: uppercase; color: var(--clay); }
+
+/* proof */
+.proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+@media (max-width: 900px) { .proof { grid-template-columns: 1fr; } }
+.proof > div { padding: 22px; border-radius: 14px; background: var(--sunk); border: 1px solid var(--line); display: grid; gap: 8px; align-content: start; }
+.proof h3 { font-size: 17px; }
+.proof p { font-size: 14.5px; }
+
+/* contact */
+.contact { background: linear-gradient(225deg, var(--sky-1), var(--sky-2)); color: var(--ink-on-sky); border-radius: 22px; padding: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+@media (max-width: 900px) { .contact { grid-template-columns: 1fr; padding: 28px; } }
+.contact h2, .contact h3 { color: var(--ink-on-sky); }
+.contact h2 { font-size: clamp(28px, 3.4vw, 38px); margin-block: 10px 14px; }
+.contact .eyebrow { color: var(--ink-on-sky); opacity: .8; }
+.gets { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 26px; }
+@media (max-width: 520px) { .gets { grid-template-columns: 1fr; } }
+.gets b { display: block; font: 500 16px/1.3 var(--display); }
+.gets span { font-size: 14px; opacity: .85; }
+.reach { display: grid; gap: 14px; align-content: start; }
+.reach .card { background: var(--surface); color: var(--body); border-radius: 14px; padding: 20px 22px; display: grid; gap: 6px; }
+.reach .card h3 { color: var(--heading); font-size: 18px; }
+.reach .card .note { font-size: 13px; color: var(--muted); }
+footer { padding-block: 40px 56px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Acxelin PQC Suite, home">
+      <img src="assets/acxelin-mark.png" alt="" width="36" height="36">
+      <div><b>Acxelin Quantum</b><span>PQC Suite</span></div>
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href="#why">Why now</a>
+      <a href="#challenges">Challenges</a>
+      <a href="#products">Products</a>
+      <a href="#journey">Journey</a>
+      <a href="#platforms">Platforms</a>
+    </nav>
+    <a class="btn primary small" href="#contact">Talk to an Expert →</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <div class="eyebrow">Quantum Security Readiness</div>
+        <h1>Quantum Ready Today. <em>Not on Q-Day.</em></h1>
+        <p class="lede">Acxelin PQC Suite puts NIST post-quantum cryptography (ML-KEM and ML-DSA) into the traffic, tunnels and backups you already run. Four products, one certificate authority, no rewrite of your applications.</p>
+        <p class="lede">Secure your data in transit and at rest today. Prove it to your auditors tomorrow.</p>
+        <div class="cta">
+          <a class="btn primary" href="#contact">Talk to an Expert →</a>
+          <a class="btn ghost" href="#products">Explore Products</a>
+        </div>
+        <div class="stats">
+          <div><b>4</b><span>Products</span></div>
+          <div><b>FIPS 203/204/205</b><span>ML-KEM, ML-DSA, SLH-DSA</span></div>
+          <div><b>CNSA 2.0</b><span>Policy built in</span></div>
+        </div>
+      </div>
+      <figure class="readout" aria-label="Example of a negotiated connection">
+        <div class="bar"><span>api.example.com:443 through the TLS edge</span><span class="pill ok">Grade A</span></div>
+        <dl>
+          <dt>Protocol</dt><dd>TLSv1.3</dd>
+          <dt>Key exchange</dt><dd>X25519MLKEM768</dd>
+          <dt>Certificate</dt><dd>ML-DSA-65 (FIPS 204)</dd>
+          <dt>Cipher</dt><dd>TLS_AES_256_GCM_SHA384</dd>
+          <dt>Client identity</dt><dd>CN=payments-svc · mTLS</dd>
+          <dt>Revocation</dt><dd>CRL checked, hot reload</dd>
+        </dl>
+        <figcaption class="foot">Example readout. <span class="mono">pqcsuite tls connect</span> prints the same fields for your own endpoints.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <div class="strip">
+    <div class="wrap">
+      <span class="eyebrow">We build on</span>
+      <span>OpenSSL 3.5</span><span>pyca/cryptography</span><span>strongSwan 6.1</span><span>WireGuard</span><span>Kubernetes</span><span>AWS KMS</span><span>AWS · Azure · Google Cloud</span>
+    </div>
+  </div>
+
+  <section id="why">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Why enterprises must act now</div>
+        <h2>The threat is already here. Quantum is just the deadline.</h2>
+        <p class="lede">Traffic recorded today can be read once a cryptographically relevant quantum computer exists. The algorithms that replace RSA and elliptic curves are standardised, and the deadlines are published.</p>
+      </div>
+      <div class="threats">
+        <div class="threat">
+          <h3>Harvest now, decrypt later</h3>
+          <p>Encrypted traffic captured today can be decrypted after Q-Day. Data with a long secrecy lifetime is already exposed.</p>
+        </div>
+        <div class="threat">
+          <h3>Regulatory deadlines are set</h3>
+          <p>NIST IR 8547 deprecates quantum-vulnerable public-key algorithms and then disallows them. NSA CNSA 2.0 sets dates per system type.</p>
+          <span class="dl">RSA/ECC 112-bit: deprecated 2030 · disallowed 2035</span>
+        </div>
+        <div class="threat">
+          <h3>Certificates outlive plans</h3>
+          <p>Roots, VPN gateways and backup archives stay in service for a decade. What you issue or encrypt now must survive the transition.</p>
+        </div>
+        <div class="threat">
+          <h3>Nobody knows the inventory</h3>
+          <p>Most teams cannot say which endpoints still negotiate classical key exchange. Migration starts with measuring it.</p>
+        </div>
+      </div>
+      <div class="bridge">
+        <div>
+          <h3>Hybrid is the bridge to post-quantum</h3>
+          <p>Every product combines a classical algorithm with a post-quantum one, so security never drops below what you have today.</p>
+        </div>
+        <ul>
+          <li>X25519 + ML-KEM-768 for TLS 1.3 and IKEv2 key exchange</li>
+          <li>ML-DSA certificates from your own CA, with SLH-DSA roots available</li>
+          <li>Crypto-agility: moving to CNSA 2.0 is a policy change, not a rewrite</li>
+          <li>Evidence for auditors, mapped to NIST IR 8547 and CNSA 2.0</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="challenges" style="background: var(--sunk); border-block: 1px solid var(--line);">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Business challenges we solve</div>
+        <h2>What challenge are you solving?</h2>
+        <p class="lede">Select the challenge that best matches your situation and see which product addresses it.</p>
+      </div>
+      <div class="challenges">
+        <div class="tabs" role="tablist" aria-label="Challenges" id="tabs"></div>
+        <div class="answer" role="tabpanel" id="answer" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="products">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">What we deliver</div>
+        <h2>Four products. One post-quantum foundation.</h2>
+        <p class="lede">Each product is deployable on its own and shares the same ML-DSA certificate authority, so identities, revocation and evidence work across all of them.</p>
+      </div>
+      <div class="products">
+        <article class="product">
+          <div class="num">Product 01</div>
+          <h3>TLS 1.3 + mTLS</h3>
+          <p class="sub">Post-quantum TLS in front of any service, and mutual authentication between services, with a certificate authority that runs itself.</p>
+          <div><h4>Business outcomes</h4><ul>
+            <li>Protect web, API and database traffic without changing the application</li>
+            <li>Every service proves its identity with an ML-DSA certificate</li>
+            <li>Certificates enrol, renew and revoke automatically (EST and ACME)</li>
+            <li>Revoked clients are refused at the next handshake</li>
+          </ul></div>
+          <div><h4>Enabling technology</h4><div class="chips">
+            <span class="chip">X25519MLKEM768</span><span class="chip">ML-DSA-44/65/87</span><span class="chip">SLH-DSA roots</span><span class="chip">EST · RFC 7030</span><span class="chip">ACME · RFC 8555</span><span class="chip">AWS KMS / HSM</span><span class="chip">NGINX · Postgres · MQTT</span>
+          </div></div>
+          <code>pqcsuite tls edge --target 127.0.0.1:8080 --cert chain.pem --key key.pem</code>
+        </article>
+        <article class="product">
+          <div class="num">Product 02</div>
+          <h3>IPsec VPN</h3>
+          <p class="sub">Site-to-site IPsec with a hybrid ML-KEM key exchange, and remote access for laptops, authenticated with ML-DSA.</p>
+          <div><h4>Business outcomes</h4><ul>
+            <li>Branch and data-centre links protected against harvest-now, decrypt-later</li>
+            <li>Keys rotate on a schedule, make-before-break</li>
+            <li>Revoking a gateway or a user cuts their tunnel within seconds</li>
+            <li>Remote users get a stable address and a key that refreshes every few minutes</li>
+          </ul></div>
+          <div><h4>Enabling technology</h4><div class="chips">
+            <span class="chip">IKEv2 · RFC 9370</span><span class="chip">ML-KEM-768 / 1024</span><span class="chip">RFC 8784 PPK</span><span class="chip">strongSwan 6.1</span><span class="chip">WireGuard + PSK</span><span class="chip">Prometheus metrics</span>
+          </div></div>
+          <code>pqcsuite vpn up --config /etc/pqcsuite/site.toml</code>
+        </article>
+        <article class="product">
+          <div class="num">Product 03</div>
+          <h3>Vault</h3>
+          <p class="sub">Quantum-safe encryption for files, folders and backups, signed by identities from your CA.</p>
+          <div><h4>Business outcomes</h4><ul>
+            <li>Backups stay confidential for their whole retention period</li>
+            <li>Any change to an archive is detected; nothing half-decrypted is written</li>
+            <li>Share an archive with a new recipient without re-encrypting it</li>
+            <li>Scheduled backups with retention, stored anywhere</li>
+          </ul></div>
+          <div><h4>Enabling technology</h4><div class="chips">
+            <span class="chip">ML-KEM-768 + X25519</span><span class="chip">ML-KEM-1024 + P-384</span><span class="chip">AES-256-GCM</span><span class="chip">ML-DSA signatures</span><span class="chip">CNSA 2.0 suite</span>
+          </div></div>
+          <code>pqcsuite vault backup /var/lib/db --to /backups -r ops.pub --keep 30</code>
+        </article>
+        <article class="product">
+          <div class="num">Product 04</div>
+          <h3>Readiness assessment</h3>
+          <p class="sub">Find out which endpoints are quantum-safe today, and hand auditors evidence mapped to the deadlines.</p>
+          <div><h4>Business outcomes</h4><ul>
+            <li>Every TLS and SSH endpoint graded A, B, C or F</li>
+            <li>CNSA 2.0 verdict per endpoint, tunnel, certificate and backup</li>
+            <li>One report mapped to NIST IR 8547 and CNSA 2.0 dates</li>
+            <li>A migration list ordered by what fails first</li>
+          </ul></div>
+          <div><h4>Enabling technology</h4><div class="chips">
+            <span class="chip">TLS group probing</span><span class="chip">SSH KEXINIT</span><span class="chip">NIST IR 8547</span><span class="chip">CNSA 2.0</span><span class="chip">HTML · JSON evidence</span>
+          </div></div>
+          <code>pqcsuite readiness scan hosts.txt --html readiness.html</code>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="journey" style="background: var(--sunk); border-block: 1px solid var(--line);">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Why Acxelin Quantum</div>
+        <h2>The migration journey we engineer</h2>
+        <p class="lede">We guide enterprises from today's classical stack to post-quantum protection, one measurable step at a time.</p>
+      </div>
+      <div class="journey">
+        <div class="stage"><div class="when">TODAY</div><h3>Assess</h3><ul><li>Readiness scan of TLS and SSH</li><li>Certificate and key inventory</li><li>Harvest-now exposure</li></ul></div>
+        <div class="stage"><div class="when">WEEKS</div><h3>Establish trust</h3><ul><li>ML-DSA or SLH-DSA root</li><li>Issuing CAs, KMS or HSM</li><li>EST and ACME enrolment</li></ul></div>
+        <div class="stage lit"><div class="when">BRIDGE</div><h3>Protect transport</h3><ul><li>TLS 1.3 edge, hybrid ML-KEM</li><li>mTLS between services</li><li>Post-quantum IPsec VPN</li></ul></div>
+        <div class="stage"><div class="when">BRIDGE → FUTURE</div><h3>Protect data</h3><ul><li>Vault for backups and archives</li><li>Signed, tamper-evident files</li><li>CNSA 2.0 suite where required</li></ul></div>
+        <div class="stage"><div class="when">ONGOING</div><h3>Prove</h3><ul><li>Evidence mapped to NIST and NSA dates</li><li>Automatic renewal and revocation</li><li>One console for all four products</li></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="platforms">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Platforms we build on</div>
+        <h2>Runs where your systems already run.</h2>
+        <p class="lede">We own no infrastructure. Your keys stay in your tenancy, on your accounts, under your controls. We bring the engineering, the patterns and the software.</p>
+      </div>
+      <div class="platforms">
+        <div><h3>Deploy</h3><div class="chips"><span class="chip">Linux</span><span class="chip">Windows</span><span class="chip">Docker</span><span class="chip">Kubernetes (Helm)</span><span class="chip">Sidecar or gateway</span><span class="chip">systemd</span></div></div>
+        <div><h3>Cloud images</h3><div class="chips"><span class="chip">AWS AMI</span><span class="chip">Azure image</span><span class="chip">Google Cloud image</span><span class="chip">Debian 13 base</span></div></div>
+        <div><h3>Keys and trust</h3><div class="chips"><span class="chip">AWS KMS (ML-DSA)</span><span class="chip">HSM signing tools</span><span class="chip">Encrypted PKCS#8</span><span class="chip">CRLs, hot reload</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="proof" style="padding-top: 0;">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Engineering you can check</div>
+        <h2>Every behaviour is tested on every change.</h2>
+      </div>
+      <div class="proof">
+        <div><h3>Real handshakes</h3><p>Automated tests negotiate X25519MLKEM768 with ML-DSA certificates, and check that classical-only clients are refused.</p></div>
+        <div><h3>Real tunnels</h3><p>Two IPsec sites and a WireGuard gateway run in isolated networks with real traffic, key rotation and revocation.</p></div>
+        <div><h3>Real clusters</h3><p>The Helm chart is installed into Kubernetes, the in-cluster CA issues the edge certificate, and a post-quantum request goes through.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" style="padding-top: 0;">
+    <div class="wrap">
+      <div class="contact">
+        <div>
+          <div class="eyebrow">Get started today</div>
+          <h2>Let's discuss your post-quantum journey</h2>
+          <p>Our experts will help you measure where you stand and protect what matters first.</p>
+          <div class="gets">
+            <div><b>Free readiness assessment</b><span>A graded report for your public endpoints</span></div>
+            <div><b>Custom migration plan</b><span>Ordered by exposure and deadlines</span></div>
+            <div><b>Expert technical guidance</b><span>From our engineering team</span></div>
+            <div><b>Rapid deployment support</b><span>Edge, VPN and Vault in production</span></div>
+          </div>
+        </div>
+        <div class="reach">
+          <div class="card">
+            <h3>Email us</h3>
+            <a href="mailto:info@acxelinquantum.com">info@acxelinquantum.com</a>
+            <span class="note">We respond within 24 hours.</span>
+          </div>
+          <div class="card">
+            <h3>Book a meeting</h3>
+            <a href="https://forms.office.com/Pages/ResponsePage.aspx?id=G7il0FYBPk-mQiu5eNm4__Zpyi-xUOBMtEt0p-905AxUME9LMzZFV0JLWEFDMzdJMTM1MzYxSEVORy4u" rel="noopener" target="_blank">Schedule a call →</a>
+            <span class="note">Free 30-minute consultation.</span>
+          </div>
+          <div class="card">
+            <h3>Start with a readiness scan</h3>
+            <span class="mono">pqcsuite readiness scan hosts.txt --html readiness.html</span>
+            <span class="note">We walk you through the results.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© Acxelin Quantum. Acxelin PQC Suite.</span>
+    <span>ML-KEM (FIPS 203) · ML-DSA (FIPS 204) · SLH-DSA (FIPS 205)</span>
+  </div>
+</footer>
+
+<script>
+const CHALLENGES = [
+  { title: "Protect data in transit", hint: "Web, API and database traffic that could be recorded today.", product: "TLS 1.3 + mTLS",
+    head: "Put post-quantum TLS in front of what you already run",
+    points: ["The edge terminates TLS 1.3 with X25519MLKEM768 and forwards to your unchanged service", "Strict, transition and CNSA 2.0 policies decide who may still connect classically", "Certificates reload without a restart when they are renewed"],
+    cmd: "pqcsuite tls edge --target 127.0.0.1:8080 --policy transition \\\n  --cert chain.pem --key key.pem --metrics 127.0.0.1:9100" },
+  { title: "Authenticate every service", hint: "Zero-trust between microservices, devices and partners.", product: "TLS 1.3 + mTLS",
+    head: "Mutual TLS with identities from your own post-quantum CA",
+    points: ["An ML-DSA root (or SLH-DSA) with issuing CAs, keys in AWS KMS or an HSM", "Machines enrol with EST one-time tokens; ACME clients such as certbot work too", "Revoked certificates are refused at the next handshake"],
+    cmd: "pqcsuite ca init --name \"Acme Root\" --algorithm SLH-DSA-SHA2-256s --encrypt\npqcsuite ca init --dir issuing --name \"Acme Issuing\" --parent pki" },
+  { title: "Connect sites and people", hint: "Branch links and remote workers over the internet.", product: "IPsec VPN",
+    head: "Post-quantum IPsec between sites, and remote access for laptops",
+    points: ["IKEv2 with a hybrid ML-KEM key exchange on the first exchange and every rekey", "Authentication anchored in ML-DSA mutual TLS, with an RFC 8784 post-quantum PPK", "Revoking a gateway or user cuts the tunnel within seconds"],
+    cmd: "pqcsuite vpn up --config /etc/pqcsuite/site.toml\npqcsuite vpn status" },
+  { title: "Protect backups and archives", hint: "Data that must stay secret for years.", product: "Vault",
+    head: "Backups that stay confidential for their whole retention period",
+    points: ["Hybrid ML-KEM + X25519 (or ML-KEM-1024 + P-384 for CNSA 2.0) with AES-256-GCM", "Signed with ML-DSA certificates from your CA; tampering and truncation are detected", "Add recipients without re-encrypting terabytes"],
+    cmd: "pqcsuite vault keygen ops\npqcsuite vault backup /var/lib/postgres --to /backups -r ops.pub --keep 30" },
+  { title: "Know where you stand", hint: "An inventory before a migration plan.", product: "Readiness assessment",
+    head: "Grade every endpoint and see what to migrate first",
+    points: ["TLS endpoints graded by the post-quantum groups they accept", "SSH servers graded by their key exchange (ML-KEM and sntrup761 hybrids)", "A self-contained HTML report you can share"],
+    cmd: "pqcsuite readiness scan hosts.txt ssh://bastion:22 --html readiness.html" },
+  { title: "Meet CNSA 2.0 and NIST deadlines", hint: "Evidence for auditors and regulators.", product: "Readiness assessment",
+    head: "Compliance evidence mapped to the published dates",
+    points: ["Every certificate, endpoint, tunnel and backup mapped to NIST IR 8547 and CNSA 2.0", "Status per asset: quantum-safe, classical fallback, or action needed", "Exports as HTML and JSON for your GRC tools"],
+    cmd: "pqcsuite readiness report --ca pki --targets hosts.txt --backups /backups --html evidence.html" },
+];
+const tabs = document.getElementById("tabs"), answer = document.getElementById("answer");
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function show(i) {
+  [...tabs.children].forEach((t, j) => { t.setAttribute("aria-selected", String(i === j)); t.tabIndex = i === j ? 0 : -1; });
+  const c = CHALLENGES[i];
+  answer.innerHTML = `<div class="product-tag">${esc(c.product)}</div><h3>${esc(c.head)}</h3><ul>${c.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul><pre>${esc(c.cmd)}</pre>`;
+}
+CHALLENGES.forEach((c, i) => {
+  const b = document.createElement("button");
+  b.className = "tab"; b.role = "tab"; b.id = `tab-${i}`;
+  b.innerHTML = `<b>${esc(c.title)}</b><span>${esc(c.hint)}</span>`;
+  b.onclick = () => show(i);
+  b.onkeydown = (e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const n = (i + (e.key === "ArrowDown" ? 1 : CHALLENGES.length - 1)) % CHALLENGES.length; show(n); tabs.children[n].focus(); } };
+  tabs.appendChild(b);
+});
+show(0);
+</script>
+</body>
+</html>
