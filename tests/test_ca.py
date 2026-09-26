@@ -127,7 +127,8 @@ class CATest(unittest.TestCase):
             self.ca.issue("web", "server", names=["web", "-x.example"])
         with self.assertRaisesRegex(CAError, "not a certificate signing request"):
             self.ca.sign_csr(b"hello", "server")
-        self.ca.issue("*.corp.example", "server", names=["*.corp.example", "10.0.0.1", "::1"])
+        out, _ = self.ca.issue("*.corp.example", "server", names=["*.corp.example", "10.0.0.1", "::1"])
+        self.assertTrue(out.name.startswith("_.corp.example-"))
         self.ca.issue("Ana María", "client")
 
     def test_issue_never_overwrites_a_key_and_revoked_certificates_are_not_renewed(self):

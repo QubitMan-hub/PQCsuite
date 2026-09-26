@@ -20,12 +20,10 @@ except tls.OpenSSLUnavailable as e:
 class CLITest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
         self.d = Path(self.tmp.name)
         self.ca = CA.init(self.d / "pki", "Root")
         self.srv, _ = self.ca.issue("localhost", "server", ["localhost", "127.0.0.1"], out=self.d / "srv")
-
-    def tearDown(self):
-        self.tmp.cleanup()
 
     def fails(self, *argv):
         err = io.StringIO()
