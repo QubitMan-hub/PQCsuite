@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Under development · Acxelin PQC Suite</title>
+<meta name="description" content="Wolf Pack CBOM, under development at Acxelin Quantum: an inventory of the cryptography in your code, configuration, keys, binaries and live endpoints, ranked by what to migrate first.">
+<meta property="og:title" content="Wolf Pack CBOM · Under development">
+<meta property="og:description" content="Know where your cryptography is before you replace it.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#faf9f5">
+<link rel="icon" href="assets/acxelin-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600&family=Roboto:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a href="index.html" aria-label="Acxelin PQC Suite home"><img src="assets/acxelin-quantum.svg" alt="Acxelin Quantum" width="537" height="83"></a>
+    <nav aria-label="Main">
+      <a href="index.html#products">Products</a>
+      <a href="index.html#plan">How we start</a>
+      <a href="index.html#grades">Readiness grades</a>
+      <a href="index.html#faq">Questions</a>
+      <a href="under-development.html" aria-current="page">Under development</a>
+      <a class="btn" href="#contact">Try it early</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <p class="status">Under development</p>
+        <h1>Know where your cryptography is <span>before you replace it</span>.</h1>
+        <p class="lead"><strong>Wolf Pack CBOM</strong> finds the cryptography in your code, configuration, keys, binaries and live endpoints, writes it down as a standard inventory, and tells you what to migrate first.</p>
+        <div class="actions">
+          <a class="btn" href="#contact">Try it on your code early</a>
+          <a class="link" href="#status">Where it stands</a>
+        </div>
+        <p class="fine">Not available to buy yet. It will become part of the Readiness assessment.</p>
+      </div>
+      <figure class="report" aria-label="Example of a migration list">
+        <header><b>Migrate first</b><span>example scan</span></header>
+        <table>
+          <tr><td>MD5<small>src/auth/tokens.py:41, broken today</small></td><td><span class="tier t-critical">Critical</span></td></tr>
+          <tr><td>RSA-2048<small>certs/api.key, deployed; harvest now, decrypt later</small></td><td><span class="tier t-high">High</span></td></tr>
+          <tr><td>ECDSA P-256<small>cmd/release/sign.go:88, forgeable once a quantum computer exists</small></td><td><span class="tier t-medium">Medium</span></td></tr>
+          <tr><td>AES-128-GCM<small>services/cache/seal.go:17, prefer 256-bit for long-lived data</small></td><td><span class="tier t-low">Low</span></td></tr>
+          <tr><td>X25519MLKEM768<small>api.example.com:443, hybrid post-quantum</small></td><td><span class="tier t-ok">OK</span></td></tr>
+        </table>
+        <footer>Every row points back to the file and line, or the endpoint, it came from.</footer>
+      </figure>
+    </div>
+  </div>
+
+  <section id="why">
+    <div class="wrap">
+      <div class="intro">
+        <h2>You cannot migrate what you have not found</h2>
+        <p>The endpoint scan shows what your servers offer. Most cryptography lives deeper: a hash in a login module, a key size in a config file, an old OpenSSL inside a vendor binary. Wolf Pack reads all of it and hands you one list, in the CycloneDX format auditors and tools already accept.</p>
+      </div>
+      <ul class="sources">
+        <li><b>Source code</b><p>Python, Java and Kotlin, Go, JavaScript and TypeScript, C and C++, C# and Rust.</p></li>
+        <li><b>Configuration</b><p>nginx, Apache, HAProxy, sshd, openssl.cnf, Spring properties, YAML, INI and TOML.</p></li>
+        <li><b>Keys and certificates</b><p>Including private keys that were committed by mistake, and certificates that outlive 2030.</p></li>
+        <li><b>Binaries and JARs</b><p>Algorithm constants, embedded OpenSSL and other library versions, JCA names in class files.</p></li>
+        <li><b>Dependencies</b><p>Manifests for pip, npm, Maven, Gradle, Go, Cargo and NuGet, checked against what the code imports.</p></li>
+        <li><b>Live TLS and SSH</b><p>What each server negotiates, including whether it accepts hybrid ML-KEM groups.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="pack">
+    <div class="wrap">
+      <div class="intro">
+        <h2>Why it is called a pack</h2>
+        <p>Scanners that match names drown you in false alarms. Wolf Pack splits the work so that finding and deciding are separate jobs.</p>
+      </div>
+      <div class="pack">
+        <div><span class="role">01 · scouts</span><b>Find everything</b><p>Each scout reads one kind of source and deliberately over-reports. Missing something is worse than a false lead.</p></div>
+        <div><span class="role">02 · den</span><b>Check the evidence</b><p>Mentions in comments, documentation, log messages and deny-lists are rejected. What is held back stays in the audit trail with the reason.</p></div>
+        <div><span class="role">03 · alpha</span><b>Decide what matters</b><p>Ranks each finding by how exposed it is and how long the data must stay secret, and says what to replace it with.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="outputs">
+    <div class="wrap">
+      <div class="intro">
+        <h2>What you get from a scan</h2>
+      </div>
+      <ul class="outputs">
+        <li><code>cbom.json</code><span>The inventory, in CycloneDX 1.6 and checked against its official schema</span></li>
+        <li><code>report.html</code><span>A report you can open offline and forward as it is</span></li>
+        <li><code>wolfpack.sarif</code><span>Findings in GitHub code scanning and other SARIF tools</span></li>
+        <li><code>findings.json</code><span>Everything, including what was rejected and why</span></li>
+      </ul>
+      <p class="note">In CI it can fail a build only on cryptography added since the last release, so an existing backlog does not block every merge.</p>
+    </div>
+  </section>
+
+  <section id="status">
+    <div class="wrap">
+      <div class="intro">
+        <h2>Where it stands</h2>
+        <p>We will publish accuracy figures once they come from code the tool was not tuned on. Until then, this is what is done and what is not.</p>
+      </div>
+      <div class="stand">
+        <div>
+          <h3>Progress</h3>
+          <ol class="steps">
+            <li class="done"><b>Working scanner</b><p>All six sources above, on Windows, macOS and Linux, with one runtime dependency.</p></li>
+            <li class="done"><b>First checks on real projects</b><p>Eleven open-source projects it had never seen, reviewed by hand. The mistakes found were fixed.</p></li>
+            <li><b>Blind benchmark</b><p>18 public repositories, labelled by people before any tool runs on them. This is under way now.</p></li>
+            <li><b>Part of the Readiness assessment</b><p>One report covering your code as well as your endpoints.</p></li>
+          </ol>
+        </div>
+        <div>
+          <h3>Known limits</h3>
+          <ul class="limits">
+            <li>Only Python is fully parsed. Other languages use rules, so names built at runtime and values passed between functions can be missed.</li>
+            <li>An algorithm found in a binary is built into it, which does not always mean it is used.</li>
+            <li>Container images and cloud key management settings are not scanned yet.</li>
+            <li>The year a quantum computer could break RSA is an assumption you set, 2035 by default, not a prediction.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact" id="contact">
+    <div class="wrap">
+      <div class="box">
+        <div>
+          <h2>Want it run on your code early?</h2>
+          <p>We are looking for a few teams to try Wolf Pack before release. It runs on your own machine, so your code never leaves it. You tell us what it got wrong.</p>
+        </div>
+        <dl>
+          <div><dt>Email</dt><dd><a href="mailto:info@acxelinquantum.com?subject=Wolf%20Pack%20early%20access">info@acxelinquantum.com</a></dd></div>
+          <div><dt>Mention</dt><dd>Wolf Pack early access</dd></div>
+          <div><dt>Meanwhile</dt><dd><a href="index.html#contact">Book a free readiness scan</a></dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="index.html"><img src="assets/acxelin-quantum.svg" alt="Acxelin Quantum" width="537" height="83"></a>
+    <span>© 2026 Acxelin Quantum. Wolf Pack CBOM is under development.</span>
+  </div>
+</footer>
+</body>
+</html>
