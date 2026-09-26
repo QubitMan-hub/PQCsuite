@@ -118,7 +118,8 @@ class SLHDSARootTest(unittest.TestCase):
         self.assertEqual(self.root.cert.signature_algorithm_oid.dotted_string, signers.OIDS["SLH-DSA-SHA2-128f"])
         self.assertTrue(signed_by(self.root.cert, self.root.cert.tbs_certificate_bytes, self.root.cert.signature))
         self.assertTrue(signed_by(self.root.cert, self.sub.cert.tbs_certificate_bytes, self.sub.cert.signature))
-        self.assertFalse(signed_by(self.root.cert, self.sub.cert.tbs_certificate_bytes[:-1] + b"\0", self.sub.cert.signature))
+        tbs = self.sub.cert.tbs_certificate_bytes
+        self.assertFalse(signed_by(self.root.cert, tbs[:-1] + bytes([tbs[-1] ^ 1]), self.sub.cert.signature))
         self.assertEqual(CA(self.d / "root", b"pw").signer.algorithm, "SLH-DSA-SHA2-128f")
         with self.assertRaises(CAError):
             CA(self.d / "root", b"wrong")
