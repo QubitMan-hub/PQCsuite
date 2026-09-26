@@ -1,8 +1,9 @@
 """PQCready bundles: a common service behind the post-quantum edge, generated as a Docker Compose project in one command."""
 import os
+import shutil
 from pathlib import Path
 
-from ..pki import CA, CAError, write
+from ..pki import CA, CAError, general_names, write
 
 EDGE_UID = 10001
 SERVICES = {
@@ -29,8 +30,20 @@ def create(service, out, host, ca_dir=None, require_client_cert=False, policy="s
     s, out = SERVICES[service], Path(out)
     if (out / "docker-compose.yml").exists():
         raise CAError(f"{out} already has a bundle")
+    general_names([host])
+    ca = CA(ca_dir) if ca_dir else None
+    fresh = not out.exists()
+    try:
+        return _create(service, s, out, host, ca, ca_dir, require_client_cert, policy)
+    except BaseException:
+        if fresh:
+            shutil.rmtree(out, ignore_errors=True)
+        raise
+
+
+def _create(service, s, out, host, ca, ca_dir, require_client_cert, policy):
     pki = Path(ca_dir) if ca_dir else out / "pki"
-    ca = CA(pki) if (pki / "ca.crt").exists() else CA.init(pki, f"{host} bundle root")
+    ca = ca or CA.init(pki, f"{host} bundle root")
     ca.issue(host, "server", out=out / "edge")
     ca.crl(days=30)
     if hasattr(os, "chown") and os.geteuid() == 0:

@@ -13,7 +13,7 @@ import tomllib
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .. import tls
+from .. import build, tls
 from . import hostport
 from .server import Server, Stats
 
@@ -210,12 +210,7 @@ def load_config(path):
         doc = tomllib.load(f)
     routes = []
     for i, e in enumerate(doc.get("edge", [])):
-        known = {k: v for k, v in e.items() if k in Route.__dataclass_fields__}
-        unknown = set(e) - set(known)
-        if unknown:
-            raise ValueError(f"edge #{i + 1}: unknown settings {', '.join(sorted(unknown))}")
-        known.setdefault("name", f"edge{i + 1}")
-        routes.append(Route(**known))
+        routes.append(build(Route, {"name": f"edge{i + 1}", **e}, f"edge #{i + 1}"))
     if not routes:
         raise ValueError(f"{path} has no [[edge]] sections")
     return routes, doc.get("metrics", {}).get("listen")

@@ -5,6 +5,7 @@ import datetime as dt
 import ipaddress
 import json
 import os
+import re
 import threading
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -108,12 +109,17 @@ def write(path, data, secret=False):
     os.replace(tmp, path)
 
 
+HOSTNAME = re.compile(r"(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?", re.I)
+
+
 def general_names(names):
     out = []
     for n in names:
         try:
             out.append(x509.IPAddress(ipaddress.ip_address(n)))
         except ValueError:
+            if len(n) > 253 or not HOSTNAME.fullmatch(n):
+                raise CAError(f"{n!r} is not a valid host name or IP address") from None
             out.append(x509.DNSName(n))
     return out
 
@@ -208,7 +214,10 @@ class CA:
         algorithm = algorithm_of(public_key)
         if not algorithm:
             raise CAError("only ML-DSA keys can be certified")
+        if not 1 <= len(common_name) <= 64:
+            raise CAError("the common name must be 1 to 64 characters")
         names = list(names) or ([common_name] if kind != "client" else [])
+        general_names(names)
         not_after = min(now() + dt.timedelta(days=days), self.cert.not_valid_after_utc)
         b = (x509.CertificateBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)]))
              .issuer_name(self.cert.subject).public_key(public_key).serial_number(x509.random_serial_number())
@@ -231,8 +240,11 @@ class CA:
         self._save(self.records() + [rec])
         return rec
 
-    def issue(self, common_name, kind, names=(), days=397, algorithm="ML-DSA-65", out=None, passphrase=None):
-        """Generate a key pair and certificate; writes cert.pem, key.pem and chain.pem to `out`."""
+    def issue(self, common_name, kind, names=(), days=397, algorithm="ML-DSA-65", out=None, passphrase=None, replace=False):
+        """Generate a key pair and certificate; writes cert.pem, key.pem and chain.pem to `out`, which must not hold a key yet
+        unless `replace` (renewal in place)."""
+        if out and not replace and (Path(out) / "key.pem").exists():
+            raise CAError(f"{out} already holds a key; choose another --out, or replace it with 'ca renew SERIAL --out {out}'")
         key = generate(algorithm)
         names = list(dict.fromkeys(([common_name] if kind != "client" else []) + list(names)))
         cert, rec = self.sign(key.public_key(), common_name, kind, names, days)
@@ -246,7 +258,10 @@ class CA:
         return out, rec
 
     def sign_csr(self, csr_pem, kind, days=397):
-        csr = x509.load_pem_x509_csr(csr_pem)
+        try:
+            csr = x509.load_pem_x509_csr(csr_pem) if b"-----BEGIN" in csr_pem else x509.load_der_x509_csr(csr_pem)
+        except ValueError:
+            raise CAError("not a certificate signing request (PEM or DER)") from None
         if not csr.is_signature_valid:
             raise CAError("the CSR's signature does not verify")
         cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
@@ -295,7 +310,9 @@ class CA:
     def renew(self, serial, days=397, algorithm="ML-DSA-65", out=None, passphrase=None):
         """A new key and certificate with the same name and SANs; the old one stays valid until it expires or is revoked."""
         r = self.find(serial)
-        return self.issue(r.common_name, r.kind, r.names, days, algorithm, out, passphrase)
+        if r.status == "revoked":
+            raise CAError(f"{r.serial} is revoked; issue a new certificate instead of renewing it")
+        return self.issue(r.common_name, r.kind, r.names, days, algorithm, out, passphrase, replace=True)
 
     def maintain(self, renew_within=30, crl_days=7, algorithm="ML-DSA-65"):
         """Re-sign the CRL, and renew certificates expiring within `renew_within` days into the folder they were issued to, where

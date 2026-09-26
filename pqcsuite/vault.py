@@ -10,6 +10,7 @@ import base64
 import datetime as dt
 import hashlib
 import io
+import logging
 import json
 import os
 import re
@@ -26,6 +27,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from .pki import PUBLIC as MLDSA_PUBLIC, CAError, check_revocation, signed_by
 
 MAGIC, SIG_MAGIC = b"PQV1\n", b"SIG1"
+log = logging.getLogger("pqcsuite.vault")
 
 
 class Suite:
@@ -96,7 +98,10 @@ class Identity:
 
     @classmethod
     def load(cls, path, passphrase=None):
-        blocks = _pem_blocks(Path(path).read_bytes())
+        data = Path(path).read_bytes()
+        if b"PRIVATE KEY" not in data:
+            raise VaultError(f"{path} is not a vault private key; use the .key file from 'vault keygen'")
+        blocks = _pem_blocks(data)
         try:
             keys = [ser.load_pem_private_key(b, passphrase) for b in blocks]
         except (TypeError, ValueError) as e:
@@ -122,7 +127,10 @@ class Recipient:
 
     @classmethod
     def load(cls, path):
-        keys = [ser.load_pem_public_key(b) for b in _pem_blocks(Path(path).read_bytes())]
+        try:
+            keys = [ser.load_pem_public_key(b) for b in _pem_blocks(Path(path).read_bytes())]
+        except ValueError:
+            raise VaultError(f"{path} is not a vault recipient key; recipients are .pub files from 'vault keygen'") from None
         kem = next((k for k in keys if isinstance(k, (mlkem.MLKEM768PublicKey, mlkem.MLKEM1024PublicKey))), None)
         dh = next((k for k in keys if not isinstance(k, (mlkem.MLKEM768PublicKey, mlkem.MLKEM1024PublicKey))), None)
         if not (kem and dh and _suite_of(kem, dh)):
@@ -310,7 +318,7 @@ def encrypt(src, dst, recipients, signer=None):
             w = Writer(out, recipients, src.name, "dir" if src.is_dir() else "file", signer)
             if src.is_dir():
                 with tarfile.open(fileobj=w, mode="w|") as tar:
-                    tar.add(src, arcname=src.name)
+                    tar.add(src, arcname=src.name, filter=_restorable)
             else:
                 with open(src, "rb") as f:
                     while block := f.read(CHUNK):
@@ -320,6 +328,16 @@ def encrypt(src, dst, recipients, signer=None):
     finally:
         if tmp.exists():
             tmp.unlink()
+
+
+def _restorable(t):
+    """Leave out what a safe restore would refuse (special files, links leaving the folder), so every backup restores."""
+    top = t.name.split("/")[0]
+    target = os.path.normpath(os.path.join(os.path.dirname(t.name), t.linkname)).replace(os.sep, "/") if t.issym() else top
+    if t.ischr() or t.isblk() or t.isfifo() or os.path.isabs(t.linkname) or target.split("/")[0] != top:
+        log.warning("vault: left out %s (%s)", t.name, "a link outside the folder" if t.issym() else "not a regular file")
+        return None
+    return t
 
 
 class _ChunkReader(io.RawIOBase):
@@ -343,10 +361,21 @@ class _ChunkReader(io.RawIOBase):
 def decrypt(src, dst_dir, identity, ca=None, crl=None, expected_signer=None, require_signature=False):
     """Decrypt into `dst_dir`. Nothing is left behind unless every chunk and, when required, the signature verify."""
     dst_dir = Path(dst_dir)
-    dst_dir.mkdir(parents=True, exist_ok=True)
+    created = not dst_dir.exists()
+    try:
+        return _decrypt(src, dst_dir, identity, ca, crl, expected_signer, require_signature)
+    except tarfile.TarError as e:
+        raise VaultError(f"the archive cannot be restored safely: {e}") from None
+    finally:
+        if created and dst_dir.is_dir() and not any(dst_dir.iterdir()):
+            dst_dir.rmdir()
+
+
+def _decrypt(src, dst_dir, identity, ca, crl, expected_signer, require_signature):
     with open(src, "rb") as f:
         h = read_header(f)
         name = Path(h["name"]).name
+        dst_dir.mkdir(parents=True, exist_ok=True)
         staging = dst_dir / f".{name}.pqv-partial"
         try:
             gen = chunks(f, h, identity)

@@ -30,7 +30,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
-from .. import tls
+from .. import build, tls
 from ..pki import CAError, write
 from ..tls import hostport
 from ..tls.server import Server
@@ -183,10 +183,7 @@ def load_gateway(path):
         d = tomllib.load(f).get("wireguard")
     if d is None:
         raise ValueError(f"{path}: missing [wireguard]")
-    unknown = set(d) - set(GatewayConfig.__dataclass_fields__)
-    if unknown:
-        raise ValueError(f"[wireguard]: unknown settings {', '.join(sorted(unknown))}")
-    return GatewayConfig(**d).validate()
+    return build(GatewayConfig, d, "[wireguard]").validate()
 
 
 class Gateway:

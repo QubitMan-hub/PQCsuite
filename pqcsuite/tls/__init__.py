@@ -1,6 +1,9 @@
 """PQC TLS 1.3: policies, contexts and a client helper on top of the OpenSSL bridge."""
 import socket
 from dataclasses import dataclass
+from pathlib import Path
+
+from cryptography import x509
 
 from .openssl import Connection, Context, OpenSSLUnavailable, TLSError, lib
 
@@ -31,6 +34,21 @@ def policy(name):
     return POLICIES[name]
 
 
+def _check_cnsa2(p, cert):
+    """CNSA 2.0 allows only ML-DSA-87 signatures, so a smaller certificate would fail every handshake; say so at start-up."""
+    if p.name != "cnsa2" or not cert:
+        return
+    from ..pki import algorithm_of
+    try:
+        leaf = x509.load_pem_x509_certificates(Path(cert).read_bytes())[0]
+    except (OSError, ValueError):
+        return
+    found = algorithm_of(leaf.public_key())
+    if found != "ML-DSA-87":
+        raise TLSError(f"the cnsa2 policy needs an ML-DSA-87 certificate, but {cert} holds {found or 'a non-ML-DSA key'}; "
+                       "issue one with --algorithm ML-DSA-87")
+
+
 def server_context(cert, key, ca=None, require_client_cert=False, policy_name="strict", key_passphrase=None, request_client_cert=False,
                    any_purpose=False, fallback=None):
     """`request_client_cert` asks for a client certificate and verifies it if one is sent, but lets clients without one in.
@@ -42,6 +60,7 @@ def server_context(cert, key, ca=None, require_client_cert=False, policy_name="s
         raise TLSError("checking client certificates needs the CA that issued them")
     if fallback and p.sigalgs:
         raise TLSError(f"a fallback certificate needs the transition policy; {p.name} only allows ML-DSA signatures")
+    _check_cnsa2(p, cert)
     return Context(True, p.groups, p.sigalgs, p.ciphersuites, cert, key, key_passphrase, ca, True, require_client_cert, request_client_cert,
                    any_purpose, fallback)
 
@@ -50,6 +69,7 @@ def client_context(ca=None, cert=None, key=None, policy_name="strict", key_passp
     p = policy(policy_name)
     if verify and not ca:
         raise TLSError("verifying the server needs a CA certificate (or pass verify=False for a probe)")
+    _check_cnsa2(p, cert)
     return Context(False, p.groups, p.sigalgs, p.ciphersuites, cert, key, key_passphrase, ca, verify)
 
 

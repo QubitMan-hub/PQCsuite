@@ -88,7 +88,7 @@ def ssh_kexinit(host, port, timeout):
 
 
 def probe_ssh(host, port, timeout):
-    out = {"target": f"ssh://{host}:{port}", "protocol": "ssh", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
+    out = {"target": f"ssh://{_join(host, port)}", "protocol": "ssh", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
     try:
         banner, kex, hostkeys = ssh_kexinit(host, port, timeout)
     except (OSError, ValueError) as e:
@@ -120,7 +120,7 @@ def probe(target, server_name=None, timeout=8.0):
         return probe_ssh(host, port or 22, timeout)
     host, port = hostport(target, "")
     port = port or 443
-    out = {"target": f"{host}:{port}", "protocol": "tls", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
+    out = {"target": _join(host, port), "protocol": "tls", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
     try:
         out["negotiated"], cert = _hello(host, port, ":".join(PQ + CLASSICAL), server_name or host, timeout)
     except (tls.TLSError, OSError) as e:
@@ -184,6 +184,10 @@ th{{font-size:12px;color:var(--mute);font-weight:500}}.gA{{color:var(--a);font-w
 <div><b>{s['pq_certificates']}</b><span>use ML-DSA certificates</span></div><div><b>{s['cnsa2']}</b><span>meet CNSA 2.0</span></div><div><b>{s['expiring_30d']}</b><span>certificates expire within 30 days</span></div></div>
 <ul>{legend}</ul><div class=scroll><table><thead><tr><th>Endpoint</th><th>Grade</th><th>Negotiated</th><th>Accepted key exchanges</th><th>Certificate key and issuer</th><th>Expires</th></tr></thead>
 <tbody>{rows}</tbody></table></div></main></html>"""
+
+
+def _join(host, port):
+    return f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
 
 
 def load_targets(items):

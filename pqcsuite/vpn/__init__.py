@@ -9,6 +9,8 @@ import ipaddress
 import tomllib
 from dataclasses import dataclass, field
 
+from .. import build
+
 PROFILES = {
     "standard": ("aes256gcm16-prfsha384-x25519-ke1_mlkem768", "aes256gcm16-x25519-ke1_mlkem768"),
     "high": ("aes256gcm16-prfsha512-ecp384-ke1_mlkem1024", "aes256gcm16-ecp384-ke1_mlkem1024"),
@@ -50,16 +52,10 @@ def load_config(path):
         doc = tomllib.load(f)
     if "site" not in doc:
         raise ValueError(f"{path}: missing [site]")
-    site = Site(**_fields(Site, doc["site"], "site"), peers=[Peer(**_fields(Peer, p, f"peer #{i + 1}")) for i, p in enumerate(doc.get("peer", []))])
+    site = build(Site, doc["site"], "[site]", peers=[build(Peer, p, f"peer #{i + 1}") for i, p in enumerate(doc.get("peer", []))])
     validate(site)
     return site
 
-
-def _fields(cls, d, where):
-    unknown = set(d) - set(cls.__dataclass_fields__) - {"peers"}
-    if unknown:
-        raise ValueError(f"{where}: unknown settings {', '.join(sorted(unknown))}")
-    return d
 
 
 def validate(site):

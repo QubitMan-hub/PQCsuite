@@ -249,7 +249,8 @@ class Connection:
             result = L_.SSL_get_verify_result(self.ssl)
             if result:
                 raise TLSError(f"certificate rejected: {L_.X509_verify_cert_error_string(result).decode()}") from None
-            raise TLSError(f"handshake failed: {e}") from None
+            hint = " (is this port speaking TLS?)" if any(x in str(e) for x in ("packet length too long", "wrong version number")) else ""
+            raise TLSError(f"handshake failed: {e}{hint}") from None
 
     def _io(self, op, what, deadline=None, wait=True):
         L_ = lib()

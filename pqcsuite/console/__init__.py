@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 
-from .. import NAME, __version__
+from .. import NAME, __version__, build
 from ..pki import CA, CAError
 from ..tls import hostport
 
@@ -40,10 +40,7 @@ class Settings:
     def load(cls, path):
         with open(path, "rb") as f:
             d = tomllib.load(f).get("console", {})
-        unknown = set(d) - set(cls.__dataclass_fields__)
-        if unknown:
-            raise ValueError(f"[console]: unknown settings {', '.join(sorted(unknown))}")
-        return cls(**d)
+        return build(cls, d, "[console]")
 
 
 class App:
@@ -172,7 +169,9 @@ class App:
             return 404, {"error": "no such endpoint"}
         try:
             return 200, fn()
-        except (CAError, ValueError, KeyError, OSError) as e:
+        except KeyError as e:
+            return 400, {"error": f"missing field {e.args[0]}"}
+        except (CAError, ValueError, OSError) as e:
             return 400, {"error": str(e)}
 
     def issue(self, b):
@@ -196,7 +195,11 @@ class App:
         return {"renewed": [r.common_name for r in renewed], "skipped": [r.common_name for r in skipped]}
 
     def start_scan(self, b):
-        targets = [t.strip() for t in str(b.get("targets", "")).replace("\n", ",").split(",") if t.strip()] or self.s.scan_targets
+        raw = b.get("targets", "")
+        items = raw if isinstance(raw, list) else str(raw).replace("\n", ",").split(",")
+        targets = [str(t).strip() for t in items if str(t).strip()] or self.s.scan_targets
+        for t in targets:
+            hostport(t[len("ssh://"):] if t.startswith("ssh://") else t, "")
         if not targets:
             raise ValueError("no targets to scan")
         if len(targets) > 500:

@@ -142,7 +142,7 @@ class TLSTest(unittest.TestCase):
 
     def test_renewed_certificate_is_picked_up_without_restart(self):
         d = Path(self.tmp.name) / "hot"
-        self.ca.issue("localhost", "server", out=d)
+        _, rec = self.ca.issue("localhost", "server", out=d)
         make = lambda: tls.server_context(d / "chain.pem", d / "key.pem")
         s = Server(("127.0.0.1", 0), make, echo, watch=[d / "chain.pem", d / "key.pem"])
         s.start()
@@ -152,7 +152,7 @@ class TLSTest(unittest.TestCase):
                 return c.peer_certificate().serial_number
         before = serial()
         time.sleep(1.1)
-        self.ca.issue("localhost", "server", out=d)
+        self.ca.renew(rec.serial, out=d)
         deadline = time.monotonic() + 8
         while serial() == before and time.monotonic() < deadline:
             time.sleep(0.5)
@@ -216,14 +216,14 @@ class EdgeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
             ca = CA.init(d / "pki", "Root")
-            ca.issue("branch", "client", out=d / "branch")
+            _, rec = ca.issue("branch", "client", out=d / "branch")
             e = Edge(Route("t", "originate", "127.0.0.1:0", "127.0.0.1:1", ca=str(d / "pki" / "ca.crt"),
                            cert=str(d / "branch" / "chain.pem"), key=str(d / "branch" / "key.pem"))).bind()
             self.addCleanup(e.stop)
             first = e.client_context()
             self.assertIs(e.client_context(), first)
             time.sleep(0.05)
-            ca.issue("branch", "client", out=d / "branch")
+            ca.renew(rec.serial, out=d / "branch")
             os.utime(d / "branch" / "chain.pem", (time.time() + 5, time.time() + 5))
             self.assertIsNot(e.client_context(), first)
             self.assertEqual(e.stats.snapshot()["reloads"], 1)

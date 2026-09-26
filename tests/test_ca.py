@@ -119,6 +119,29 @@ class CATest(unittest.TestCase):
             self.ca.issue("x", "server", algorithm="RSA-2048")
         with self.assertRaisesRegex(CAError, "no certificate"):
             self.ca.find("ffff")
+        with self.assertRaisesRegex(CAError, "1 to 64"):
+            self.ca.issue("", "client")
+        with self.assertRaisesRegex(CAError, "not a valid host name"):
+            self.ca.issue("bad name", "server")
+        with self.assertRaisesRegex(CAError, "not a valid host name"):
+            self.ca.issue("web", "server", names=["web", "-x.example"])
+        with self.assertRaisesRegex(CAError, "not a certificate signing request"):
+            self.ca.sign_csr(b"hello", "server")
+        self.ca.issue("*.corp.example", "server", names=["*.corp.example", "10.0.0.1", "::1"])
+        self.ca.issue("Ana María", "client")
+
+    def test_issue_never_overwrites_a_key_and_revoked_certificates_are_not_renewed(self):
+        out = Path(self.tmp.name) / "web"
+        _, rec = self.ca.issue("web.example", "server", out=out)
+        key = (out / "key.pem").read_bytes()
+        with self.assertRaisesRegex(CAError, "already holds a key"):
+            self.ca.issue("web.example", "server", out=out)
+        self.assertEqual((out / "key.pem").read_bytes(), key)
+        _, new = self.ca.renew(rec.serial, out=out)
+        self.assertNotEqual((out / "key.pem").read_bytes(), key)
+        self.ca.revoke(new.serial)
+        with self.assertRaisesRegex(CAError, "is revoked"):
+            self.ca.renew(new.serial, out=out)
 
 
 if __name__ == "__main__":

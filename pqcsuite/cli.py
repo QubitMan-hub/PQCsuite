@@ -84,7 +84,7 @@ def cmd_ca(a):
     if a.ca_cmd == "issue":
         out, r = ca.issue(a.common_name, a.kind, a.san, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
         print(f"issued {r.kind} certificate {r.serial} for {r.common_name} ({r.algorithm}), valid until {r.not_after}")
-        print(f"  {out / 'cert.pem'}\n  {out / 'chain.pem'}  (certificate + CA, use this for servers)\n  {out / 'key.pem'}")
+        print(f"  {out / 'cert.pem'}\n  {out / 'chain.pem'}  (certificate + CA: what servers and mTLS clients present)\n  {out / 'key.pem'}")
     elif a.ca_cmd == "sign-csr":
         cert, r = ca.sign_csr(Path(a.csr).read_bytes(), a.kind, a.days)
         from .pki import cert_pem
@@ -149,8 +149,9 @@ def cmd_tls(a):
             except (tls.TLSError, OSError) as e:
                 reply, out["error"] = b"", str(e)
             if not reply:
-                raise tls.TLSError("the server closed the connection after the handshake: it probably refused our client certificate "
-                                   f"(missing, untrusted or revoked){': ' + out['error'] if 'error' in out else ''}")
+                raise tls.TLSError("the server closed the connection right after the handshake: either it refused our client certificate "
+                                   "(missing, untrusted or revoked), or the service behind it is down (see the server's log)"
+                                   f"{': ' + out['error'] if 'error' in out else ''}")
             out["reply"] = reply.decode(errors="replace")
     show(out, a.json)
     return 0
@@ -166,7 +167,10 @@ def cmd_probe(a):
 
 def cmd_scan(a):
     from .readiness import scan
-    results = scan.scan(scan.load_targets(a.targets), a.workers, a.timeout)
+    targets = scan.load_targets(a.targets)
+    if not targets:
+        raise ValueError("no targets: give host:port, ssh://host:port, or a .txt file with one per line")
+    results = scan.scan(targets, a.workers, a.timeout)
     if a.html:
         Path(a.html).write_text(scan.report_html(results), encoding="utf-8")
     if a.json:
@@ -191,7 +195,7 @@ def cmd_edge(a):
                         crl=a.crl or "", server_name=a.server_name or "", proxy_protocol=a.proxy_protocol,
                         fallback_cert=a.fallback_cert or "", fallback_key=a.fallback_key or "")]
         metrics = a.metrics
-    edges = [Edge(r) for r in routes]
+    edges = [Edge(r).bind() for r in routes]
     if metrics:
         serve_metrics(metrics, edges)
     threads = [threading.Thread(target=e.serve_forever, daemon=True, name=e.route.name) for e in edges]
@@ -277,6 +281,9 @@ def cmd_vault(a):
 
     signer = lambda: vault.load_signer(a.sign_cert, a.sign_key, env_passphrase(a.sign_passphrase_env)) if a.sign_cert else None
     if a.vault_cmd == "keygen":
+        taken = [f for f in (f"{a.out}.key", f"{a.out}.pub") if Path(f).exists()]
+        if taken:
+            raise VaultError(f"{taken[0]} already exists; pick another name (replacing a key makes everything encrypted to it unreadable)")
         ident = vault.Identity.generate(a.cnsa2)
         pw = env_passphrase(a.passphrase_env) if a.passphrase_env else None
         if not pw and not a.no_passphrase:
@@ -289,6 +296,8 @@ def cmd_vault(a):
     elif a.vault_cmd in ("encrypt", "backup"):
         rec = [vault.Recipient.load(r) for r in a.recipient]
         if a.vault_cmd == "encrypt":
+            if Path(a.out).exists():
+                raise VaultError(f"{a.out} already exists; choose another -o")
             vault.encrypt(a.source, a.out, rec, signer())
             print(f"encrypted {a.source} -> {a.out} for {len(rec)} recipient(s)")
         else:
@@ -328,6 +337,8 @@ def cmd_console(a):
     s.vpn += a.vici
     s.wireguard += a.wireguard
     s.backups += a.backups
+    if s.ca and not (Path(s.ca) / "ca.crt").exists():
+        raise ValueError(f"no CA at {s.ca}; run 'pqcsuite ca init' first, or leave out --ca")
     app = App(s)
     httpd = serve(app)
     host, port = httpd.server_address[:2]
@@ -365,6 +376,8 @@ def cmd_report(a):
     from .readiness import compliance
     from .readiness import scan
     from .console import App, Settings
+    if not (a.ca or a.targets or a.vici or a.backups):
+        raise ValueError("nothing to report on: pass --ca, --targets, --vici or --backups")
     app = App(Settings(ca=a.ca or "", vpn=a.vici, backups=a.backups))
     rows = []
     if a.ca:

@@ -46,7 +46,7 @@ class VaultTest(unittest.TestCase):
         f.write_bytes(bytes(raw))
         with self.assertRaisesRegex(VaultError, "modified"):
             vault.decrypt(f, self.d / "x", self.alice)
-        self.assertEqual(list((self.d / "x").iterdir()), [])
+        self.assertFalse((self.d / "x").exists())
 
     def test_truncation_is_detected(self):
         f = self.enc()
@@ -83,6 +83,33 @@ class VaultTest(unittest.TestCase):
         target, _ = vault.decrypt(self.enc(src="site"), self.d / "restore", self.alice)
         self.assertEqual((target / "a" / "b" / "x.txt").read_text(), "hello")
         self.assertEqual((target / "top.bin").read_bytes(), self.data)
+
+    def test_links_leaving_the_folder_and_special_files_are_left_out_so_the_backup_restores(self):
+        src = self.d / "site"
+        (src / "sub").mkdir(parents=True)
+        (src / "sub" / "a.txt").write_text("a")
+        try:
+            os.symlink("sub/a.txt", src / "inside")
+            os.symlink("/etc/hosts", src / "absolute")
+            os.symlink("../../outside", src / "sub" / "climbs")
+        except (OSError, NotImplementedError):
+            self.skipTest("cannot create symlinks here")
+        if hasattr(os, "mkfifo"):
+            os.mkfifo(src / "pipe")
+        target, _ = vault.decrypt(self.enc(src="site"), self.d / "restore", self.alice)
+        self.assertEqual(sorted(p.relative_to(target).as_posix() for p in target.rglob("*")), ["inside", "sub", "sub/a.txt"])
+
+    def test_failed_restore_leaves_no_folder_and_keys_are_named_clearly(self):
+        f = self.enc()
+        with self.assertRaises(VaultError):
+            vault.decrypt(f, self.d / "nope", self.bob)
+        self.assertFalse((self.d / "nope").exists())
+        (self.d / "alice.pub").write_bytes(self.alice.public.pem())
+        with self.assertRaisesRegex(VaultError, "not a vault private key"):
+            Identity.load(self.d / "alice.pub")
+        self.alice.save(self.d / "alice.key", None)
+        with self.assertRaisesRegex(VaultError, "not a vault recipient key"):
+            Recipient.load(self.d / "alice.key")
 
     def test_signed_by_a_ca_certificate(self):
         ca = CA.init(self.d / "pki", "Root")
