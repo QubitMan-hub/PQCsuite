@@ -202,14 +202,13 @@ class Writer(io.RawIOBase):
         self.digest.update(ct)
         self.i += 1
 
-    def close(self):
-        if self.closed:
-            return
+    def finish(self):
+        """Write the last chunk and the signature. Only a finished file decrypts; close() alone never finishes one."""
         self._emit(bytes(self.buf), True)
         if self.signer:
             sig = self.signer[0].sign(self.digest.digest())
             self.out.write(SIG_MAGIC + struct.pack(">I", len(sig)) + sig)
-        super().close()
+        self.close()
 
 
 def read_header(f):
@@ -306,17 +305,21 @@ def encrypt(src, dst, recipients, signer=None):
     """Encrypt a file or a whole folder (as a tar stream) to `dst`. Returns bytes of plaintext read."""
     src, dst = Path(src), Path(dst)
     tmp = dst.with_name(dst.name + ".part")
-    with open(tmp, "wb") as out:
-        w = Writer(out, recipients, src.name, "dir" if src.is_dir() else "file", signer)
-        if src.is_dir():
-            with tarfile.open(fileobj=w, mode="w|") as tar:
-                tar.add(src, arcname=src.name)
-        else:
-            with open(src, "rb") as f:
-                while block := f.read(CHUNK):
-                    w.write(block)
-        w.close()
-    os.replace(tmp, dst)
+    try:
+        with open(tmp, "wb") as out:
+            w = Writer(out, recipients, src.name, "dir" if src.is_dir() else "file", signer)
+            if src.is_dir():
+                with tarfile.open(fileobj=w, mode="w|") as tar:
+                    tar.add(src, arcname=src.name)
+            else:
+                with open(src, "rb") as f:
+                    while block := f.read(CHUNK):
+                        w.write(block)
+            w.finish()
+        os.replace(tmp, dst)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
 
 
 class _ChunkReader(io.RawIOBase):

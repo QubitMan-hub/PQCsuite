@@ -1,9 +1,11 @@
 import json
 import os
 import struct
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from pqcsuite import vault
 from pqcsuite.pki import CA
@@ -63,6 +65,15 @@ class VaultTest(unittest.TestCase):
         f.write_bytes(raw[:pos])
         with self.assertRaisesRegex(VaultError, "truncated"):
             vault.decrypt(f, self.d / "x", self.alice)
+
+    def test_a_failed_encryption_leaves_nothing_behind(self):
+        src = self.d / "site"
+        src.mkdir()
+        (src / "ok.bin").write_bytes(self.data)
+        with mock.patch.object(tarfile.TarFile, "add", side_effect=OSError("disk read error")):
+            with self.assertRaisesRegex(OSError, "disk read error"):
+                vault.encrypt(src, self.d / "out.pqv", [self.alice.public])
+        self.assertEqual(sorted(p.name for p in self.d.iterdir()), ["db.dump", "site"])
 
     def test_folders_round_trip(self):
         src = self.d / "site"
