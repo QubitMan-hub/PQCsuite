@@ -310,6 +310,15 @@ class Regressions(unittest.TestCase):
             sights, _, _ = binary.scan(d)
         self.assertEqual({(s.algo, s.file) for s in sights}, {("MD5", "app.jar!Good.class")})
 
+    def test_haproxy_min_version_counts_and_disabled_versions_do_not(self):
+        import tempfile
+        from wolfpack.scouts import config
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "haproxy.cfg").write_text("global\n  ssl-default-bind-options ssl-min-ver TLSv1.0\n"
+                                                 "frontend f\n  bind :443 ssl crt x.pem no-tlsv10 no-tlsv11 ssl-min-ver TLSv1.2\n", encoding="utf-8")
+            s = config.scan(d)[0]
+        self.assertEqual([(x.algo, x.line) for x in s], [("TLS 1.0", 2), ("TLS 1.2", 4)])
+
     def test_config_key_size_does_not_blank_curve(self):
         import tempfile
         from wolfpack.scouts import config

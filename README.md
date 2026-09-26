@@ -119,25 +119,25 @@ Development corpus: `bench/corpus` has 55 files across 7 languages plus configs,
 - a JS `'sha' + bits`, a command-line flag named `ecdsa`, a JSON field named `hmac`, libsodium prototypes in a header and in C# P/Invoke;
 - MD5 initial values that must not read as SHA-1, prose that looks like an SSH directive, benchmark labels, and `getDigest(name)` with a variable name.
 
-Ground truth is 91 (file, algorithm family) pairs.
+Ground truth is 96 (file, algorithm family) pairs.
 
 | configuration | precision | recall | F1 |
 |---|---|---|---|
 | full pack | 1.000 | 1.000 | 1.000 |
-| without den | 0.765 | 1.000 | 0.867 |
-| without corroboration | 1.000 | 0.989 | 0.994 |
-| without second look | 1.000 | 0.956 | 0.978 |
-| &nbsp;&nbsp;without flow | 1.000 | 0.989 | 0.994 |
-| &nbsp;&nbsp;without registries | 1.000 | 0.978 | 0.989 |
-| &nbsp;&nbsp;without siblings | 1.000 | 0.989 | 0.994 |
-| without recognition | 0.968 | 1.000 | 0.984 |
-| without propagation | 1.000 | 0.989 | 0.994 |
-| without cross-file | 1.000 | 0.989 | 0.994 |
-| without source scouts | 1.000 | 0.286 | 0.444 |
-| without implementation scouts | 1.000 | 0.967 | 0.983 |
-| without config scouts | 1.000 | 0.802 | 0.890 |
-| without artifact scouts | 1.000 | 0.967 | 0.983 |
-| without binary scouts | 1.000 | 0.978 | 0.989 |
+| without den | 0.774 | 1.000 | 0.873 |
+| without corroboration | 1.000 | 0.990 | 0.995 |
+| without second look | 1.000 | 0.958 | 0.979 |
+| &nbsp;&nbsp;without flow | 1.000 | 0.990 | 0.995 |
+| &nbsp;&nbsp;without registries | 1.000 | 0.979 | 0.989 |
+| &nbsp;&nbsp;without siblings | 1.000 | 0.990 | 0.995 |
+| without recognition | 0.970 | 1.000 | 0.985 |
+| without propagation | 1.000 | 0.990 | 0.995 |
+| without cross-file | 1.000 | 0.990 | 0.995 |
+| without source scouts | 1.000 | 0.323 | 0.488 |
+| without implementation scouts | 1.000 | 0.969 | 0.984 |
+| without config scouts | 1.000 | 0.760 | 0.864 |
+| without artifact scouts | 1.000 | 0.969 | 0.984 |
+| without binary scouts | 1.000 | 0.979 | 0.989 |
 
 This corpus was written alongside the scanner, so treat it as a regression test and ablation demo, not a result. Propagation also recovers parameters (RSA-1024 rather than RSA), which family-level scoring does not see.
 

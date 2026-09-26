@@ -17,6 +17,7 @@ PAIRS = [
     (re.compile(r"^\s*(?:ssl_ciphers|SSLCipherSuite|ssl-default-bind-ciphers|ssl-default-server-ciphers|ssl-default-bind-ciphersuites|CipherString|Ciphersuites|ssl_cipher|cipher[_-]?suites?|ciphers)\s*[=:\s]\s*(.+)", re.I), "ciphers"),
     (re.compile(r"^\s*(?:ssl_ecdh_curve|Groups|Curves|ssl-default-bind-curves|ssl_ecdh_curves|curves|groups|named[_-]?groups)\s*[=:\s]\s*(.+)", re.I), "groups"),
     (re.compile(r"^\s*[\w.\-\"']*(?:min[_-]?(?:tls|ssl|proto(?:col)?)?[_-]?version|MinProtocol|MaxProtocol|ssl-min-ver|ssl-max-ver|enabled[_-]?protocols|sslEnabledProtocols|sslProtocol|tls[_-]?versions?|protocols?)[\w\"']*\s*[=:]\s*(.+)", re.I), "protocols"),
+    (re.compile(r"\bssl-(?:min|max)-ver\s+(\S+)", re.I), "protocols"),
     (re.compile(r"^\s*[\w.\-\"']*(?:algorithm|alg|signing[_-]?alg\w*|key[_-]?algorithm|keyAlgorithm|hash[_-]?algorithm|digest[_-]?algorithm|kex)[\w\"']*\s*[=:]\s*[\"']?([\w\-/]+)", re.I), "algo"),
     (re.compile(r"^\s*[\w.\-\"']*(?:key[_-]?size|keysize|key[_-]?length|rsa[_-]?bits|modulus[_-]?length|size)[\w\"']*\s*[=:]\s*[\"']?(\d{3,5})\b", re.I), "size"),
 ]

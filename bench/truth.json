@@ -175,5 +175,12 @@
   "py/tpm_keys.py": [
     "RSA",
     "ECC"
+  ],
+  "config/haproxy.cfg": [
+    "TLS 1.2",
+    "ECDH",
+    "ECDSA",
+    "AES",
+    "SHA-384"
   ]
 }
