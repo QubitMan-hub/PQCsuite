@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 
 from . import pack
@@ -40,6 +41,8 @@ def score(result, truth):
 def main(corpus, truth_path=None, detail=False, json_path=None):
     corpus = Path(corpus)
     truth_path = Path(truth_path) if truth_path else corpus.parent / "truth.json"
+    if not corpus.is_dir() or not truth_path.is_file():
+        sys.exit(f"wolfpack: bench needs a corpus folder and its truth.json ({corpus}, {truth_path})")
     truth = json.loads(truth_path.read_text(encoding="utf-8"))
     print(f"corpus {corpus}  labelled pairs {sum(len(v) for v in truth.values())}\n")
     print(f"{'configuration':<31}{'precision':>10}{'recall':>9}{'F1':>7}{'FP':>5}{'FN':>5}")

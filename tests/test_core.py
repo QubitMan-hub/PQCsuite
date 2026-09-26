@@ -206,16 +206,25 @@ class Probe(unittest.TestCase):
         port = srv.getsockname()[1]
 
         def serve():
-            for _ in range(len(probe.GROUPS) + 1):
-                c, _ = srv.accept()
+            while True:
+                try:
+                    c, _ = srv.accept()
+                except OSError:
+                    return
                 c.recv(4096)
                 c.sendall(record)
                 c.close()
         threading.Thread(target=serve, daemon=True).start()
         r = probe.tls_groups("127.0.0.1", port, 3)
-        srv.close()
         self.assertEqual(r["preferred"], "X25519MLKEM768")
         self.assertEqual(r["pq"], ["X25519MLKEM768"])
+        from wolfpack.scouts import tls
+        sights, _, notes, ep = tls.probe(f"127.0.0.1:{port}", 3)
+        srv.close()
+        self.assertNotIn("error", ep)
+        self.assertEqual(ep["pq_groups"], ["X25519MLKEM768"])
+        self.assertTrue({"TLS 1.3", "X25519MLKEM768"} <= {s.algo for s in sights})
+        self.assertIn("certificate, which TLS 1.3 encrypts, was not read", notes[0])
 
 
 class Scope(unittest.TestCase):
@@ -351,6 +360,21 @@ class Operation(unittest.TestCase):
             with self.assertRaises(SystemExit) as e:
                 main(["scan", d, "--fail-on", "severe"])
             self.assertEqual(e.exception.code, 1)
+
+    def test_unreadable_baseline_and_output_are_one_line_errors(self):
+        import tempfile
+        from wolfpack.cli import main
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "bad.json").write_text("not json", encoding="utf-8")
+            for argv, message in ((["--baseline", str(Path(d) / "bad.json")], "cannot read the baseline"),
+                                  (["--baseline", str(Path(d) / "none.json")], "cannot read the baseline")):
+                with self.assertRaises(SystemExit) as e:
+                    main(["scan", d, "-o", str(Path(d) / "out"), "-q", *argv])
+                self.assertIn(message, str(e.exception.code))
+            (Path(d) / "file").write_text("x", encoding="utf-8")
+            with self.assertRaises(SystemExit) as e:
+                main(["scan", d, "-o", str(Path(d) / "file" / "out"), "-q"])
+            self.assertIn("cannot write to", str(e.exception.code))
 
     def test_implementation_prefilter_keeps_split_tables(self):
         import tempfile

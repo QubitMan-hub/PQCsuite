@@ -1,5 +1,7 @@
 name: ci
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   test:
     strategy:
@@ -8,8 +10,8 @@ jobs:
         python: ["3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python }}
       - run: pip install -e ".[dev]"
@@ -20,28 +22,28 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - run: pip wheel . --no-deps -w dist
       - run: python -m venv /tmp/clean && /tmp/clean/bin/pip install dist/*.whl
       - run: cd /tmp && /tmp/clean/bin/wolfpack --version && /tmp/clean/bin/wolfpack scan "$GITHUB_WORKSPACE/bench/corpus" -o /tmp/out -q
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wheel
           path: dist/*.whl
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: docker build -t wolfpack .
       - run: docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/bench/corpus:/scan" wolfpack scan . -q
       - run: test -s bench/corpus/wolfpack-out/cbom.json
   action:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: ./
         with:
           path: bench/corpus

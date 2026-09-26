@@ -61,16 +61,28 @@ def probe(target, timeout=6.0):
         if algo:
             sights.append(Sighting(algo=algo, file=loc, line=0, evidence="live", scout="tls", snippet=snip, lang="tls",
                                    params={k: v for k, v in p.items() if v is not None}))
+    version = cipher = der = None
     try:
         version, cipher, der = _handshake(host, port, _ctx(), timeout)
+    except ssl.SSLError as e:
+        failed = f"{type(e).__name__}: {e}"
     except Exception as e:
         ep["error"] = f"{type(e).__name__}: {e}"
         return sights, arts, [f"{loc}: handshake failed ({ep['error']})"], ep
-    ep.update(version=version, cipher=cipher[0])
-    add(lookup(version), f"{version} {cipher[0]}", negotiated=True, cipher=cipher[0])
-    for a, p in suite(cipher[0]):
-        add(a, cipher[0], role="cipher-suite", **p)
+    if version:
+        ep.update(version=version, cipher=cipher[0])
+        add(lookup(version), f"{version} {cipher[0]}", negotiated=True, cipher=cipher[0])
+        for a, p in suite(cipher[0]):
+            add(a, cipher[0], role="cipher-suite", **p)
     g = tls_groups(host, port, timeout)
+    if not version and ("error" in g or not g.get("supported")):
+        ep["error"] = failed
+        return sights, arts, [f"{loc}: handshake failed ({failed})"], ep
+    if not version:
+        ep["version"] = "TLSv1.3"
+        add(lookup("TLSv1.3"), "server answered a TLS 1.3 HelloRetryRequest", negotiated=True)
+        notes.append(f"{loc}: the local OpenSSL could not finish a handshake ({failed}); key-exchange groups come from the "
+                     "raw ClientHello probe, and the certificate, which TLS 1.3 encrypts, was not read")
     if "error" in g:
         notes.append(f"{loc}: group probe failed ({g['error']})")
     else:

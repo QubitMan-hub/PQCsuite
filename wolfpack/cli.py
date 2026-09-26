@@ -3,7 +3,10 @@ import json
 import sys
 import tempfile
 import tomllib
+import warnings
 from pathlib import Path
+
+from cryptography.utils import CryptographyDeprecationWarning
 
 from . import __version__, pack, cbom, report
 from .alpha import Horizon, TIERS
@@ -15,6 +18,7 @@ SETTINGS = {"exclude": list, "include_vendor": bool, "tls": list, "ssh": list, "
 
 
 def main(argv=None):
+    warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
     ap = argparse.ArgumentParser(prog="wolfpack", description="Cryptographic inventory (CycloneDX 1.6 CBOM) and quantum migration planner")
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -66,14 +70,22 @@ def main(argv=None):
     if not root.exists():
         sys.exit(f"wolfpack: {a.path} does not exist")
     name = a.name or ((a.tls + a.ssh)[0] if targets_only else root.name)
+    if a.baseline:
+        try:
+            pack.load_baseline(a.baseline)
+        except (OSError, ValueError, AttributeError) as e:
+            sys.exit(f"wolfpack: cannot read the baseline {a.baseline}: {e}")
+    out = Path(a.out)
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        sys.exit(f"wolfpack: cannot write to {out}: {e}")
     h = Horizon(a.shelf_life, a.migration, a.crqc_year)
     r = pack.run(root, name, a.tls, h, a.threshold, pack.Roles.without(*a.without), Scope(a.include_vendor, tuple(a.exclude)), a.ssh, a.baseline)
-    out = Path(a.out)
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "cbom.json").write_text(json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2), encoding="utf-8")
-    (out / "wolfpack.sarif").write_text(json.dumps(cbom.sarif(r.assets, r.alerts), indent=2), encoding="utf-8")
-    (out / "findings.json").write_text(json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness}, indent=2, default=str), encoding="utf-8")
-    (out / "report.html").write_text(report.html(r), encoding="utf-8")
+    try:
+        _write(out, name, r)
+    except OSError as e:
+        sys.exit(f"wolfpack: cannot write to {out}: {e}")
     if not a.quiet:
         print(report.terminal(r))
         print(f"\nwrote {out / 'cbom.json'}, {out / 'report.html'}, {out / 'wolfpack.sarif'}, {out / 'findings.json'}")
@@ -102,3 +114,10 @@ def settings(path, root):
         if not isinstance(v, SETTINGS[k]) or (SETTINGS[k] is list and not all(isinstance(x, str) for x in v)):
             sys.exit(f"wolfpack: {f}: {k} has the wrong type")
     return cfg
+
+
+def _write(out, name, r):
+    (out / "cbom.json").write_text(json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2), encoding="utf-8")
+    (out / "wolfpack.sarif").write_text(json.dumps(cbom.sarif(r.assets, r.alerts), indent=2), encoding="utf-8")
+    (out / "findings.json").write_text(json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness}, indent=2, default=str), encoding="utf-8")
+    (out / "report.html").write_text(report.html(r), encoding="utf-8")
