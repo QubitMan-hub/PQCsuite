@@ -135,7 +135,7 @@ def terminal(r):
            f"quantum-safe asymmetric: {rd['pq_safe']}/{rd['asymmetric']} ({rd['percent']}%)   hybrid KEX: {'yes' if rd['hybrid'] else 'no'}"]
     for ep in r.endpoints:
         if ep.get("error"):
-            out.append(f"  endpoint {ep['target']}: unreachable")
+            out.append(f"  endpoint {ep['target']}: unreachable ({ep['error']})")
         else:
             out.append(f"  endpoint {ep['target']}: {ep.get('version')}, PQ groups: {', '.join(ep.get('pq_groups', [])) or 'none'}, preferred {ep.get('preferred_group')}")
     out.append("")

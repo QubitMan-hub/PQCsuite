@@ -281,10 +281,12 @@ class Regressions(unittest.TestCase):
         self.assertFalse(t.is_alive())
         self.assertIn("error", out[0][3])
 
-    def test_ipv6_target_without_port(self):
+    def test_targets_as_people_write_them(self):
         from wolfpack.scouts.tls import _split
         self.assertEqual(_split("[::1]", 443), ("::1", 443))
         self.assertEqual(_split("[::1]:8443", 443), ("::1", 8443))
+        self.assertEqual(_split("https://bank.example/login", 443), ("bank.example", 443))
+        self.assertEqual(_split("ssh://bank.example:2222", 22), ("bank.example", 2222))
 
     def test_nuget_without_inline_version(self):
         import tempfile
