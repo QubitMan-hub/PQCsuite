@@ -110,7 +110,7 @@ class Demo:
         print(f"\n{'=' * 78}\n{self.n}. {title}\n{'=' * 78}")
         print(textwrap.fill(story, 78))
         if not self.auto:
-            input("\n  [Enter] to run it ")
+            self.pause("\n  [Enter] to run it ")
 
     def run(self, *args, expect=0, contains=(), tool="pqcsuite"):
         cmd = [sys.executable, "-m", tool, *map(str, args)] if tool == "pqcsuite" else [tool, *map(str, args)]
@@ -123,6 +123,17 @@ class Demo:
         if r.returncode != expect or any(c not in out for c in contains):
             raise SystemExit(f"\ndemo: step {self.n} did not go as planned (exit {r.returncode}, expected {expect}; wanted {list(contains)})")
         return out
+
+    def pause(self, prompt):
+        try:
+            input(prompt)
+        except EOFError:
+            self.auto = True
+
+    def serial(self, name):
+        """The serial of the valid certificate called `name`, looked up without printing the whole list."""
+        r = subprocess.run([sys.executable, "-m", "pqcsuite", "ca", "list", "--json"], cwd=self.work, capture_output=True, text=True)
+        return next(c["serial"] for c in json.loads(r.stdout) if c["common_name"] == name)
 
     def start(self, name, cmd, port):
         log = open(self.work / f"{name}.log", "w", encoding="utf-8")
@@ -228,9 +239,8 @@ def main():
 
         d.step("Dr Mehta's laptop is stolen",
                "The clinic cancels the laptop's certificate. Within seconds the portal refuses it; nobody touches the edge.")
-        serial = json.loads(d.run("ca", "list", "--json"))
-        serial = next(r["serial"] for r in serial if r["common_name"] == "dr-mehta-laptop")
-        d.run("ca", "revoke", serial, "--reason", "keyCompromise", contains=["revoked"])
+        d.run("ca", "list", contains=["dr-mehta-laptop"])
+        d.run("ca", "revoke", d.serial("dr-mehta-laptop"), "--reason", "keyCompromise", contains=["revoked"])
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline and "was revoked" not in (work / "edge.log").read_text(encoding="utf-8", errors="replace"):
             subprocess.run([py, "-m", "pqcsuite", "tls", "connect", f"127.0.0.1:{staff}", *get, *laptop], cwd=work, capture_output=True)
@@ -271,6 +281,8 @@ def main():
         print(f"\nDone. Open these in a browser:\n  {work / 'readiness-before.html'}\n  {work / 'readiness-after.html'}\n  {work / 'evidence.html'}")
         if (work / "wolfpack-out" / "report.html").exists():
             print(f"  {work / 'wolfpack-out' / 'report.html'}")
+    except KeyboardInterrupt:
+        print("\nstopped")
     finally:
         d.stop()
 

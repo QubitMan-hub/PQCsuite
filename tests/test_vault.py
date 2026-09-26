@@ -99,6 +99,36 @@ class VaultTest(unittest.TestCase):
         target, _ = vault.decrypt(self.enc(src="site"), self.d / "restore", self.alice)
         self.assertEqual(sorted(p.relative_to(target).as_posix() for p in target.rglob("*")), ["inside", "sub", "sub/a.txt"])
 
+    def test_every_single_bit_flip_is_refused(self):
+        (self.d / "small.txt").write_text("statement 2026-09")
+        f = self.d / "small.pqv"
+        vault.encrypt(self.d / "small.txt", f, [self.alice.public, self.bob.public])
+        raw = f.read_bytes()
+        for i in range(len(raw)):
+            m = bytearray(raw)
+            m[i] ^= 1
+            (self.d / "t.pqv").write_bytes(bytes(m))
+            with self.subTest(byte=i), self.assertRaises(VaultError):
+                vault.decrypt(self.d / "t.pqv", self.d / "o", self.alice)
+
+    def test_removing_a_recipient_or_padding_the_signature_is_refused(self):
+        ca = CA.init(self.d / "pki", "Root")
+        out, _ = ca.issue("archive-job", "client")
+        f = self.enc([self.alice, self.bob], vault.load_signer(out / "cert.pem", out / "key.pem"))
+        raw = f.read_bytes()
+        (n,) = struct.unpack(">I", raw[5:9])
+        h = json.loads(raw[9:9 + n])
+        h["recipients"] = [r for r in h["recipients"] if r["id"] == self.alice.public.id]
+        header = json.dumps(h).encode()
+        (self.d / "t.pqv").write_bytes(raw[:5] + struct.pack(">I", len(header)) + header + raw[9 + n:])
+        with self.assertRaisesRegex(VaultError, "list of recipients was modified"):
+            vault.decrypt(self.d / "t.pqv", self.d / "o", self.alice)
+        i = raw.rindex(vault.SIG_MAGIC) + 4
+        padded = raw[:i] + struct.pack(">I", struct.unpack(">I", raw[i:i + 4])[0] + 1) + raw[i + 4:]
+        (self.d / "t.pqv").write_bytes(padded)
+        with self.assertRaisesRegex(VaultError, "signature was modified"):
+            vault.decrypt(self.d / "t.pqv", self.d / "o", self.alice)
+
     def test_failed_restore_leaves_no_folder_and_keys_are_named_clearly(self):
         f = self.enc()
         with self.assertRaises(VaultError):

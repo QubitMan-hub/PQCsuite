@@ -9,6 +9,7 @@ list is not bound into the chunks, so access can be granted later without re-enc
 import base64
 import datetime as dt
 import hashlib
+import hmac
 import io
 import logging
 import json
@@ -171,6 +172,17 @@ def _core(h):
     return json.dumps({k: h.get(k) for k in ("v", "suite", "id", "chunk", "nonce", "name", "kind", "created", "signer")}, sort_keys=True).encode()
 
 
+def _recipients_mac(dek, recipients):
+    """Binds the recipient list to the file key: whoever can open the file can tell that no entry was changed or removed,
+    and sharing, which knows the key, can extend the list. The list itself stays outside the chunks' AAD for that reason."""
+    return b64(hmac.new(hashlib.sha256(b"pqv recipients" + dek).digest(), json.dumps(recipients, sort_keys=True).encode(), "sha256").digest())
+
+
+def _check_recipients(h, dek):
+    if h["v"] >= 2 and not hmac.compare_digest(str(h.get("mac", "")), _recipients_mac(dek, h["recipients"])):
+        raise VaultError("the list of recipients was modified")
+
+
 class Writer(io.RawIOBase):
     """A file-like object that encrypts whatever is written to it into `out`."""
 
@@ -182,13 +194,14 @@ class Writer(io.RawIOBase):
             raise VaultError("all recipients of one file must use the same suite (standard or CNSA 2.0)")
         self.out, self.dek, self.buf, self.i = out, AESGCM.generate_key(256), bytearray(), 0
         self.aes = None
-        self.h = {"v": 1, "suite": suites.pop(), "id": b64(os.urandom(16)), "chunk": CHUNK, "nonce": b64(os.urandom(7)), "name": name,
+        self.h = {"v": 2, "suite": suites.pop(), "id": b64(os.urandom(16)), "chunk": CHUNK, "nonce": b64(os.urandom(7)), "name": name,
                   "kind": kind, "created": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()}
         self.signer = signer
         if signer:
             self.h["signer"] = signer[1].public_bytes(ser.Encoding.PEM).decode()
         self.aad = hashlib.sha256(_core(self.h)).digest()
         self.h["recipients"] = [wrap(self.dek, r, self.aad) for r in recipients]
+        self.h["mac"] = _recipients_mac(self.dek, self.h["recipients"])
         header = json.dumps(self.h).encode()
         out.write(MAGIC + struct.pack(">I", len(header)) + header)
         self.digest = hashlib.sha512(self.aad)
@@ -222,12 +235,27 @@ class Writer(io.RawIOBase):
 def read_header(f):
     if f.read(len(MAGIC)) != MAGIC:
         raise VaultError("not a pqcsuite vault file")
-    (n,) = struct.unpack(">I", f.read(4))
+    head = f.read(4)
+    if len(head) < 4:
+        raise VaultError("corrupted header")
+    (n,) = struct.unpack(">I", head)
     if n > 1 << 24:
         raise VaultError("header too large")
-    h = json.loads(f.read(n))
-    if h.get("v") != 1 or h.get("suite") not in SUITES:
+    try:
+        h = json.loads(f.read(n))
+        fields = all(isinstance(h.get(k), str) for k in ("suite", "id", "nonce", "name", "kind", "created"))
+        entries = isinstance(h.get("recipients"), list) and all(
+            isinstance(r, dict) and all(isinstance(r.get(k), str) for k in ("id", "kem", "dh", "key")) for r in h["recipients"])
+    except (ValueError, UnicodeDecodeError, AttributeError):
+        fields = entries = False
+    if not (fields and entries and isinstance(h.get("chunk"), int)):
+        raise VaultError("corrupted header")
+    if h.get("v") not in (1, 2) or h.get("suite") not in SUITES:
         raise VaultError(f"unsupported vault format {h.get('v')}/{h.get('suite')}")
+    try:
+        unb64(h["nonce"]), unb64(h["id"])
+    except ValueError:
+        raise VaultError("corrupted header") from None
     return h
 
 
@@ -238,9 +266,11 @@ def chunks(f, h, identity):
     if not entry or h["suite"] != identity.suite.name:
         raise VaultError("this file was not encrypted for this key")
     try:
-        aes = AESGCM(unwrap(entry, identity, aad))
+        dek = unwrap(entry, identity, aad)
     except Exception:
         raise VaultError("cannot unwrap the file key: wrong key or corrupted header") from None
+    _check_recipients(h, dek)
+    aes = AESGCM(dek)
     prefix, digest, i = unb64(h["nonce"]), hashlib.sha512(aad), 0
     while True:
         head = f.read(4)
@@ -250,6 +280,8 @@ def chunks(f, h, identity):
         if n > CHUNK + 16:
             raise VaultError("corrupted chunk length")
         ct = f.read(n)
+        if len(ct) != n:
+            raise VaultError("the file is truncated")
         digest.update(ct)
         for last in (False, True):
             try:
@@ -265,8 +297,11 @@ def chunks(f, h, identity):
             break
     trailer = f.read(4)
     if trailer == SIG_MAGIC:
-        (n,) = struct.unpack(">I", f.read(4))
-        h["_signature"] = (f.read(n), digest.digest())
+        (n,) = struct.unpack(">I", f.read(4).rjust(4, b"\0"))
+        sig = f.read(n)
+        if len(sig) != n or f.read(1):
+            raise VaultError("the signature was modified or truncated")
+        h["_signature"] = (sig, digest.digest())
     elif trailer:
         raise VaultError("unexpected data after the last chunk")
 
@@ -422,10 +457,13 @@ def add_recipients(path, identity, recipients):
         if not entry:
             raise VaultError("you can only share a file you can open")
         dek = unwrap(entry, identity, aad)
+        _check_recipients(h, dek)
         if any(r.suite.name != h["suite"] for r in recipients):
             raise VaultError(f"this file uses {h['suite']}; new recipients must have keys of that suite")
         have = {r["id"] for r in h["recipients"]}
         h["recipients"] += [wrap(dek, r, aad) for r in recipients if r.id not in have]
+        if h["v"] >= 2:
+            h["mac"] = _recipients_mac(dek, h["recipients"])
         header = json.dumps(h).encode()
         tmp = path.with_name(path.name + ".part")
         with open(tmp, "wb") as out:

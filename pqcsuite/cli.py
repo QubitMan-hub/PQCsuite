@@ -153,7 +153,7 @@ def cmd_tls(a):
             if not reply:
                 raise tls.TLSError("the server closed the connection right after the handshake: either it refused our client certificate "
                                    "(missing, untrusted or revoked), or the service behind it is down (see the server's log)"
-                                   f"{': ' + out['error'] if 'error' in out else ''}")
+                                   f"{': ' + out['error'] if out.get('error') else ''}")
             out["reply"] = reply.decode(errors="replace")
     show(out, a.json)
     return 0

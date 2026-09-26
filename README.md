@@ -139,9 +139,10 @@ Pages: overview, TLS 1.3 edges, mTLS certificates (issue, revoke, renew), IPsec 
 ```
 python examples/clinic_demo.py          # pauses before each step
 python examples/clinic_demo.py --auto   # runs straight through and checks every result
+python examples/bank_demo.py            # the same for a bank; ends with the console open
 ```
 
-A clinic's patient portal, old records server, a doctor's laptop and nightly backups, in about a minute: readiness grades, Wolf Pack on the clinic's code (when `wolfpack` is installed), the portal behind post-quantum mutual TLS, a stolen laptop cut off, a signed Vault backup, a tampered backup refused, and the evidence report. CI runs it on every change.
+A clinic's patient portal, old records server, a doctor's laptop and nightly backups, in about a minute: readiness grades, Wolf Pack on the clinic's code (when `wolfpack` is installed), the portal behind post-quantum mutual TLS, a stolen laptop cut off, a signed Vault backup, a tampered backup refused, and the evidence report. `bank_demo.py` tells the story for a bank: a partner payment API behind post-quantum mutual TLS, a card switch's line protocol tunnelled unchanged, 3DES and RSA-1024 found in legacy code, a compromised branch cut off, a statement archive shared with an auditor and protected against edits. CI runs both on every change.
 
 ## Tests
 
