@@ -125,6 +125,7 @@ const RENDER = {
     $("#view").innerHTML = head("Overview", `${o.product} ${o.version}. Refreshes every 10 seconds.`) + `<div class="tiles">
       ${c.error ? tile("Certificates", "–", c.error) : tile("Certificates", c.valid, `${c.expiring_30d} expire within 30 days, ${c.revoked} revoked`, c.expiring_30d ? "warn" : "")}
       ${tile("Edges", e.routes, `${e.active} open connections, ${e.handshakes} handshakes, ${e.failed} refused${e.unreachable ? `, ${e.unreachable} unreachable` : ""}`, e.unreachable ? "warn" : "")}
+      ${tile("Remote users", `${v.remote_online}/${v.remote_users}`, v.remote_users ? "handshake in the last 3 minutes" : "no gateways or users", v.remote_users ? "ok" : "")}
       ${tile("VPN tunnels", `${v.quantum_safe}/${v.tunnels}`, v.tunnels ? "up with ML-KEM and a PPK" : "no tunnels connected", !v.tunnels ? "" : v.quantum_safe < v.tunnels ? "bad" : "ok")}
       ${tile("Backups", b.count, b.latest ? `latest ${b.latest.slice(0, 16).replace("T", " ")}, ${b.signed} signed` : "none found")}
       ${tile("Fleet", `${o.fleet.online}/${o.fleet.agents}`, `agents online, ${o.fleet.in_sync} running the assigned config`, o.fleet.online < o.fleet.agents ? "warn" : "")}
@@ -192,13 +193,22 @@ key = "/etc/pqc/key.pem"'></textarea></label>
   },
 
   async vpn() {
+    const remote = async () => {
+      const users = await api("remote"), now = Date.now() / 1000;
+      return `<div class="panel"><h2>Remote access: WireGuard, pre-shared key from ML-DSA mutual TLS, replaced every few minutes</h2>${table(
+        ["User", "Address", "Last handshake", "Key age", "Traffic in / out"],
+        users.map((u) => u.error ? [u.source, pill("unreachable", "bad"), { html: `<span class="mute">${esc(u.error)}</span>` }, "", ""]
+          : [u.user, { mono: u.address }, u.latest_handshake ? pill(Math.round(now - u.latest_handshake) + " s ago", now - u.latest_handshake < 180 ? "ok" : "warn") : pill("never", "warn"),
+             { mono: u.keys_age_s + " s" }, { mono: `${bytes(u.rx_bytes || 0)} / ${bytes(u.tx_bytes || 0)}` }]),
+        "No gateways. Start the console with --wireguard http://HOST:PORT (a gateway's metrics address).")}</div>`;
+    };
     const rows = await api("tunnels");
     $("#view").innerHTML = head("VPN", "Site-to-site IPsec: hybrid ML-KEM key exchange with PSK and PPK from ML-DSA mutual TLS.") + `<div class="panel">${table(
       ["Peer", "State", "Key exchange", "PPK", "Up", "Traffic in / out"],
       rows.map((t) => t.error ? [t.source, pill("unreachable", "bad"), { html: `<span class="mute">${esc(t.error)}</span>` }, "", "", ""]
         : [t.peer, pill(t.state, t.state === "ESTABLISHED" ? "ok" : "warn"), { mono: t.key_exchange }, t.ppk ? pill("yes", "ok") : pill("no", "bad"),
            { mono: Math.round(t.established_s / 60) + " min" }, { mono: t.children.map((c) => `${bytes(c.bytes_in)} / ${bytes(c.bytes_out)}`).join(", ") || "–" }]),
-      "No tunnels. Start the console with --vici unix:///var/run/charon.vici.")}</div>`;
+      "No tunnels. Start the console with --vici unix:///var/run/charon.vici.")}</div>` + await remote();
   },
 
   async backups() {

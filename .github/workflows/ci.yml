@@ -57,3 +57,10 @@ jobs:
           sudo modprobe -a esp4 xfrm_user || true
           sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib PQCSUITE_STRONGSWAN=/opt/pqc PQCSUITE_VPN_DATAPLANE=1 \
             python -m unittest tests.test_vpn tests.test_tls -v
+      - name: WireGuard remote access in network namespaces, real traffic
+        run: |
+          set -o pipefail
+          sudo apt-get install -y wireguard-tools
+          sudo modprobe wireguard || true
+          sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib python -m unittest tests.test_wireguard -v 2>&1 | tee wg.log
+          grep -q "test_traffic_rotation_and_revocation .* ok" wg.log

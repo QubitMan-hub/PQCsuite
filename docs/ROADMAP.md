@@ -9,7 +9,7 @@
 | SandboxAQ | AQtive Guard | Network-wide inventory of certificates, libraries and devices; policy engine | `scan` for TLS endpoints; Wolf Pack for code, configs and binaries |
 | Keyfactor, AppViewX | PQC PKI, crypto-agility | Certificate lifecycle automation, ACME/EST enrollment, HSM and KMS integration, policy and evidence | CA hierarchy, `ca maintain`, CRLs, EST enrollment, AWS KMS and command-line HSM signing |
 | Thales, Fortanix | HSMs, KMS | PQC keys in hardware, crypto-agility | CA keys in AWS KMS or any HSM with a signing command; SLH-DSA roots |
-| QAegis, QSphere (AWS Marketplace) | PQC VPNs | WireGuard with PQC; remote access with zero-trust controls | Site-to-site IPsec only |
+| QAegis, QSphere (AWS Marketplace) | PQC VPNs | WireGuard with PQC; remote access with zero-trust controls | Site-to-site IPsec, plus WireGuard remote access with a PSK from ML-DSA mutual TLS |
 | PQC Gateway (Pipy) | Edge gateway | PQC TLS termination and API management | Edge, without HTTP routing |
 
 ## What pqcsuite already does that most of them don't
@@ -23,7 +23,7 @@
 
 1. **Certificate enrollment (ACME and EST).** Servers request and renew ML-DSA certificates from the pqcsuite CA automatically. EST fits PQC best because it is algorithm-agnostic. ACME makes it a drop-in for cert-manager and certbot-style clients. This is the biggest gap against Keyfactor and AppViewX.
 2. **Fleet management.** Edges and VPN gateways enrol with the console over mutual TLS, report status and receive policy and certificates centrally. This is QuSecure's core pitch.
-3. **Remote-access VPN.** Laptops get virtual IPs, the same ML-DSA key agreement and per-user certificates, and revoking a user cuts them off. Add a WireGuard data plane fed by the same key agreement (QAegis parity).
+3. **Remote-access VPN.** Done on Linux: WireGuard with address pools, per-user certificates, PSK rotation and revocation. Still to do: Windows/macOS clients and full-tunnel routing.
 4. **Hardware-backed CA keys.** Done: AWS KMS (ML-DSA, external mu) and any HSM with a signing command. Native PKCS#11 is still to do.
 5. **Compliance evidence.** Reports that map each endpoint, tunnel and backup to CNSA 2.0 and NIST IR 8547 dates (deprecated in 2030, disallowed in 2035), exportable for auditors. The `cnsa2` policy and the scan's CNSA 2.0 verdict are the start.
 6. **Kubernetes.** A Helm chart for the edge as a sidecar, and a cert-manager external issuer backed by the pqcsuite CA.

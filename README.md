@@ -122,6 +122,28 @@ What the tests prove: `tests/test_vpn.py` builds two sites in Linux network name
 - a second key agreement produces a new PPK-protected SA
 - revoking the branch closes its tunnel at HQ
 
+## VPN: remote access over WireGuard
+
+Laptops and small sites connect to a WireGuard gateway. WireGuard's own handshake is X25519. pqcsuite adds a 32-byte pre-shared key to every peer, and WireGuard mixes it into each handshake. The key comes from post-quantum mutual TLS: both sides prove who they are with ML-DSA certificates from your CA, agree keys over X25519MLKEM768, and derive the PSK from the TLS exporter, bound to both WireGuard public keys. An attacker who later breaks X25519 still lacks the PSK. Rosenpass uses the same approach.
+
+```
+# gateway (Linux; uses the kernel module, or wireguard-go when the module is missing)
+pqcsuite vpn gateway --config examples/wireguard-gateway.toml
+
+# each laptop: enroll once (EST) or copy cert.pem, chain.pem, key.pem and ca.crt into a folder, then
+sudo pqcsuite vpn connect vpn.acme.example:7443 --cert-dir ~/.pqcsuite/alice
+```
+
+- **Addresses:** each user (certificate name) keeps one address from the pool. A second device with the same certificate replaces the first.
+- **Rotation:** the PSK is replaced every `rotate_minutes` (2 by default). A client that stops renewing is removed after three periods.
+- **Revocation:** revoking a user's certificate removes their peer within 15 seconds and refuses their next key agreement.
+- **Access control:** `users` is an allow-list. Clients listed under `sites` also route the subnets behind them, which makes the gateway a site-to-site hub.
+- **Monitoring:** `/metrics` and `/status` show users, handshakes and traffic. The console's VPN page shows them with `--wireguard http://gateway:9101`.
+
+Limits: `vpn connect` configures the interface itself on Linux only. On Windows and macOS, `--no-apply --config-out wg.conf` writes a WireGuard app configuration, but its PSK expires at the next rotation, so it is only for trials. Full-tunnel (0.0.0.0/0) routing is not supported yet. Why not IKEv2 for laptops: the IKEv2 clients built into Windows, macOS and phones support neither ML-KEM nor PPKs.
+
+`tests/test_wireguard.py` runs a gateway and a laptop in network namespaces with real WireGuard. It checks that traffic flows, that the PSK rotates on both sides and traffic survives, and that revoking the user removes them and stops their traffic.
+
 ## Vault: quantum-safe backups
 
 ```
@@ -332,7 +354,7 @@ with tls.connect("api.example.com", 8443, ctx) as conn:
 
 ## Roadmap
 
-1. **VPN, next:** remote access for laptops (virtual IP pools), and WireGuard as a second data plane fed by the same ML-DSA key agreement.
+1. **VPN, next:** full-tunnel routing and a Windows/macOS client for WireGuard remote access.
 2. **Discovery.** Integrate Wolf Pack CBOM into the console: find where classical cryptography lives in code, configs and binaries, and feed it into the readiness view.
 
 The readiness scan marks each endpoint that meets CNSA 2.0: it accepts only ML-KEM-1024 key exchanges and presents an ML-DSA-87 certificate. For a CNSA 2.0 VPN, use `profile = "high"` (P-384 + ML-KEM-1024).

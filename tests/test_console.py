@@ -53,7 +53,7 @@ class ConsoleTest(unittest.TestCase):
         self.assertEqual(o["certificates"]["valid"], 0)
         self.assertEqual(o["edges"]["unreachable"], 1)
         self.assertEqual(o["backups"]["count"], 1)
-        self.assertEqual(o["vpn"], {"tunnels": 0, "quantum_safe": 0})
+        self.assertEqual(o["vpn"], {"tunnels": 0, "quantum_safe": 0, "remote_users": 0, "remote_online": 0})
 
     def test_issue_and_revoke_are_audited(self):
         _, _, r = self.call("/api/certificates/issue", {"kind": "server", "common_name": "api.acme", "names": "10.0.0.5", "days": 90})

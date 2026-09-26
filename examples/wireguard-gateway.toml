@@ -1,0 +1,23 @@
+# pqcsuite vpn gateway --config examples/wireguard-gateway.toml
+# The gateway certificate is a server (or site) certificate named after `name`; users get client certificates from the same CA.
+[wireguard]
+name = "vpn.acme.example"
+endpoint = "vpn.acme.example:51820"     # where clients send WireGuard UDP
+keyring_listen = "0.0.0.0:7443"         # post-quantum mutual TLS key agreement
+pool = "10.99.0.0/24"                   # the gateway is 10.99.0.1; each user keeps one address
+routes = ["192.168.10.0/24"]            # networks behind the gateway, routed through the tunnel
+dns = ["192.168.10.53"]
+cert = "/etc/pqcsuite/vpn/chain.pem"
+key = "/etc/pqcsuite/vpn/key.pem"
+ca = "/etc/pqcsuite/ca.crt"
+crl = "/etc/pqcsuite/crl.pem"
+interface = "wg0"
+listen_port = 51820
+private_key = "/etc/pqcsuite/vpn/wireguard.key"
+state = "/var/lib/pqcsuite/wireguard-state.json"
+rotate_minutes = 2
+users = []                              # empty: any client certificate of the CA; or a list of common names
+metrics = "127.0.0.1:9101"
+
+[wireguard.sites]                       # clients that are branch sites, and the subnets behind them
+"branch.acme.example" = ["192.168.20.0/24"]

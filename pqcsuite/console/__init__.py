@@ -30,6 +30,7 @@ class Settings:
     ca: str = ""
     edges: list = field(default_factory=list)
     vpn: list = field(default_factory=list)
+    wireguard: list = field(default_factory=list)
     backups: list = field(default_factory=list)
     scan_targets: list = field(default_factory=list)
     fleet: str = ""
@@ -95,6 +96,16 @@ class App:
                 out.append({"source": uri, "error": str(e)})
         return out
 
+    def remote_users(self):
+        out = []
+        for url in self.s.wireguard:
+            try:
+                with urllib.request.urlopen(url.rstrip("/") + "/status", timeout=3) as r:
+                    out += [{"source": url, "user": k, **v} for k, v in json.loads(r.read()).items() if k != "_events"]
+            except (OSError, ValueError) as e:
+                out.append({"source": url, "error": str(e)})
+        return out
+
     def backups(self):
         from ..vault import VaultError, inspect
         out = []
@@ -148,7 +159,9 @@ class App:
                         "active": sum(e.get("active", 0) for e in edges), "handshakes": sum(e.get("handshakes", 0) for e in edges),
                         "failed": sum(e.get("handshake_failed", 0) for e in edges)}
         tun = [t for t in self.tunnels() if "error" not in t]
-        out["vpn"] = {"tunnels": len(tun), "quantum_safe": sum(t["state"] == "ESTABLISHED" and t["ppk"] and "ML_KEM" in t["key_exchange"] for t in tun)}
+        users = [u for u in self.remote_users() if "error" not in u]
+        out["vpn"] = {"tunnels": len(tun), "quantum_safe": sum(t["state"] == "ESTABLISHED" and t["ppk"] and "ML_KEM" in t["key_exchange"] for t in tun),
+                      "remote_users": len(users), "remote_online": sum(time.time() - u.get("latest_handshake", 0) < 180 for u in users)}
         b = [x for x in self.backups() if "error" not in x]
         out["backups"] = {"count": len(b), "latest": b[0]["created"] if b else None, "signed": sum(bool(x["signed_by"]) for x in b)}
         out["readiness"] = self.last_scan["summary"] if self.last_scan else None
@@ -162,6 +175,7 @@ class App:
             ("GET", "/api/certificates"): lambda: self.certificates(),
             ("GET", "/api/edges"): lambda: self.edges(),
             ("GET", "/api/tunnels"): lambda: self.tunnels(),
+            ("GET", "/api/remote"): lambda: self.remote_users(),
             ("GET", "/api/backups"): lambda: self.backups(),
             ("GET", "/api/fleet"): lambda: self.fleet(),
             ("POST", "/api/fleet/desired"): lambda: self.set_desired(body),

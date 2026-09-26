@@ -199,6 +199,8 @@ def cmd_edge(a):
 def cmd_vpn(a):
     from .vpn import load_config
     from .vpn.charon import Charon
+    if a.vpn_cmd in ("gateway", "connect"):
+        return cmd_wireguard(a)
     if a.vpn_cmd == "up":
         from .vpn.controller import Controller
         site = load_config(a.config)
@@ -220,6 +222,24 @@ def cmd_vpn(a):
         print(f"{t['peer']:16} {t['state']:12} {t['key_exchange']:32} PPK {'yes' if t['ppk'] else 'NO '}  up {t['established_s']}s")
         for c in t["children"]:
             print(f"  {c['name']:14} {c['state']:12} {c['encryption']:14} in {c['bytes_in']} B / out {c['bytes_out']} B")
+    return 0
+
+
+def cmd_wireguard(a):
+    from .vpn import wireguard as wg
+    if a.vpn_cmd == "gateway":
+        gw = wg.Gateway(wg.load_gateway(a.config)).start()
+        print(f"WireGuard gateway {gw.cfg.name} on {gw.cfg.interface}, key agreement on {gw.cfg.keyring_listen}, public key {gw.public}")
+        if gw.cfg.metrics:
+            serve_json(gw.cfg.metrics, {"/metrics": gw.metrics, "/status": lambda: json.dumps(gw.status(), default=str)})
+        run_until_signal(lambda: gw.stop.wait(), gw.shutdown)
+        return 0
+    c = wg.Client(a.keyring, a.cert_dir, a.interface, a.server_name, not a.no_apply, a.config_out, env_passphrase(a.key_passphrase_env), ca=a.ca)
+    if a.once:
+        r = c.once()
+        print(f"connected as {r['address']} through {r['endpoint']}; routes {', '.join(r['routes'])}; the PSK expires in about {r['rotate_s'] * 3}s")
+        return 0
+    run_until_signal(c.run, c.stop.set)
     return 0
 
 
@@ -275,6 +295,7 @@ def cmd_console(a):
             setattr(s, k, getattr(a, k))
     s.edges += a.edge
     s.vpn += a.vici
+    s.wireguard += a.wireguard
     s.backups += a.backups
     s.fleet = a.fleet or s.fleet
     app = App(s)
@@ -538,6 +559,7 @@ def parser():
     p.add_argument("--ca", help="CA folder")
     p.add_argument("--edge", action="append", default=[], help="an edge's metrics address, e.g. http://127.0.0.1:9100 (repeatable)")
     p.add_argument("--vici", action="append", default=[], help="strongSwan VICI address (repeatable)")
+    p.add_argument("--wireguard", action="append", default=[], help="a WireGuard gateway's metrics address (repeatable)")
     p.add_argument("--backups", action="append", default=[], help="folder of vault archives (repeatable)")
     p.add_argument("--fleet", help="the fleet service's folder")
 
@@ -587,7 +609,19 @@ def parser():
     p.add_argument("--mtls", action="store_true", help="clients must present a certificate from the CA")
     p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
 
-    v = sub.add_parser("vpn", help="post-quantum site-to-site IPsec (strongSwan)").add_subparsers(dest="vpn_cmd", required=True)
+    v = sub.add_parser("vpn", help="post-quantum IPsec site-to-site (strongSwan) and WireGuard remote access").add_subparsers(dest="vpn_cmd", required=True)
+    p = v.add_parser("gateway", help="WireGuard gateway: ML-DSA mutual TLS key agreement, address pool, PSK rotation, revocation")
+    p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/wireguard-gateway.toml)")
+    p = v.add_parser("connect", help="connect this machine to a WireGuard gateway and keep its PSK fresh")
+    p.add_argument("keyring", help="the gateway's key agreement address, host:port")
+    p.add_argument("--cert-dir", required=True, help="folder with cert.pem, chain.pem, key.pem and ca.crt (as written by `enroll`)")
+    p.add_argument("--ca", help="trust this CA file instead of CERT_DIR/ca.crt")
+    p.add_argument("--interface", default="wg0")
+    p.add_argument("--server-name", help="the gateway's certificate name, if it differs from the keyring host")
+    p.add_argument("--no-apply", action="store_true", help="do not configure the interface (use with --config-out)")
+    p.add_argument("--config-out", help="also write a wg-quick configuration here after every key agreement")
+    p.add_argument("--key-passphrase-env")
+    p.add_argument("--once", action="store_true", help="agree once and exit")
     p = v.add_parser("up", help="run a site: key agreement, rotation, revocation, metrics")
     p.add_argument("--config", required=True, help="site TOML (see examples/vpn-hq.toml)")
     for name, text in (("status", "tunnels, algorithms and traffic"), ("check", "is strongSwan reachable and does it have ML-KEM?")):
