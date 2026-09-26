@@ -13,7 +13,7 @@ import tomllib
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .. import build, tls
+from .. import build, explain, tls
 from . import hostport
 from .server import Server, Stats
 
@@ -136,7 +136,7 @@ class Edge:
             up = socket.create_connection(hostport(r.target), timeout=r.handshake_timeout)
         except OSError as e:
             self.stats.add("upstream_failed")
-            log.warning("%s: upstream %s unreachable: %s", r.name, r.target, e)
+            log.warning("%s: upstream %s unreachable: %s", r.name, r.target, explain(e))
             return
         with up:
             if r.proxy_protocol:
@@ -177,7 +177,7 @@ class Edge:
                             self.stats.active -= 1
             except (tls.TLSError, OSError) as e:
                 self.stats.add("handshake_failed")
-                log.warning("%s: tunnel to %s failed: %s", r.name, r.target, e)
+                log.warning("%s: tunnel to %s failed: %s", r.name, r.target, explain(e))
             finally:
                 client.close()
                 slots.release()
