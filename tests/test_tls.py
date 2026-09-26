@@ -116,6 +116,9 @@ class TLSTest(unittest.TestCase):
                     _, reply = self.roundtrip(s.port, self.client(who))
                     self.assertEqual(reply, b"")
                     raise tls.TLSError("closed")
+        deadline = time.monotonic() + 5
+        while s.stats.snapshot()["handshake_failed"] < 2 and time.monotonic() < deadline:
+            time.sleep(0.02)
         self.assertGreaterEqual(s.stats.snapshot()["handshake_failed"], 2)
 
     def test_revoked_client_is_refused(self):
