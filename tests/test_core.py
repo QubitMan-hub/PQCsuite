@@ -310,5 +310,56 @@ class Regressions(unittest.TestCase):
         self.assertEqual([(x.algo, x.params) for x in s], [("ECDSA", {})])
 
 
+class Operation(unittest.TestCase):
+    def tree(self, d):
+        for f, body in {"app/auth.py": "import hashlib\nhashlib.md5(b'x')\n", "gen/stub.py": "import hashlib\nhashlib.sha1(b'x')\n",
+                        "app/ui.min.js": "crypto.createHash('sha1')\n", "docs/old/legacy.py": "import hashlib\nhashlib.md5(b'x')\n"}.items():
+            (Path(d) / f).parent.mkdir(parents=True, exist_ok=True)
+            (Path(d) / f).write_text(body, encoding="utf-8")
+
+    def test_exclude_by_name_and_by_path(self):
+        import tempfile
+        from wolfpack.scouts import Scope, iter_files, rel
+        with tempfile.TemporaryDirectory() as d:
+            self.tree(d)
+            seen = {rel(d, p) for p in iter_files(d, Scope(exclude=("gen", "*.min.js", "docs/old/*")))}
+            self.assertEqual(seen, {"app/auth.py"})
+            self.assertEqual(len(list(iter_files(d))), 4)
+
+    def test_settings_file_and_command_line(self):
+        import json, tempfile
+        from wolfpack.cli import main
+        with tempfile.TemporaryDirectory() as d:
+            self.tree(d)
+            (Path(d) / ".wolfpack.toml").write_text('exclude = ["gen"]\nfail_on = "critical"\n', encoding="utf-8")
+            out = Path(d) / "out"
+            with self.assertRaises(SystemExit) as e:
+                main(["scan", str(d), "-o", str(out), "-q", "--exclude", "docs/old/*"])
+            self.assertEqual(e.exception.code, 2)
+            files = {o["location"].split(":")[0] for c in json.loads((out / "cbom.json").read_text(encoding="utf-8"))["components"]
+                     for o in (c.get("evidence") or {}).get("occurrences", [])}
+            self.assertEqual(files, {"app/auth.py", "app/ui.min.js"})
+
+    def test_bad_settings_are_refused(self):
+        import tempfile
+        from wolfpack.cli import main
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / ".wolfpack.toml").write_text('excludes = ["gen"]\n', encoding="utf-8")
+            with self.assertRaises(SystemExit) as e:
+                main(["scan", d, "-o", str(Path(d) / "out"), "-q"])
+            self.assertIn("unknown setting 'excludes'", str(e.exception.code))
+            with self.assertRaises(SystemExit) as e:
+                main(["scan", d, "--fail-on", "severe"])
+            self.assertEqual(e.exception.code, 1)
+
+    def test_implementation_prefilter_keeps_split_tables(self):
+        import tempfile
+        from wolfpack.scouts import implementations
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "md5.c").write_text("static const unsigned T[] = {0xd76aa478, /* 0x12345678 */ 0xe8c7b756, 0x242070db, 0xc1bdceee};\n", encoding="utf-8")
+            (Path(d) / "plain.c").write_text("int x = 0xd76aa478;\n", encoding="utf-8")
+            self.assertEqual([(s.algo, s.file) for s in implementations.scan(d)[0]], [("MD5", "md5.c")])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -102,9 +102,9 @@ def scan_archive(data, path, base, depth=0):
     return sights
 
 
-def scan(root, include_vendor=False):
+def scan(root, scope=False):
     sights, libs, n = [], [], 0
-    for p in iter_files(root, include_vendor, max_bytes=MAX, skip=SKIP_DIRS - BUILD_DIRS):
+    for p in iter_files(root, scope, max_bytes=MAX, skip=SKIP_DIRS - BUILD_DIRS):
         ext = p.suffix.lower()
         if ext not in NATIVE_EXT and ext not in ARCHIVES and ext != ".class":
             try:

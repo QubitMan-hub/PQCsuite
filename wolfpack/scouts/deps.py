@@ -140,9 +140,9 @@ def used_by(lib, files):
     return [path for path, text in files if rx.search(text)]
 
 
-def scan(root, include_vendor=False):
+def scan(root, scope=False):
     libs, code = [], []
-    for p in iter_files(root, include_vendor):
+    for p in iter_files(root, scope):
         n = p.name.lower()
         if n.startswith("requirements") or n in MANIFESTS or p.suffix.lower() == ".csproj":
             t = read(p)

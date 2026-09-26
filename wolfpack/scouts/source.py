@@ -82,11 +82,11 @@ def propagate(code, shared=None):
     return re.sub(r"(?<![\w.$])(" + names + r")\b(?!\s*:?=[^=])", sub, code)
 
 
-def shared_constants(root, include_vendor=False):
+def shared_constants(root, scope=False):
     """Constants other files can reach: Owner.NAME in Java, Kotlin and C# (Owner is the declaring file), pkg.Name in Go,
     and #define macros per C header. A name declared with two different values is dropped rather than guessed."""
     qualified, headers = defaultdict(set), defaultdict(lambda: defaultdict(set))
-    for p in iter_files(root, include_vendor):
+    for p in iter_files(root, scope):
         lang = LANGS.get(p.suffix.lower())
         if lang not in ("java", "csharp", "go", "c"):
             continue
@@ -199,9 +199,9 @@ def scan_file(root, p, sink, constants=True, shared=((), {})):
     return True
 
 
-def scan(root, include_vendor=False, constants=True, cross_file=True):
+def scan(root, scope=False, constants=True, cross_file=True):
     sink, n = [], 0
-    shared = shared_constants(root, include_vendor) if constants and cross_file else ((), {})
-    for p in iter_files(root, include_vendor):
+    shared = shared_constants(root, scope) if constants and cross_file else ((), {})
+    for p in iter_files(root, scope):
         n += scan_file(root, p, sink, constants, shared)
     return sink, n

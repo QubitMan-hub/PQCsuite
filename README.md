@@ -28,6 +28,59 @@ Output lands in `wolfpack-out\`. `cbom.json` is the CycloneDX 1.6 CBOM, validate
 
 To silence a finding you have reviewed, put `wolfpack:ignore` in a comment on that line or the line above. Suppressed findings stay in the audit trail.
 
+## Install and run
+
+| Where | How |
+|---|---|
+| Any machine with Python 3.11+ | `pip install .` from this folder (or the wheel from CI), then `wolfpack scan PATH` |
+| Docker | `docker build -t wolfpack .`, then `docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/scan" wolfpack scan .` |
+| GitHub Actions | the Action in this repository, below |
+
+The code never leaves the machine that runs the scan. Only `--tls` and `--ssh` open network connections, to the endpoints you name.
+
+### GitHub Actions
+
+```yaml
+permissions:
+  contents: read
+  security-events: write          # for code scanning; drop it with upload-sarif: false
+steps:
+  - uses: actions/checkout@v4
+  - uses: QubitMan-hub/WolfPack-CBOM@main
+    with:
+      fail-on: critical           # empty never fails the build
+      # baseline: cbom-main.json  # then only cryptography added since it fails
+      # args: --tls api.example.com:443 --exclude generated
+```
+
+Findings appear in the repository's code scanning alerts, and the whole output folder is attached to the run as the `wolfpack` artifact. Code scanning on private repositories needs GitHub Advanced Security; without it, set `upload-sarif: "false"`.
+
+### Settings file
+
+Put `.wolfpack.toml` in the scanned folder, or pass `--config FILE`. Keys are the long option names with underscores. Options on the command line win; `exclude`, `tls` and `ssh` add to the file's lists.
+
+```toml
+exclude = ["generated", "*.min.js", "docs/archive/*"]   # a name, or a path from the root
+fail_on = "high"
+shelf_life = 15          # years your data must stay secret
+migration = 6            # years your migration will take
+crqc_year = 2035
+tls = ["api.example.com:443"]
+ssh = ["bastion.example.com"]
+```
+
+`vendor/`, `node_modules/`, virtual environments and build output are skipped unless you pass `--include-vendor`. Files over 2 MB are skipped, except binaries and archives (up to 256 MB).
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Scan finished; nothing at or above `--fail-on` (or no `--fail-on`) |
+| 1 | The scan could not run: a mistyped option, a missing folder, an unreadable or invalid settings file |
+| 2 | Something at or above `--fail-on`; with `--baseline`, only what is new counts |
+
+An endpoint that cannot be reached is reported in the output and the report, and does not change the exit code.
+
 ## How the pack works
 
 Elders (`elders.py`) hold the knowledge: about 60 algorithms with OIDs, CycloneDX primitives, classical and NIST quantum security levels, NIST IR 8547 transition dates, hybrid PQ groups, and a replacement for each.

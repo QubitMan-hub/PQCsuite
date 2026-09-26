@@ -1,5 +1,7 @@
 import os
 import re
+from dataclasses import dataclass
+from fnmatch import fnmatch
 from pathlib import Path
 
 from ..elders import CATALOG
@@ -15,15 +17,31 @@ MAX_BYTES = 2_000_000
 DENY = re.compile(r"disabl|disallow|deny|denied|block|forbid|reject|insecure|weak|deprecat|legacy_only|exclude|blacklist", re.I)
 
 
-def iter_files(root, include_vendor=False, max_bytes=MAX_BYTES, skip=None):
+@dataclass(frozen=True)
+class Scope:
+    """Which files the scouts walk. A pattern without "/" matches any file or folder name; one with "/" matches the path from the root."""
+    vendor: bool = False
+    exclude: tuple = ()
+
+    def excluded(self, relpath):
+        name = relpath.rsplit("/", 1)[-1]
+        return any(fnmatch(relpath, x) if "/" in x else fnmatch(name, x) for x in self.exclude)
+
+
+def iter_files(root, scope=Scope(), max_bytes=MAX_BYTES, skip=None):
+    scope = scope if isinstance(scope, Scope) else Scope(bool(scope))
     skip = SKIP_DIRS if skip is None else skip
     root = Path(root)
     if root.is_file():
         yield root
         return
     for d, dirs, files in os.walk(root):
-        dirs[:] = sorted(x for x in dirs if include_vendor or x not in skip)
+        here = Path(d).relative_to(root).as_posix()
+        at = "" if here == "." else here + "/"
+        dirs[:] = sorted(x for x in dirs if (scope.vendor or x not in skip) and not scope.excluded(at + x))
         for f in sorted(files):
+            if scope.excluded(at + f):
+                continue
             p = Path(d) / f
             try:
                 if p.stat().st_size <= max_bytes:

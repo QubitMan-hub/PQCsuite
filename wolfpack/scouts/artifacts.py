@@ -127,9 +127,9 @@ def scan_bytes(data, path, base_ctx):
     return arts, sights
 
 
-def scan(root, include_vendor=False):
+def scan(root, scope=False):
     arts, sights, n = [], [], 0
-    for p in iter_files(root, include_vendor):
+    for p in iter_files(root, scope):
         ext = p.suffix.lower()
         if not (ext in EXT or SSH_NAMES.match(p.name) or ext in CODE_EXT):
             continue

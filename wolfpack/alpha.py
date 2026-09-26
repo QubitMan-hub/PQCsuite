@@ -145,7 +145,7 @@ def second_look(sightings, lines, threshold=0.6, looks=LOOKS, recognition=True):
     return {k: run[k]() if k in looks else 0 for k in LOOKS}
 
 
-def follow_trails(root, arts, sightings, include_vendor=False):
+def follow_trails(root, arts, sightings, scope=False):
     """Alpha's hunt: find where keys and certificates are referenced, so deployed material is weighted as deployed."""
     local = [a for a in arts if "://" not in a.file]
     if not local or not Path(root).is_dir():
@@ -153,7 +153,7 @@ def follow_trails(root, arts, sightings, include_vendor=False):
     names = {Path(a.file).name: a for a in local}
     rx = re.compile(r"(?<![\w.-])(" + "|".join(re.escape(n) for n in names) + r")(?![\w-])")
     found = 0
-    for p in iter_files(root, include_vendor):
+    for p in iter_files(root, scope):
         if p.suffix.lower() not in LANGS and not config.is_config(p):
             continue
         text = read(p)

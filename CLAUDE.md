@@ -8,14 +8,14 @@ Wolf Pack CBOM is a pure-Python scanner that inventories cryptography in source 
 
 Owner: Lakshmi Monish (QubitMan), CS student at BITS Pilani. He develops on Windows with PowerShell. He works one stage at a time, wants honest assessments including limitations, pushes back on overclaiming, and prefers code with minimal comments and no unnecessary lines.
 
-Current version: 0.2.0. It was built in a Claude.ai chat, then moved here.
+Current version: 1.0.0 (first production release: Docker image, GitHub Action, `.wolfpack.toml`, `--exclude`). It was built in a Claude.ai chat, then moved here. The company site presents it on its own page (pqcsuite `site/wolf-pack.html`), never on the main page.
 
 ## Commands
 
 ```powershell
 py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 46 tests, must stay green
+python -m unittest discover -s tests -v          # 50 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -36,7 +36,7 @@ wolfpack/
                  threat shor/legacy/grover/safe, bits, NIST level, OID, replacement),
                  aliases, lookup(), pq_from_text(), curve(), variant(), nist_status(), HYBRIDS
   scouts/        deliberately noisy; over-reporting is the design
-    __init__.py  iter_files (SKIP_DIRS, BUILD_DIRS), rel, is_test, read
+    __init__.py  iter_files (SKIP_DIRS, BUILD_DIRS, Scope: vendor and --exclude), rel, is_test, read
     lexer.py     splits code / comments / string literals per language family
     implementations.py  algorithms implemented in source, by published constants (IVs, round constants, S-boxes, primes);
                  the one constant table, also packed into byte patterns for binaries
@@ -60,10 +60,11 @@ wolfpack/
   pack.py        Roles (switchboard), hunt (scouts), run (the pipeline), baseline diff
   cbom.py        CycloneDX 1.6 builder (provides, services), SARIF 2.1.0, audit trail
   report.py      self-contained monochrome HTML report and terminal summary
-  cli.py         scan / bench subcommands
+  cli.py         scan / bench subcommands, .wolfpack.toml settings, exit codes 0 / 1 error / 2 fail-on
   bench.py       scores at (file, algorithm family) granularity across 3 configs
 bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 91 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
+Dockerfile, action.yml  container image and GitHub Action (CI builds and runs both, and the wheel)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)
 tests/test_core.py
 eval/cbomkit/     CBOMkit head-to-head harness (compare.py) and first results

@@ -57,9 +57,9 @@ def find(nums, sig):
     return None
 
 
-def scan(root, include_vendor=False):
+def scan(root, scope=False):
     sink, n = [], 0
-    for p in iter_files(root, include_vendor):
+    for p in iter_files(root, scope):
         lang = LANGS.get(p.suffix.lower())
         if not lang:
             continue
@@ -67,6 +67,10 @@ def scan(root, include_vendor=False):
         if not text:
             continue
         n += 1
+        low = text.lower()
+        have = {v for v, _ in numbers(text)}
+        if not any(set(sig) <= have for _, _, sig in WORDS) and not any(prime in low for _, _, prime in PRIMES):
+            continue
         code = split(text, lang)[0]
         path, lines = rel(root, p), text.splitlines()
         ctx = {"test"} if is_test(path) else set()

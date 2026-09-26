@@ -17,3 +17,41 @@ jobs:
       - run: python -m wolfpack bench bench/corpus
       - run: python -m wolfpack scan bench/corpus -o wolfpack-out -q
       - run: python scripts/validate_cbom.py wolfpack-out/cbom.json
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip wheel . --no-deps -w dist
+      - run: python -m venv /tmp/clean && /tmp/clean/bin/pip install dist/*.whl
+      - run: cd /tmp && /tmp/clean/bin/wolfpack --version && /tmp/clean/bin/wolfpack scan "$GITHUB_WORKSPACE/bench/corpus" -o /tmp/out -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: dist/*.whl
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t wolfpack .
+      - run: docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/bench/corpus:/scan" wolfpack scan . -q
+      - run: test -s bench/corpus/wolfpack-out/cbom.json
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          path: bench/corpus
+          upload-sarif: "false"
+      - id: gate
+        uses: ./
+        continue-on-error: true
+        with:
+          path: bench/corpus
+          output: gated
+          fail-on: critical
+          upload-sarif: "false"
+      - run: test "${{ steps.gate.outcome }}" = failure

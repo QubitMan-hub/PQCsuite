@@ -58,25 +58,25 @@ class Hunt:
     endpoints: list = field(default_factory=list)
 
 
-def hunt(root, roles=Roles(), include_vendor=False, tls_targets=(), ssh_targets=()):
+def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=()):
     """The scouts go out. Each reports everything it saw; nothing is filtered until the den."""
     h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
     if roles.source:
-        s, h.files["source"] = source.scan(root, include_vendor, roles.propagation, roles.cross_file)
+        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file)
         h.sightings += s
     if roles.implementations:
-        s, h.files["implementations"] = implementations.scan(root, include_vendor)
+        s, h.files["implementations"] = implementations.scan(root, scope)
         h.sightings += s
     if roles.config:
-        s, h.files["config"] = config.scan(root, include_vendor)
+        s, h.files["config"] = config.scan(root, scope)
         h.sightings += s
     if roles.artifacts:
-        h.artifacts, s, h.files["artifacts"] = artifacts.scan(root, include_vendor)
+        h.artifacts, s, h.files["artifacts"] = artifacts.scan(root, scope)
         h.sightings += s
     if roles.binary:
-        s, h.libraries, h.files["binary"] = binary.scan(root, include_vendor)
+        s, h.libraries, h.files["binary"] = binary.scan(root, scope)
         h.sightings += s
-    h.libraries = deps.scan(root, include_vendor) + h.libraries
+    h.libraries = deps.scan(root, scope) + h.libraries
     for t in tls_targets:
         s, a, n, ep = tls.probe(t)
         h.sightings += s
@@ -118,12 +118,12 @@ def load_baseline(path):
     return seen
 
 
-def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(), include_vendor=False, ssh_targets=(), baseline=None):
+def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(), scope=False, ssh_targets=(), baseline=None):
     t0 = time.time()
     horizon = horizon or alpha.Horizon()
-    h = hunt(root, roles, include_vendor, tls_targets, ssh_targets)
+    h = hunt(root, roles, scope, tls_targets, ssh_targets)
     lines = den.Lines(root)
-    trails = alpha.follow_trails(root, h.artifacts, h.sightings, include_vendor) if roles.trails else 0
+    trails = alpha.follow_trails(root, h.artifacts, h.sightings, scope) if roles.trails else 0
     if roles.den:
         sightings = den.verify(h.sightings, threshold, lines, roles.corroboration)
         looks = alpha.second_look(sightings, lines, threshold, [k for k in alpha.LOOKS if getattr(roles, k)], roles.recognition)

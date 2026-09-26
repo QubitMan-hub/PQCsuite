@@ -67,9 +67,9 @@ def sniffed(p, text):
     return len({m.group(1) for m in SNIFF.finditer(text[:50000])}) >= 2
 
 
-def scan(root, include_vendor=False):
+def scan(root, scope=False):
     sink, n = [], 0
-    for p in iter_files(root, include_vendor):
+    for p in iter_files(root, scope):
         if p.suffix and not is_config(p):
             continue
         text = read(p)

@@ -1,0 +1,62 @@
+name: Wolf Pack CBOM
+description: Inventory the cryptography in a repository as a CycloneDX 1.6 CBOM and rank what to migrate for post-quantum
+branding:
+  icon: shield
+  color: yellow
+inputs:
+  path:
+    description: Folder to scan
+    default: "."
+  fail-on:
+    description: Fail the step if any asset is at this tier or worse (critical, high, medium, low); empty never fails
+    default: ""
+  baseline:
+    description: A previous cbom.json; with fail-on, only cryptography added since it fails the step
+    default: ""
+  args:
+    description: Extra arguments for wolfpack scan, such as --tls api.example.com:443 or --exclude generated
+    default: ""
+  output:
+    description: Output folder
+    default: wolfpack-out
+  upload-sarif:
+    description: Send findings to GitHub code scanning (needs security-events write permission)
+    default: "true"
+outputs:
+  cbom:
+    description: Path to cbom.json
+    value: ${{ steps.scan.outputs.cbom }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - shell: bash
+      run: pip install --quiet "$GITHUB_ACTION_PATH"
+    - id: scan
+      shell: bash
+      env:
+        SCAN_PATH: ${{ inputs.path }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        BASELINE: ${{ inputs.baseline }}
+        ARGS: ${{ inputs.args }}
+        OUT: ${{ inputs.output }}
+      run: |
+        set +e
+        wolfpack scan "$SCAN_PATH" -o "$OUT" ${FAIL_ON:+--fail-on "$FAIL_ON"} ${BASELINE:+--baseline "$BASELINE"} $ARGS
+        code=$?
+        echo "cbom=$OUT/cbom.json" >> "$GITHUB_OUTPUT"
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+    - if: inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.output }}/wolfpack.sarif
+        category: wolfpack
+    - uses: actions/upload-artifact@v4
+      with:
+        name: wolfpack
+        path: ${{ inputs.output }}
+        overwrite: true
+    - shell: bash
+      run: exit ${{ steps.scan.outputs.code }}
