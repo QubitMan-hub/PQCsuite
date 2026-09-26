@@ -1,0 +1,12 @@
+[Unit]
+Description=pqcsuite WireGuard gateway (PSK from ML-DSA mutual TLS, rotated)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/pqcsuite/wireguard.toml
+
+[Service]
+ExecStart=/opt/pqcsuite/bin/pqcsuite vpn gateway --config /etc/pqcsuite/wireguard.toml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

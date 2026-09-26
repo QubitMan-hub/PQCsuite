@@ -1,0 +1,12 @@
+[Unit]
+Description=pqcsuite site-to-site IPsec controller (strongSwan with ML-KEM, PSK and PPK from ML-DSA mutual TLS)
+After=network-online.target strongswan-pqc.service
+Requires=strongswan-pqc.service
+ConditionPathExists=/etc/pqcsuite/site.toml
+
+[Service]
+ExecStart=/opt/pqcsuite/bin/pqcsuite vpn up --config /etc/pqcsuite/site.toml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

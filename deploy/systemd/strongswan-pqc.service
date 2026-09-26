@@ -1,0 +1,11 @@
+[Unit]
+Description=strongSwan charon 6.1 (OpenSSL 3.5, ML-KEM)
+After=network-online.target
+ConditionPathExists=/etc/pqcsuite/site.toml
+
+[Service]
+ExecStart=/opt/strongswan/libexec/ipsec/charon
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,62 @@
+image:
+  repository: ghcr.io/qubitman-hub/pqcsuite
+  tag: ""                      # defaults to the chart's appVersion
+  pullPolicy: IfNotPresent
+
+ca:
+  enabled: true
+  name: "Acme PQC Root"
+  algorithm: ML-DSA-87
+  # Secret with key "passphrase": encrypts the CA key on the volume. Leave empty for an unencrypted key.
+  passphraseSecret: ""
+  storage:
+    size: 1Gi
+    storageClass: ""
+  est:
+    enabled: true
+    port: 8443
+  acme:
+    enabled: true
+    port: 14000
+    baseUrl: ""                # the URL clients use; default http://<release>-ca.<namespace>.svc:14000
+    allow: []                  # e.g. ["*.corp.example"]
+    requireEab: true
+    httpPort: 80
+  maintain:
+    renewWithinDays: 30
+    crlDays: 7
+    everySeconds: 86400
+  console:
+    enabled: false
+    port: 8900
+    tokenSecret: ""            # Secret with key "token"; required when the console is enabled
+  resources: {}
+
+edge:
+  enabled: false
+  replicas: 2
+  # Secret with chain.pem, key.pem and ca.crt (and crl.pem when requireClientCert). Create it with
+  #   pqcsuite ca issue server <name> --out edge && kubectl create secret generic edge-tls --from-file=edge/ --from-file=pki/ca.crt
+  certSecret: edge-tls
+  policy: strict               # strict, transition (also serves classical clients) or cnsa2
+  routes:
+    - name: web
+      port: 8443
+      target: "web:80"         # the service to protect, host:port
+      requireClientCert: false
+  service:
+    type: ClusterIP
+  metricsPort: 9100
+  resources: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]

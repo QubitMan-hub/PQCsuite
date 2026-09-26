@@ -26,8 +26,8 @@
 3. **Remote-access VPN.** Done on Linux: WireGuard with address pools, per-user certificates, PSK rotation and revocation. Still to do: Windows/macOS clients and full-tunnel routing.
 4. **Hardware-backed CA keys.** Done: AWS KMS (ML-DSA, external mu) and any HSM with a signing command. Native PKCS#11 is still to do.
 5. **Compliance evidence.** Reports that map each endpoint, tunnel and backup to CNSA 2.0 and NIST IR 8547 dates (deprecated in 2030, disallowed in 2035), exportable for auditors. The `cnsa2` policy and the scan's CNSA 2.0 verdict are the start.
-6. **Kubernetes.** A Helm chart for the edge as a sidecar, and a cert-manager external issuer backed by the pqcsuite CA.
-7. **Cloud images.** Packer templates for AWS, Azure and GCP images of the edge, the VPN gateway and the bundles (PQCready AMI parity).
+6. **Kubernetes.** Done: Helm chart (CA with EST, ACME and renewal; edge gateways) and a sidecar example. Still to do: a cert-manager external issuer, and in-cluster renewal of edge Secrets.
+7. **Cloud images.** Done: one Packer template for AWS, Azure and GCP (edge, IPsec, WireGuard, CA maintenance). Not yet built in a real cloud account or listed on a marketplace.
 8. **SSH.** Check and harden OpenSSH (`mlkem768x25519-sha256`, `sntrup761x25519-sha512`) across a fleet, alongside the TLS scan.
 9. **SLH-DSA (FIPS 205)** roots. Done, through OpenSSL 3.5, with intermediate CAs.
 10. **Discovery.** Wolf Pack CBOM inside the console, when the owner decides.

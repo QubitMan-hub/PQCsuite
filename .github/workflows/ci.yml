@@ -64,3 +64,48 @@ jobs:
           sudo modprobe wireguard || true
           sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib python -m unittest tests.test_wireguard -v 2>&1 | tee wg.log
           grep -q "test_traffic_rotation_and_revocation .* ok" wg.log
+  kubernetes:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cluster and image
+        run: |
+          kind create cluster --wait 120s
+          docker build -t pqcsuite:ci . && kind load docker-image pqcsuite:ci
+          helm lint --strict deploy/helm/pqcsuite
+      - name: Install the CA
+        run: helm install pqc deploy/helm/pqcsuite --set image.repository=pqcsuite --set image.tag=ci --set image.pullPolicy=Never --wait --timeout 240s
+      - name: Issue an edge certificate in the cluster and put the edge in front of a web app
+        run: |
+          kubectl create deployment web --image=pqcsuite:ci -- python -m http.server 8080 --directory /tmp
+          kubectl expose deployment web --port 80 --target-port 8080
+          ca() { kubectl exec pqc-ca-0 -c maintain -- "$@"; }
+          ca pqcsuite ca issue --dir /data/pki server pqc-edge.default.svc --san pqc-edge --out /data/issued/edge
+          mkdir edge && for f in chain.pem key.pem; do ca cat /data/issued/edge/$f > edge/$f; done && ca cat /data/pki/ca.crt > edge/ca.crt
+          kubectl create secret generic edge-tls --from-file=edge/
+          helm upgrade pqc deploy/helm/pqcsuite --reuse-values --set edge.enabled=true --set 'edge.routes[0].name=web' \
+            --set 'edge.routes[0].port=8443' --set 'edge.routes[0].target=web:80' --wait --timeout 180s
+      - name: Post-quantum request through the edge
+        run: |
+          kubectl cp deploy/k8s/smoke.py pqc-ca-0:/data/smoke.py -c maintain
+          kubectl exec pqc-ca-0 -c maintain -- python /data/smoke.py pqc default
+      - name: Diagnostics
+        if: failure()
+        run: kubectl get pods -A; kubectl describe pods; kubectl logs -l app.kubernetes.io/instance=pqc --all-containers --tail 100
+  cloud-image:
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    steps:
+      - uses: actions/checkout@v4
+      - name: Packer template
+        run: |
+          apt-get update && apt-get install -y curl unzip sudo
+          curl -fsSL -o packer.zip https://releases.hashicorp.com/packer/1.14.1/packer_1.14.1_linux_amd64.zip && unzip -q packer.zip -d /usr/local/bin
+          packer init deploy/packer && packer fmt -check deploy/packer
+          packer validate -var gcp_project=ci -var azure_subscription_id=00000000-0000-0000-0000-000000000000 deploy/packer
+      - name: The image's provisioning script on Debian 13 (systemctl stubbed; no systemd in a container)
+        run: |
+          printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/systemctl && chmod +x /usr/local/bin/systemctl
+          mkdir -p /tmp/pqcsuite && cp -r pyproject.toml README.md pqcsuite deploy /tmp/pqcsuite/
+          sh deploy/packer/provision.sh
+          test -x /opt/strongswan/libexec/ipsec/charon && ls /etc/systemd/system/pqcsuite-*.service

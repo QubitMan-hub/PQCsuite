@@ -291,6 +291,33 @@ For CNSA 2.0 backups, make recipient keys with `pqcsuite vault keygen --cnsa2` (
 
 `scan` also takes SSH servers (`ssh://host:22`). It reads the server's key-exchange offer and grades it the same way: `mlkem768x25519-sha256` and `sntrup761x25519-sha512` count as post-quantum.
 
+## Kubernetes and cloud images
+
+```
+docker build -t registry.example.com/pqcsuite:0.1.0 . && docker push registry.example.com/pqcsuite:0.1.0
+
+# the CA: EST and ACME enrollment, daily renewal and CRL, optional console; key and index on a persistent volume
+helm install pqc deploy/helm/pqcsuite --set image.repository=registry.example.com/pqcsuite --set image.tag=0.1.0 \
+    --set ca.passphraseSecret=pqc-ca-passphrase --set 'ca.acme.allow={*.corp.example}'
+
+# edges in front of a service; certificates from a Secret, reloaded when it changes
+helm upgrade pqc deploy/helm/pqcsuite --reuse-values --set edge.enabled=true --set edge.certSecret=edge-tls \
+    --set 'edge.routes[0].name=web' --set 'edge.routes[0].port=8443' --set 'edge.routes[0].target=web:80'
+```
+
+- The chart runs as non-root with a read-only root filesystem and all capabilities dropped. The CA is a single-replica StatefulSet, because the CA folder has one writer.
+- `deploy/k8s/sidecar.yaml` shows the edge as a sidecar: the app listens on localhost, and the pod's port speaks post-quantum TLS.
+- The image is not published to a registry yet. Build it and push it to your own.
+- Edge certificates come from a Secret you create (`pqcsuite ca issue`, then `kubectl create secret`). Renewing them inside the cluster automatically is not done yet.
+
+Cloud images: `deploy/packer/pqcsuite.pkr.hcl` builds one Debian 13 image for AWS, Azure and GCP. It contains OpenSSL 3.5, strongSwan 6.1.0, WireGuard, pqcsuite and systemd units (`pqcsuite-edge`, `pqcsuite-ipsec`, `pqcsuite-wireguard`, and a daily `pqcsuite-maintain` timer). Each service starts only when its configuration exists in `/etc/pqcsuite`.
+
+```
+packer init deploy/packer && packer build -only 'amazon-ebs.pqcsuite' deploy/packer
+```
+
+CI installs the chart into a kind cluster. The in-cluster CA issues the edge's certificate, and a request goes through the edge with X25519MLKEM768 and an ML-DSA certificate. CI also validates the Packer template and runs the image's provisioning script in a Debian 13 container. No image has been built in a real cloud account yet.
+
 ## Keeping it running
 
 ```
