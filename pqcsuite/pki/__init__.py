@@ -189,7 +189,9 @@ class CA:
             cert = signers.sign(b, signer, signer.spki)
         write(root / "ca.crt", cert_pem(cert))
         write(root / "index.json", b"[]")
-        return cls(root, passphrase)
+        ca = cls(root, passphrase)
+        ca.crl()
+        return ca
 
     def aki(self):
         return x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(self.ski)

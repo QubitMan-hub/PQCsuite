@@ -79,7 +79,7 @@ def cmd_ca(a):
                   {"type": "command", "command": a.signer_command, "public_key": str(Path(a.signer_public_key).resolve())} if a.signer_command else None)
         ca = CA.init(a.dir, a.name, a.algorithm, a.days, ca_passphrase(a.dir, new=True) if a.encrypt and not signer else None, parent, signer)
         what = f"intermediate CA under '{parent.cert.subject.rfc4514_string()}'" if parent else "root"
-        print(f"created {ca.signer.algorithm} {what} '{a.name}' in {a.dir} (serial {ca.cert.serial_number:x}); clients trust {ca.anchor}")
+        print(f"created {ca.signer.algorithm} {what} '{a.name}' in {a.dir} (serial {ca.cert.serial_number:x}); clients trust {ca.anchor}, servers check {Path(a.dir) / 'crl.pem'}")
         return 0
     ca = CA(a.dir, ca_passphrase(a.dir))
     if a.ca_cmd == "issue":
