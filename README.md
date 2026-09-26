@@ -234,6 +234,27 @@ How it's secured:
 - **Trust:** the client pins the CA by its fingerprint before trusting anything.
 - **Audit:** every enrollment and every refusal goes to `est-audit.jsonl`.
 
+## ACME (RFC 8555)
+
+```
+pqcsuite acme serve --dir pki --listen 0.0.0.0:14000 --base-url https://acme.corp.example:14000 \
+    --tls-cert acme-classical.pem --tls-key acme-classical.key --allow '*.corp.example' --require-eab
+pqcsuite acme eab --dir pki --note "web team"            # one key id + HMAC key per client
+
+# on the web server: an ML-DSA key and CSR, then plain certbot
+pqcsuite acme csr www.corp.example --out /etc/pqcsuite/www
+certbot certonly --csr /etc/pqcsuite/www/csr.der --server https://acme.corp.example:14000/directory \
+    --standalone --eab-kid KID --eab-hmac-key KEY --agree-tos -m ops@corp.example
+```
+
+- Identifiers are proved with http-01, for DNS names and IP addresses (RFC 8738). Wildcards need dns-01, which is not implemented.
+- `--allow` limits which names the CA issues for. `--require-eab` stops strangers from registering. Each EAB key binds one account.
+- Accounts can revoke only certificates they ordered. Revocation reaches the CA's CRL immediately.
+- Certificates are ML-DSA. The CSR must carry an ML-DSA key, so the ACME client must accept a CSR file. Clients that generate their own RSA or ECDSA keys, such as cert-manager or default certbot, get a `badCSR` error that says so.
+- The ACME endpoint is ordinary HTTPS with a classical certificate, because ACME clients cannot verify ML-DSA server certificates yet. ACME account keys are classical too (RS256, ES256/384/512, EdDSA), as in every ACME client.
+
+`tests/test_acme.py` drives the server with certbot's `acme` library and with the certbot command line. It covers issuance, a failed http-01, refused classical keys, EAB, cross-account revocation, and forged, replayed and misdirected requests.
+
 ## Fleet management
 
 ```

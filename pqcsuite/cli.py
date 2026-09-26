@@ -243,6 +243,26 @@ def cmd_wireguard(a):
     return 0
 
 
+def cmd_acme(a):
+    from . import acme_server as acme
+    if a.acme_cmd == "csr":
+        out = acme.make_csr(a.names, a.out, a.algorithm, env_passphrase(a.key_passphrase_env))
+        print(f"{out / 'key.pem'} (keep secret), {out / 'csr.pem'} and {out / 'csr.der'}\n"
+              f"certbot certonly --csr {out / 'csr.der'} --server https://ACME-HOST/directory ...")
+        return 0
+    if a.acme_cmd == "eab":
+        kid, key = acme.create_eab(a.dir, a.note)
+        print(f"external account binding for one client (shown once):\n  key id:   {kid}\n  HMAC key: {key}\n"
+              f"certbot: --eab-kid {kid} --eab-hmac-key {key}")
+        return 0
+    ca = CA(a.dir, ca_passphrase(a.dir))
+    base = a.base_url or f"{'https' if a.tls_cert else 'http'}://{a.listen}"
+    httpd = acme.serve(acme.Service(ca, base, a.allow, a.require_eab, a.http_port), a.listen, a.tls_cert, a.tls_key)
+    print(f"ACME directory: {base}/directory (issuing ML-DSA certificates from {ca.cert.subject.rfc4514_string()})")
+    run_until_signal(httpd.serve_forever, lambda: threading.Thread(target=httpd.shutdown).start())
+    return 0
+
+
 def cmd_vault(a):
     from . import vault
     def passphrase():
@@ -609,6 +629,25 @@ def parser():
     p.add_argument("--mtls", action="store_true", help="clients must present a certificate from the CA")
     p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
 
+    ac = sub.add_parser("acme", help="ACME (RFC 8555) for the CA: ML-DSA certificates for clients that take a CSR file (tested with certbot --csr)").add_subparsers(dest="acme_cmd", required=True)
+    p = ac.add_parser("serve", help="run the ACME service")
+    p.add_argument("--dir", default="pki", help="CA folder")
+    p.add_argument("--listen", default="127.0.0.1:14000")
+    p.add_argument("--base-url", help="the URL clients use, e.g. https://acme.corp.example (default from --listen)")
+    p.add_argument("--allow", action="append", default=[], help="names or patterns this CA issues for, e.g. '*.corp.example' (repeatable)")
+    p.add_argument("--require-eab", action="store_true", help="clients need an external account binding key (see `acme eab`)")
+    p.add_argument("--http-port", type=int, default=80, help="port for http-01 validation")
+    p.add_argument("--tls-cert", help="a certificate ACME clients trust (classical: clients cannot verify ML-DSA yet)")
+    p.add_argument("--tls-key")
+    p = ac.add_parser("eab", help="create an external account binding key for one client")
+    p.add_argument("--dir", default="pki")
+    p.add_argument("--note", default="")
+    p = ac.add_parser("csr", help="an ML-DSA key and CSR for certbot --csr")
+    p.add_argument("names", nargs="+")
+    p.add_argument("--out", default=".")
+    p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-65")
+    p.add_argument("--key-passphrase-env")
+
     v = sub.add_parser("vpn", help="post-quantum IPsec site-to-site (strongSwan) and WireGuard remote access").add_subparsers(dest="vpn_cmd", required=True)
     p = v.add_parser("gateway", help="WireGuard gateway: ML-DSA mutual TLS key agreement, address pool, PSK rotation, revocation")
     p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/wireguard-gateway.toml)")
@@ -640,7 +679,7 @@ def main(argv=None):
     if a.cmd == "edge" and not a.config and not a.target:
         parser().error("edge needs --config or --target")
     try:
-        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console, "enroll": cmd_enroll, "fleet": cmd_fleet, "agent": cmd_agent, "report": cmd_report}[a.cmd](a))
+        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console, "enroll": cmd_enroll, "fleet": cmd_fleet, "agent": cmd_agent, "report": cmd_report, "acme": cmd_acme}[a.cmd](a))
     except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)

@@ -7,7 +7,7 @@
 | PQCrypto | PQCLens, PQCvpn, Q-Vault, Edge, PQCready AMIs | AI discovery, PQC VPN tunnels, backup encryption, TLS termination, prebuilt images | Discovery comes from Wolf Pack (to be integrated); VPN, vault, edge and bundles are built |
 | QuSecure | QuProtect | Endpoint agents plus an orchestration layer that upgrades TLS and IPsec sessions to hybrid; issuance, revocation, audit logs | Edge, VPN, CA and audit log; no central fleet management yet |
 | SandboxAQ | AQtive Guard | Network-wide inventory of certificates, libraries and devices; policy engine | `scan` for TLS endpoints; Wolf Pack for code, configs and binaries |
-| Keyfactor, AppViewX | PQC PKI, crypto-agility | Certificate lifecycle automation, ACME/EST enrollment, HSM and KMS integration, policy and evidence | CA hierarchy, `ca maintain`, CRLs, EST enrollment, AWS KMS and command-line HSM signing |
+| Keyfactor, AppViewX | PQC PKI, crypto-agility | Certificate lifecycle automation, ACME/EST enrollment, HSM and KMS integration, policy and evidence | CA hierarchy, `ca maintain`, CRLs, EST and ACME enrollment, AWS KMS and command-line HSM signing |
 | Thales, Fortanix | HSMs, KMS | PQC keys in hardware, crypto-agility | CA keys in AWS KMS or any HSM with a signing command; SLH-DSA roots |
 | QAegis, QSphere (AWS Marketplace) | PQC VPNs | WireGuard with PQC; remote access with zero-trust controls | Site-to-site IPsec, plus WireGuard remote access with a PSK from ML-DSA mutual TLS |
 | PQC Gateway (Pipy) | Edge gateway | PQC TLS termination and API management | Edge, without HTTP routing |
@@ -21,7 +21,7 @@
 
 ## Next features, in the order I would build them
 
-1. **Certificate enrollment (ACME and EST).** Servers request and renew ML-DSA certificates from the pqcsuite CA automatically. EST fits PQC best because it is algorithm-agnostic. ACME makes it a drop-in for cert-manager and certbot-style clients. This is the biggest gap against Keyfactor and AppViewX.
+1. **Certificate enrollment (ACME and EST).** Done: EST, and ACME with http-01 and EAB, tested with certbot `--csr`. Still to do: dns-01, and a cert-manager external issuer (cert-manager generates classical keys itself).
 2. **Fleet management.** Edges and VPN gateways enrol with the console over mutual TLS, report status and receive policy and certificates centrally. This is QuSecure's core pitch.
 3. **Remote-access VPN.** Done on Linux: WireGuard with address pools, per-user certificates, PSK rotation and revocation. Still to do: Windows/macOS clients and full-tunnel routing.
 4. **Hardware-backed CA keys.** Done: AWS KMS (ML-DSA, external mu) and any HSM with a signing command. Native PKCS#11 is still to do.
