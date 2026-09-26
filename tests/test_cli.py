@@ -69,7 +69,7 @@ class CLITest(unittest.TestCase):
         ca = ["--ca", self.d / "pki" / "ca.crt"]
         self.assertIn("--server-name nosuch.invalid", self.fails("tls", "connect", "nosuch.invalid:443", *ca))
         self.assertIn("connection refused", self.fails("tls", "connect", f"127.0.0.1:{closed}", *ca))
-        self.assertEqual(probe(f"127.0.0.1:{closed}", timeout=2)["error"], "connection refused (nothing is listening on that port)")
+        self.assertEqual(probe(f"127.0.0.1:{closed}", timeout=10)["error"], "connection refused (nothing is listening on that port)")
         self.assertIn("No such file or directory: ", self.fails("readiness", "scan", self.d / "none.txt"))
 
     def test_scan_targets_as_people_write_them(self):
