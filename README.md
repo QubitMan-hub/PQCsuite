@@ -42,6 +42,7 @@ Clients now reach the app on port 8443 over TLS 1.3 with X25519MLKEM768 and an M
 - **Edge modes:** `terminate` puts PQC TLS in front of a service. `originate` lets a plain local client reach a remote edge, so two edges make a post-quantum tunnel for any TCP protocol.
 - **Mutual TLS:** `require_client_cert` plus a CRL. Revoked clients are refused at the next handshake. A forged or expired CRL refuses everyone (fail closed).
 - **Policies:** `strict` (post-quantum only, the default), `transition` (also serves classical clients) and `cnsa2` (ML-KEM-1024, ML-DSA-87, AES-256 only).
+- **Browsers:** they negotiate X25519MLKEM768 but cannot verify ML-DSA yet. Under `transition`, `fallback_cert`/`fallback_key` (or `--fallback-cert`/`--fallback-key`) give them an ECDSA or RSA certificate, while post-quantum clients get ML-DSA on the same port.
 - **Operations:** certificates reload without a restart, `/metrics` for Prometheus, JSON logs, graceful shutdown, connection limits and deadlines on every socket.
 - **Bundles:** `pqcsuite tls bundle nginx|postgres|pgvector|mqtt --host NAME` writes a Compose project with the service behind the edge.
 
@@ -139,7 +140,7 @@ Pages: overview, TLS 1.3 edges, mTLS certificates (issue, revoke, renew), IPsec 
 python -m unittest discover -s tests -v
 ```
 
-The TLS tests run when OpenSSL 3.5+ is available. CI also runs two IPsec sites and a WireGuard gateway in network namespaces with real traffic, installs the Helm chart in a kind cluster, and runs the image's provisioning script on Debian 13.
+The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts real applications behind the products and checks them with independent clients: nginx (OpenSSL 3.5 command line and curl), PostgreSQL, Redis and MQTT through edge tunnels, EST enrollment, a vault backup with tampering, and readiness grades; each is skipped when the application is missing. CI also runs two IPsec sites and a WireGuard gateway in network namespaces with real traffic, installs the Helm chart in a kind cluster, and runs the image's provisioning script on Debian 13.
 
 ## Limits
 
