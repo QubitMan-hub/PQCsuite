@@ -27,6 +27,7 @@ jobs:
             mosquitto mosquitto-clients openssh-server
       - run: pip install -e ".[test]" && pqcsuite doctor
       - run: python -m unittest discover -s tests -v
+      - run: python examples/clinic_demo.py --auto
   docker:
     runs-on: ubuntu-latest
     steps:

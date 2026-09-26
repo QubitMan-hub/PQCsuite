@@ -134,6 +134,15 @@ Pages: overview, TLS 1.3 edges, mTLS certificates (issue, revoke, renew), IPsec 
 - **Kubernetes:** `deploy/helm/pqcsuite` runs the CA (EST, ACME, daily maintenance, optional console) and edge gateways; `deploy/k8s/sidecar.yaml` shows the edge as a sidecar. Edge certificates come from a Secret you create.
 - **Cloud images:** `deploy/packer` builds a Debian 13 image for AWS, Azure and GCP with OpenSSL 3.5, strongSwan 6.1.0, WireGuard and systemd units that start when their configuration exists. Not yet built in a real cloud account.
 
+## Demo
+
+```
+python examples/clinic_demo.py          # pauses before each step
+python examples/clinic_demo.py --auto   # runs straight through and checks every result
+```
+
+A clinic's patient portal, old records server, a doctor's laptop and nightly backups, in about a minute: readiness grades, Wolf Pack on the clinic's code (when `wolfpack` is installed), the portal behind post-quantum mutual TLS, a stolen laptop cut off, a signed Vault backup, a tampered backup refused, and the evidence report. CI runs it on every change.
+
 ## Tests
 
 ```
