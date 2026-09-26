@@ -122,7 +122,9 @@ class Server:
                     self.revocation.check(cert.serial_number, conn.peer_chain()[1:])
             except (TLSError, CAError, OSError) as e:
                 self.stats.add("handshake_failed")
-                log.warning("%s: rejected %s: %s", self.name, peer, e)
+                hint = (" (the client cannot verify ML-DSA certificates, as browsers today: use policy transition with a fallback "
+                        "certificate)") if "no suitable signature algorithm" in str(e) else ""
+                log.warning("%s: rejected %s: %s%s", self.name, peer, e, hint)
                 return
             info = conn.info()
             with self.stats.lock:

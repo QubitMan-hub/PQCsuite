@@ -36,7 +36,7 @@ class Route:
     server_name: str = ""
     proxy_protocol: bool = False
     max_connections: int = 512
-    idle_timeout: float = 300.0
+    idle_timeout: float = 3600.0
     handshake_timeout: float = 10.0
     fallback_cert: str = ""
     fallback_key: str = ""

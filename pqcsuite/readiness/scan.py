@@ -19,7 +19,7 @@ GRADES = {
     "A": "post-quantum key exchange only",
     "B": "post-quantum key exchange, classical still accepted",
     "C": "classical only: traffic recorded today can be decrypted later",
-    "F": "unreachable or no TLS 1.3",
+    "F": "unreachable, or no TLS at all",
 }
 
 
@@ -31,6 +31,19 @@ def key_name(key):
     if isinstance(key, ed25519.Ed25519PublicKey):
         return "Ed25519"
     return algorithm_of(key) or type(key).__name__
+
+
+def _legacy(host, port, server_name, timeout):
+    """(version, certificate) from a server that refuses TLS 1.3 but still talks TLS 1.2 or older."""
+    import ssl
+    from cryptography import x509
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
+    ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+    ctx.set_ciphers("DEFAULT:@SECLEVEL=0")
+    with socket.create_connection((host, port), timeout=timeout) as raw, ctx.wrap_socket(raw, server_hostname=server_name) as s:
+        der = s.getpeercert(binary_form=True)
+        return s.version(), x509.load_der_x509_certificate(der) if der else None
 
 
 def _hello(host, port, groups, server_name, timeout):
@@ -89,6 +102,18 @@ def probe_ssh(host, port, timeout):
     return out
 
 
+def _cert_info(cert):
+    if not cert:
+        return None
+    try:
+        key = key_name(cert.public_key())
+    except Exception:
+        key = cert.public_key_algorithm_oid.dotted_string
+    return {"subject": cert.subject.rfc4514_string(), "issuer": cert.issuer.rfc4514_string(), "key": key,
+            "expires": cert.not_valid_after_utc.date().isoformat(),
+            "days_left": (cert.not_valid_after_utc - dt.datetime.now(dt.timezone.utc)).days, "quantum_safe": key.startswith("ML-DSA")}
+
+
 def probe(target, server_name=None, timeout=8.0):
     if target.startswith("ssh://"):
         host, port = hostport(target[6:], "")
@@ -99,14 +124,15 @@ def probe(target, server_name=None, timeout=8.0):
     try:
         out["negotiated"], cert = _hello(host, port, ":".join(PQ + CLASSICAL), server_name or host, timeout)
     except (tls.TLSError, OSError) as e:
-        out["error"], out["grade"] = str(e), "F"
+        try:
+            version, cert = _legacy(host, port, server_name or host, timeout)
+        except (OSError, ValueError):
+            out["error"], out["grade"] = str(e), "F"
+            return out
+        out["negotiated"], out["accepts"], out["grade"] = version, [version], "C"
+        out["certificate"] = _cert_info(cert)
         return out
-    if cert:
-        days = (cert.not_valid_after_utc - dt.datetime.now(dt.timezone.utc)).days
-        key = key_name(cert.public_key())
-        out["certificate"] = {"subject": cert.subject.rfc4514_string(), "issuer": cert.issuer.rfc4514_string(), "key": key,
-                              "expires": cert.not_valid_after_utc.date().isoformat(),
-                              "days_left": days, "quantum_safe": key.startswith("ML-DSA")}
+    out["certificate"] = _cert_info(cert)
     for g in PQ + CLASSICAL:
         try:
             _hello(host, port, g, server_name or host, timeout)

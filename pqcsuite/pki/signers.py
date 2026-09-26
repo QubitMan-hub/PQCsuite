@@ -182,7 +182,7 @@ class KMSSigner(Signer):
             try:
                 import boto3
             except ImportError:
-                raise SignerError("AWS KMS signing needs boto3 (pip install boto3)") from None
+                raise SignerError("AWS KMS signing needs boto3 (pip install \"pqcsuite[kms]\")") from None
             client = boto3.client("kms", region_name=region)
         self.client, self.kms_key = client, key_id
         r = client.get_public_key(KeyId=key_id)

@@ -57,6 +57,22 @@ def need(*tools):
     return unittest.skipIf(missing, f"needs {', '.join(missing)}")
 
 
+def ec_certificate(d, name="app.internal"):
+    """A self-signed ECDSA certificate, as a classical server or a browser-facing fallback would have."""
+    import datetime as dt
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    key = ec.generate_private_key(ec.SECP256R1())
+    subject = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, name)])
+    now = dt.datetime.now(dt.timezone.utc)
+    cert = (x509.CertificateBuilder().subject_name(subject).issuer_name(subject).public_key(key.public_key()).serial_number(1)
+            .not_valid_before(now).not_valid_after(now + dt.timedelta(days=1))
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName(name)]), False).sign(key, hashes.SHA256()))
+    (d / "ec.pem").write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    (d / "ec.key").write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+
+
 @unittest.skipIf(REASON, REASON)
 class Scenario(unittest.TestCase):
     def setUp(self):
@@ -165,18 +181,7 @@ class WebTest(Scenario):
 
     @need("nginx", "curl")
     def test_classical_clients_under_transition_with_a_fallback_certificate(self):
-        from cryptography import x509
-        from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import ec
-        import datetime as dt
-        key = ec.generate_private_key(ec.SECP256R1())
-        name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "app.internal")])
-        now = dt.datetime.now(dt.timezone.utc)
-        cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key()).serial_number(1)
-                .not_valid_before(now).not_valid_after(now + dt.timedelta(days=1))
-                .add_extension(x509.SubjectAlternativeName([x509.DNSName("app.internal")]), False).sign(key, hashes.SHA256()))
-        (self.d / "ec.pem").write_bytes(cert.public_bytes(serialization.Encoding.PEM))
-        (self.d / "ec.key").write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+        ec_certificate(self.d)
         port = self.web_edge("transition", fallback_cert=self.d / "ec.pem", fallback_key=self.d / "ec.key")
         (self.d / "both.pem").write_bytes((self.d / "ec.pem").read_bytes() + (self.d / "pki" / "ca.crt").read_bytes())
         r = subprocess.run(["curl", "-sS", "--noproxy", "*", "--max-time", "10", "--cacert", self.d / "both.pem", "--resolve", f"app.internal:{port}:127.0.0.1",
@@ -336,6 +341,7 @@ class ReadinessTest(Scenario):
     @unittest.skipUnless(OPENSSL, "needs an OpenSSL 3.5+ command line")
     def test_grades(self):
         from pqcsuite.readiness import scan
+        ec_certificate(self.d)
         out, _ = self.ca.issue("app.internal", "server", ["127.0.0.1"], out=self.d / "app")
         backend = free_port()
         srv = socket.create_server(("127.0.0.1", backend))
@@ -347,8 +353,15 @@ class ReadinessTest(Scenario):
                    "-groups", "X25519:P-256", "-www", "-tls1_3")
         for p in (strict, transition, classical):
             wait_port(p)
-        grades = {r["target"]: r["grade"] for r in scan.scan([f"127.0.0.1:{p}" for p in (strict, transition, classical)], timeout=5)}
-        self.assertEqual([grades[f"127.0.0.1:{p}"] for p in (strict, transition, classical)], ["A", "B", "C"])
+        legacy, closed = free_port(), free_port()
+        self.spawn(OPENSSL, "s_server", "-accept", f"127.0.0.1:{legacy}", "-cert", self.d / "ec.pem", "-key", self.d / "ec.key",
+                   "-www", "-tls1_2")
+        wait_port(legacy)
+        results = {r["target"]: r for r in scan.scan([f"127.0.0.1:{p}" for p in (strict, transition, classical, legacy, closed)], timeout=5)}
+        grades = [results[f"127.0.0.1:{p}"]["grade"] for p in (strict, transition, classical, legacy, closed)]
+        self.assertEqual(grades, ["A", "B", "C", "C", "F"])
+        self.assertEqual(results[f"127.0.0.1:{legacy}"]["negotiated"], "TLSv1.2")
+        self.assertEqual(results[f"127.0.0.1:{legacy}"]["certificate"]["key"], "ECDSA-secp256r1")
 
 
 if __name__ == "__main__":

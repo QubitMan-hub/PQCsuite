@@ -296,7 +296,13 @@ def cmd_vault(a):
             print(f"backup {target}" + (f"; removed {len(pruned)} old" if pruned else ""))
     elif a.vault_cmd == "decrypt":
         target, who = vault.decrypt(a.file, a.out, vault.Identity.load(a.key, passphrase()), a.ca, a.crl, a.signer, a.require_signature)
-        print(f"restored {target}" + (f", signed by {who}" if who else ", not signed"))
+        if not who:
+            print(f"restored {target}; the file is not signed")
+        elif a.ca:
+            print(f"restored {target}, signed by {who} (certificate checked against {a.ca})")
+        else:
+            print(f"restored {target}; the signature is intact, but nobody checked who issued the signer's certificate "
+                  f"({who}). Pass --ca to require one of your CA's certificates.")
     elif a.vault_cmd == "share":
         n = vault.add_recipients(a.file, vault.Identity.load(a.key, passphrase()), [vault.Recipient.load(r) for r in a.recipient])
         print(f"{a.file} now opens for {n} recipient(s); the encrypted data was not rewritten")
