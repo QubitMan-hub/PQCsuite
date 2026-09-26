@@ -13,17 +13,11 @@ import tomllib
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import tls
-from .tls.server import Server, Stats
+from .. import tls
+from . import hostport
+from .server import Server, Stats
 
 log = logging.getLogger("pqcsuite.edge")
-
-
-def hostport(s, default_host="0.0.0.0"):
-    host, _, port = s.rpartition(":")
-    if not port.isdigit():
-        raise ValueError(f"expected host:port, got {s!r}")
-    return host.strip("[]") or default_host, int(port)
 
 
 @dataclass

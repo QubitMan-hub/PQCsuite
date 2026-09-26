@@ -57,3 +57,10 @@ def connect(host, port, ctx, server_name=None, timeout=10.0):
 
 __all__ = ["Connection", "Context", "OpenSSLUnavailable", "POLICIES", "Policy", "TLSError", "client_context", "connect", "lib",
            "server_context"]
+
+
+def hostport(s, default_host="0.0.0.0"):
+    host, _, port = s.rpartition(":")
+    if not port.isdigit():
+        raise ValueError(f"expected host:port, got {s!r}")
+    return host.strip("[]") or default_host, int(port)

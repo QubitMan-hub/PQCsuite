@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from pqcsuite import vault
-from pqcsuite.ca import CA
+from pqcsuite.pki import CA
 from pqcsuite.vault import CHUNK, Identity, Recipient, VaultError
 
 

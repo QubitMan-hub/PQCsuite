@@ -4,9 +4,9 @@ from pathlib import Path
 
 from cryptography import x509
 
-from pqcsuite.bundles import SERVICES, create
-from pqcsuite.ca import CA, CAError
-from pqcsuite.edge import load_config
+from pqcsuite.tls.bundles import SERVICES, create
+from pqcsuite.pki import CA, CAError
+from pqcsuite.tls.edge import load_config
 
 
 class BundleTest(unittest.TestCase):

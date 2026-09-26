@@ -12,8 +12,8 @@ from collections import Counter
 from cryptography.x509.oid import NameOID
 
 from .. import tls
-from ..ca import CAError
-from ..edge import hostport
+from ..pki import CAError
+from ..tls import hostport
 from ..tls.server import Revocation, Server
 from .charon import Charon, CharonError, conn_config, ppk_pattern
 

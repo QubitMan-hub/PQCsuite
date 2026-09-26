@@ -17,9 +17,9 @@ from cryptography import x509
 from cryptography.hazmat.primitives.serialization import Encoding, pkcs7
 from cryptography.x509.oid import NameOID
 
-from . import tls
-from .ca import CA, CAError, USAGE, cert_pem, check_revocation, generate, key_pem, locked, now, write
-from .tls.http import HTTPError, request
+from .. import tls
+from . import CA, CAError, USAGE, cert_pem, check_revocation, generate, key_pem, locked, now, write
+from ..tls.http import HTTPError, request
 
 PREFIX = "/.well-known/est"
 PKCS7 = {"Content-Type": "application/pkcs7-mime; smime-type=certs-only", "Content-Transfer-Encoding": "base64"}
@@ -184,7 +184,7 @@ def fingerprint(cert):
 
 
 def _csr(key, common_name, names):
-    from .ca import general_names
+    from . import general_names
     b = x509.CertificateSigningRequestBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)]))
     if names:
         b = b.add_extension(x509.SubjectAlternativeName(general_names(names)), critical=False)
@@ -234,9 +234,9 @@ def renew(url, folder, algorithm="ML-DSA-65", within_days=None, passphrase=None,
 
 def serve(ca_dir, listen, cert, key, passphrase=None, key_passphrase=None):
     """Run the EST service on a PQC TLS listener (client certificates requested, not required)."""
-    from .edge import hostport
-    from .tls.http import handler
-    from .tls.server import Server
+    from ..tls import hostport
+    from ..tls.http import handler
+    from ..tls.server import Server
     ca = CA(ca_dir, passphrase)
     cafile = str(ca.anchor)
     make = lambda: tls.server_context(cert, key, cafile, policy_name="strict", key_passphrase=key_passphrase,

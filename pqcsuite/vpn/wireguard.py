@@ -31,8 +31,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
 from .. import tls
-from ..ca import CAError, write
-from ..edge import hostport
+from ..pki import CAError, write
+from ..tls import hostport
 from ..tls.server import Server
 from .controller import TAG, common_name, read_line
 

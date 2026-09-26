@@ -1,4 +1,4 @@
-"""Just enough HTTP/1.1 over a PQC TLS Connection for the enrollment, fleet and ACME services: one request per connection."""
+"""Just enough HTTP/1.1 over a PQC TLS Connection for the EST enrollment service: one request per connection."""
 MAX_HEAD, MAX_BODY = 16384, 1 << 20
 REASONS = {200: "OK", 201: "Created", 204: "No Content", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
            405: "Method Not Allowed", 409: "Conflict", 413: "Payload Too Large", 500: "Internal Server Error"}

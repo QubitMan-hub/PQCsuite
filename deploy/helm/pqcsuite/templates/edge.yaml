@@ -50,7 +50,7 @@ spec:
           image: {{ include "pqcsuite.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
-          args: ["edge", "--config", "/etc/pqcsuite/edge.toml"]
+          args: ["tls", "edge", "--config", "/etc/pqcsuite/edge.toml"]
           ports:
             {{- range .Values.edge.routes }}
             - {name: {{ .name | trunc 15 | quote }}, containerPort: {{ .port }}}

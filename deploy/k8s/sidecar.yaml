@@ -36,7 +36,7 @@ spec:
           image: your-registry/api:latest   # must listen on 127.0.0.1:8080
         - name: pqc-edge
           image: ghcr.io/qubitman-hub/pqcsuite:0.1.0
-          args: ["edge", "--config", "/etc/pqcsuite/edge.toml"]
+          args: ["tls", "edge", "--config", "/etc/pqcsuite/edge.toml"]
           ports:
             - {name: https, containerPort: 8443}
             - {name: metrics, containerPort: 9100}

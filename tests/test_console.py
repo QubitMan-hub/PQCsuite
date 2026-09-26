@@ -7,7 +7,7 @@ import urllib.request
 from pathlib import Path
 
 from pqcsuite import vault
-from pqcsuite.ca import CA
+from pqcsuite.pki import CA
 from pqcsuite.console import App, Settings, serve
 
 
@@ -65,16 +65,6 @@ class ConsoleTest(unittest.TestCase):
         self.assertEqual(certs["certificates"][0]["status"], "revoked")
         actions = [json.loads(l)["action"] for l in (self.d / "audit.jsonl").read_text().splitlines()]
         self.assertEqual(actions, ["issue", "revoke"])
-
-    def test_fleet_config_is_validated_and_audited(self):
-        self.app.s.fleet = str(self.d / "fleet")
-        with self.assertRaises(urllib.error.HTTPError) as e:
-            self.call("/api/fleet/desired", {"name": "edge1", "config": "[[edge]]\nname = 'x'\nmode = 'sideways'\nlisten = '0.0.0.0:1'\ntarget = '1.2.3.4:5'\n"})
-        self.assertIn("mode", json.loads(e.exception.read())["error"])
-        self.call("/api/fleet/desired", {"name": "edge1", "config": ""})
-        self.assertTrue((self.d / "fleet" / "desired" / "edge1.toml").exists())
-        self.assertEqual(self.call("/api/fleet")[2], [])
-        self.assertIn('"fleet_config"', (self.d / "audit.jsonl").read_text())
 
     def test_bad_requests_are_explained(self):
         with self.assertRaises(urllib.error.HTTPError) as e:

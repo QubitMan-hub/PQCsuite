@@ -10,8 +10,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from pqcsuite import tls
-from pqcsuite.ca import CA
-from pqcsuite.edge import Edge, Route, metrics_text
+from pqcsuite.pki import CA
+from pqcsuite.tls.edge import Edge, Route, metrics_text
 from pqcsuite.tls.server import Server
 
 try:

@@ -10,8 +10,9 @@ from unittest import mock
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 
-from pqcsuite import signers, tls
-from pqcsuite.ca import CA, CAError, check_revocation, generate, key_pem, signed_by
+from pqcsuite import tls
+from pqcsuite.pki import signers
+from pqcsuite.pki import CA, CAError, check_revocation, generate, key_pem, signed_by
 from pqcsuite.tls.server import Server
 from tests.test_tls import echo
 

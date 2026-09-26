@@ -329,7 +329,7 @@ class Connection:
         return out.raw
 
     def info(self):
-        from ..ca import algorithm_of
+        from ..pki import algorithm_of
         cert = self.peer_certificate()
         return {"version": self.version, "cipher": self.cipher, "group": self.group,
                 "peer": cert.subject.rfc4514_string() if cert else None,

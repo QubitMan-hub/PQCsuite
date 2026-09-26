@@ -7,10 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
-from . import tls
-from .ca import algorithm_of
-from .edge import hostport
-from .tls.openssl import Context
+from .. import tls
+from ..pki import algorithm_of
+from ..tls import hostport
+from ..tls.openssl import Context
 
 PQ = ["X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "MLKEM768", "MLKEM1024"]
 CNSA2_GROUPS = {"SecP384r1MLKEM1024", "MLKEM1024"}

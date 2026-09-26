@@ -28,8 +28,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
-from . import NAME, __version__
-from .ca import CAError, cert_pem, now, write
+from .. import NAME, __version__
+from . import CAError, cert_pem, now, write
 
 log = logging.getLogger("pqcsuite.acme")
 ERR = "urn:ietf:params:acme:error:"
@@ -473,7 +473,7 @@ def serve(service, listen, tls_cert=None, tls_key=None):
         def log_message(self, fmt, *args):
             log.debug(fmt, *args)
 
-    from .edge import hostport
+    from ..tls import hostport
     httpd = ThreadingHTTPServer(hostport(listen, "127.0.0.1"), Handler)
     httpd.service = service
     if tls_cert:
@@ -485,7 +485,7 @@ def serve(service, listen, tls_cert=None, tls_key=None):
 
 def make_csr(names, out, algorithm="ML-DSA-65", passphrase=None):
     """An ML-DSA key and CSR for ACME clients that take a CSR file (certbot --csr)."""
-    from .ca import general_names, generate, key_pem
+    from . import general_names, generate, key_pem
     key = generate(algorithm)
     csr = (x509.CertificateSigningRequestBuilder().subject_name(x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, names[0])]))
            .add_extension(x509.SubjectAlternativeName(general_names(names)), critical=False).sign(key, None))

@@ -93,7 +93,7 @@ class Signer:
 
 class KeySigner(Signer):
     def __init__(self, key):
-        from .ca import algorithm_of
+        from . import algorithm_of
         self.key, self.algorithm = key, algorithm_of(key.public_key())
         self.spki = key.public_key().public_bytes(DER, serialization.PublicFormat.SubjectPublicKeyInfo)
 
@@ -105,7 +105,7 @@ class OpenSSLSigner(Signer):
     """A private key OpenSSL 3.5 understands and pyca/cryptography does not, such as SLH-DSA (FIPS 205)."""
 
     def __init__(self, pem, passphrase=None):
-        from .tls.openssl import errors, lib
+        from ..tls.openssl import errors, lib
         L_ = lib()
         bio = L_.BIO_new_mem_buf(pem, len(pem))
         self.pkey = L_.PEM_read_bio_PrivateKey(bio, None, None, passphrase or b"")
@@ -123,7 +123,7 @@ class OpenSSLSigner(Signer):
     @staticmethod
     def generate(algorithm, passphrase=None):
         """A new key as PKCS#8 PEM, encrypted with AES-256 when a passphrase is given."""
-        from .tls.openssl import errors, lib
+        from ..tls.openssl import errors, lib
         L_ = lib()
         ctx, pkey = L_.EVP_PKEY_CTX_new_from_name(None, algorithm.encode(), None), ctypes.c_void_p()
         try:
@@ -143,7 +143,7 @@ class OpenSSLSigner(Signer):
             L_.EVP_PKEY_free(pkey)
 
     def sign(self, data):
-        from .tls.openssl import errors, lib
+        from ..tls.openssl import errors, lib
         L_ = lib()
         md, n = L_.EVP_MD_CTX_new(), ctypes.c_size_t()
         try:
@@ -159,7 +159,7 @@ class OpenSSLSigner(Signer):
 
 def verify(spki, data, signature):
     """Check a signature with OpenSSL, for keys pyca/cryptography cannot load."""
-    from .tls.openssl import lib
+    from ..tls.openssl import lib
     L_ = lib()
     buf = ctypes.create_string_buffer(spki, len(spki))
     pkey = L_.d2i_PUBKEY(None, ctypes.byref(ctypes.c_void_p(ctypes.addressof(buf))), len(spki))

@@ -11,8 +11,9 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-from pqcsuite import scan, tls
-from pqcsuite.ca import CA
+from pqcsuite import tls
+from pqcsuite.readiness import scan
+from pqcsuite.pki import CA
 from pqcsuite.tls.openssl import Context
 from pqcsuite.tls.server import Server
 

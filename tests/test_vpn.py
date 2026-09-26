@@ -11,7 +11,7 @@ import time
 import unittest
 from pathlib import Path
 
-from pqcsuite.ca import CA
+from pqcsuite.pki import CA
 from pqcsuite.vpn import PROFILES, Peer, Site, load_config, validate
 from pqcsuite.vpn.charon import conn_config, ppk_pattern
 from pqcsuite.vpn.controller import context

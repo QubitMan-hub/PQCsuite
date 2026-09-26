@@ -84,8 +84,8 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
           args:
+            - ca
             - acme
-            - serve
             - --dir=/data/pki
             - --listen=0.0.0.0:{{ .Values.ca.acme.port }}
             - --base-url={{ $acmeUrl }}

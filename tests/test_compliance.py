@@ -2,8 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pqcsuite import compliance, vault
-from pqcsuite.ca import CA
+from pqcsuite import vault
+from pqcsuite.readiness import compliance
+from pqcsuite.pki import CA
 
 
 class ComplianceTest(unittest.TestCase):

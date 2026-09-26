@@ -8,7 +8,7 @@ from collections import Counter
 
 from cryptography import x509
 
-from ..ca import CAError, check_revocation
+from ..pki import CAError, check_revocation
 from .openssl import TLSError
 
 log = logging.getLogger("pqcsuite.tls")

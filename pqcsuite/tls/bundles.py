@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-from .ca import CA, CAError, write
+from ..pki import CA, CAError, write
 
 EDGE_UID = 10001
 SERVICES = {
@@ -11,7 +11,7 @@ SERVICES = {
     "postgres": {"image": "postgres:17", "port": 5432, "public": 5433, "volume": "/var/lib/postgresql/data",
                  "env": {"POSTGRES_PASSWORD": "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"},
                  "use": "psql \"host={host} port=5433 sslmode=verify-full sslrootcert=pki/ca.crt sslnegotiation=direct\" "
-                        "(libpq 17+; the client's OpenSSL must be 3.5+ to negotiate ML-KEM, or connect through `pqcsuite edge --mode originate`)"},
+                        "(libpq 17+; the client's OpenSSL must be 3.5+ to negotiate ML-KEM, or connect through `pqcsuite tls edge --mode originate`)"},
     "pgvector": {"image": "pgvector/pgvector:pg17", "port": 5432, "public": 5433, "volume": "/var/lib/postgresql/data",
                  "env": {"POSTGRES_PASSWORD": "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"},
                  "use": "as postgres; then CREATE EXTENSION vector;"},
@@ -52,7 +52,7 @@ def create(service, out, host, ca_dir=None, require_client_cert=False, policy="s
         volumes += ["      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro", "      - ./passwd:/mosquitto/config/passwd:ro"]
     if volumes:
         lines += ["    volumes:"] + volumes
-    lines += ["  edge:", "    image: pqcsuite:latest", '    command: ["edge", "--config", "/etc/pqcsuite/edge.toml"]',
+    lines += ["  edge:", "    image: pqcsuite:latest", '    command: ["tls", "edge", "--config", "/etc/pqcsuite/edge.toml"]',
               "    restart: unless-stopped", f"    depends_on: [{service}]", f'    ports: ["{s["public"]}:{s["public"]}"]', "    volumes:",
               "      - ./edge.toml:/etc/pqcsuite/edge.toml:ro", "      - ./edge:/edge:ro",
               f"      - {Path(ca_dir).resolve().as_posix() if ca_dir else './pki'}:/pki:ro"]

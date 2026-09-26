@@ -7,7 +7,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-from pqcsuite.ca import CA, CAError, check_revocation, generate
+from pqcsuite.pki import CA, CAError, check_revocation, generate
 
 
 class CATest(unittest.TestCase):

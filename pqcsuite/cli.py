@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 
 from . import NAME, __version__, tls
-from .ca import ALGORITHMS, CA, CA_ALGORITHMS, CAError
+from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError
 from .vault import VaultError
 from .vpn.charon import CharonError
 
@@ -87,7 +87,7 @@ def cmd_ca(a):
         print(f"  {out / 'cert.pem'}\n  {out / 'chain.pem'}  (certificate + CA, use this for servers)\n  {out / 'key.pem'}")
     elif a.ca_cmd == "sign-csr":
         cert, r = ca.sign_csr(Path(a.csr).read_bytes(), a.kind, a.days)
-        from .ca import cert_pem
+        from .pki import cert_pem
         Path(a.out).write_bytes(cert_pem(cert))
         print(f"signed {r.serial} for {r.common_name} -> {a.out}")
     elif a.ca_cmd == "revoke":
@@ -100,12 +100,12 @@ def cmd_ca(a):
         out, r = ca.renew(a.serial, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
         print(f"renewed as {r.serial}, valid until {r.not_after}, in {out}")
     elif a.ca_cmd == "token":
-        from .est import create_token
+        from .pki.est import create_token
         t = create_token(ca, a.common_name, a.kind, a.san, a.hours)
         print(f"one-time enrollment token for {a.common_name} ({a.kind}), valid {a.hours} h. It is shown only once:\n{t}")
     elif a.ca_cmd == "serve":
         from cryptography.x509 import load_pem_x509_certificate
-        from .est import fingerprint, serve
+        from .pki.est import fingerprint, serve
         srv = serve(a.dir, a.listen, a.cert, a.key, ca_passphrase(a.dir), env_passphrase(a.key_passphrase_env))
         print(f"EST enrollment on https://{a.listen}/.well-known/est; CA fingerprint (give it to clients):\n{fingerprint(load_pem_x509_certificate(ca.anchor.read_bytes()))}")
         run_until_signal(srv.serve_forever, srv.stop)
@@ -139,12 +139,6 @@ def cmd_tls(a):
         run_until_signal(srv.serve_forever, srv.stop)
         return 0
     host, port = parse_addr(a.target, "")
-    if a.tls_cmd == "probe":
-        from .scan import GRADES, probe
-        r = probe(a.target, a.server_name, a.timeout)
-        r["verdict"] = f"{r['grade']}: {GRADES[r['grade']]}"
-        show(r, a.json)
-        return 0 if r["grade"] in "AB" else 2
     ctx = tls.client_context(a.ca, a.cert, a.key, a.policy, env_passphrase(a.key_passphrase_env))
     with tls.connect(host, port, ctx, a.server_name, a.timeout) as conn:
         out = conn.info()
@@ -162,8 +156,16 @@ def cmd_tls(a):
     return 0
 
 
+def cmd_probe(a):
+    from .readiness.scan import GRADES, probe
+    r = probe(a.target, a.server_name, a.timeout)
+    r["verdict"] = f"{r['grade']}: {GRADES[r['grade']]}"
+    show(r, a.json)
+    return 0 if r["grade"] in "AB" else 2
+
+
 def cmd_scan(a):
-    from . import scan
+    from .readiness import scan
     results = scan.scan(scan.load_targets(a.targets), a.workers, a.timeout)
     if a.html:
         Path(a.html).write_text(scan.report_html(results), encoding="utf-8")
@@ -178,7 +180,9 @@ def cmd_scan(a):
 
 
 def cmd_edge(a):
-    from .edge import Edge, Route, load_config, serve_metrics
+    from .tls.edge import Edge, Route, load_config, serve_metrics
+    if not (a.config or a.target):
+        raise ValueError("edge needs --config or --target")
     if a.config:
         routes, metrics = load_config(a.config)
     else:
@@ -244,13 +248,13 @@ def cmd_wireguard(a):
 
 
 def cmd_acme(a):
-    from . import acme_server as acme
-    if a.acme_cmd == "csr":
+    from .pki import acme
+    if a.ca_cmd == "csr":
         out = acme.make_csr(a.names, a.out, a.algorithm, env_passphrase(a.key_passphrase_env))
         print(f"{out / 'key.pem'} (keep secret), {out / 'csr.pem'} and {out / 'csr.der'}\n"
               f"certbot certonly --csr {out / 'csr.der'} --server https://ACME-HOST/directory ...")
         return 0
-    if a.acme_cmd == "eab":
+    if a.ca_cmd == "eab":
         kid, key = acme.create_eab(a.dir, a.note)
         print(f"external account binding for one client (shown once):\n  key id:   {kid}\n  HMAC key: {key}\n"
               f"certbot: --eab-kid {kid} --eab-hmac-key {key}")
@@ -301,7 +305,7 @@ def cmd_vault(a):
 
 
 def cmd_bundle(a):
-    from .bundles import create
+    from .tls.bundles import create
     out = create(a.service, a.out or f"{a.service}-pqc", a.host, a.ca, a.mtls, a.policy)
     print((out / "README.txt").read_text())
     return 0
@@ -317,13 +321,12 @@ def cmd_console(a):
     s.vpn += a.vici
     s.wireguard += a.wireguard
     s.backups += a.backups
-    s.fleet = a.fleet or s.fleet
     app = App(s)
     httpd = serve(app)
     host, port = httpd.server_address[:2]
     print(f"console on http://{host}:{port}/  access token: {app.token}")
     if host not in ("127.0.0.1", "::1", "localhost"):
-        print("warning: listening beyond localhost over plain HTTP; put `pqcsuite edge --policy transition` in front of it")
+        print("warning: listening beyond localhost over plain HTTP; put `pqcsuite tls edge --policy transition` in front of it")
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     stop = threading.Event()
     run_until_signal(stop.wait, lambda: (httpd.shutdown(), stop.set()))
@@ -331,7 +334,7 @@ def cmd_console(a):
 
 
 def cmd_enroll(a):
-    from . import est
+    from .pki import est
     if a.renew:
         cert = est.renew(a.url, a.renew, within_days=a.within_days, passphrase=env_passphrase(a.key_passphrase_env), server_name=a.server_name)
         print(f"{a.renew}: " + (f"renewed, new serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}" if cert
@@ -347,27 +350,13 @@ def cmd_enroll(a):
         est.fetch_ca(a.url, a.ca_fingerprint, ca, a.server_name)
     cert = est.enroll(a.url, a.token, a.common_name, a.san, a.out, ca, passphrase=env_passphrase(a.key_passphrase_env), server_name=a.server_name)
     print(f"enrolled {a.common_name}: serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}, files in {a.out}")
-    print(f"renew it daily from cron: pqcsuite enroll {a.url} --renew {a.out} --within-days 30")
-    return 0
-
-
-def cmd_fleet(a):
-    from .fleet import serve
-    srv = serve(a.dir, a.listen, a.cert, a.key, a.ca, a.crl, env_passphrase(a.key_passphrase_env))
-    print(f"fleet service on {a.listen}; agents report here, desired configs live in {Path(a.dir) / 'desired'}")
-    run_until_signal(srv.serve_forever, srv.stop)
-    return 0
-
-
-def cmd_agent(a):
-    from .fleet import Agent
-    agent = Agent(a.url, a.cert_dir, a.interval, a.server_name)
-    run_until_signal(agent.run, agent.shutdown)
+    print(f"renew it daily from cron: pqcsuite ca enroll {a.url} --renew {a.out} --within-days 30")
     return 0
 
 
 def cmd_report(a):
-    from . import compliance, scan
+    from .readiness import compliance
+    from .readiness import scan
     from .console import App, Settings
     app = App(Settings(ca=a.ca or "", vpn=a.vici, backups=a.backups))
     rows = []
@@ -412,7 +401,7 @@ def serve_json(address, routes):
 
 
 def parse_addr(s, default_host="0.0.0.0"):
-    from .edge import hostport
+    from .tls import hostport
     return hostport(s, default_host)
 
 
@@ -440,14 +429,54 @@ def tls_client_args(p):
 
 
 def parser():
-    ap = argparse.ArgumentParser(prog=NAME, description="Post-quantum secure communication: certificate authority, TLS 1.3, edge proxy.")
+    ap = argparse.ArgumentParser(prog=NAME, description="Post-quantum products: TLS 1.3 + mTLS, IPsec VPN, Vault and Readiness assessment.")
     ap.add_argument("--version", action="version", version=f"{NAME} {__version__}")
     ap.add_argument("--log-json", action="store_true", help="structured JSON logs")
     ap.add_argument("-v", "--verbose", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("doctor", help="check that this machine can run everything")
+    sub.add_parser("doctor", help="check that this machine can run everything").set_defaults(func=cmd_doctor)
 
-    ca = sub.add_parser("ca", help="post-quantum certificate authority").add_subparsers(dest="ca_cmd", required=True)
+    t = sub.add_parser("tls", help="TLS 1.3 + mTLS: post-quantum edge, server and client").add_subparsers(dest="tls_cmd", required=True)
+    p = t.add_parser("edge", help="post-quantum TLS in front of any TCP service, or a tunnel to one")
+    p.set_defaults(func=cmd_edge)
+    p.add_argument("--config", help="TOML file with [[edge]] routes; replaces the flags below")
+    p.add_argument("--mode", choices=["terminate", "originate"], default="terminate")
+    p.add_argument("--listen", default="0.0.0.0:8443")
+    p.add_argument("--target", help="upstream host:port (terminate) or remote edge host:port (originate)")
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+    for flag in ("--cert", "--key", "--key-passphrase-env", "--ca", "--crl", "--server-name", "--metrics"):
+        p.add_argument(flag)
+    p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
+    p.add_argument("--proxy-protocol", action="store_true", help="send a PROXY v1 header so the upstream sees the client address")
+    from .tls.bundles import SERVICES
+    p = t.add_parser("bundle", help="nginx, postgres, pgvector or mqtt behind the edge, with certificates and a compose file")
+    p.set_defaults(func=cmd_bundle)
+    p.add_argument("service", choices=list(SERVICES))
+    p.add_argument("--host", required=True, help="the name clients use; goes in the certificate")
+    p.add_argument("--out", help="folder to create (default: SERVICE-pqc)")
+    p.add_argument("--ca", help="use this existing CA folder instead of creating one")
+    p.add_argument("--mtls", action="store_true", help="clients must present a certificate from the CA")
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+    p = t.add_parser("serve", help="an echo server, for testing clients")
+    p.set_defaults(func=cmd_tls)
+    p.add_argument("--listen", default="0.0.0.0:8443")
+    p.add_argument("--cert", required=True, help="chain.pem")
+    p.add_argument("--key", required=True)
+    p.add_argument("--key-passphrase-env")
+    p.add_argument("--ca", help="CA that signs client certificates")
+    p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
+    p.add_argument("--crl", help="refuse revoked client certificates")
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+    p = t.add_parser("connect", help="handshake, optionally send a message, print what was negotiated")
+    p.set_defaults(func=cmd_tls)
+    tls_client_args(p)
+    p.add_argument("--ca", required=True)
+    p.add_argument("--cert", help="client certificate, for mutual TLS")
+    p.add_argument("--key")
+    p.add_argument("--key-passphrase-env")
+    p.add_argument("--send", help="message to send; the reply is printed")
+
+    ca = sub.add_parser("ca", help="TLS 1.3 + mTLS: the post-quantum certificate authority, EST and ACME").add_subparsers(dest="ca_cmd", required=True)
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--dir", default="pki", help="CA folder (default: pki)")
     p = ca.add_parser("init", parents=[common], help="create a root or intermediate CA")
@@ -482,7 +511,13 @@ def parser():
     p.add_argument("--reason", default="unspecified")
     p = ca.add_parser("crl", parents=[common], help="re-sign the CRL (do this before it expires)")
     p.add_argument("--days", type=int, default=7)
-    p = ca.add_parser("token", parents=[common], help="one-time enrollment token for one name (for `pqcsuite enroll`)")
+    p = ca.add_parser("maintain", parents=[common], help="renew what expires soon and refresh the CRL (run daily)")
+    p.add_argument("--renew-within", type=int, default=30, metavar="DAYS")
+    p.add_argument("--crl-days", type=int, default=7)
+    p = ca.add_parser("list", parents=[common], help="list issued certificates")
+    p.add_argument("--expiring", type=int, metavar="DAYS", help="only those expiring within DAYS")
+    p.add_argument("--json", action="store_true")
+    p = ca.add_parser("token", parents=[common], help="one-time enrollment token for one name (for `ca enroll`)")
     p.add_argument("kind", choices=["server", "client", "site"])
     p.add_argument("common_name")
     p.add_argument("--san", action="append", default=[])
@@ -492,45 +527,64 @@ def parser():
     p.add_argument("--cert", required=True, help="the service's own server chain.pem")
     p.add_argument("--key", required=True)
     p.add_argument("--key-passphrase-env")
-    p = ca.add_parser("maintain", parents=[common], help="renew what expires soon and refresh the CRL (run daily)")
-    p.add_argument("--renew-within", type=int, default=30, metavar="DAYS")
-    p.add_argument("--crl-days", type=int, default=7)
-    p = ca.add_parser("list", parents=[common], help="list issued certificates")
-    p.add_argument("--expiring", type=int, metavar="DAYS", help="only those expiring within DAYS")
-    p.add_argument("--json", action="store_true")
-
-    t = sub.add_parser("tls", help="PQC TLS 1.3 server, client and probe").add_subparsers(dest="tls_cmd", required=True)
-    p = t.add_parser("serve", help="an echo server, for testing clients")
-    p.add_argument("--listen", default="0.0.0.0:8443")
-    p.add_argument("--cert", required=True, help="chain.pem")
-    p.add_argument("--key", required=True)
+    for c in ca.choices.values():
+        c.set_defaults(func=cmd_ca)
+    p = ca.add_parser("enroll", help="get or renew a certificate from an EST service; the key stays on this machine")
+    p.set_defaults(func=cmd_enroll)
+    p.add_argument("url", help="https://ca.example.com:9443")
+    p.add_argument("--token", help="one-time token from `ca token`")
+    p.add_argument("--cn", dest="common_name")
+    p.add_argument("--san", action="append", default=[])
+    p.add_argument("--out", default=".")
+    p.add_argument("--ca", help="trusted CA certificate")
+    p.add_argument("--ca-fingerprint", help="or the CA's SHA-256 fingerprint, to download and pin it")
+    p.add_argument("--renew", metavar="FOLDER", help="renew the certificate in FOLDER in place")
+    p.add_argument("--within-days", type=int, help="with --renew: only when it expires within this many days")
+    p.add_argument("--server-name")
     p.add_argument("--key-passphrase-env")
-    p.add_argument("--ca", help="CA that signs client certificates")
-    p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
-    p.add_argument("--crl", help="refuse revoked client certificates")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
-    p = t.add_parser("connect", help="handshake, optionally send a message, print what was negotiated")
-    tls_client_args(p)
-    p.add_argument("--ca", required=True)
-    p.add_argument("--cert", help="client certificate, for mutual TLS")
-    p.add_argument("--key")
+    p = ca.add_parser("acme", parents=[common], help="ACME (RFC 8555) service: ML-DSA certificates for clients that take a CSR (certbot --csr)")
+    p.set_defaults(func=cmd_acme)
+    p.add_argument("--listen", default="127.0.0.1:14000")
+    p.add_argument("--base-url", help="the URL clients use, e.g. https://acme.corp.example (default from --listen)")
+    p.add_argument("--allow", action="append", default=[], help="names or patterns this CA issues for, e.g. '*.corp.example' (repeatable)")
+    p.add_argument("--require-eab", action="store_true", help="clients need an external account binding key (see `ca eab`)")
+    p.add_argument("--http-port", type=int, default=80, help="port for http-01 validation")
+    p.add_argument("--tls-cert", help="a certificate ACME clients trust (classical: clients cannot verify ML-DSA yet)")
+    p.add_argument("--tls-key")
+    p = ca.add_parser("eab", parents=[common], help="an ACME external account binding key for one client")
+    p.set_defaults(func=cmd_acme)
+    p.add_argument("--note", default="")
+    p = ca.add_parser("csr", help="an ML-DSA key and CSR, for certbot --csr")
+    p.set_defaults(func=cmd_acme)
+    p.add_argument("names", nargs="+")
+    p.add_argument("--out", default=".")
+    p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-65")
     p.add_argument("--key-passphrase-env")
-    p.add_argument("--send", help="message to send; the reply is printed")
-    p = t.add_parser("probe", help="which post-quantum groups does a server accept?")
-    tls_client_args(p)
 
-    e = sub.add_parser("edge", help="PQC TLS in front of any TCP service, or a tunnel to one")
-    e.add_argument("--config", help="TOML file with [[edge]] routes; replaces the flags below")
-    e.add_argument("--mode", choices=["terminate", "originate"], default="terminate")
-    e.add_argument("--listen", default="0.0.0.0:8443")
-    e.add_argument("--target", help="upstream host:port (terminate) or remote edge host:port (originate)")
-    e.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
-    for flag in ("--cert", "--key", "--key-passphrase-env", "--ca", "--crl", "--server-name", "--metrics"):
-        e.add_argument(flag)
-    e.add_argument("--require-client-cert", action="store_true")
-    e.add_argument("--proxy-protocol", action="store_true", help="send a PROXY v1 header so the upstream sees the client address")
+    v = sub.add_parser("vpn", help="IPsec VPN: post-quantum site-to-site (strongSwan) and WireGuard remote access").add_subparsers(dest="vpn_cmd", required=True)
+    p = v.add_parser("up", help="run a site: key agreement, rotation, revocation, metrics")
+    p.add_argument("--config", required=True, help="site TOML (see examples/vpn-hq.toml)")
+    for name, text in (("status", "tunnels, algorithms and traffic"), ("check", "is strongSwan reachable and does it have ML-KEM?")):
+        p = v.add_parser(name, help=text)
+        p.add_argument("--config", help="read the VICI address from a site TOML")
+        p.add_argument("--vici", default="unix:///var/run/charon.vici")
+        p.add_argument("--json", action="store_true")
+    p = v.add_parser("gateway", help="WireGuard remote-access gateway: address pool, PSK from ML-DSA mutual TLS, rotation, revocation")
+    p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/wireguard-gateway.toml)")
+    p = v.add_parser("connect", help="connect this machine to a WireGuard gateway and keep its PSK fresh")
+    p.add_argument("keyring", help="the gateway's key agreement address, host:port")
+    p.add_argument("--cert-dir", required=True, help="folder with cert.pem, chain.pem, key.pem and ca.crt (as written by `ca enroll`)")
+    p.add_argument("--ca", help="trust this CA file instead of CERT_DIR/ca.crt")
+    p.add_argument("--interface", default="wg0")
+    p.add_argument("--server-name", help="the gateway's certificate name, if it differs from the keyring host")
+    p.add_argument("--no-apply", action="store_true", help="do not configure the interface (use with --config-out)")
+    p.add_argument("--config-out", help="also write a wg-quick configuration here after every key agreement")
+    p.add_argument("--key-passphrase-env")
+    p.add_argument("--once", action="store_true", help="agree once and exit")
+    for c in v.choices.values():
+        c.set_defaults(func=cmd_vpn)
 
-    q = sub.add_parser("vault", help="quantum-safe encryption for files, folders and backups").add_subparsers(dest="vault_cmd", required=True)
+    q = sub.add_parser("vault", help="Vault: quantum-safe encryption for files, folders and backups").add_subparsers(dest="vault_cmd", required=True)
     p = q.add_parser("keygen", help="a recipient key pair (ML-KEM-768 + X25519)")
     p.add_argument("out", help="writes OUT.key and OUT.pub")
     p.add_argument("--passphrase-env")
@@ -565,53 +619,22 @@ def parser():
     p = q.add_parser("inspect", help="who can open a file and who signed it")
     p.add_argument("file")
     p.add_argument("--json", action="store_true")
+    for c in q.choices.values():
+        c.set_defaults(func=cmd_vault)
 
-    p = sub.add_parser("scan", help="post-quantum readiness report for many TLS endpoints")
-    p.add_argument("targets", nargs="+", help="host:port entries, or .txt files with one per line")
+    r = sub.add_parser("readiness", help="Readiness assessment: TLS and SSH scans, CNSA 2.0, NIST IR 8547 evidence").add_subparsers(dest="readiness_cmd", required=True)
+    p = r.add_parser("scan", help="grade many TLS and SSH endpoints")
+    p.set_defaults(func=cmd_scan)
+    p.add_argument("targets", nargs="+", help="host:port, ssh://host:port, or .txt files with one per line")
     p.add_argument("--html", help="write a self-contained HTML report")
     p.add_argument("--json", help="write JSON results")
     p.add_argument("--workers", type=int, default=16)
     p.add_argument("--timeout", type=float, default=8.0)
-
-    p = sub.add_parser("console", help="web dashboard for certificates, edges, VPN, backups and readiness")
-    p.add_argument("--config", help="TOML with a [console] section")
-    p.add_argument("--listen", help="default 127.0.0.1:8900")
-    p.add_argument("--ca", help="CA folder")
-    p.add_argument("--edge", action="append", default=[], help="an edge's metrics address, e.g. http://127.0.0.1:9100 (repeatable)")
-    p.add_argument("--vici", action="append", default=[], help="strongSwan VICI address (repeatable)")
-    p.add_argument("--wireguard", action="append", default=[], help="a WireGuard gateway's metrics address (repeatable)")
-    p.add_argument("--backups", action="append", default=[], help="folder of vault archives (repeatable)")
-    p.add_argument("--fleet", help="the fleet service's folder")
-
-    p = sub.add_parser("enroll", help="get or renew a certificate from an EST enrollment service; the key stays on this machine")
-    p.add_argument("url", help="https://ca.example.com:9443")
-    p.add_argument("--token", help="one-time token from `pqcsuite ca token`")
-    p.add_argument("--cn", dest="common_name")
-    p.add_argument("--san", action="append", default=[])
-    p.add_argument("--out", default=".")
-    p.add_argument("--ca", help="trusted CA certificate")
-    p.add_argument("--ca-fingerprint", help="or the CA's SHA-256 fingerprint, to download and pin it")
-    p.add_argument("--renew", metavar="FOLDER", help="renew the certificate in FOLDER in place")
-    p.add_argument("--within-days", type=int, help="with --renew: only when it expires within this many days")
-    p.add_argument("--server-name")
-    p.add_argument("--key-passphrase-env")
-
-    f = sub.add_parser("fleet", help="central fleet service: agents report and receive their edge configuration")
-    p = f.add_subparsers(dest="fleet_cmd", required=True).add_parser("serve", help="run the fleet service")
-    p.add_argument("--dir", default="fleet")
-    p.add_argument("--listen", default="0.0.0.0:9444")
-    p.add_argument("--cert", required=True)
-    p.add_argument("--key", required=True)
-    p.add_argument("--key-passphrase-env")
-    p.add_argument("--ca", required=True, help="CA that issued the agents' certificates")
-    p.add_argument("--crl")
-    p = sub.add_parser("agent", help="report to the fleet service and run the edge routes it assigns")
-    p.add_argument("url", help="https://fleet.example.com:9444")
-    p.add_argument("--cert-dir", required=True, help="folder with cert.pem, chain.pem, key.pem and ca.crt (as written by `enroll`)")
-    p.add_argument("--interval", type=int, default=30)
-    p.add_argument("--server-name")
-
-    p = sub.add_parser("report", help="compliance evidence: NIST IR 8547 and CNSA 2.0 status of every asset")
+    p = r.add_parser("probe", help="which post-quantum groups does one server accept?")
+    p.set_defaults(func=cmd_probe)
+    tls_client_args(p)
+    p = r.add_parser("report", help="compliance evidence: NIST IR 8547 and CNSA 2.0 status of every asset")
+    p.set_defaults(func=cmd_report)
     p.add_argument("--ca", help="CA folder (certificates)")
     p.add_argument("--targets", nargs="*", default=[], help="host:port, ssh://host:port or .txt files to scan")
     p.add_argument("--vici", action="append", default=[])
@@ -620,54 +643,15 @@ def parser():
     p.add_argument("--json")
     p.add_argument("--timeout", type=float, default=8.0)
 
-    from .bundles import SERVICES
-    p = sub.add_parser("bundle", help="a PQCready service: nginx, postgres, pgvector or mqtt behind the PQC edge")
-    p.add_argument("service", choices=list(SERVICES))
-    p.add_argument("--host", required=True, help="the name clients use; goes in the certificate")
-    p.add_argument("--out", help="folder to create (default: SERVICE-pqc)")
-    p.add_argument("--ca", help="use this existing CA folder instead of creating one")
-    p.add_argument("--mtls", action="store_true", help="clients must present a certificate from the CA")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
-
-    ac = sub.add_parser("acme", help="ACME (RFC 8555) for the CA: ML-DSA certificates for clients that take a CSR file (tested with certbot --csr)").add_subparsers(dest="acme_cmd", required=True)
-    p = ac.add_parser("serve", help="run the ACME service")
-    p.add_argument("--dir", default="pki", help="CA folder")
-    p.add_argument("--listen", default="127.0.0.1:14000")
-    p.add_argument("--base-url", help="the URL clients use, e.g. https://acme.corp.example (default from --listen)")
-    p.add_argument("--allow", action="append", default=[], help="names or patterns this CA issues for, e.g. '*.corp.example' (repeatable)")
-    p.add_argument("--require-eab", action="store_true", help="clients need an external account binding key (see `acme eab`)")
-    p.add_argument("--http-port", type=int, default=80, help="port for http-01 validation")
-    p.add_argument("--tls-cert", help="a certificate ACME clients trust (classical: clients cannot verify ML-DSA yet)")
-    p.add_argument("--tls-key")
-    p = ac.add_parser("eab", help="create an external account binding key for one client")
-    p.add_argument("--dir", default="pki")
-    p.add_argument("--note", default="")
-    p = ac.add_parser("csr", help="an ML-DSA key and CSR for certbot --csr")
-    p.add_argument("names", nargs="+")
-    p.add_argument("--out", default=".")
-    p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-65")
-    p.add_argument("--key-passphrase-env")
-
-    v = sub.add_parser("vpn", help="post-quantum IPsec site-to-site (strongSwan) and WireGuard remote access").add_subparsers(dest="vpn_cmd", required=True)
-    p = v.add_parser("gateway", help="WireGuard gateway: ML-DSA mutual TLS key agreement, address pool, PSK rotation, revocation")
-    p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/wireguard-gateway.toml)")
-    p = v.add_parser("connect", help="connect this machine to a WireGuard gateway and keep its PSK fresh")
-    p.add_argument("keyring", help="the gateway's key agreement address, host:port")
-    p.add_argument("--cert-dir", required=True, help="folder with cert.pem, chain.pem, key.pem and ca.crt (as written by `enroll`)")
-    p.add_argument("--ca", help="trust this CA file instead of CERT_DIR/ca.crt")
-    p.add_argument("--interface", default="wg0")
-    p.add_argument("--server-name", help="the gateway's certificate name, if it differs from the keyring host")
-    p.add_argument("--no-apply", action="store_true", help="do not configure the interface (use with --config-out)")
-    p.add_argument("--config-out", help="also write a wg-quick configuration here after every key agreement")
-    p.add_argument("--key-passphrase-env")
-    p.add_argument("--once", action="store_true", help="agree once and exit")
-    p = v.add_parser("up", help="run a site: key agreement, rotation, revocation, metrics")
-    p.add_argument("--config", required=True, help="site TOML (see examples/vpn-hq.toml)")
-    for name, text in (("status", "tunnels, algorithms and traffic"), ("check", "is strongSwan reachable and does it have ML-KEM?")):
-        p = v.add_parser(name, help=text)
-        p.add_argument("--config", help="read the VICI address from a site TOML")
-        p.add_argument("--vici", default="unix:///var/run/charon.vici")
-        p.add_argument("--json", action="store_true")
+    p = sub.add_parser("console", help="one dashboard for all four products")
+    p.set_defaults(func=cmd_console)
+    p.add_argument("--config", help="TOML with a [console] section")
+    p.add_argument("--listen", help="default 127.0.0.1:8900")
+    p.add_argument("--ca", help="CA folder")
+    p.add_argument("--edge", action="append", default=[], help="an edge's metrics address, e.g. http://127.0.0.1:9100 (repeatable)")
+    p.add_argument("--vici", action="append", default=[], help="strongSwan VICI address (repeatable)")
+    p.add_argument("--wireguard", action="append", default=[], help="a WireGuard gateway's metrics address (repeatable)")
+    p.add_argument("--backups", action="append", default=[], help="folder of vault archives (repeatable)")
     return ap
 
 
@@ -676,10 +660,8 @@ def main(argv=None):
     h = logging.StreamHandler()
     h.setFormatter(JSONFormatter() if a.log_json else logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO, handlers=[h])
-    if a.cmd == "edge" and not a.config and not a.target:
-        parser().error("edge needs --config or --target")
     try:
-        sys.exit({"doctor": cmd_doctor, "ca": cmd_ca, "tls": cmd_tls, "edge": cmd_edge, "vpn": cmd_vpn, "vault": cmd_vault, "bundle": cmd_bundle, "scan": cmd_scan, "console": cmd_console, "enroll": cmd_enroll, "fleet": cmd_fleet, "agent": cmd_agent, "report": cmd_report, "acme": cmd_acme}[a.cmd](a))
+        sys.exit(a.func(a))
     except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)

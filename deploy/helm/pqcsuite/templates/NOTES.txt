@@ -9,7 +9,7 @@ CA: {{ .Release.Name }}-ca in {{ .Release.Namespace }} (key and index on the "da
   {{- if .Values.ca.acme.enabled }}
   ACME: {{ .Values.ca.acme.baseUrl | default (printf "http://%s:%d" (include "pqcsuite.caHost" .) (int .Values.ca.acme.port)) }}/directory
     {{- if .Values.ca.acme.requireEab }}
-    EAB key: kubectl -n {{ .Release.Namespace }} exec {{ .Release.Name }}-ca-0 -c maintain -- pqcsuite acme eab --dir /data/pki
+    EAB key: kubectl -n {{ .Release.Namespace }} exec {{ .Release.Name }}-ca-0 -c maintain -- pqcsuite ca eab --dir /data/pki
     {{- end }}
   {{- end }}
 {{- end }}

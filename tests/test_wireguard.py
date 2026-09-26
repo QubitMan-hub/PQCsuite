@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 from pqcsuite import tls
-from pqcsuite.ca import CA
+from pqcsuite.pki import CA
 from pqcsuite.vpn.wireguard import Client, Gateway, GatewayConfig, private_key
 
 try:

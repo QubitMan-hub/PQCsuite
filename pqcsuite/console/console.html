@@ -65,7 +65,7 @@ button:disabled { opacity: .55; cursor: default; }
 "use strict";
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const VIEWS = { overview: "Overview", fleet: "Fleet", certificates: "Certificates", edges: "Edges", vpn: "VPN", backups: "Backups", readiness: "Readiness" };
+const VIEWS = { overview: "Overview", edges: "TLS 1.3", certificates: "mTLS certificates", vpn: "IPsec VPN", backups: "Vault", readiness: "Readiness" };
 let token = null;
 try { token = sessionStorage.getItem("pqc-token"); } catch (e) {}
 
@@ -106,7 +106,7 @@ function route() {
   clearInterval(timer);
   const run = () => RENDER[view]().catch((e) => { if (e.message !== "unauthorised") $("#view").insertAdjacentHTML("afterbegin", `<div class="panel notice bad">${esc(e.message)}</div>`); });
   run();
-  timer = setInterval(() => { if (!document.hidden && !["certificates", "readiness", "fleet"].includes(view)) run(); }, 10000);
+  timer = setInterval(() => { if (!document.hidden && !["certificates", "readiness"].includes(view)) run(); }, 10000);
 }
 
 const table = (cols, rows, empty) => rows.length ? `<div class="scroll"><table><thead><tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead>
@@ -128,7 +128,6 @@ const RENDER = {
       ${tile("Remote users", `${v.remote_online}/${v.remote_users}`, v.remote_users ? "handshake in the last 3 minutes" : "no gateways or users", v.remote_users ? "ok" : "")}
       ${tile("VPN tunnels", `${v.quantum_safe}/${v.tunnels}`, v.tunnels ? "up with ML-KEM and a PPK" : "no tunnels connected", !v.tunnels ? "" : v.quantum_safe < v.tunnels ? "bad" : "ok")}
       ${tile("Backups", b.count, b.latest ? `latest ${b.latest.slice(0, 16).replace("T", " ")}, ${b.signed} signed` : "none found")}
-      ${tile("Fleet", `${o.fleet.online}/${o.fleet.agents}`, `agents online, ${o.fleet.in_sync} running the assigned config`, o.fleet.online < o.fleet.agents ? "warn" : "")}
       ${tile("Readiness", r ? `${r.pq_key_exchange}/${r.endpoints}` : "–", r ? "endpoints offer post-quantum key exchange" : "run a scan on the Readiness page", r && r.pq_key_exchange < r.endpoints ? "warn" : "")}
     </div>`;
   },
@@ -155,31 +154,6 @@ const RENDER = {
     document.querySelectorAll("[data-revoke]").forEach((b) => b.onclick = async () => {
       if (b.dataset.confirm !== "yes") { b.dataset.confirm = "yes"; b.textContent = `Confirm: revoke ${b.dataset.name}`; b.classList.remove("quiet"); return; }
       await api("certificates/revoke", { serial: b.dataset.revoke, reason: "unspecified" }); await RENDER.certificates(); });
-  },
-
-  async fleet() {
-    const rows = await api("fleet");
-    $("#view").innerHTML = head("Fleet", "Agents report over post-quantum mutual TLS and run the edge configuration assigned here.") + `<div class="panel">${table(
-      ["Agent", "State", "Config", "Routes", "Host", "Certificate expires", "Last seen"],
-      rows.map((a) => [a.name, a.online ? pill("online", "ok") : pill("offline", "bad"),
-        a.config_error ? pill("error", "bad") : a.in_sync ? pill("in sync", "ok") : pill("pending", "warn"),
-        Object.keys(a.edges || {}).join(", ") || "–", `${a.hostname || ""} (${a.address || ""})`, { mono: ((a.certificate || {}).expires || "").slice(0, 10) },
-        { mono: new Date(a.last_seen * 1000).toISOString().slice(0, 19).replace("T", " ") }]),
-      "No agents yet. On each machine: pqcsuite agent https://FLEET:9444 --cert-dir /etc/pqc")}</div>
-      ${rows.some((a) => a.config_error) ? `<div class="panel notice bad">${rows.filter((a) => a.config_error).map((a) => esc(a.name + ": " + a.config_error)).join("<br>")}</div>` : ""}
-      <div class="panel"><h2>Assign an edge configuration</h2><form id="desired" style="padding:14px 16px;display:grid;gap:10px">
-        <label>Agent (or "default" for all without their own)<input name="name" required value="${esc((rows[0] || {}).name || "default")}"></label>
-        <label>Edge TOML ([[edge]] routes)<textarea name="config" style="min-height:160px" placeholder='[[edge]]
-name = "web"
-mode = "terminate"
-listen = "0.0.0.0:8443"
-target = "127.0.0.1:8080"
-cert = "/etc/pqc/chain.pem"
-key = "/etc/pqc/key.pem"'></textarea></label>
-        <div><button>Validate and assign</button> <span class="mute" id="desiredmsg"></span></div></form></div>`;
-    $("#desired").onsubmit = async (e) => { e.preventDefault();
-      try { const r = await api("fleet/desired", Object.fromEntries(new FormData(e.target))); $("#desiredmsg").textContent = `Saved for ${r.saved}; agents pick it up on their next report.`; }
-      catch (x) { $("#desiredmsg").textContent = x.message; } };
   },
 
   async edges() {

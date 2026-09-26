@@ -10,4 +10,4 @@ USER pqc
 WORKDIR /srv
 EXPOSE 8443 9100
 ENTRYPOINT ["pqcsuite"]
-CMD ["edge", "--config", "/etc/pqcsuite/edge.toml"]
+CMD ["tls", "edge", "--config", "/etc/pqcsuite/edge.toml"]

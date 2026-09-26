@@ -22,7 +22,7 @@ from cryptography.hazmat.primitives import serialization as ser
 from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from .ca import PUBLIC as MLDSA_PUBLIC, CAError, check_revocation, signed_by
+from .pki import PUBLIC as MLDSA_PUBLIC, CAError, check_revocation, signed_by
 
 MAGIC, SIG_MAGIC = b"PQV1\n", b"SIG1"
 class Suite:
@@ -88,7 +88,7 @@ class Identity:
     def save(self, path, passphrase):
         enc = ser.BestAvailableEncryption(passphrase) if passphrase else ser.NoEncryption()
         pem = b"".join(k.private_bytes(ser.Encoding.PEM, ser.PrivateFormat.PKCS8, enc) for k in (self.kem, self.dh))
-        from .ca import write
+        from .pki import write
         write(Path(path), pem, secret=True)
 
     @classmethod

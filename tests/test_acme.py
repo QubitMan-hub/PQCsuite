@@ -16,8 +16,8 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 
-from pqcsuite.acme_server import Service, b64u, create_eab, make_csr, serve
-from pqcsuite.ca import CA, check_revocation
+from pqcsuite.pki.acme import Service, b64u, create_eab, make_csr, serve
+from pqcsuite.pki import CA, check_revocation
 
 try:
     import josepy as jose

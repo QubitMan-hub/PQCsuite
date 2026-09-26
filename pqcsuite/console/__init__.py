@@ -1,6 +1,6 @@
 """The console: one page for certificates, edges, VPN tunnels, backups and readiness scans.
 
-It listens on localhost and wants a bearer token on every API call. Put `pqcsuite edge --policy transition` in front of it for
+It listens on localhost and wants a bearer token on every API call. Put `pqcsuite tls edge --policy transition` in front of it for
 remote access: browsers already do X25519MLKEM768, though they cannot verify ML-DSA certificates yet.
 """
 import hmac
@@ -18,8 +18,8 @@ from importlib import resources
 from pathlib import Path
 
 from .. import NAME, __version__
-from ..ca import CA, CAError
-from ..edge import hostport
+from ..pki import CA, CAError
+from ..tls import hostport
 
 log = logging.getLogger("pqcsuite.console")
 
@@ -33,7 +33,6 @@ class Settings:
     wireguard: list = field(default_factory=list)
     backups: list = field(default_factory=list)
     scan_targets: list = field(default_factory=list)
-    fleet: str = ""
     audit_log: str = "console-audit.jsonl"
 
     @classmethod
@@ -117,22 +116,8 @@ class App:
                     out.append({"file": str(f), "error": str(e)})
         return out
 
-    def fleet(self):
-        from ..fleet import Service
-        if not self.s.fleet:
-            return []
-        return Service(self.s.fleet).agents()
-
-    def set_desired(self, b):
-        from ..fleet import Service
-        if not self.s.fleet:
-            raise ValueError("no fleet folder configured (start the console with --fleet)")
-        Service(self.s.fleet).set_desired(str(b["name"]), str(b["config"]))
-        self.audit("fleet_config", {"agent": b["name"], "bytes": len(str(b["config"]))})
-        return {"saved": b["name"]}
-
     def run_scan(self, targets):
-        from .. import scan
+        from ..readiness import scan
         with self.lock:
             if self.scanning:
                 raise CAError("a scan is already running")
@@ -165,8 +150,6 @@ class App:
         b = [x for x in self.backups() if "error" not in x]
         out["backups"] = {"count": len(b), "latest": b[0]["created"] if b else None, "signed": sum(bool(x["signed_by"]) for x in b)}
         out["readiness"] = self.last_scan["summary"] if self.last_scan else None
-        agents = self.fleet()
-        out["fleet"] = {"agents": len(agents), "online": sum(a["online"] for a in agents), "in_sync": sum(a["in_sync"] for a in agents)}
         return out
 
     def handle(self, method, path, body):
@@ -177,8 +160,6 @@ class App:
             ("GET", "/api/tunnels"): lambda: self.tunnels(),
             ("GET", "/api/remote"): lambda: self.remote_users(),
             ("GET", "/api/backups"): lambda: self.backups(),
-            ("GET", "/api/fleet"): lambda: self.fleet(),
-            ("POST", "/api/fleet/desired"): lambda: self.set_desired(body),
             ("GET", "/api/scan"): lambda: {"running": self.scanning, "last": self.last_scan, "targets": self.s.scan_targets},
             ("POST", "/api/certificates/issue"): lambda: self.issue(body),
             ("POST", "/api/certificates/revoke"): lambda: self.revoke(body),

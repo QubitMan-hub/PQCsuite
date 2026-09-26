@@ -5,8 +5,9 @@ from pathlib import Path
 
 from cryptography import x509
 
-from pqcsuite import est, tls
-from pqcsuite.ca import CA, CAError, generate
+from pqcsuite import tls
+from pqcsuite.pki import est
+from pqcsuite.pki import CA, CAError, generate
 
 try:
     tls.lib()
