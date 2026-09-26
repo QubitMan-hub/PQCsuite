@@ -10,6 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from cryptography import x509
+
 from pqcsuite import tls
 from pqcsuite.pki import CA
 from pqcsuite.tls.edge import Edge, Route, metrics_text
@@ -67,6 +69,8 @@ class TLSTest(unittest.TestCase):
         s = self.server()
         info, reply = self.roundtrip(s.port, self.client())
         self.assertEqual((info["version"], info["group"], info["peer_key"]), ("TLSv1.3", "X25519MLKEM768", "ML-DSA-65"))
+        cert = x509.load_pem_x509_certificate((self.srv / "cert.pem").read_bytes())
+        self.assertEqual(info["peer_serial"], format(cert.serial_number, "x"))
         self.assertEqual(reply, b"ping")
         self.assertEqual(s.stats.snapshot()["groups"], {"X25519MLKEM768": 1})
 

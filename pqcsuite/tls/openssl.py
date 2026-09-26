@@ -342,7 +342,9 @@ class Connection:
         cert = self.peer_certificate()
         return {"version": self.version, "cipher": self.cipher, "group": self.group,
                 "peer": cert.subject.rfc4514_string() if cert else None,
-                "peer_key": (algorithm_of(cert.public_key()) or cert.public_key_algorithm_oid.dotted_string) if cert else None}
+                "peer_key": (algorithm_of(cert.public_key()) or cert.public_key_algorithm_oid.dotted_string) if cert else None,
+                "peer_serial": f"{cert.serial_number:x}" if cert else None,
+                "peer_expires": cert.not_valid_after_utc.date().isoformat() if cert else None}
 
     def close(self):
         if self.closed:
