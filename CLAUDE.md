@@ -17,7 +17,7 @@ Acxelin PQC Suite (working name `pqcsuite`, `NAME` in `pqcsuite/__init__.py`) is
 3. Every security behaviour has a test that shows the attack being refused, not just the happy path.
 4. On Linux, run the tests with `LD_LIBRARY_PATH` set to an OpenSSL 3.5+ lib folder. CI uses Debian 13 and runs the VPN tests in network namespaces.
 5. The mentor's AcxelinPQC repo is a feature reference only. It is proprietary, so never copy its code.
-6. Wolf Pack CBOM integration is on hold until the owner says otherwise.
+6. Wolf Pack CBOM is a separate product with its own page, `site/wolf-pack.html`. The suite still has four products: never link or mention Wolf Pack on `site/index.html`.
 
 ## Commands
 

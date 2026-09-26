@@ -152,4 +152,3 @@ The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts
 
 1. VPN: Windows and macOS clients, and full-tunnel routing, for remote access.
 2. mTLS: a cert-manager issuer and in-cluster renewal of edge Secrets; dns-01 for ACME.
-3. Readiness: code, configuration and binary discovery (Wolf Pack CBOM), when the owner decides.
