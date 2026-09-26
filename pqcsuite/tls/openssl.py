@@ -224,11 +224,15 @@ class Connection:
         L_ = lib()
         self.ctx, self.sock, self.timeout = ctx, sock, timeout
         sock.setblocking(False)
+        self.closed = False
         self.ssl = L_.SSL_new(ctx.ptr)
         if not self.ssl or L_.SSL_set_fd(self.ssl, sock.fileno()) != 1:
-            raise TLSError(errors())
+            msg = errors()
+            if self.ssl:
+                L_.SSL_free(self.ssl)
+            self.ssl = None
+            raise TLSError(msg)
         (L_.SSL_set_accept_state if ctx.server else L_.SSL_set_connect_state)(self.ssl)
-        self.closed = False
 
     def handshake(self, server_name=None):
         L_ = lib()

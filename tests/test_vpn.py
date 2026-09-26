@@ -58,6 +58,43 @@ class ConfigTest(unittest.TestCase):
             self.assertTrue(load_config(root / f).peers)
 
 
+class FakeCharon:
+    def __init__(self, keys, tunnels):
+        self.keys, self.sas, self.terminated = set(keys), list(tunnels), []
+
+    def shared_ids(self):
+        return sorted(self.keys)
+
+    def unload_key(self, key_id):
+        self.keys.discard(key_id)
+
+    def terminate(self, peer):
+        self.terminated.append(peer)
+        self.sas = [t for t in self.sas if t["peer"] != peer]
+
+    def tunnels(self):
+        return self.sas
+
+
+class FreshnessTest(unittest.TestCase):
+    def test_tunnels_without_fresh_key_agreement_are_cut(self):
+        from pqcsuite.vpn.controller import Controller
+        s = site(peers=[Peer("branch.acme", "10.0.0.2", ["10.1.0.0/16"], ["10.2.0.0/16"], rotate_minutes=1),
+                        Peer("lab.acme", "10.0.0.3", ["10.1.0.0/16"], ["10.3.0.0/16"], rotate_minutes=1)], keyring_listen="0.0.0.0:7443")
+        left_over = {"psk-branch.acme", "ppk-branch.acme-aaaaaaaaaaaa", "psk-lab.acme", "ppk-lab.acme-bbbbbbbbbbbb", "psk-other"}
+        tunnels = [{"peer": "branch.acme", "state": "ESTABLISHED", "established_s": 5}, {"peer": "lab.acme", "state": "ESTABLISHED", "established_s": 5}]
+        ch = FakeCharon(left_over, tunnels)
+        ctl = Controller(s, charon=ch)
+        ctl.enforce_freshness()
+        self.assertEqual(ch.terminated, [])
+        ctl.started -= 400
+        ctl.last_agreed["lab.acme"] = time.time()
+        ctl.enforce_freshness()
+        self.assertEqual(ch.terminated, ["branch.acme"])
+        self.assertEqual(ch.keys, {"psk-lab.acme", "ppk-lab.acme-bbbbbbbbbbbb", "psk-other"})
+        self.assertEqual(ctl.counts["stale_peers"], 1)
+
+
 SS = os.environ.get("PQCSUITE_STRONGSWAN")
 READY = SS and os.geteuid() == 0 and shutil.which("ip") and sys.platform == "linux"
 

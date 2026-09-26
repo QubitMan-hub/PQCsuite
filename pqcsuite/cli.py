@@ -262,7 +262,7 @@ def cmd_acme(a):
         return 0
     ca = CA(a.dir, ca_passphrase(a.dir))
     base = a.base_url or f"{'https' if a.tls_cert else 'http'}://{a.listen}"
-    httpd = acme.serve(acme.Service(ca, base, a.allow, a.require_eab, a.http_port), a.listen, a.tls_cert, a.tls_key)
+    httpd = acme.serve(acme.Service(ca, base, a.allow, a.require_eab, a.http_port, days=a.days), a.listen, a.tls_cert, a.tls_key)
     print(f"ACME directory: {base}/directory (issuing ML-DSA certificates from {ca.cert.subject.rfc4514_string()})")
     run_until_signal(httpd.serve_forever, lambda: threading.Thread(target=httpd.shutdown).start())
     return 0
@@ -552,6 +552,7 @@ def parser():
     p.add_argument("--allow", action="append", default=[], help="names or patterns this CA issues for, e.g. '*.corp.example' (repeatable)")
     p.add_argument("--require-eab", action="store_true", help="clients need an external account binding key (see `ca eab`)")
     p.add_argument("--http-port", type=int, default=80, help="port for http-01 validation")
+    p.add_argument("--days", type=int, default=90, help="lifetime of issued certificates")
     p.add_argument("--tls-cert", help="a certificate ACME clients trust (classical: clients cannot verify ML-DSA yet)")
     p.add_argument("--tls-key")
     p = ca.add_parser("eab", parents=[common], help="an ACME external account binding key for one client")

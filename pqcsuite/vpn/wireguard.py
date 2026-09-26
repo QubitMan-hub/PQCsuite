@@ -223,7 +223,13 @@ class Gateway:
             return
         psk = conn.export(LABEL, context(self.cfg.name, cn, tag, pub, self.public), 32)
         with self.lock:
-            ip = self.lease(cn)
+            try:
+                ip = self.lease(cn)
+            except CAError as e:
+                self.counts["refused"] += 1
+                log.warning("keyring: refused %s: %s", cn, e)
+                conn.sendall(b'{"ok": false}\n')
+                return
             old = self.clients.get(cn)
             self.wg.set_peer(pub, b64(psk), [f"{ip}/32"] + self.cfg.sites.get(cn, []))
             if old and old["public"] != pub:
@@ -264,6 +270,8 @@ class Gateway:
         if c.manage_interface:
             ensure_interface(c.interface, f"{c.address}/{c.network.prefixlen}", [n for v in c.sites.values() for n in v])
         self.wg.set_private_key(self.private, c.listen_port)
+        for stale in self.wg.peers():
+            self.wg.remove_peer(stale)
         make = lambda: tls.server_context(c.cert, c.key, c.ca, True, "strict", os.environ[c.key_passphrase_env].encode() if c.key_passphrase_env else None)
         self.server = Server(hostport(c.keyring_listen), make, self.respond, watch=[c.cert, c.key, c.ca], crl=c.crl or None,
                              ca=c.ca, max_connections=256, name="keyring")

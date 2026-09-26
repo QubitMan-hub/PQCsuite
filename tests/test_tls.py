@@ -1,4 +1,5 @@
 """Real PQC handshakes. Needs OpenSSL 3.5+ (on Linux run with LD_LIBRARY_PATH pointing at it); skipped otherwise."""
+import os
 import socket
 import tempfile
 import threading
@@ -154,6 +155,10 @@ class TLSTest(unittest.TestCase):
             time.sleep(0.5)
         self.assertNotEqual(serial(), before)
         self.assertEqual(s.stats.snapshot()["reloads"], 1)
+        (d / "chain.pem").rename(d / "moved.pem")
+        self.assertFalse(s.reload_if_changed())
+        self.assertEqual(s.stats.snapshot()["reload_failed"], 1)
+        self.assertEqual(serial(), serial(), "a missing file keeps the old certificate serving")
 
     def test_wrong_key_passphrase_is_explained(self):
         with self.assertRaisesRegex(tls.TLSError, "passphrase"):
@@ -203,6 +208,22 @@ class EdgeTest(unittest.TestCase):
         self.assertTrue(all(r == b"x" * 100000 for r in results))
         self.assertIn('pqcsuite_group_total{edge="web",group="X25519MLKEM768"} 51', metrics_text([edge, tunnel]))
         self.assertEqual(edge.stats.snapshot().get("handshake_failed", 0), 0)
+
+    def test_originate_reloads_a_renewed_client_certificate(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            ca = CA.init(d / "pki", "Root")
+            ca.issue("branch", "client", out=d / "branch")
+            e = Edge(Route("t", "originate", "127.0.0.1:0", "127.0.0.1:1", ca=str(d / "pki" / "ca.crt"),
+                           cert=str(d / "branch" / "chain.pem"), key=str(d / "branch" / "key.pem"))).bind()
+            self.addCleanup(e.stop)
+            first = e.client_context()
+            self.assertIs(e.client_context(), first)
+            time.sleep(0.05)
+            ca.issue("branch", "client", out=d / "branch")
+            os.utime(d / "branch" / "chain.pem", (time.time() + 5, time.time() + 5))
+            self.assertIsNot(e.client_context(), first)
+            self.assertEqual(e.stats.snapshot()["reloads"], 1)
 
     def test_route_validation(self):
         with self.assertRaisesRegex(ValueError, "cert and key"):

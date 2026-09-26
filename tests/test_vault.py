@@ -136,6 +136,9 @@ class VaultTest(unittest.TestCase):
             vault.add_recipients(f, a, [self.bob.public])
 
     def test_identity_files_and_backups(self):
+        other = self.d / "db.dump-logs"
+        other.write_bytes(b"logs")
+        vault.backup(other, self.d / "backups", [self.alice.public])
         self.alice.save(self.d / "alice.key", b"pw")
         (self.d / "alice.pub").write_bytes(self.alice.public.pem())
         loaded = Identity.load(self.d / "alice.key", b"pw")
@@ -144,7 +147,8 @@ class VaultTest(unittest.TestCase):
             Identity.load(self.d / "alice.key", b"wrong")
         for _ in range(3):
             target, pruned = vault.backup(self.d / "db.dump", self.d / "backups", [loaded.public], keep=2)
-        self.assertEqual(len(list((self.d / "backups").glob("*.pqv"))), 2)
+        self.assertEqual(len(list((self.d / "backups").glob("db.dump-2*.pqv"))), 2)
+        self.assertEqual(len(list((self.d / "backups").glob("db.dump-logs-*.pqv"))), 1, "retention must not touch other sources")
         self.assertEqual(len(pruned), 1)
         restored, _ = vault.decrypt(target, self.d / "restore", loaded)
         self.assertEqual(restored.read_bytes(), self.data)

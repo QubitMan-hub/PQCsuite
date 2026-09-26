@@ -59,6 +59,22 @@ class ESTTest(unittest.TestCase):
             est.enroll(self.url, expired, "web3.acme", [], self.d / "x", self.cafile)
         self.assertNotIn(token.split(".")[1], (self.d / "pki" / "tokens.json").read_text())
 
+    def test_a_classical_key_does_not_burn_the_token(self):
+        import base64
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives.serialization import Encoding
+        from cryptography.x509.oid import NameOID
+        token = est.create_token(self.ca, "web4.acme", "server")
+        tid, _, secret = token.partition(".")
+        csr = (x509.CertificateSigningRequestBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "web4.acme")]))
+               .sign(ec.generate_private_key(ec.SECP256R1()), hashes.SHA256()))
+        auth = base64.b64encode(f"{tid}:{secret}".encode()).decode()
+        with self.assertRaisesRegex(CAError, "403.*ML-DSA"):
+            est._call(self.url, tls.client_context(self.cafile), "/simpleenroll", base64.encodebytes(csr.public_bytes(Encoding.DER)),
+                      {"Content-Type": "application/pkcs10", "Authorization": f"Basic {auth}"}, "localhost")
+        est.enroll(self.url, token, "web4.acme", [], self.d / "web4", self.cafile)
+
     def test_renewal_in_place_keeps_identity(self):
         token = est.create_token(self.ca, "db.acme", "server")
         first = est.enroll(self.url, token, "db.acme", [], self.d / "db", self.cafile)

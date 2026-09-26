@@ -23,6 +23,9 @@ class BundleTest(unittest.TestCase):
                 self.assertEqual(compose.count("ports:"), 1, "only the edge may publish a port")
                 self.assertFalse((out / "pki" / "ca.key").exists(), "the CA key must not ship inside the bundle")
                 self.assertTrue((out / "ca.key.KEEP-OFFLINE").exists())
+                readme = (out / "README.txt").read_text()
+                self.assertIn("pqcsuite readiness probe", readme)
+                self.assertNotIn("Chrome", readme)
             with self.assertRaises(CAError):
                 create("nginx", Path(d) / "nginx", "again.example.com")
 

@@ -109,6 +109,8 @@ class Edge:
             self.stats = self.server.stats
             self.port = self.server.port
         else:
+            self.watch = [p for p in (r.ca, r.cert, r.key) if p]
+            self.mtimes = [os.stat(p).st_mtime for p in self.watch]
             self.ctx = tls.client_context(r.ca, r.cert or None, r.key or None, r.policy, r.passphrase())
             self.listener = socket.create_server(hostport(r.listen, "127.0.0.1"), backlog=128)
             self.port = self.listener.getsockname()[1]
@@ -130,10 +132,31 @@ class Edge:
 
     def _terminate(self, conn, addr):
         r = self.route
-        with socket.create_connection(hostport(r.target), timeout=r.handshake_timeout) as up:
+        try:
+            up = socket.create_connection(hostport(r.target), timeout=r.handshake_timeout)
+        except OSError as e:
+            self.stats.add("upstream_failed")
+            log.warning("%s: upstream %s unreachable: %s", r.name, r.target, e)
+            return
+        with up:
             if r.proxy_protocol:
                 up.sendall(proxy_header(addr, conn.sock.getsockname()))
             pump(conn, up, r.idle_timeout)
+
+    def client_context(self):
+        """The originate context, rebuilt when its certificate, key or CA changed (renewals need no restart)."""
+        r = self.route
+        try:
+            mtimes = [os.stat(p).st_mtime for p in self.watch]
+            if mtimes != self.mtimes:
+                self.ctx = tls.client_context(r.ca, r.cert or None, r.key or None, r.policy, r.passphrase())
+                self.mtimes = mtimes
+                self.stats.add("reloads")
+                log.info("%s: reloaded certificates", r.name)
+        except (tls.TLSError, OSError, ValueError) as e:
+            self.stats.add("reload_failed")
+            log.error("%s: keeping the old certificates, reload failed: %s", r.name, e)
+        return self.ctx
 
     def _originate_forever(self):
         r, host_port = self.route, hostport(self.route.target)
@@ -141,7 +164,7 @@ class Edge:
 
         def run(client):
             try:
-                with tls.connect(*host_port, self.ctx, r.server_name or host_port[0], r.handshake_timeout) as conn:
+                with tls.connect(*host_port, self.client_context(), r.server_name or host_port[0], r.handshake_timeout) as conn:
                     info = conn.info()
                     with self.stats.lock:
                         self.stats.counts["handshakes"] += 1

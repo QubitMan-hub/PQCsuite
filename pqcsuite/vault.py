@@ -12,6 +12,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import struct
 import tarfile
@@ -25,6 +26,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from .pki import PUBLIC as MLDSA_PUBLIC, CAError, check_revocation, signed_by
 
 MAGIC, SIG_MAGIC = b"PQV1\n", b"SIG1"
+
+
 class Suite:
     """A hybrid KEM for wrapping file keys: ML-KEM plus a classical Diffie-Hellman, combined X-Wing style."""
 
@@ -418,7 +421,8 @@ def backup(src, dest_dir, recipients, signer=None, keep=None):
     encrypt(src, target, recipients, signer)
     pruned = []
     if keep:
-        for old in sorted(dest_dir.glob(f"{src.name}-*.pqv"))[:-keep]:
+        mine = re.compile(rf"{re.escape(src.name)}-\d{{8}}T\d{{12}}Z\.pqv")
+        for old in sorted(p for p in dest_dir.glob("*.pqv") if mine.fullmatch(p.name))[:-keep]:
             old.unlink()
             pruned.append(old.name)
     return target, pruned

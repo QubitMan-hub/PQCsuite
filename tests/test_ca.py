@@ -73,6 +73,14 @@ class CATest(unittest.TestCase):
             self.ca.revoke(rec.serial)
         self.assertEqual(self.ca.find(rec.serial).reason, "keyCompromise")
 
+    def test_concurrent_revocations_all_reach_the_crl(self):
+        from concurrent.futures import ThreadPoolExecutor
+        recs = [self.ca.issue(f"c{i}", "client")[1] for i in range(8)]
+        with ThreadPoolExecutor(8) as pool:
+            list(pool.map(lambda r: self.ca.revoke(r.serial), recs))
+        crl = x509.load_pem_x509_crl((self.root / "crl.pem").read_bytes())
+        self.assertEqual({format(r.serial_number, "x") for r in crl}, {r.serial for r in recs})
+
     def test_crl_from_another_ca_is_rejected(self):
         other = CA.init(Path(self.tmp.name) / "other", "Other")
         out, _ = self.ca.issue("carol", "client")

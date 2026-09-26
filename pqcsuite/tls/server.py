@@ -68,18 +68,21 @@ class Server:
         self.port = self.sock.getsockname()[1]
 
     def reload_if_changed(self):
-        changed = [p for p, m in self.watch.items() if os.stat(p).st_mtime != m]
-        if not changed:
-            return False
+        """Rebuild the context when a watched file changed. A missing or broken file keeps the old context serving."""
         try:
-            self.ctx = self.make_context()
+            changed = [p for p, m in self.watch.items() if os.stat(p).st_mtime != m]
+            if not changed:
+                return False
+            ctx = self.make_context()
             self.watch = {p: os.stat(p).st_mtime for p in self.watch}
-            log.info("%s: reloaded certificates after %s changed", self.name, ", ".join(map(str, changed)))
-            self.stats.add("reloads")
-            return True
-        except TLSError as e:
+        except (TLSError, OSError, ValueError) as e:
             log.error("%s: keeping the old certificates, reload failed: %s", self.name, e)
+            self.stats.add("reload_failed")
             return False
+        self.ctx = ctx
+        log.info("%s: reloaded certificates after %s changed", self.name, ", ".join(map(str, changed)))
+        self.stats.add("reloads")
+        return True
 
     def serve_forever(self):
         log.info("%s: listening on %s:%d", self.name, self.address[0] or "*", self.port)
@@ -92,10 +95,13 @@ class Server:
                 sock, addr = self.sock.accept()
             except (socket.timeout, TimeoutError):
                 continue
-            except OSError:
+            except OSError as e:
                 if self.stopping.is_set():
                     break
-                raise
+                self.stats.add("accept_failed")
+                log.error("%s: accept failed, retrying: %s", self.name, e)
+                time.sleep(0.5)
+                continue
             if not self.slots.acquire(blocking=False):
                 self.stats.add("refused_busy")
                 log.warning("%s: refusing %s, connection limit reached", self.name, addr[0])
@@ -128,6 +134,9 @@ class Server:
                 self.handler(conn, addr)
             except (TLSError, OSError) as e:
                 log.info("%s: %s closed: %s", self.name, peer, e)
+            except Exception:
+                self.stats.add("handler_failed")
+                log.exception("%s: %s: handler failed", self.name, peer)
             finally:
                 with self.stats.lock:
                     self.stats.active -= 1

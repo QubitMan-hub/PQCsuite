@@ -22,6 +22,7 @@ from ..pki import CA, CAError
 from ..tls import hostport
 
 log = logging.getLogger("pqcsuite.console")
+NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 @dataclass
@@ -78,7 +79,7 @@ class App:
         out = []
         for url in self.s.edges:
             try:
-                with urllib.request.urlopen(url.rstrip("/") + "/status", timeout=3) as r:
+                with NO_PROXY.open(url.rstrip("/") + "/status", timeout=3) as r:
                     out += [{"source": url, "name": k, **v} for k, v in json.loads(r.read()).items()]
             except OSError as e:
                 out.append({"source": url, "error": str(e)})
@@ -99,7 +100,7 @@ class App:
         out = []
         for url in self.s.wireguard:
             try:
-                with urllib.request.urlopen(url.rstrip("/") + "/status", timeout=3) as r:
+                with NO_PROXY.open(url.rstrip("/") + "/status", timeout=3) as r:
                     out += [{"source": url, "user": k, **v} for k, v in json.loads(r.read()).items() if k != "_events"]
             except (OSError, ValueError) as e:
                 out.append({"source": url, "error": str(e)})

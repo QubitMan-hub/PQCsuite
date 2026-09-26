@@ -35,6 +35,7 @@ log = logging.getLogger("pqcsuite.acme")
 ERR = "urn:ietf:params:acme:error:"
 CURVES = {"P-256": (ec.SECP256R1(), hashes.SHA256(), "ES256"), "P-384": (ec.SECP384R1(), hashes.SHA384(), "ES384"),
           "P-521": (ec.SECP521R1(), hashes.SHA512(), "ES512")}
+NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 REASONS = {0: "unspecified", 1: "keyCompromise", 3: "affiliationChanged", 4: "superseded", 5: "cessationOfOperation"}
 
 
@@ -106,8 +107,8 @@ def _iso(t):
 class Service:
     """The ACME resources. State lives in `<ca>/acme/state.json`; everything goes through one lock."""
 
-    def __init__(self, ca, base_url, allow=(), require_eab=False, http_port=80, validate_async=True):
-        self.ca, self.base = ca, base_url.rstrip("/")
+    def __init__(self, ca, base_url, allow=(), require_eab=False, http_port=80, validate_async=True, days=90):
+        self.ca, self.base, self.days = ca, base_url.rstrip("/"), days
         self.allow, self.require_eab, self.http_port, self.validate_async = list(allow), require_eab, http_port, validate_async
         self.dir = Path(ca.root) / "acme"
         self.lock = threading.RLock()
@@ -132,7 +133,7 @@ class Service:
     def directory(self):
         return {"newNonce": self.url("new-nonce"), "newAccount": self.url("new-account"), "newOrder": self.url("new-order"),
                 "revokeCert": self.url("revoke-cert"),
-                "meta": {"externalAccountRequired": self.require_eab, "website": "https://github.com/QubitMan-hub/PQCsuite"}}
+                "meta": {"externalAccountRequired": self.require_eab}}
 
     def parse(self, url, body):
         """Check a flattened JWS: nonce, URL, key and signature. Returns (payload or None, account id or None, jwk)."""
@@ -350,7 +351,7 @@ class Service:
         host = f"[{host}]" if ":" in host else host
         url = f"http://{host}:{self.http_port}/.well-known/acme-challenge/{a['token']}"
         try:
-            with urllib.request.urlopen(url, timeout=10) as r:
+            with NO_PROXY.open(url, timeout=10) as r:
                 got = r.read(4096).decode(errors="replace").strip()
             ok, detail = got == key_authz, f"{url} answered something else"
         except OSError as e:
@@ -387,7 +388,7 @@ class Service:
         o["status"] = "processing"
         try:
             values = [i["value"] for i in o["identifiers"]]
-            cert, rec = self.ca.sign(csr.public_key(), cn[0] if cn else values[0], "server", values, 90)
+            cert, rec = self.ca.sign(csr.public_key(), cn[0] if cn else values[0], "server", values, self.days)
         except CAError as e:
             o["status"] = "ready"
             raise Problem("badCSR", f"{e}; ask for an ML-DSA key (for example certbot --csr with a CSR from `pqcsuite csr`)") from None

@@ -7,7 +7,8 @@ from ..pki import CA, CAError, write
 EDGE_UID = 10001
 SERVICES = {
     "nginx": {"image": "nginx:stable", "port": 80, "public": 443, "volume": None,
-              "use": "https://{host}/ with any TLS 1.3 client built on OpenSSL 3.5+, BoringSSL or Go 1.24+ (curl, Chrome, Firefox)"},
+              "use": "https://{host}/ with a client that verifies ML-DSA (OpenSSL 3.5+, `pqcsuite tls connect`). Browsers cannot verify "
+                     "ML-DSA yet: for them use policy = \"transition\" with fallback_cert and fallback_key (an ECDSA or RSA certificate)"},
     "postgres": {"image": "postgres:17", "port": 5432, "public": 5433, "volume": "/var/lib/postgresql/data",
                  "env": {"POSTGRES_PASSWORD": "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"},
                  "use": "psql \"host={host} port=5433 sslmode=verify-full sslrootcert=pki/ca.crt sslnegotiation=direct\" "
@@ -68,7 +69,7 @@ def create(service, out, host, ca_dir=None, require_client_cert=False, policy="s
     notes += ["", "The CA private key is in ca.key.KEEP-OFFLINE. Move it off this machine; you need it to renew or revoke."] if not ca_dir else []
     write(out / "README.txt", "\n".join([
         f"{service} behind post-quantum TLS ({policy} policy{', mutual TLS' if require_client_cert else ''})", "",
-        "1. docker compose up -d", f"2. Connect: {s['use'].format(host=host)}", f"3. Check:   pqcsuite tls probe {host}:{s['public']}", "",
+        "1. docker compose up -d", f"2. Connect: {s['use'].format(host=host)}", f"3. Check:   pqcsuite readiness probe {host}:{s['public']}", "",
         "Certificates: edge/ (the edge's), pki/ca.crt (give this to clients).",
         "Renew: pqcsuite ca renew <serial> --dir <ca dir> --out edge   (the edge picks it up without a restart)", *notes, ""]).encode())
     return out

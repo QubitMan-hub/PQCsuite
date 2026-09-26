@@ -135,6 +135,21 @@ class GatewayTest(unittest.TestCase):
     def test_private_key_is_kept(self):
         self.assertEqual(private_key(self.d / "gw.key"), (self.gw.private, self.gw.public))
 
+    def test_restart_forgets_every_old_peer(self):
+        self.client("alice").agree()
+        wg = FakeWG()
+        wg.peers_ = dict(self.wg.peers_)
+        self.gw.shutdown()
+        self.gw = Gateway(self.cfg, wg).start()
+        self.addCleanup(self.gw.shutdown)
+        self.assertEqual(wg.peers_, {}, "a peer from before the restart would never be checked against the CRL again")
+
+    def test_full_pool_refuses_cleanly(self):
+        self.gw.cfg.pool = "10.98.0.0/30"
+        self.client("alice").agree()
+        with self.assertRaisesRegex(tls.TLSError, "refused"):
+            self.client("bob").agree()
+
 
 def wireguard_available():
     if not (sys.platform == "linux" and os.geteuid() == 0 and shutil.which("ip") and shutil.which("wg")):

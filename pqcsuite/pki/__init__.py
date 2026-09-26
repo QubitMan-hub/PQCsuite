@@ -30,13 +30,21 @@ class CAError(Exception):
 
 
 _THREAD_LOCKS = {}
+_HELD = threading.local()
 
 
 @contextlib.contextmanager
 def locked(root):
-    """Serialise changes to one CA across threads and processes (the CLI, the console and the enrollment server may share it)."""
-    tl = _THREAD_LOCKS.setdefault(str(Path(root).resolve()), threading.RLock())
+    """Serialise changes to one CA across threads and processes (the CLI, the console and the enrollment server may share it).
+    Re-entrant within a thread, so a revocation can re-sign the CRL before anyone else sees the new index."""
+    key = str(Path(root).resolve())
+    held = _HELD.__dict__.setdefault("roots", set())
+    if key in held:
+        yield
+        return
+    tl = _THREAD_LOCKS.setdefault(key, threading.Lock())
     with tl, open(Path(root) / ".lock", "a+b") as f:
+        held.add(key)
         if os.name == "nt":
             import msvcrt
             f.seek(0)
@@ -47,6 +55,7 @@ def locked(root):
         try:
             yield
         finally:
+            held.discard(key)
             if os.name == "nt":
                 f.seek(0)
                 msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
@@ -253,7 +262,7 @@ class CA:
             raise CAError(f"reason must be one of: unspecified, {', '.join(REASONS)}")
         with locked(self.root):
             self._revoke(serial, reason)
-        return self.crl()
+            return self.crl()
 
     def _revoke(self, serial, reason):
         recs = self.records()
@@ -267,6 +276,10 @@ class CA:
 
     def crl(self, days=7):
         """Sign and write a fresh CRL listing every revoked certificate."""
+        with locked(self.root):
+            return self._crl(days)
+
+    def _crl(self, days):
         b = x509.CertificateRevocationListBuilder().issuer_name(self.cert.subject).last_update(now()).next_update(now() + dt.timedelta(days=days))
         for r in self.records():
             if r.status == "revoked":

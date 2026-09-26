@@ -53,6 +53,7 @@ class Controller:
         self.counts = Counter()
         self.revocation = Revocation(site.crl, site.ca) if site.crl else None
         self.server = None
+        self.started = time.time()
 
     def passphrase(self):
         env = self.site.key_passphrase_env
@@ -131,6 +132,26 @@ class Controller:
                     continue
             self.stop.wait(min(30, rotate))
 
+    def cut(self, name, why):
+        """Close the tunnel with `name` and unload every key it had, including keys a previous controller run loaded."""
+        with self.lock:
+            self.charon.terminate(name)
+            for key in self.charon.shared_ids():
+                if key == f"psk-{name}" or key.startswith(f"ppk-{name}-"):
+                    self.charon.unload_key(key)
+            self.keys[name] = []
+        self.serials.pop(name, None)
+        log.warning("%s: %s; closed its tunnel and discarded its keys", name, why)
+
+    def enforce_freshness(self):
+        """Keys are only good while the peer keeps proving itself: after three rotation periods without a key agreement (for
+        example a revoked peer, or tunnels left from before a controller restart) the tunnel is closed."""
+        for p in self.site.peers:
+            age = time.time() - self.last_agreed.get(p.name, self.started)
+            if age > 3 * p.rotate_minutes * 60 + 120 and (self.tunnel(p.name) or self.keys[p.name]):
+                self.cut(p.name, f"no key agreement for {int(age)}s")
+                self.counts["stale_peers"] += 1
+
     def enforce_revocations(self):
         """Cut the tunnel and drop the keys of any peer whose certificate appears on the CRL."""
         if not self.revocation:
@@ -142,14 +163,7 @@ class Controller:
                 if "revoked" not in str(e):
                     log.error("CRL problem, keeping tunnels as they are: %s", e)
                     return
-                log.warning("%s: %s; closing its tunnel and discarding its keys", name, e)
-                with self.lock:
-                    self.charon.terminate(name)
-                    for tag in self.keys[name]:
-                        self.charon.unload_key(f"ppk-{name}-{tag}")
-                    self.charon.unload_key(f"psk-{name}")
-                    self.keys[name] = []
-                self.serials.pop(name)
+                self.cut(name, str(e))
                 self.counts["revoked_peers"] += 1
 
     def start(self):
@@ -173,6 +187,7 @@ class Controller:
             while not self.stop.wait(15):
                 try:
                     self.enforce_revocations()
+                    self.enforce_freshness()
                 except (CharonError, OSError) as e:
                     log.error("revocation check failed: %s", e)
         threading.Thread(target=watch, daemon=True, name="revocations").start()

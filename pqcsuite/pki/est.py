@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, pkcs7
 from cryptography.x509.oid import NameOID
 
 from .. import tls
-from . import CA, CAError, USAGE, cert_pem, check_revocation, generate, key_pem, locked, now, write
+from . import CA, CAError, USAGE, algorithm_of, cert_pem, check_revocation, generate, key_pem, locked, now, write
 from ..tls.http import HTTPError, request
 
 PREFIX = "/.well-known/est"
@@ -111,6 +111,8 @@ class Service:
             if cn != t["common_name"] or not set(names) <= set(t["names"]):
                 self.audit("enroll_refused", reason="names outside the token", token=tid, common_name=cn, names=names)
                 raise CAError(f"this token is for {t['common_name']} {t['names']}, not {cn} {names}")
+            if not algorithm_of(csr.public_key()):
+                raise CAError("the request must carry an ML-DSA key; the token was not used")
             t["used"] = now().isoformat()
             write(_tokens_path(self.ca.root), json.dumps(tokens, indent=1).encode(), secret=True)
         cert, rec = self.ca.sign(csr.public_key(), cn, t["kind"], names or t["names"])
