@@ -140,6 +140,11 @@ class VaultTest(unittest.TestCase):
         self.alice.save(self.d / "alice.key", None)
         with self.assertRaisesRegex(VaultError, "not a vault recipient key"):
             Recipient.load(self.d / "alice.key")
+        self.alice.save(self.d / "locked.key", b"right")
+        with self.assertRaisesRegex(VaultError, "wrong passphrase"):
+            Identity.load(self.d / "locked.key", b"wrong")
+        with self.assertRaisesRegex(VaultError, "needs its passphrase"):
+            Identity.load(self.d / "locked.key")
 
     def test_signed_by_a_ca_certificate(self):
         ca = CA.init(self.d / "pki", "Root")

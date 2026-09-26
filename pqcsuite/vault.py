@@ -106,7 +106,8 @@ class Identity:
         try:
             keys = [ser.load_pem_private_key(b, passphrase) for b in blocks]
         except (TypeError, ValueError) as e:
-            raise VaultError(f"cannot open {path}: {e}") from None
+            why = "wrong passphrase" if "Incorrect password" in str(e) else "it needs its passphrase" if "not given" in str(e) else e
+            raise VaultError(f"cannot open {path}: {why}") from None
         kem = next((k for k in keys if isinstance(k, (mlkem.MLKEM768PrivateKey, mlkem.MLKEM1024PrivateKey))), None)
         dh = next((k for k in keys if not isinstance(k, (mlkem.MLKEM768PrivateKey, mlkem.MLKEM1024PrivateKey))), None)
         if not (kem and dh and _suite_of(kem, dh)):

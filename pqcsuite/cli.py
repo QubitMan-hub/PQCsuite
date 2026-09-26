@@ -643,7 +643,7 @@ def parser():
     p = q.add_parser("decrypt", help="decrypt and verify")
     p.add_argument("file")
     p.add_argument("--key", required=True)
-    p.add_argument("-o", "--out", default=".")
+    p.add_argument("-o", "--out", default=".", help="folder to restore into; the original file or folder name is kept")
     p.add_argument("--passphrase-env")
     p.add_argument("--ca", help="the signer's certificate must chain to this CA")
     p.add_argument("--crl", help="and must not be revoked")
