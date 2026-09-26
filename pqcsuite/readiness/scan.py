@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
-from .. import tls
+from .. import explain, tls
 from ..pki import algorithm_of
 from ..tls import hostport
 from ..tls.openssl import Context
@@ -92,7 +92,7 @@ def probe_ssh(host, port, timeout):
     try:
         banner, kex, hostkeys = ssh_kexinit(host, port, timeout)
     except (OSError, ValueError) as e:
-        out["error"], out["grade"] = str(e), "F"
+        out["error"], out["grade"] = explain(e), "F"
         return out
     kex = [k for k in kex if not k.startswith(SSH_META)]
     pq = [k for k in kex if k in SSH_PQ]
@@ -114,12 +114,20 @@ def _cert_info(cert):
             "days_left": (cert.not_valid_after_utc - dt.datetime.now(dt.timezone.utc)).days, "quantum_safe": key.startswith("ML-DSA")}
 
 
+def endpoint(target):
+    """(protocol, host, port) of a target written as host, host:port, [v6]:port, https://host/path or ssh://host[:port]."""
+    ssh = target.startswith("ssh://")
+    t = target.split("://", 1)[-1].split("/", 1)[0]
+    host, port = (t.strip("[]"), None) if ":" not in t or t.endswith("]") else hostport(t, "")
+    if not host:
+        raise ValueError(f"expected host, host:port or ssh://host, got {target!r}")
+    return ("ssh" if ssh else "tls"), host, port or (22 if ssh else 443)
+
+
 def probe(target, server_name=None, timeout=8.0):
-    if target.startswith("ssh://"):
-        host, port = hostport(target[6:], "")
-        return probe_ssh(host, port or 22, timeout)
-    host, port = hostport(target, "")
-    port = port or 443
+    kind, host, port = endpoint(target)
+    if kind == "ssh":
+        return probe_ssh(host, port, timeout)
     out = {"target": _join(host, port), "protocol": "tls", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
     try:
         out["negotiated"], cert = _hello(host, port, ":".join(PQ + CLASSICAL), server_name or host, timeout)
@@ -127,7 +135,7 @@ def probe(target, server_name=None, timeout=8.0):
         try:
             version, cert = _legacy(host, port, server_name or host, timeout)
         except (OSError, ValueError):
-            out["error"], out["grade"] = str(e), "F"
+            out["error"], out["grade"] = explain(e), "F"
             return out
         out["negotiated"], out["accepts"], out["grade"] = version, [version], "C"
         out["certificate"] = _cert_info(cert)

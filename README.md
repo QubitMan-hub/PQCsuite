@@ -111,6 +111,8 @@ pqcsuite readiness scan hosts.txt ssh://bastion.acme.example:22 --html readiness
 pqcsuite readiness report --ca pki --targets hosts.txt --vici unix:///var/run/charon.vici --backups /backups --html evidence.html
 ```
 
+Targets are `host` (port 443), `host:port`, a pasted `https://` address, or `ssh://host` (port 22); a `.txt` file holds one per line, `#` starts a comment. Scan from a network without TLS inspection: behind an inspecting proxy every certificate is the proxy's (the report shows each issuer), and the grades describe the proxy, not the server.
+
 | Grade | Meaning |
 |---|---|
 | A | Post-quantum key exchange only |

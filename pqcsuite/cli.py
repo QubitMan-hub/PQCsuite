@@ -4,11 +4,12 @@ import json
 import logging
 import os
 import signal
+import socket
 import sys
 import threading
 from pathlib import Path
 
-from . import NAME, __version__, tls
+from . import NAME, __version__, explain, tls
 from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError
 from .vault import VaultError
 from .vpn.charon import CharonError
@@ -140,7 +141,11 @@ def cmd_tls(a):
         return 0
     host, port = parse_addr(a.target, "")
     ctx = tls.client_context(a.ca, a.cert, a.key, a.policy, env_passphrase(a.key_passphrase_env))
-    with tls.connect(host, port, ctx, a.server_name, a.timeout) as conn:
+    try:
+        conn = tls.connect(host, port, ctx, a.server_name, a.timeout)
+    except socket.gaierror as e:
+        raise tls.TLSError(f"{host}: {explain(e)}; connect by address and name the certificate with --server-name {host}") from None
+    with conn:
         out = conn.info()
         if a.send is not None:
             try:
@@ -149,7 +154,7 @@ def cmd_tls(a):
                 while reply and (more := _more(conn)):
                     reply += more
             except (tls.TLSError, OSError) as e:
-                reply, out["error"] = b"", str(e)
+                reply, out["error"] = b"", explain(e)
             if not reply:
                 raise tls.TLSError("the server closed the connection right after the handshake: either it refused our client certificate "
                                    "(missing, untrusted or revoked), or the service behind it is down (see the server's log)"
@@ -179,7 +184,7 @@ def cmd_scan(a):
     from .readiness import scan
     targets = scan.load_targets(a.targets)
     if not targets:
-        raise ValueError("no targets: give host:port, ssh://host:port, or a .txt file with one per line")
+        raise ValueError("no targets: give host, host:port, ssh://host, or a .txt file with one per line")
     results = scan.scan(targets, a.workers, a.timeout)
     if a.html:
         Path(a.html).write_text(scan.report_html(results), encoding="utf-8")
@@ -658,7 +663,7 @@ def parser():
     r = sub.add_parser("readiness", help="Readiness assessment: TLS and SSH scans, CNSA 2.0, NIST IR 8547 evidence").add_subparsers(dest="readiness_cmd", required=True)
     p = r.add_parser("scan", help="grade many TLS and SSH endpoints")
     p.set_defaults(func=cmd_scan)
-    p.add_argument("targets", nargs="+", help="host:port, ssh://host:port, or .txt files with one per line")
+    p.add_argument("targets", nargs="+", help="host (port 443), host:port, ssh://host (port 22), or .txt files with one per line")
     p.add_argument("--html", help="write a self-contained HTML report")
     p.add_argument("--json", help="write JSON results")
     p.add_argument("--workers", type=int, default=16)
@@ -669,7 +674,7 @@ def parser():
     p = r.add_parser("report", help="compliance evidence: NIST IR 8547 and CNSA 2.0 status of every asset")
     p.set_defaults(func=cmd_report)
     p.add_argument("--ca", help="CA folder (certificates)")
-    p.add_argument("--targets", nargs="*", default=[], help="host:port, ssh://host:port or .txt files to scan")
+    p.add_argument("--targets", nargs="*", default=[], help="host, host:port, ssh://host or .txt files to scan")
     p.add_argument("--vici", action="append", default=[])
     p.add_argument("--backups", action="append", default=[])
     p.add_argument("--html")
@@ -696,5 +701,5 @@ def main(argv=None):
     try:
         sys.exit(a.func(a))
     except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
-        print(f"error: {e}", file=sys.stderr)
+        print(f"error: {explain(e)}", file=sys.stderr)
         sys.exit(1)

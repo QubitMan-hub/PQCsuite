@@ -75,7 +75,7 @@ class ConsoleTest(unittest.TestCase):
             self.call("/api/nothing")
         self.assertEqual(e.exception.code, 404)
         for path, body, message in (("/api/certificates/revoke", {}, "missing field serial"),
-                                    ("/api/scan", {"targets": ["127.0.0.1:1", "nohost"]}, "expected host:port")):
+                                    ("/api/scan", {"targets": ["127.0.0.1:1", ":443"]}, "expected host")):
             with self.assertRaises(urllib.error.HTTPError) as e:
                 self.call(path, body)
             self.assertEqual(e.exception.code, 400)

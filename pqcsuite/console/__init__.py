@@ -198,8 +198,9 @@ class App:
         raw = b.get("targets", "")
         items = raw if isinstance(raw, list) else str(raw).replace("\n", ",").split(",")
         targets = [str(t).strip() for t in items if str(t).strip()] or self.s.scan_targets
+        from ..readiness.scan import endpoint
         for t in targets:
-            hostport(t[len("ssh://"):] if t.startswith("ssh://") else t, "")
+            endpoint(t)
         if not targets:
             raise ValueError("no targets to scan")
         if len(targets) > 500:

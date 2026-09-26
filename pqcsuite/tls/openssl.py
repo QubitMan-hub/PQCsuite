@@ -248,7 +248,8 @@ class Connection:
         except TLSError as e:
             result = L_.SSL_get_verify_result(self.ssl)
             if result:
-                raise TLSError(f"certificate rejected: {L_.X509_verify_cert_error_string(result).decode()}") from None
+                hint = " (the certificate names another host: connect by that name, or give it as the server name)" if result in (62, 64) else ""
+                raise TLSError(f"certificate rejected: {L_.X509_verify_cert_error_string(result).decode()}{hint}") from None
             hint = " (is this port speaking TLS?)" if any(x in str(e) for x in ("packet length too long", "wrong version number")) else ""
             raise TLSError(f"handshake failed: {e}{hint}") from None
 

@@ -59,6 +59,30 @@ class CLITest(unittest.TestCase):
         self.assertEqual(e.exception.code, 0)
         self.assertIn("penicillin", out.getvalue())
 
+    @unittest.skipIf(REASON, REASON)
+    def test_network_errors_are_in_words(self):
+        import socket
+        from pqcsuite.readiness.scan import probe
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            closed = s.getsockname()[1]
+        ca = ["--ca", self.d / "pki" / "ca.crt"]
+        self.assertIn("--server-name nosuch.invalid", self.fails("tls", "connect", "nosuch.invalid:443", *ca))
+        self.assertIn("connection refused", self.fails("tls", "connect", f"127.0.0.1:{closed}", *ca))
+        self.assertEqual(probe(f"127.0.0.1:{closed}", timeout=2)["error"], "connection refused (nothing is listening on that port)")
+        self.assertIn("No such file or directory: ", self.fails("readiness", "scan", self.d / "none.txt"))
+
+    def test_scan_targets_as_people_write_them(self):
+        from pqcsuite.readiness.scan import endpoint
+        cases = {"bank.example": ("tls", "bank.example", 443), "bank.example:8443": ("tls", "bank.example", 8443),
+                 "https://bank.example/login": ("tls", "bank.example", 443), "[2001:db8::1]": ("tls", "2001:db8::1", 443),
+                 "[2001:db8::1]:8443": ("tls", "2001:db8::1", 8443), "ssh://bank.example": ("ssh", "bank.example", 22),
+                 "ssh://bank.example:2222": ("ssh", "bank.example", 2222)}
+        for target, want in cases.items():
+            self.assertEqual(endpoint(target), want, target)
+        for bad in (":443", "bank.example:https"):
+            self.assertRaises(ValueError, endpoint, bad)
+
     def test_config_files_name_what_is_missing_or_wrong(self):
         cfg = self.d / "c.toml"
         cfg.write_text('[[edge]]\nname = "a"\nlisten = "127.0.0.1:0"\n')

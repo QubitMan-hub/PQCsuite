@@ -1,3 +1,4 @@
+import socket
 from dataclasses import MISSING
 
 NAME = "pqcsuite"
@@ -21,3 +22,18 @@ def build(cls, d, where, **extra):
             kind = {str: "text in quotes", int: "a whole number", float: "a number", bool: "true or false", list: "a list", dict: "a table"}
             raise ValueError(f"{where}: {k} must be {kind.get(t, t.__name__)}, not {v!r}")
     return cls(**d, **extra)
+
+
+def explain(e):
+    """An OSError in words: 'host not found' rather than '[Errno -2] Name or service not known'."""
+    if isinstance(e, socket.gaierror):
+        return "host not found (not in DNS or the hosts file)"
+    if isinstance(e, ConnectionRefusedError):
+        return "connection refused (nothing is listening on that port)"
+    if isinstance(e, TimeoutError):
+        return "no answer (timed out; is a firewall dropping it?)"
+    if isinstance(e, ConnectionResetError):
+        return "the connection was reset by the other side"
+    if isinstance(e, OSError) and e.strerror:
+        return f"{e.strerror}: {e.filename}" if e.filename else e.strerror
+    return str(e)
