@@ -40,6 +40,25 @@ class CLITest(unittest.TestCase):
         self.assertIn("needs the CA", self.fails(*edge, "--cert", self.srv / "chain.pem", "--key", self.srv / "key.pem", "--require-client-cert"))
         self.assertIn("ML-DSA-87", self.fails(*edge, "--cert", self.srv / "chain.pem", "--key", self.srv / "key.pem", "--policy", "cnsa2"))
 
+    @unittest.skipIf(REASON, REASON)
+    def test_connect_prints_a_reply_that_arrives_in_pieces(self):
+        import time
+        from pqcsuite.tls.server import Server
+
+        def reply(conn, addr):
+            conn.recv(timeout=5)
+            conn.sendall(b"HTTP/1.0 200 OK\r\n\r\n")
+            time.sleep(0.3)
+            conn.sendall(b'{"allergies": ["penicillin"]}')
+        s = Server(("127.0.0.1", 0), lambda: tls.server_context(self.srv / "chain.pem", self.srv / "key.pem"), reply)
+        s.start()
+        self.addCleanup(s.stop, 1)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
+            main(["tls", "connect", f"127.0.0.1:{s.port}", "--server-name", "localhost", "--ca", str(self.d / "pki" / "ca.crt"), "--send", "GET /"])
+        self.assertEqual(e.exception.code, 0)
+        self.assertIn("penicillin", out.getvalue())
+
     def test_config_files_name_what_is_missing_or_wrong(self):
         cfg = self.d / "c.toml"
         cfg.write_text('[[edge]]\nname = "a"\nlisten = "127.0.0.1:0"\n')

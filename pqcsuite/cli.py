@@ -146,6 +146,8 @@ def cmd_tls(a):
             try:
                 conn.sendall(a.send.encode())
                 reply = conn.recv()
+                while reply and (more := _more(conn)):
+                    reply += more
             except (tls.TLSError, OSError) as e:
                 reply, out["error"] = b"", str(e)
             if not reply:
@@ -155,6 +157,14 @@ def cmd_tls(a):
             out["reply"] = reply.decode(errors="replace")
     show(out, a.json)
     return 0
+
+
+def _more(conn):
+    """The rest of a reply that arrives in several pieces: read until the server closes or is quiet for a second."""
+    try:
+        return conn.recv(timeout=1.0)
+    except (tls.TLSError, OSError):
+        return b""
 
 
 def cmd_probe(a):

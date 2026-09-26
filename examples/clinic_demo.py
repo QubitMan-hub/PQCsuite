@@ -156,6 +156,7 @@ def legacy_certificate(work):
 
 
 def main():
+    sys.stdout.reconfigure(line_buffering=True)
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--auto", action="store_true", help="run without pauses and check every result")
     ap.add_argument("--dir", help="work folder (default: a new temporary folder)")
