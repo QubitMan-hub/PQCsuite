@@ -116,12 +116,30 @@ class Demo:
         shown = " ".join(f"$'{a}'".replace("\r", "\\r").replace("\n", "\\n") if "\n" in str(a) else f'"{a}"' if " " in str(a) else str(a)
                          for a in args)
         print(f"\n$ {tool} {shown}")
-        r = subprocess.run(cmd, cwd=self.work, capture_output=True, text=True, encoding="utf-8", errors="replace")
-        out = (r.stdout + r.stderr).rstrip()
-        print(textwrap.indent(out, "  ") if out else "  (no output)")
-        if r.returncode != expect or any(c not in out for c in contains):
-            raise SystemExit(f"\ndemo: step {self.n} did not go as planned (exit {r.returncode}, expected {expect}; wanted {list(contains)})")
-        return out
+        return self.attempt(lambda: subprocess.run(cmd, cwd=self.work, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                                   stdin=subprocess.DEVNULL), expect, contains)
+
+    def attempt(self, go, expect, contains):
+        """Run a command until it does what the step expects. With --auto a miss stops the demo; live, the presenter can run it
+        again or go on, so one surprise does not end the meeting."""
+        while True:
+            r = go()
+            out = (r.stdout + r.stderr).rstrip()
+            print(textwrap.indent(out, "  ") if out else "  (no output)")
+            if (expect is None or r.returncode == expect) and all(c in out for c in contains):
+                return out
+            why = f"exit {r.returncode}, expected {expect}; wanted {list(contains)}"
+            if self.auto:
+                raise SystemExit(f"\ndemo: step {self.n} did not go as planned ({why})")
+            print(f"\n  This did not go as planned ({why}).")
+            try:
+                choice = input("  [Enter] run it again, s + Enter to go on, q + Enter to stop: ").strip().lower()
+            except EOFError:
+                choice = "q"
+            if choice == "q":
+                raise SystemExit(f"\ndemo: stopped at step {self.n}")
+            if choice == "s":
+                return out
 
     def pause(self, prompt):
         try:
@@ -136,7 +154,7 @@ class Demo:
 
     def start(self, name, cmd, port):
         log = open(self.work / f"{name}.log", "w", encoding="utf-8")
-        self.procs.append(subprocess.Popen(cmd, cwd=self.work, stdout=log, stderr=subprocess.STDOUT))
+        self.procs.append(subprocess.Popen(cmd, cwd=self.work, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL))
         wait_port(port)
 
     def stop(self):

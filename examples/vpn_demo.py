@@ -50,17 +50,13 @@ class VPNDemo(Demo):
         cmd = [sys.executable, "-m", "pqcsuite", *map(str, args)] if tool == "pqcsuite" else [tool, *map(str, args)]
         shown = " ".join(f'"{a}"' if " " in str(a) else str(a) for a in args)
         print(f"\n[{PLACES[ns]}] $ {tool} {shown}")
-        r = subprocess.run(["ip", "netns", "exec", ns, *cmd] if ns else cmd, cwd=self.work, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace")
-        out = (r.stdout + r.stderr).rstrip()
-        print(textwrap.indent(out, "  ") if out else "  (no output)")
-        if (expect is not None and r.returncode != expect) or any(c not in out for c in contains):
-            raise SystemExit(f"\ndemo: step {self.n} did not go as planned (exit {r.returncode}, expected {expect}; wanted {list(contains)})")
-        return out
+        return self.attempt(lambda: subprocess.run(["ip", "netns", "exec", ns, *cmd] if ns else cmd, cwd=self.work, capture_output=True,
+                                                   text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL), expect, contains)
 
     def spawn(self, ns, name, *cmd):
         log = open(self.work / f"{name}.log", "w", encoding="utf-8")
-        self.procs.append(subprocess.Popen(["ip", "netns", "exec", ns, *cmd], cwd=self.work, stdout=log, stderr=subprocess.STDOUT))
+        self.procs.append(subprocess.Popen(["ip", "netns", "exec", ns, *cmd], cwd=self.work, stdout=log, stderr=subprocess.STDOUT,
+                                           stdin=subprocess.DEVNULL))
 
     def wait(self, cond, what, seconds=40):
         deadline = time.monotonic() + seconds

@@ -10,6 +10,7 @@ the evidence report and opens the console.
     python examples/bank_demo.py --auto     # runs straight through and checks every result (CI does this)
 """
 import argparse
+import os
 import shutil
 import socket
 import subprocess
@@ -20,7 +21,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from clinic_demo import LEGACY, Demo, free_port, legacy_certificate, preflight  # noqa: E402
+from clinic_demo import LEGACY, Demo, free_port, legacy_certificate, preflight, wait_port  # noqa: E402
 
 API = """
 import json, sys
@@ -254,8 +255,9 @@ def main():
             token = "demobank"
             cmd = [py, "-m", "pqcsuite", "console", "--ca", "pki", "--edge", f"http://127.0.0.1:{metrics}", "--backups", "archive",
                    "--listen", f"127.0.0.1:{console}"]
-            d.procs.append(subprocess.Popen(cmd, cwd=work, env={**__import__("os").environ, "PQCSUITE_CONSOLE_TOKEN": token},
-                                            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT))
+            d.procs.append(subprocess.Popen(cmd, cwd=work, env={**os.environ, "PQCSUITE_CONSOLE_TOKEN": token},
+                                            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL))
+            wait_port(console)
             print(f"\nThe console is at http://127.0.0.1:{console}/  (access token: {token})")
             d.pause("  [Enter] to stop everything ")
     except KeyboardInterrupt:
