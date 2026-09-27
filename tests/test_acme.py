@@ -140,6 +140,13 @@ class ACMETest(unittest.TestCase):
         with self.assertRaisesRegex(messages.Error, "not valid"):
             c2.new_account(messages.NewRegistration.from_data(terms_of_service_agreed=True, external_account_binding=eab2))
 
+    def test_bad_content_length_is_refused_at_once(self):
+        import socket
+        for length, status in ((b"-1", b"400"), (b"abc", b"400"), (b"99999999", b"413")):
+            with socket.create_connection(self.httpd.server_address, timeout=5) as s:
+                s.sendall(b"POST /acme/new-account HTTP/1.1\r\nHost: x\r\nContent-Length: " + length + b"\r\n\r\n")
+                self.assertIn(status, s.recv(200).split(b"\r\n")[0], length)
+
     def test_forged_and_replayed_requests(self):
         import urllib.request
         import urllib.error

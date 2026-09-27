@@ -70,6 +70,12 @@ class ConsoleTest(unittest.TestCase):
         with socket.create_connection(httpd.server_address, timeout=5) as c:
             self.assertEqual(c.recv(1), b"")
 
+    def test_a_negative_content_length_is_refused(self):
+        import socket
+        with socket.create_connection(self.httpd.server_address, timeout=5) as s:
+            s.sendall(b"POST /api/scan HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer t0ken\r\nContent-Length: -1\r\n\r\n")
+            self.assertIn(b"400", s.recv(200).split(b"\r\n")[0])
+
     def test_overview_reports_every_area(self):
         _, headers, o = self.call("/api/overview")
         self.assertEqual(headers["Cache-Control"], "no-store")

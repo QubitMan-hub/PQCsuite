@@ -20,7 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 
-from .. import HTTP_IDLE, NAME, __version__, build
+from .. import HTTP_IDLE, NAME, __version__, build, content_length
 from ..pki import CA, CAError
 from ..tls import hostport
 
@@ -282,7 +282,9 @@ def serve(app):
             if not self.authorised():
                 backoff.failed(self.client_address[0])
                 return self.reply(401, {"error": "missing or wrong token"})
-            n = int(self.headers.get("Content-Length") or 0)
+            n = content_length(self.headers)
+            if n is None:
+                return self.reply(400, {"error": "bad Content-Length"})
             if n > 1 << 20:
                 return self.reply(413, {"error": "request too large"})
             try:

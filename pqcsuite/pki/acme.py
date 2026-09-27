@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
-from .. import HTTP_IDLE, NAME, __version__
+from .. import HTTP_IDLE, NAME, __version__, content_length
 from . import CAError, cert_pem, now, write
 
 log = logging.getLogger("pqcsuite.acme")
@@ -461,14 +461,19 @@ def serve(service, listen, tls_cert=None, tls_key=None):
                 self.wfile.write(data)
 
         def route(self):
-            n = int(self.headers.get("Content-Length") or 0)
-            if n > 1 << 16:
-                return self.respond(413, {"type": ERR + "malformed", "detail": "request too large"}, {"Content-Type": "application/problem+json"})
+            n = content_length(self.headers)
+            if n is None or n > 1 << 16:
+                return self.respond(400 if n is None else 413, {"type": ERR + "malformed", "detail": "bad Content-Length" if n is None else
+                                                                "request too large"}, {"Content-Type": "application/problem+json"})
             body = self.rfile.read(n) if n else b""
             try:
                 self.respond(*service.handle(self.command, self.path.split("?")[0], body))
             except Problem as p:
                 self.respond(p.status, {"type": ERR + p.kind, "detail": p.detail, "status": p.status}, {"Content-Type": "application/problem+json"})
+            except Exception:
+                log.exception("%s %s failed", self.command, self.path)
+                self.respond(500, {"type": ERR + "serverInternal", "detail": "internal error; see the server's log", "status": 500},
+                             {"Content-Type": "application/problem+json"})
 
         do_GET = do_POST = do_HEAD = route
 

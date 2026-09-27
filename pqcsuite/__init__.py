@@ -45,3 +45,10 @@ def explain(e):
     if isinstance(e, OSError) and e.strerror:
         return f"{e.strerror}: {e.filename}" if e.filename else e.strerror
     return str(e)
+
+
+def content_length(headers):
+    """An HTTP request's body length, or None unless the header is a plain non-negative number (int() would accept "-1",
+    and reading -1 bytes reads until the client stops sending)."""
+    v = headers.get("Content-Length") or "0"
+    return int(v) if v.isascii() and v.isdigit() else None
