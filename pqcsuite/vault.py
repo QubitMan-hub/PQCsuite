@@ -211,7 +211,7 @@ class Writer(io.RawIOBase):
         self.h["mac"] = _recipients_mac(self.dek, self.h["recipients"])
         header = json.dumps(self.h).encode()
         out.write(MAGIC + struct.pack(">I", len(header)) + header)
-        self.digest = hashlib.sha512(self.aad)
+        self.digest = hashlib.sha512(self.aad) if signer else None
 
     def writable(self):
         return True
@@ -226,8 +226,10 @@ class Writer(io.RawIOBase):
     def _emit(self, chunk, last):
         self.aes = self.aes or AESGCM(self.dek)
         ct = self.aes.encrypt(_nonce(unb64(self.h["nonce"]), self.i, last), chunk, self.aad)
-        self.out.write(struct.pack(">I", len(ct)) + ct)
-        self.digest.update(ct)
+        self.out.write(struct.pack(">I", len(ct)))
+        self.out.write(ct)
+        if self.digest:
+            self.digest.update(ct)
         self.i += 1
 
     def finish(self):
@@ -359,7 +361,7 @@ def encrypt(src, dst, recipients, signer=None):
         with open(tmp, "wb") as out:
             w = Writer(out, recipients, src.name, "dir" if src.is_dir() else "file", signer)
             if src.is_dir():
-                with tarfile.open(fileobj=w, mode="w|") as tar:
+                with tarfile.open(fileobj=w, mode="w|", format=tarfile.GNU_FORMAT) as tar:
                     tar.add(src, arcname=src.name, filter=_restorable)
             else:
                 with open(src, "rb") as f:
