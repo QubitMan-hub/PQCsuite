@@ -3,6 +3,7 @@ import datetime as dt
 import html
 import json
 import socket
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
@@ -14,7 +15,8 @@ from ..tls.openssl import Context
 
 PQ = ["X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "MLKEM768", "MLKEM1024"]
 CNSA2_GROUPS = {"SecP384r1MLKEM1024", "MLKEM1024"}
-CLASSICAL = ["X25519", "secp256r1", "secp384r1"]
+CLASSICAL = ["X25519", "secp256r1", "secp384r1", "secp521r1", "X448", "ffdhe2048", "ffdhe3072"]
+LEGACY_TLS = ("TLSv1", "TLSv1_1")
 GRADES = {
     "A": "post-quantum key exchange only",
     "B": "post-quantum key exchange, classical still accepted",
@@ -44,6 +46,26 @@ def _legacy(host, port, server_name, timeout):
     with socket.create_connection((host, port), timeout=timeout) as raw, ctx.wrap_socket(raw, server_hostname=server_name) as s:
         der = s.getpeercert(binary_form=True)
         return s.version(), x509.load_der_x509_certificate(der) if der else None
+
+
+def _old_versions(host, port, server_name, timeout):
+    """TLS 1.0 and 1.1, which should be off everywhere; each is tried on its own."""
+    import ssl
+    found = []
+    for name in LEGACY_TLS:
+        v = getattr(ssl.TLSVersion, name)
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                ctx.minimum_version = ctx.maximum_version = v
+            ctx.set_ciphers("ALL:@SECLEVEL=0")
+            with socket.create_connection((host, port), timeout=timeout) as raw, ctx.wrap_socket(raw, server_hostname=server_name):
+                found.append({"TLSv1": "TLSv1.0", "TLSv1_1": "TLSv1.1"}[name])
+        except (OSError, ValueError):
+            pass
+    return found
 
 
 def _hello(host, port, groups, server_name, timeout):
@@ -139,6 +161,7 @@ def probe(target, server_name=None, timeout=8.0):
             return out
         out["negotiated"], out["accepts"], out["grade"] = version, [version], "C"
         out["certificate"] = _cert_info(cert)
+        out["legacy"] = _old_versions(host, port, server_name or host, timeout)
         return out
     out["certificate"] = _cert_info(cert)
     for g in PQ + CLASSICAL:
@@ -152,6 +175,7 @@ def probe(target, server_name=None, timeout=8.0):
     out["grade"] = "A" if pq and not classical else "B" if pq else "C" if classical else "F"
     cert_key = (out["certificate"] or {}).get("key")
     out["cnsa2"] = bool(out["accepts"]) and set(out["accepts"]) <= CNSA2_GROUPS and cert_key == "ML-DSA-87"
+    out["legacy"] = _old_versions(host, port, server_name or host, timeout)
     return out
 
 
@@ -171,7 +195,8 @@ def report_html(results, title="Post-quantum readiness"):
     s, e = summary(results), html.escape
     rows = "".join(
         f"<tr><td>{e(r['target'])}</td><td class=g{r['grade']}>{r['grade']}</td><td>{e(r['negotiated'] or '')}</td>"
-        f"<td>{e(', '.join(r['accepts']) or (r['error'] or ''))}</td>"
+        f"<td>{e(', '.join(r['accepts']) or (r['error'] or ''))}"
+        f"{'<br><small>also accepts ' + e(' and '.join(r['legacy'])) + ': switch it off</small>' if r.get('legacy') else ''}</td>"
         f"<td>{e((r['certificate'] or {}).get('key', ''))}<br><small>{e((r['certificate'] or {}).get('issuer', ''))}</small></td>"
         f"<td>{e((r['certificate'] or {}).get('expires', ''))}</td></tr>"
         for r in sorted(results, key=lambda r: (r["grade"], r["target"])))

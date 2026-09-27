@@ -4,6 +4,7 @@ import socket
 import tempfile
 import time
 import unittest
+import warnings
 from pathlib import Path
 
 from cryptography import x509
@@ -63,9 +64,41 @@ class ScanTest(unittest.TestCase):
         s = scan.summary(results)
         self.assertEqual((s["pq_key_exchange"], s["pq_certificates"], s["expiring_30d"]), (2, 2, 1))
         self.assertFalse(any(r["cnsa2"] for r in results))
+        self.assertFalse(any(r.get("legacy") for r in results))
         page = scan.report_html(results)
         self.assertIn("2/4", page)
         self.assertNotIn("<script", page)
+
+
+@unittest.skipIf(REASON, REASON)
+class LegacyTest(unittest.TestCase):
+    def test_tls_1_0_and_1_1_are_reported(self):
+        import ssl
+        import threading
+        d = Path(tempfile.mkdtemp())
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(*rsa_cert(d))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            ctx.minimum_version = ssl.TLSVersion.TLSv1
+        ctx.set_ciphers("ALL:@SECLEVEL=0")
+        srv = socket.create_server(("127.0.0.1", 0))
+        self.addCleanup(srv.close)
+
+        def serve():
+            while True:
+                try:
+                    c, _ = srv.accept()
+                except OSError:
+                    return
+                try:
+                    ctx.wrap_socket(c, server_side=True).close()
+                except (OSError, ssl.SSLError):
+                    c.close()
+        threading.Thread(target=serve, daemon=True).start()
+        r = scan.probe(f"127.0.0.1:{srv.getsockname()[1]}", timeout=3)
+        self.assertEqual(r["legacy"], ["TLSv1.0", "TLSv1.1"])
+        self.assertIn("switch it off", scan.report_html([r]))
 
 
 @unittest.skipIf(REASON, REASON)

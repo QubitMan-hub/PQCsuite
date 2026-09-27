@@ -46,6 +46,8 @@ def endpoints(results):
                 "classical fallback accepted: remove before 2035" if r["grade"] == "B" else "post-quantum key exchange")
         if classical_key and key:
             nist += f"; {key} certificate: deprecated after 2030 (112-bit), disallowed after 2035"
+        if r.get("legacy"):
+            status, nist = "action", nist + f"; {' and '.join(r['legacy'])} accepted: disallowed now (NIST SP 800-52r2)"
         out.append(_row(kind, r["target"], f"negotiates {r.get('negotiated')}; accepts {', '.join(r['accepts'])}" + (f"; key {key}" if key else ""),
                         status, nist, "compliant" if r.get("cnsa2") else "not compliant", {"grade": r["grade"]}))
     return out

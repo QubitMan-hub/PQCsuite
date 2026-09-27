@@ -204,6 +204,8 @@ def cmd_scan(a):
     for r in sorted(results, key=lambda r: (r["grade"], r["target"])):
         cert = r["certificate"] or {}
         print(f"{r['grade']}  {r['target']:32} {r['negotiated'] or r['error'] or '':24} {cert.get('key', ''):14} {cert.get('expires', '')}")
+        if r.get("legacy"):
+            print(f"   {'':32} also accepts {' and '.join(r['legacy']).replace('TLSv', 'TLS ')}: switch them off")
     s = scan.summary(results)
     print(f"\n{s['pq_key_exchange']}/{s['endpoints']} offer post-quantum key exchange; {s['pq_certificates']} use ML-DSA certificates")
     return 0 if s["pq_key_exchange"] == s["endpoints"] else 2
