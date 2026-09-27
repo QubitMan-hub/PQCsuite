@@ -30,7 +30,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
-from .. import build, tls
+from .. import build, explain, tls
 from ..pki import CAError, write
 from ..tls import hostport
 from ..tls.server import Server
@@ -354,7 +354,7 @@ class Client:
                 log.info("connected as %s through %s; next key in %ds", reply["address"], reply["endpoint"], reply["rotate_s"])
                 backoff, wait = 5, reply["rotate_s"]
             except (tls.TLSError, WGError, OSError, ValueError, KeyError) as e:
-                log.warning("key agreement failed: %s; retrying in %ds", e, backoff)
+                log.warning("key agreement failed: %s; retrying in %ds", explain(e), backoff)
                 wait, backoff = backoff, min(backoff * 2, 60)
             self.stop.wait(wait)
 

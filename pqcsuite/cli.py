@@ -13,6 +13,7 @@ from . import HTTP_IDLE, NAME, __version__, explain, tls
 from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError
 from .vault import VaultError
 from .vpn.charon import CharonError
+from .vpn.wireguard import WGError
 
 CA_PASS_ENV = "PQCSUITE_CA_PASSPHRASE"
 
@@ -715,6 +716,6 @@ def main(argv=None):
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO, handlers=[h])
     try:
         sys.exit(a.func(a))
-    except (CAError, CharonError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
+    except (CAError, CharonError, WGError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {explain(e)}", file=sys.stderr)
         sys.exit(1)

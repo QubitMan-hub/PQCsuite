@@ -11,7 +11,6 @@ Needs pqcsuite installed and OpenSSL 3.5+. Wolf Pack is used when the `wolfpack`
 """
 import argparse
 import json
-import os
 import shutil
 import socket
 import subprocess

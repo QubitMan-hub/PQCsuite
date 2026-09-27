@@ -11,7 +11,7 @@ from collections import Counter
 
 from cryptography.x509.oid import NameOID
 
-from .. import tls
+from .. import explain, tls
 from ..pki import CAError
 from ..tls import hostport
 from ..tls.server import Revocation, Server
@@ -126,7 +126,7 @@ class Controller:
                     backoff = 5
                 except (tls.TLSError, CAError, CharonError, OSError, ValueError) as e:
                     self.counts["failures"] += 1
-                    log.warning("%s: %s; retrying in %ds", peer.name, e, backoff)
+                    log.warning("%s: %s; retrying in %ds", peer.name, explain(e), backoff)
                     self.stop.wait(backoff)
                     backoff = min(backoff * 2, 300)
                     continue

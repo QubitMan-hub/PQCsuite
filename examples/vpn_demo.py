@@ -86,10 +86,31 @@ class VPNDemo(Demo):
         return False
 
 
-def network():
-    """HQ (LAN 192.168.10.1) with a cable to the branch (LAN 192.168.20.1) and one to the laptop."""
+def teardown():
+    """Remove the demo's networks. wireguard-go runs in the background and outlives a deleted namespace, so its interfaces
+    are deleted first (it exits when they go) and any copy left by an interrupted run is stopped by its exact command line."""
+    for ns, dev in ((HQ, "dbk-wg0"), (LAPTOP, "dbk-wg1")):
+        sh("ip", "-n", ns, "link", "del", dev, check=False)
+    for proc in Path("/proc").glob("[0-9]*"):
+        try:
+            argv = (proc / "cmdline").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        if Path(argv[0].decode(errors="replace")).name == "wireguard-go" and argv[1:2] in ([b"dbk-wg0"], [b"dbk-wg1"]):
+            try:
+                os.kill(int(proc.name), 15)
+            except OSError:
+                pass
+    for dev in ("dbk-wg0", "dbk-wg1"):
+        Path(f"/var/run/wireguard/{dev}.sock").unlink(missing_ok=True)
     for ns in (HQ, BRANCH, LAPTOP):
         sh("ip", "netns", "del", ns, check=False)
+
+
+def network():
+    """HQ (LAN 192.168.10.1) with a cable to the branch (LAN 192.168.20.1) and one to the laptop."""
+    teardown()
+    for ns in (HQ, BRANCH, LAPTOP):
         sh("ip", "netns", "add", ns)
         sh("ip", "-n", ns, "link", "set", "lo", "up")
     for a, b, a_ip, b_ip, peer_ns in (("dbk-hq-br", "dbk-br-hq", "10.30.0.1", "10.30.0.2", BRANCH),
@@ -140,7 +161,7 @@ def branch_part(d, charon):
     print("\n  Start the controller at each site; the branch dials headquarters.")
     d.spawn(HQ, "vpn-hq", sys.executable, "-m", "pqcsuite", "vpn", "up", "--config", "hq.toml")
     d.spawn(BRANCH, "vpn-branch", sys.executable, "-m", "pqcsuite", "vpn", "up", "--config", "branch.toml")
-    print(f"\n[headquarters] $ pqcsuite vpn up --config hq.toml\n[branch 0417] $ pqcsuite vpn up --config branch.toml")
+    print("\n[headquarters] $ pqcsuite vpn up --config hq.toml\n[branch 0417] $ pqcsuite vpn up --config branch.toml")
     status = lambda: sh("ip", "netns", "exec", HQ, sys.executable, "-m", "pqcsuite", "vpn", "status", "--config", str(work / "hq.toml")).stdout
     d.wait(lambda: "ESTABLISHED" in status() and "PPK yes" in status(), "the tunnel did not come up with a PPK")
 
@@ -237,8 +258,7 @@ def main():
         print("\nstopped")
     finally:
         d.stop()
-        for ns in (HQ, BRANCH, LAPTOP):
-            sh("ip", "netns", "del", ns, check=False)
+        teardown()
 
 
 if __name__ == "__main__":
