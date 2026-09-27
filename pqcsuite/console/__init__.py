@@ -20,7 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 
-from .. import NAME, __version__, build
+from .. import HTTP_IDLE, NAME, __version__, build
 from ..pki import CA, CAError
 from ..tls import hostport
 
@@ -252,6 +252,7 @@ def serve(app):
     csp, backoff = policy(html), Backoff()
 
     class Handler(BaseHTTPRequestHandler):
+        timeout = HTTP_IDLE
         server_version = f"{NAME}/{__version__}"
 
         def reply(self, status, body, ctype="application/json"):

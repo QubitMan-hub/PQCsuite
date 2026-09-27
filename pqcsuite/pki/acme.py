@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
-from .. import NAME, __version__
+from .. import HTTP_IDLE, NAME, __version__
 from . import CAError, cert_pem, now, write
 
 log = logging.getLogger("pqcsuite.acme")
@@ -439,6 +439,7 @@ def create_eab(root, note=""):
 def serve(service, listen, tls_cert=None, tls_key=None):
     """An HTTP(S) server for the ACME service; TLS uses Python's ssl module, so give it a certificate ACME clients accept."""
     class Handler(BaseHTTPRequestHandler):
+        timeout = HTTP_IDLE
         server_version = f"{NAME}-acme/{__version__}"
 
         def respond(self, status, body, headers):

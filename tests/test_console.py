@@ -58,6 +58,18 @@ class ConsoleTest(unittest.TestCase):
                 codes.append(e.code)
         self.assertEqual(codes, [401] * 10 + [429])
 
+    def test_a_silent_client_is_disconnected(self):
+        import socket
+        from pqcsuite import console
+        self.addCleanup(setattr, console, "HTTP_IDLE", getattr(console, "HTTP_IDLE", None))
+        console.HTTP_IDLE = 1
+        httpd = serve(self.app)
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        with socket.create_connection(httpd.server_address, timeout=5) as c:
+            self.assertEqual(c.recv(1), b"")
+
     def test_overview_reports_every_area(self):
         _, headers, o = self.call("/api/overview")
         self.assertEqual(headers["Cache-Control"], "no-store")

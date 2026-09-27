@@ -9,7 +9,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import NAME, __version__, explain, tls
+from . import HTTP_IDLE, NAME, __version__, explain, tls
 from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError
 from .vault import VaultError
 from .vpn.charon import CharonError
@@ -429,6 +429,8 @@ def serve_json(address, routes):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     class Handler(BaseHTTPRequestHandler):
+        timeout = HTTP_IDLE
+
         def do_GET(self):
             fn = routes.get(self.path) or (lambda: "ok\n" if self.path == "/healthz" else None)
             body = fn()

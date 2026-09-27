@@ -13,7 +13,7 @@ import tomllib
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .. import build, explain, tls
+from .. import HTTP_IDLE, build, explain, tls
 from . import hostport
 from .server import Server, Stats
 
@@ -229,6 +229,8 @@ def metrics_text(edges):
 
 def serve_metrics(address, edges):
     class Handler(BaseHTTPRequestHandler):
+        timeout = HTTP_IDLE
+
         def do_GET(self):
             if self.path == "/healthz":
                 body, ctype = b"ok\n", "text/plain"
