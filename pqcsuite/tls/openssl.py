@@ -8,7 +8,7 @@ import ipaddress
 import os
 import platform
 import re
-import selectors
+import select
 import time
 
 MIN_VERSION = 0x30500000
@@ -280,9 +280,12 @@ class Connection:
             raise TLSError(errors(f"{what} failed (peer closed the connection)"))
 
     def _wait(self, readable, seconds):
-        with selectors.DefaultSelector() as sel:
-            sel.register(self.sock, selectors.EVENT_READ if readable else selectors.EVENT_WRITE)
-            return bool(sel.select(seconds))
+        if hasattr(select, "poll"):  # one syscall, where a selector would create and close an epoll object every time
+            p = select.poll()
+            p.register(self.sock, select.POLLIN if readable else select.POLLOUT)
+            return bool(p.poll(seconds * 1000))
+        r, w, _ = select.select([self.sock] if readable else [], [] if readable else [self.sock], [], seconds)
+        return bool(r or w)
 
     def recv(self, size=65536, timeout=None, wait=True):
         """Up to `size` bytes; b"" once the peer has closed. With wait=False, None when no application data is ready yet
