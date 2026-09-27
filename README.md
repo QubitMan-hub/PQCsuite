@@ -46,6 +46,16 @@ Clients now reach the app on port 8443 over TLS 1.3 with X25519MLKEM768 and an M
 - **Operations:** certificates reload without a restart, `/metrics` for Prometheus, JSON logs, graceful shutdown, connection limits and deadlines on every socket.
 - **Bundles:** `pqcsuite tls bundle nginx|postgres|pgvector|mqtt --host NAME` writes a Compose project with the service behind the edge.
 
+Which clients connect (tested against the edge):
+
+| Client | `strict` | `transition` with an ECDSA fallback |
+|---|---|---|
+| OpenSSL 3.5 command line, Node 22 | X25519MLKEM768, ML-DSA verified | X25519MLKEM768, ML-DSA |
+| Chrome/Chromium, Go 1.24 | refused (cannot verify ML-DSA) | X25519MLKEM768, ECDSA certificate |
+| Java 21, Python and curl on OpenSSL 3.0 | refused | X25519 (classical), ECDSA certificate |
+
+`cnsa2` needs ML-KEM-1024, which no client offers by default: OpenSSL 3.5 clients add `-groups SecP384r1MLKEM1024` (or `MLKEM1024`); `pqcsuite tls connect --policy cnsa2` does it for you. Browsers need a fallback certificate only because they cannot verify ML-DSA yet; the fallback also needs a DNS name in its SAN, which browsers and Go require.
+
 Check a connection:
 
 ```
