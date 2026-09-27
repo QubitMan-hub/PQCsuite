@@ -5,6 +5,12 @@ Each recipient's copy of the file key is wrapped with a hybrid KEM: X25519 and M
 AES-256-GCM in 1 MiB chunks; every nonce carries the chunk number and a last-chunk flag, so truncation, reordering and
 tampering are all detected. An optional ML-DSA signature from a CA-issued certificate says who made the file. The recipient
 list is not bound into the chunks, so access can be granted later without re-encrypting the data.
+
+File layout: b"PQV1\n", a 4-byte big-endian length and the JSON header; then each chunk as a 4-byte length and its
+ciphertext; then, if signed, b"SIG1", a 4-byte length and an ML-DSA signature over a SHA-512 of the header's core fields
+(all but the recipient list) and every chunk ciphertext. Header format 2 adds "mac", an HMAC-SHA256 of the recipient list
+keyed from the file key, so recipients cannot be removed or altered unnoticed; the format number is in the core fields, so a
+format 2 file cannot pass as format 1. Format 1 files still open.
 """
 import base64
 import datetime as dt
