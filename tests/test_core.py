@@ -371,6 +371,10 @@ class Operation(unittest.TestCase):
             with self.assertRaises(SystemExit) as e:
                 main(["scan", d, "--fail-on", "severe"])
             self.assertEqual(e.exception.code, 1)
+            (Path(d) / ".wolfpack.toml").write_bytes(b"exclude = [\xff]\n")
+            with self.assertRaises(SystemExit) as e:
+                main(["scan", d, "-o", str(Path(d) / "out"), "-q"])
+            self.assertIn("cannot read", str(e.exception.code))
 
     def test_unreadable_baseline_and_output_are_one_line_errors(self):
         import tempfile

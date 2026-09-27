@@ -106,7 +106,7 @@ def settings(path, root):
         return {}
     try:
         cfg = tomllib.loads(f.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError) as e:
+    except (OSError, ValueError) as e:
         sys.exit(f"wolfpack: cannot read {f}: {e}")
     for k, v in cfg.items():
         if k not in SETTINGS:
