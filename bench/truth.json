@@ -138,6 +138,9 @@
   "c/md5_impl.c": [
     "MD5"
   ],
+  "c/ripemd160_impl.c": [
+    "RIPEMD-160"
+  ],
   "go/sm4.go": [
     "SM4"
   ],

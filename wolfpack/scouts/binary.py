@@ -6,7 +6,7 @@ from ..elders import pq_from_text
 from ..model import Sighting, Library
 from . import iter_files, rel, is_test, SKIP_DIRS, BUILD_DIRS
 from .source import classify_literal
-from .implementations import byte_tables
+from .implementations import SHA1_K4, byte_tables, not_sha1, packed
 
 
 EXTRA = [
@@ -55,6 +55,8 @@ def scan_native(data, path, base):
                                        snippet=f"{pat[:8].hex()}... at offset 0x{i:x}", lang="native",
                                        params=dict(params, role="implementation"), context=set(base)))
                 break
+    if not_sha1({s.algo for s in sights}, any(p in data for p in packed([SHA1_K4]))):
+        sights = [s for s in sights if s.algo != "SHA-1"]
     seen = set()
     for rx, name in VERSIONS:
         m = rx.search(data)

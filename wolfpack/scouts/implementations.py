@@ -6,11 +6,13 @@ from . import iter_files, rel, is_test, read
 from .lexer import LANGS, split, line_of
 
 # Constants that appear in this order in an implementation. Chosen so one algorithm's table is not a prefix of another's:
-# MD5 shares SHA-1's first four initial values, so SHA-1 needs the fifth; BLAKE2b reuses SHA-512's initial values, so SHA-2
+# MD5 shares SHA-1's first four initial values, so SHA-1 needs the fifth; RIPEMD-160 shares all five, so a file with
+# RIPEMD-160's own round constants is SHA-1 only if SHA-1's last round constant is there too; BLAKE2b reuses SHA-512's initial values, so SHA-2
 # is recognised by its round constants only; ChaCha20 and Salsa20 share "expand 32-byte k", so neither is attempted.
 WORDS = [
     ("MD5", {}, [0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee]),
     ("SHA-1", {}, [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0]),
+    ("RIPEMD-160", {}, [0x50a28be6, 0x5c4dd124, 0x6d703ef3, 0x7a6d76e9]),
     ("SHA-224", {}, [0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939]),
     ("SHA-256", {}, [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5]),
     ("SHA-384", {}, [0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17]),
@@ -27,6 +29,7 @@ PRIMES = [
     ("ECC", {"curve": "P-256"}, "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff"),
     ("ECC", {"curve": "secp256k1"}, "fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"),
 ]
+SHA1_K4 = 0xca62c1d6
 NUM = re.compile(r"\b0[xX]([0-9a-fA-F_]+)[uUlL]*\b|\b(\d+)[uUlL]*\b")
 
 
@@ -36,6 +39,11 @@ def packed(sig):
     be = b"".join(v.to_bytes(size, "big") for v in sig)
     le = b"".join(v.to_bytes(size, "little") for v in sig)
     return [be, le] if be != le else [be]
+
+
+def not_sha1(algos, has_k4):
+    """The SHA-1 initial values belong to RIPEMD-160 when its constants are there and SHA-1's last round constant is not."""
+    return "RIPEMD-160" in algos and not has_k4
 
 
 def byte_tables():
@@ -80,6 +88,8 @@ def scan(root, scope=False):
             pos = find(nums, sig)
             if pos is not None:
                 hits.append((algo, params, pos))
+        if not_sha1({h[0] for h in hits}, SHA1_K4 in have):
+            hits = [h for h in hits if h[0] != "SHA-1"]
         low = code.lower()
         for algo, params, prime in PRIMES:
             pos = low.find(prime)

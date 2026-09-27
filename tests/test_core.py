@@ -68,6 +68,7 @@ class Pack(unittest.TestCase):
     def test_implementations_by_their_constants(self):
         self.assertEqual(self.accepted("c/keccak.c"), {"SHA-3"})
         self.assertEqual(self.accepted("c/md5_impl.c"), {"MD5"})
+        self.assertEqual(self.accepted("c/ripemd160_impl.c"), {"RIPEMD-160"})
         self.assertEqual(self.accepted("go/sm4.go"), {"SM4"})
 
     def test_one_constant_table_for_source_and_binaries(self):
@@ -182,6 +183,20 @@ class Roles(unittest.TestCase):
 
     def test_implementation_scout_is_live(self):
         self.assertEqual(self.accepted(["implementations"], "c/keccak.c"), set())
+        self.assertEqual(self.accepted(["implementations"], "c/ripemd160_impl.c"), set())
+
+    def test_sha1_keeps_the_initial_values_it_shares_with_ripemd160(self):
+        import tempfile
+        from wolfpack.scouts import binary, implementations
+        iv = "0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0"
+        rmd = "0x50a28be6, 0x5c4dd124, 0x6d703ef3, 0x7a6d76e9"
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "sha1.c").write_text(f"H[] = {{{iv}}};\nK[] = {{0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6}};\n", encoding="utf-8")
+            (Path(d) / "both.c").write_text(f"H[] = {{{iv}}};\nR[] = {{{rmd}}};\nK = 0xca62c1d6;\n", encoding="utf-8")
+            (Path(d) / "rmd.so").write_bytes(b"\x7fELF" + b"".join(v.to_bytes(4, "little") for v in (0x67452301, 0xefcdab89, 0x98badcfe,
+                                                     0x10325476, 0xc3d2e1f0, 0x50a28be6, 0x5c4dd124, 0x6d703ef3, 0x7a6d76e9)))
+            found = {(s.file, s.algo) for s in implementations.scan(d)[0] + binary.scan(d)[0]}
+        self.assertEqual(found, {("sha1.c", "SHA-1"), ("both.c", "SHA-1"), ("both.c", "RIPEMD-160"), ("rmd.so", "RIPEMD-160")})
 
     def test_each_role_is_live(self):
         self.assertNotIn("SHA-256", self.accepted(["corroboration"], "py/token_kind.py"))
