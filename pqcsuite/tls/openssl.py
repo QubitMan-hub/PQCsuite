@@ -127,8 +127,12 @@ def errors(default="unknown OpenSSL error"):
 def _certificate(x):
     from cryptography import x509
     L_ = lib()
-    buf = ctypes.create_string_buffer(L_.i2d_X509(x, None))
-    L_.i2d_X509(x, ctypes.byref(ctypes.c_void_p(ctypes.addressof(buf))))
+    n = L_.i2d_X509(x, None)
+    if n <= 0:
+        raise TLSError(f"cannot encode the peer certificate: {errors()}")
+    buf = ctypes.create_string_buffer(n)
+    if L_.i2d_X509(x, ctypes.byref(ctypes.c_void_p(ctypes.addressof(buf)))) != n:
+        raise TLSError("the peer certificate changed length between two encodings")
     return x509.load_der_x509_certificate(buf.raw)
 
 

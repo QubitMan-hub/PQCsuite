@@ -150,6 +150,18 @@ class Demo:
                 p.kill()
 
 
+def preflight(d):
+    """The demos need OpenSSL 3.5+; say how to get it rather than failing on the first step."""
+    try:
+        d.run("doctor", contains=["X25519MLKEM768"])
+    except SystemExit:
+        script = Path(sys.argv[0]).name
+        raise SystemExit(f"\ndemo: this machine's OpenSSL cannot do post-quantum TLS yet (it needs 3.5 or newer). Run the demo on "
+                         f"Debian 13 or Ubuntu 25.04+, or in the Docker image, from the pqcsuite folder:\n"
+                         f"  docker build -t pqcsuite .\n"
+                         f'  docker run --rm -it -v "$PWD/examples:/examples" --entrypoint python pqcsuite /examples/{script}') from None
+
+
 def legacy_certificate(work):
     import datetime as dt
     from cryptography import x509
@@ -179,7 +191,7 @@ def main():
     py = sys.executable
     print(f"Northside Clinic demo, working in {work}")
     try:
-        d.run("doctor", contains=["X25519MLKEM768"])
+        preflight(d)
         (work / "portal.py").write_text(PORTAL, encoding="utf-8")
         (work / "legacy.py").write_text(LEGACY, encoding="utf-8")
         legacy_certificate(work)

@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from clinic_demo import LEGACY, Demo, free_port, legacy_certificate  # noqa: E402
+from clinic_demo import LEGACY, Demo, free_port, legacy_certificate, preflight  # noqa: E402
 
 API = """
 import json, sys
@@ -102,7 +102,7 @@ def main():
     netbanking, api, api_edge, metrics, switch, switch_edge, branch_port, console = (free_port() for _ in range(8))
     print(f"Demo Bank, working in {work}")
     try:
-        d.run("doctor", contains=["X25519MLKEM768"])
+        preflight(d)
         for name, code in (("api.py", API), ("switch.py", SWITCH), ("legacy.py", LEGACY)):
             (work / name).write_text(code, encoding="utf-8")
         legacy_certificate(work)

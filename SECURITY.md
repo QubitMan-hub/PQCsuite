@@ -31,3 +31,8 @@ Vault encrypts data and wraps keys with AES-256-GCM. TLS 1.3 prefers AES-256-GCM
 - Git names objects with SHA-1 (with collision detection). GitHub does not host SHA-256 repositories yet.
 - Pushing over HTTPS or SSH uses GitHub's key exchange. To check yours: `ssh -v git@github.com 2>&1 | grep "kex: algorithm"`; `mlkem768x25519-sha256` or `sntrup761x25519-sha512` means post-quantum. OpenSSH 10 prefers `mlkem768x25519-sha256` by default.
 - Commit signatures, if used, are classical (GPG or SSH keys).
+
+## Assumptions about the host
+
+- On Windows, pqcsuite loads OpenSSL from `PQCSUITE_OPENSSL`, then from the folders on `PATH` (newest `libssl-*.dll` first). Anyone who can write to one of those folders can make pqcsuite load their library, so set `PQCSUITE_OPENSSL` and keep `PATH` to folders only administrators can write. On Linux and macOS the system loader decides (`LD_LIBRARY_PATH` / `DYLD_LIBRARY_PATH` when set).
+- Private keys are files with owner-only permissions, or live in AWS KMS or an HSM. Python cannot wipe keys from memory, so the host running the CA or an edge must be trusted like any server that holds keys.

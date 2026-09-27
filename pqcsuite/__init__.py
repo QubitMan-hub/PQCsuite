@@ -4,6 +4,13 @@ from dataclasses import MISSING
 NAME = "pqcsuite"
 __version__ = "0.1.0"
 
+try:
+    from cryptography.hazmat.primitives.asymmetric import mldsa, mlkem  # noqa: F401
+except ImportError:
+    import cryptography
+    raise ImportError(f"pqcsuite needs cryptography 49 or newer for ML-KEM and ML-DSA, and this Python has {cryptography.__version__}: "
+                      "pip install --upgrade 'cryptography>=49'") from None
+
 
 def build(cls, d, where, **extra):
     """A settings dataclass from a TOML table, with clear errors for unknown, missing and mistyped settings."""

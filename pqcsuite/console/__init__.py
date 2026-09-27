@@ -3,10 +3,13 @@
 It listens on localhost and wants a bearer token on every API call. Put `pqcsuite tls edge --policy transition` in front of it for
 remote access: browsers already do X25519MLKEM768, though they cannot verify ML-DSA certificates yet.
 """
+import base64
+import hashlib
 import hmac
 import json
 import logging
 import os
+import re
 import secrets
 import threading
 import time
@@ -220,8 +223,33 @@ def page():
     return resources.files(__package__).joinpath("console.html").read_bytes()
 
 
+def policy(html):
+    """The page's one inline script is allowed by its hash, so no other script can run even if markup were ever injected."""
+    script = re.search(rb"<script>(.*?)</script>", html, re.S).group(1)
+    digest = base64.b64encode(hashlib.sha256(script).digest()).decode()
+    return f"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'sha256-{digest}'; frame-ancestors 'none'"
+
+
+class Backoff:
+    """After 10 wrong tokens from one address within a minute, that address is refused until the minute is over."""
+
+    def __init__(self, limit=10, window=60.0):
+        self.limit, self.window, self.lock, self.failures = limit, window, threading.Lock(), {}
+
+    def blocked(self, addr):
+        with self.lock:
+            recent = [t for t in self.failures.get(addr, []) if time.monotonic() - t < self.window]
+            self.failures[addr] = recent
+            return len(recent) >= self.limit
+
+    def failed(self, addr):
+        with self.lock:
+            self.failures.setdefault(addr, []).append(time.monotonic())
+
+
 def serve(app):
     html = page()
+    csp, backoff = policy(html), Backoff()
 
     class Handler(BaseHTTPRequestHandler):
         server_version = f"{NAME}/{__version__}"
@@ -234,7 +262,7 @@ def serve(app):
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
+            self.send_header("Content-Security-Policy", csp)
             self.end_headers()
             self.wfile.write(data)
 
@@ -248,7 +276,10 @@ def serve(app):
                 return self.reply(200, html, "text/html; charset=utf-8")
             if not path.startswith("/api/"):
                 return self.reply(404, {"error": "not found"})
+            if backoff.blocked(self.client_address[0]):
+                return self.reply(429, {"error": "too many wrong tokens; wait a minute"})
             if not self.authorised():
+                backoff.failed(self.client_address[0])
                 return self.reply(401, {"error": "missing or wrong token"})
             n = int(self.headers.get("Content-Length") or 0)
             if n > 1 << 20:

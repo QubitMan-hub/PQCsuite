@@ -42,10 +42,21 @@ class ConsoleTest(unittest.TestCase):
         with urllib.request.urlopen(self.base + "/", timeout=5) as r:
             self.assertIn(b"pqcsuite console", r.read())
             self.assertIn("frame-ancestors 'none'", r.headers["Content-Security-Policy"])
+            self.assertIn("script-src 'sha256-", r.headers["Content-Security-Policy"])
+            self.assertNotIn("script-src 'self' 'unsafe-inline'", r.headers["Content-Security-Policy"])
         for token in ("", "wrong"):
             with self.assertRaises(urllib.error.HTTPError) as e:
                 self.call("/api/overview", token=token)
             self.assertEqual(e.exception.code, 401)
+
+    def test_repeated_wrong_tokens_are_slowed_down(self):
+        codes = []
+        for token in ["wrong"] * 10 + ["t0ken"]:
+            try:
+                codes.append(self.call("/api/overview", token=token)[0])
+            except urllib.error.HTTPError as e:
+                codes.append(e.code)
+        self.assertEqual(codes, [401] * 10 + [429])
 
     def test_overview_reports_every_area(self):
         _, headers, o = self.call("/api/overview")
