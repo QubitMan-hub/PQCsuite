@@ -1,6 +1,9 @@
 """Real PQC handshakes. Needs OpenSSL 3.5+ (on Linux run with LD_LIBRARY_PATH pointing at it); skipped otherwise."""
+import json
 import os
 import socket
+import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -227,6 +230,39 @@ class EdgeTest(unittest.TestCase):
         self.assertTrue(all(r == b"x" * 100000 for r in results))
         self.assertIn('pqcsuite_group_total{edge="web",group="X25519MLKEM768"} 51', metrics_text([edge, tunnel]))
         self.assertEqual(edge.stats.snapshot().get("handshake_failed", 0), 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "SO_REUSEPORT spreads connections on Linux only")
+    def test_workers_share_the_port_and_the_metrics_add_up(self):
+        d = Path(tempfile.mkdtemp())
+        ca = CA.init(d / "pki", "Root")
+        srv, _ = ca.issue("localhost", "server", ["127.0.0.1"], out=d / "srv")
+        ports = []
+        for _ in range(2):
+            with socket.create_server(("127.0.0.1", 0)) as s:
+                ports.append(s.getsockname()[1])
+        edge = subprocess.Popen([sys.executable, "-m", "pqcsuite", "tls", "edge", "--listen", f"127.0.0.1:{ports[0]}", "--target", "127.0.0.1:1",
+                                 "--cert", srv / "chain.pem", "--key", srv / "key.pem", "--workers", "3", "--metrics", f"127.0.0.1:{ports[1]}"],
+                                stderr=subprocess.PIPE, text=True)
+        self.addCleanup(edge.stderr.close)
+        self.addCleanup(edge.wait)
+        self.addCleanup(edge.kill)
+        listening = 0
+        while listening < 3:
+            line = edge.stderr.readline()
+            self.assertTrue(line, "edge exited")
+            listening += "edge: listening" in line
+        status = lambda: json.load(urllib.request.urlopen(f"http://127.0.0.1:{ports[1]}/status", timeout=5))["edge"]
+        ctx = tls.client_context(d / "pki" / "ca.crt")
+        for _ in range(30):
+            tls.connect("127.0.0.1", ports[0], ctx, "localhost", 5).close()
+        time.sleep(2.5)
+        self.assertEqual(status()["handshakes"], 30)
+        workers = subprocess.run(["pgrep", "-P", str(edge.pid)], capture_output=True, text=True).stdout.split()
+        self.assertEqual(len(workers), 2)
+        edge.kill()
+        edge.wait()
+        time.sleep(2.5)
+        self.assertFalse([w for w in workers if Path(f"/proc/{w}").exists()], "workers outlived the parent")
 
     def test_originate_reloads_a_renewed_client_certificate(self):
         with tempfile.TemporaryDirectory() as d:

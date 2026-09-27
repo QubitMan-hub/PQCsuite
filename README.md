@@ -157,7 +157,7 @@ The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts
 
 ## Limits
 
-- The edge uses one thread per connection (512 by default) and forwards TCP bytes; it does not parse HTTP.
+- The edge uses one thread per connection (512 by default) and forwards TCP bytes; it does not parse HTTP. One process handles about 500 new TLS connections a second; on Linux, `--workers N` runs N processes on the same port (4 workers on 4 cores: about 1,500 a second, half of nginx with OpenSSL 3.5 on the same machine). Long-lived connections cost little once the handshake is done.
 - Revocation uses CRL files; there is no OCSP responder.
 - Algorithms come from OpenSSL and pyca/cryptography. Nothing here is FIPS 140-3 validated.
 

@@ -212,7 +212,7 @@ def cmd_scan(a):
 
 
 def cmd_edge(a):
-    from .tls.edge import Edge, Route, load_config, serve_metrics
+    from .tls.edge import WORKER, Edge, Route, Workers, load_config, report, serve_metrics
     if not (a.config or a.target):
         raise ValueError("edge needs --config or --target")
     if a.config:
@@ -223,13 +223,31 @@ def cmd_edge(a):
                         crl=a.crl or "", server_name=a.server_name or "", proxy_protocol=a.proxy_protocol,
                         fallback_cert=a.fallback_cert or "", fallback_key=a.fallback_key or "")]
         metrics = a.metrics
-    edges = [Edge(r).bind() for r in routes]
-    if metrics:
-        serve_metrics(metrics, edges)
+    if a.workers < 1:
+        raise ValueError("--workers must be 1 or more")
+    worker = bool(os.environ.get(WORKER))
+    shared = a.workers > 1 or worker
+    if shared:
+        if not sys.platform.startswith("linux"):
+            raise ValueError("--workers needs Linux, where the kernel spreads connections over the processes (SO_REUSEPORT)")
+        if any(parse_addr(r.listen)[1] == 0 for r in routes):
+            raise ValueError("--workers needs a fixed listen port, not 0")
+    edges = [Edge(r).bind(reuse_port=shared) for r in routes]
+    workers = Workers(a.workers) if a.workers > 1 and not worker else None
+    if worker:
+        threading.Thread(target=report, args=(edges,), daemon=True).start()
+    elif metrics:
+        serve_metrics(metrics, edges, workers)
     threads = [threading.Thread(target=e.serve_forever, daemon=True, name=e.route.name) for e in edges]
     for t in threads:
         t.start()
-    run_until_signal(lambda: [t.join() for t in threads], lambda: [e.stop() for e in edges])
+
+    def stop():
+        for e in edges:
+            e.stop()
+        if workers:
+            workers.stop()
+    run_until_signal(lambda: [t.join() for t in threads], stop)
     return 0
 
 
@@ -503,6 +521,7 @@ def parser():
     p.add_argument("--fallback-key")
     p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
     p.add_argument("--proxy-protocol", action="store_true", help="send a PROXY v1 header so the upstream sees the client address")
+    p.add_argument("--workers", type=int, default=1, help="processes sharing the listen ports, e.g. one per CPU core (Linux)")
     from .tls.bundles import SERVICES
     p = t.add_parser("bundle", help="nginx, postgres, pgvector or mqtt behind the edge, with certificates and a compose file")
     p.set_defaults(func=cmd_bundle)

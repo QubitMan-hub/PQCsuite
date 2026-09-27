@@ -42,6 +42,7 @@ class CLITest(unittest.TestCase):
         self.assertTrue((self.d / "pki" / "crl.pem").is_file())
         self.assertIn("ca crl", self.fails(*edge, "--cert", self.srv / "chain.pem", "--key", self.srv / "key.pem", "--require-client-cert",
                                            "--ca", self.d / "pki" / "ca.crt", "--crl", self.d / "nope-crl.pem"))
+        self.assertIn("fixed listen port", self.fails(*edge, "--cert", self.srv / "chain.pem", "--key", self.srv / "key.pem", "--workers", "2"))
 
     @unittest.skipIf(REASON, REASON)
     def test_connect_prints_a_reply_that_arrives_in_pieces(self):

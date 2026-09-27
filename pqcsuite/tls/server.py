@@ -62,7 +62,7 @@ class Server:
     """
 
     def __init__(self, address, make_context, handler, watch=(), crl=None, ca=None, max_connections=512,
-                 handshake_timeout=10.0, name="tls"):
+                 handshake_timeout=10.0, name="tls", reuse_port=False):
         self.address, self.make_context, self.handler, self.name = address, make_context, handler, name
         self.ctx = make_context()
         self.watch = {p: os.stat(p).st_mtime for p in watch if p}
@@ -72,7 +72,7 @@ class Server:
         self.stats = Stats()
         self.stopping = threading.Event()
         self.threads = set()
-        self.sock = socket.create_server(address, reuse_port=False, backlog=128)
+        self.sock = socket.create_server(address, reuse_port=reuse_port, backlog=128)
         self.sock.settimeout(1.0)
         self.port = self.sock.getsockname()[1]
 
