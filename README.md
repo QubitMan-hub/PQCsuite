@@ -159,7 +159,7 @@ The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts
 
 - The edge uses one thread per connection (512 by default) and forwards TCP bytes; it does not parse HTTP. One process handles about 500 new TLS connections a second; on Linux, `--workers N` runs N processes on the same port (4 workers on 4 cores: about 1,500 a second, half of nginx with OpenSSL 3.5 on the same machine). Long-lived connections cost little once the handshake is done.
 - One address cannot fill the connection limit with silent sockets: once half the slots are taken, a host with 32 handshakes still unfinished waits. A flood from many addresses can still fill it; put the edge behind a load balancer or firewall that limits connections per source.
-- Revocation uses CRL files; there is no OCSP responder.
+- Revocation uses CRL files; there is no OCSP responder. The CA keeps its index in one JSON file: issuing takes about 6 ms per certificate at 1,000 certificates and 34 ms at 5,000, growing with the index. Fine for thousands of devices; a CA for hundreds of thousands needs a database.
 - Algorithms come from OpenSSL and pyca/cryptography. Nothing here is FIPS 140-3 validated.
 
 ## Roadmap

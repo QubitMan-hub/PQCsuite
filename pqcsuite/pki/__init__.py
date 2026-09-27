@@ -7,7 +7,7 @@ import json
 import os
 import re
 import threading
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 
 from cryptography import x509
@@ -204,7 +204,7 @@ class CA:
         return [Record(**r) for r in json.loads((self.root / "index.json").read_text(encoding="utf-8"))]
 
     def _save(self, records):
-        write(self.root / "index.json", json.dumps([asdict(r) for r in records], indent=1).encode())
+        write(self.root / "index.json", ("[\n" + ",\n".join(json.dumps(vars(r)) for r in records) + "\n]\n").encode())
 
     def find(self, serial):
         serial = serial.lower()
@@ -215,6 +215,12 @@ class CA:
 
     def sign(self, public_key, common_name, kind, names=(), days=397):
         """Issue a leaf certificate for any ML-DSA public key."""
+        cert, algorithm, not_after, names = self._certify(public_key, common_name, kind, names, days)
+        with locked(self.root):
+            rec = self._record(cert, common_name, kind, algorithm, not_after, names)
+        return cert, rec
+
+    def _certify(self, public_key, common_name, kind, names, days):
         if kind not in USAGE:
             raise CAError(f"kind must be one of {', '.join(USAGE)}")
         algorithm = algorithm_of(public_key)
@@ -235,10 +241,7 @@ class CA:
              .add_extension(self.aki(), critical=False))
         if names:
             b = b.add_extension(x509.SubjectAlternativeName(general_names(names)), critical=False)
-        cert = signers.sign(b, self.signer)
-        with locked(self.root):
-            rec = self._record(cert, common_name, kind, algorithm, not_after, names)
-        return cert, rec
+        return signers.sign(b, self.signer), algorithm, not_after, names
 
     def _record(self, cert, common_name, kind, algorithm, not_after, names, path=""):
         rec = Record(serial=format(cert.serial_number, "x"), common_name=common_name, kind=kind,
@@ -254,14 +257,13 @@ class CA:
                 raise CAError(f"{out} already holds a key; choose another --out, or replace it with 'ca renew SERIAL --out {out}'")
             key = generate(algorithm)
             names = list(dict.fromkeys(([common_name] if kind != "client" else []) + list(names)))
-            cert, rec = self.sign(key.public_key(), common_name, kind, names, days)
+            cert, algorithm, not_after, names = self._certify(key.public_key(), common_name, kind, names, days)
             safe = re.sub(r"[^\w.-]", "_", common_name)
-            out = Path(out or self.root / "issued" / f"{safe}-{rec.serial[:8]}")
+            out = Path(out or self.root / "issued" / f"{safe}-{format(cert.serial_number, 'x')[:8]}")
             write(out / "key.pem", key_pem(key, passphrase), secret=True)
             write(out / "cert.pem", cert_pem(cert))
             write(out / "chain.pem", cert_pem(cert) + self.chain())
-            rec.path = str(out.resolve())
-            self._save([rec if r.serial == rec.serial else r for r in self.records()])
+            rec = self._record(cert, common_name, kind, algorithm, not_after, names, str(out.resolve()))
         return out, rec
 
     def sign_csr(self, csr_pem, kind, days=397):
