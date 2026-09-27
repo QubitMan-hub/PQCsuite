@@ -159,6 +159,20 @@ class TLSTest(unittest.TestCase):
             self.assertEqual(raw.recv(10), b"")
         self.assertEqual(s.stats.snapshot()["handshake_failed"], 1)
 
+    def test_one_host_opening_silent_sockets_cannot_lock_others_out(self):
+        make = lambda: tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", key_passphrase=b"server-pass")
+        s = Server(("127.0.0.1", 0), make, echo, max_connections=32, handshake_timeout=10)
+        s.start()
+        self.addCleanup(s.stop, 1)
+        silent = []
+        for _ in range(64):
+            c = socket.create_connection(("127.0.0.1", s.port), source_address=("127.0.0.2", 0))
+            self.addCleanup(c.close)
+            silent.append(c)
+        time.sleep(0.5)
+        self.assertEqual(self.roundtrip(s.port, self.client())[1], b"ping")
+        self.assertGreater(s.stats.snapshot()["refused_host"], 0)
+
     def test_renewed_certificate_is_picked_up_without_restart(self):
         d = Path(self.tmp.name) / "hot"
         _, rec = self.ca.issue("localhost", "server", out=d)

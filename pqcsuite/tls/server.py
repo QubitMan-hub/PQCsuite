@@ -68,6 +68,8 @@ class Server:
         self.watch = {p: os.stat(p).st_mtime for p in watch if p}
         self.revocation = Revocation(crl, ca) if crl else None
         self.slots = threading.BoundedSemaphore(max_connections)
+        self.max_connections, self.per_host = max_connections, max(8, max_connections // 16)
+        self.lock, self.handshaking = threading.Lock(), Counter()
         self.handshake_timeout = handshake_timeout
         self.stats = Stats()
         self.stopping = threading.Event()
@@ -116,9 +118,30 @@ class Server:
                 log.warning("%s: refusing %s, connection limit reached", self.name, addr[0])
                 sock.close()
                 continue
+            if not self._admit(addr[0]):
+                self.slots.release()
+                self.stats.add("refused_host")
+                log.warning("%s: refusing %s, too many unfinished handshakes from it", self.name, addr[0])
+                sock.close()
+                continue
             t = threading.Thread(target=self._run, args=(sock, addr, self.ctx), daemon=True)
             self.threads.add(t)
             t.start()
+
+    def _admit(self, host):
+        """Once half the connections are taken, a host with `per_host` handshakes still unfinished waits, so one machine
+        opening sockets and sending nothing cannot lock everyone else out."""
+        with self.lock:
+            if self.handshaking[host] >= self.per_host and len(self.threads) >= self.max_connections // 2:
+                return False
+            self.handshaking[host] += 1
+            return True
+
+    def _handshake_over(self, host):
+        with self.lock:
+            self.handshaking[host] -= 1
+            if not self.handshaking[host]:
+                del self.handshaking[host]
 
     def _run(self, sock, addr, ctx):
         peer = f"{addr[0]}:{addr[1]}"
@@ -138,6 +161,8 @@ class Server:
                 hint = next((h for k, h in HINTS.items() if k in str(e)), "")
                 log.warning("%s: rejected %s: %s%s", self.name, peer, e, hint)
                 return
+            finally:
+                self._handshake_over(addr[0])
             info = conn.info()
             with self.stats.lock:
                 self.stats.counts["handshakes"] += 1
