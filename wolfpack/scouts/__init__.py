@@ -11,7 +11,7 @@ SKIP_DIRS = {".git", ".hg", ".svn", "node_modules", "vendor", "venv", ".venv", "
              "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "wolfpack-out"}
 TEST_PARTS = {"test", "tests", "spec", "specs", "__tests__", "testdata", "test_data", "fixtures", "mocks", "examples", "example", "samples", "sample", "demo",
               "bench", "benches", "benchmark", "benchmarks", "browsertest", "test-classes"}
-TEST_DIR = re.compile(r"(?:^|[._-])(?:unit|integration|functional)?tests?(?:net\d+|core)?$")
+TEST_DIR = re.compile(r"(?:^|[._-])(?:unit|integration|functional|i)?tests?(?:net\d+|core)?$")
 BUILD_DIRS = {"dist", "build", "target", "bin", "obj"}
 MAX_BYTES = 2_000_000
 DENY = re.compile(r"disabl|disallow|deny|denied|block|forbid|reject|insecure|weak|deprecat|legacy_only|exclude|blacklist", re.I)

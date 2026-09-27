@@ -245,9 +245,9 @@ class Probe(unittest.TestCase):
 class Scope(unittest.TestCase):
     def test_test_and_benchmark_directories(self):
         from wolfpack.scouts import is_test
-        for p in ("UnitTestsNet46/jwk/JwkTest.cs", "src/Jose.Tests/A.cs", "benches/x25519.rs", "browserTest/perf.js", "tests/a.py"):
+        for p in ("UnitTestsNet46/jwk/JwkTest.cs", "src/Jose.Tests/A.cs", "benches/x25519.rs", "browserTest/perf.js", "tests/a.py", "src/itest/resources/id_ecdsa"):
             self.assertTrue(is_test(p), p)
-        for p in ("src/contests/a.py", "src/attestation/a.py", "latest/a.go", "src/jwt/a.py"):
+        for p in ("src/contests/a.py", "src/attestation/a.py", "latest/a.go", "src/jwt/a.py", "src/digest/a.java", "wittest/a.py"):
             self.assertFalse(is_test(p), p)
 
 
