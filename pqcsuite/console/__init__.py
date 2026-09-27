@@ -77,8 +77,11 @@ class App:
         for url in self.s.edges:
             try:
                 with NO_PROXY.open(url.rstrip("/") + "/status", timeout=3) as r:
-                    out += [{"source": url, "name": k, **v} for k, v in json.loads(r.read()).items()]
-            except OSError as e:
+                    status = json.loads(r.read())
+                if not (isinstance(status, dict) and all(isinstance(v, dict) for v in status.values())):
+                    raise ValueError("this address does not answer like an edge's /status")
+                out += [{"source": url, "name": k, **v} for k, v in status.items()]
+            except (OSError, ValueError) as e:
                 out.append({"source": url, "error": str(e)})
         return out
 
@@ -173,6 +176,9 @@ class App:
             return 400, {"error": f"missing field {e.args[0]}"}
         except (CAError, ValueError, OSError) as e:
             return 400, {"error": str(e)}
+        except Exception:
+            log.exception("%s %s failed", method, path)
+            return 500, {"error": "internal error; the details are in the console's log"}
 
     def issue(self, b):
         kind, cn = b["kind"], str(b["common_name"]).strip()

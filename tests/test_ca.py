@@ -96,6 +96,37 @@ class CATest(unittest.TestCase):
         self.assertNotEqual((out1 / "key.pem").read_bytes(), (out2 / "key.pem").read_bytes())
         self.assertEqual({r.common_name for r in self.ca.expiring(within_days=400)}, {"svc"})
 
+    def test_concurrent_renewals_leave_a_matching_key_and_certificate(self):
+        from concurrent.futures import ThreadPoolExecutor
+        spki = lambda k: k.public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+        out, rec = self.ca.issue("edge.local", "server", days=10, out=Path(self.tmp.name) / "edge")
+        for _ in range(5):
+            with ThreadPoolExecutor(6) as pool:
+                list(pool.map(lambda _: self.ca.renew(rec.serial, out=out), range(6)))
+            cert = x509.load_pem_x509_certificate((out / "cert.pem").read_bytes())
+            key = serialization.load_pem_private_key((out / "key.pem").read_bytes(), None)
+            self.assertEqual(spki(cert.public_key()), spki(key.public_key()))
+            self.assertEqual((out / "chain.pem").read_bytes().split(b"-----END")[0], (out / "cert.pem").read_bytes().split(b"-----END")[0])
+        self.ca.issue("soon.local", "server", days=10, out=Path(self.tmp.name) / "soon")
+        with ThreadPoolExecutor(4) as pool:
+            renewed = sum(len(r[0]) for r in pool.map(lambda _: self.ca.maintain(renew_within=30), range(4)))
+        self.assertEqual(renewed, 1)
+
+    def test_signature_checks_say_no_or_explain_but_never_hide_errors(self):
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from pqcsuite.pki import signed_by
+        cert = self.ca.cert
+        self.assertTrue(signed_by(cert, cert.tbs_certificate_bytes, cert.signature))
+        self.assertFalse(signed_by(cert, cert.tbs_certificate_bytes, b"\0" * len(cert.signature)))
+        self.assertFalse(signed_by(cert, b"other bytes", cert.signature))
+        key = ec.generate_private_key(ec.SECP256R1())
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Classical Root")])
+        classical = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key()).serial_number(1)
+                     .not_valid_before(dt.datetime(2026, 1, 1)).not_valid_after(dt.datetime(2027, 1, 1)).sign(key, hashes.SHA256()))
+        with self.assertRaisesRegex(CAError, "classical key"):
+            signed_by(classical, cert.tbs_certificate_bytes, cert.signature)
+
     def test_maintain_renews_in_place_and_refreshes_the_crl(self):
         out, soon = self.ca.issue("edge.local", "server", days=10, out=Path(self.tmp.name) / "edge")
         self.ca.issue("far.local", "server", days=300)

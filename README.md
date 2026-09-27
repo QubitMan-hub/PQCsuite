@@ -32,7 +32,7 @@ The CA and Vault work everywhere. TLS and the VPN key agreement need **OpenSSL 3
 ## TLS 1.3 + mTLS
 
 ```
-pqcsuite ca init --name "Acme PQC Root" --encrypt              # ML-DSA-87 root
+pqcsuite ca init --name "Acme PQC Root" --encrypt              # ML-DSA-87 root; scripts set PQCSUITE_CA_PASSPHRASE
 pqcsuite ca issue server app.acme.example --out certs/edge
 pqcsuite tls edge --target 127.0.0.1:8080 --cert certs/edge/chain.pem --key certs/edge/key.pem --metrics 127.0.0.1:9100
 ```
@@ -93,13 +93,13 @@ Each user keeps one address from the pool. Revoking a user removes them within 1
 ## Vault
 
 ```
-pqcsuite vault keygen ops                        # ops.key (secret) + ops.pub; --cnsa2 for ML-KEM-1024 + P-384
+pqcsuite vault keygen ops                        # ops.key (secret) + ops.pub; scripts add --passphrase-env VAR
 pqcsuite vault backup /var/lib/app --to /backups -r ops.pub --sign-cert bot/cert.pem --sign-key bot/key.pem --keep 14
 pqcsuite vault decrypt /backups/app-20260925T161150Z.pqv --key ops.key -o /restore --ca pki/ca.crt --signer backup-bot
 pqcsuite vault share file.pqv --key ops.key -r new-admin.pub
 ```
 
-- **Encryption:** the file key is wrapped per recipient with X25519 + ML-KEM-768; the data is AES-256-GCM in 1 MiB chunks.
+- **Encryption:** the file key is wrapped per recipient with X25519 + ML-KEM-768 (`keygen --cnsa2`: P-384 + ML-KEM-1024); the data is AES-256-GCM in 1 MiB chunks.
 - **Integrity:** modifying, reordering or truncating anything is detected before anything is written. Folders restore with Python's safe `data` filter.
 - **Signatures:** ML-DSA certificates from the CA. Restore can require the signer to chain to the CA, not be revoked, and have a given name.
 - **Sharing:** `share` adds recipients without re-encrypting the data.
@@ -142,9 +142,10 @@ Pages: overview, TLS 1.3 edges, mTLS certificates (issue, revoke, renew), IPsec 
 python examples/clinic_demo.py          # pauses before each step
 python examples/clinic_demo.py --auto   # runs straight through and checks every result
 python examples/bank_demo.py            # the same for a bank; ends with the console open
+sudo python examples/vpn_demo.py        # a branch over IPsec and a laptop over WireGuard, on one Linux machine
 ```
 
-A clinic's patient portal, old records server, a doctor's laptop and nightly backups, in about a minute: readiness grades, Wolf Pack on the clinic's code (when `wolfpack` is installed), the portal behind post-quantum mutual TLS, a stolen laptop cut off, a signed Vault backup, a tampered backup refused, and the evidence report. `bank_demo.py` tells the story for a bank: a partner payment API behind post-quantum mutual TLS, a card switch's line protocol tunnelled unchanged, 3DES and RSA-1024 found in legacy code, a compromised branch cut off, a statement archive shared with an auditor and protected against edits. CI runs both on every change.
+A clinic's patient portal, old records server, a doctor's laptop and nightly backups, in about a minute: readiness grades, Wolf Pack on the clinic's code (when `wolfpack` is installed), the portal behind post-quantum mutual TLS, a stolen laptop cut off, a signed Vault backup, a tampered backup refused, and the evidence report. `bank_demo.py` tells the story for a bank: a partner payment API behind post-quantum mutual TLS, a card switch's line protocol tunnelled unchanged, 3DES and RSA-1024 found in legacy code, a compromised branch cut off, a statement archive shared with an auditor and protected against edits. `vpn_demo.py` builds headquarters, a branch and a laptop in network namespaces: the branch joins over IPsec with X25519 + ML-KEM-768 and a post-quantum PPK, the laptop over WireGuard with a key agreed over ML-DSA mutual TLS, and revoking either certificate cuts it off (it needs root, and strongSwan 6.0.2+ or WireGuard). CI runs all three on every change.
 
 ## Tests
 

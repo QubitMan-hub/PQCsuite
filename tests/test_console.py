@@ -66,6 +66,33 @@ class ConsoleTest(unittest.TestCase):
         actions = [json.loads(l)["action"] for l in (self.d / "audit.jsonl").read_text().splitlines()]
         self.assertEqual(actions, ["issue", "revoke"])
 
+    def test_a_broken_edge_or_bug_is_an_answer_not_a_dropped_connection(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+        class Odd(BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = json.dumps({"edge1": "not-a-dict"} if self.path.startswith("/a") else [1, 2]).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+        odd = ThreadingHTTPServer(("127.0.0.1", 0), Odd)
+        threading.Thread(target=odd.serve_forever, daemon=True).start()
+        self.addCleanup(odd.server_close)
+        self.addCleanup(odd.shutdown)
+        port = odd.server_address[1]
+        self.app.s.edges = [f"http://127.0.0.1:{port}/a", f"http://127.0.0.1:{port}/b"]
+        _, _, edges = self.call("/api/edges")
+        self.assertEqual([("error" in e) for e in edges], [True, True])
+        self.app.backups = lambda: 1 / 0
+        with self.assertRaises(urllib.error.HTTPError) as e:
+            self.call("/api/backups")
+        self.assertEqual(e.exception.code, 500)
+        self.assertIn("console's log", json.loads(e.exception.read())["error"])
+
     def test_bad_requests_are_explained(self):
         with self.assertRaises(urllib.error.HTTPError) as e:
             self.call("/api/certificates/issue", {"kind": "admin", "common_name": "x"})

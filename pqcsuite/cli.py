@@ -17,6 +17,16 @@ from .vpn.charon import CharonError
 CA_PASS_ENV = "PQCSUITE_CA_PASSPHRASE"
 
 
+def ask(prompt, instead):
+    """A passphrase typed at the terminal; without one (a pipe, a service, CI) a clear error naming the alternative."""
+    try:
+        if not sys.stdin.isatty():
+            raise EOFError
+        return getpass.getpass(prompt).encode()
+    except EOFError:
+        raise ValueError(f"no terminal to type the passphrase in: {instead}") from None
+
+
 def ca_passphrase(root, new=False):
     """From PQCSUITE_CA_PASSPHRASE or a prompt, and only when the CA key is (or will be) encrypted."""
     key = Path(root) / "ca.key"
@@ -25,11 +35,11 @@ def ca_passphrase(root, new=False):
     if os.environ.get(CA_PASS_ENV):
         return os.environ[CA_PASS_ENV].encode()
     if not new:
-        return getpass.getpass("CA passphrase: ").encode()
-    p1, p2 = getpass.getpass("New CA passphrase: "), getpass.getpass("Repeat: ")
+        return ask("CA passphrase: ", f"set {CA_PASS_ENV}")
+    p1, p2 = ask("New CA passphrase: ", f"set {CA_PASS_ENV}"), ask("Repeat: ", f"set {CA_PASS_ENV}")
     if p1 != p2:
         raise CAError("the passphrases do not match")
-    return p1.encode()
+    return p1
 
 
 def env_passphrase(var):
@@ -71,7 +81,7 @@ def cmd_ca(a):
             key = Path(a.parent) / "ca.key"
             pw = None
             if key.exists() and b"ENCRYPTED" in key.read_bytes()[:64]:
-                pw = (os.environ.get("PQCSUITE_PARENT_CA_PASSPHRASE") or getpass.getpass("Parent CA passphrase: ")).encode()
+                pw = os.environ.get("PQCSUITE_PARENT_CA_PASSPHRASE", "").encode() or ask("Parent CA passphrase: ", "set PQCSUITE_PARENT_CA_PASSPHRASE")
             parent = CA(a.parent, pw)
         if a.signer_command and not a.signer_public_key:
             raise CAError("--signer-command needs --signer-public-key")
@@ -242,6 +252,8 @@ def cmd_vpn(a):
     tunnels = ch.tunnels()
     if a.json:
         print(json.dumps(tunnels, indent=1))
+    elif not tunnels:
+        print("no tunnels")
     for t in [] if a.json else tunnels:
         print(f"{t['peer']:16} {t['state']:12} {t['key_exchange']:32} PPK {'yes' if t['ppk'] else 'NO '}  up {t['established_s']}s")
         for c in t["children"]:
@@ -292,7 +304,7 @@ def cmd_vault(a):
     def passphrase():
         if a.passphrase_env:
             return env_passphrase(a.passphrase_env)
-        return getpass.getpass("Key passphrase: ").encode() if b"ENCRYPTED" in Path(a.key).read_bytes()[:64] else None
+        return ask("Key passphrase: ", "pass --passphrase-env VARIABLE") if b"ENCRYPTED" in Path(a.key).read_bytes()[:64] else None
 
     signer = lambda: vault.load_signer(a.sign_cert, a.sign_key, env_passphrase(a.sign_passphrase_env)) if a.sign_cert else None
     if a.vault_cmd == "keygen":
@@ -302,8 +314,9 @@ def cmd_vault(a):
         ident = vault.Identity.generate(a.cnsa2)
         pw = env_passphrase(a.passphrase_env) if a.passphrase_env else None
         if not pw and not a.no_passphrase:
-            pw = getpass.getpass("Passphrase for the new key: ").encode()
-            if getpass.getpass("Repeat: ").encode() != pw:
+            instead = "pass --passphrase-env VARIABLE, or --no-passphrase"
+            pw = ask("Passphrase for the new key: ", instead)
+            if ask("Repeat: ", instead) != pw:
                 raise VaultError("the passphrases do not match")
         ident.save(f"{a.out}.key", pw)
         Path(f"{a.out}.pub").write_bytes(ident.public.pem())

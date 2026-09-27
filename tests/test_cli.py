@@ -86,6 +86,15 @@ class CLITest(unittest.TestCase):
         for bad in (":443", "bank.example:https"):
             self.assertRaises(ValueError, endpoint, bad)
 
+    def test_passphrase_prompts_without_a_terminal_say_what_to_do(self):
+        from unittest import mock
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.d)
+        with mock.patch("sys.stdin", io.StringIO("")):
+            self.assertIn("--no-passphrase", self.fails("vault", "keygen", "ops"))
+            self.assertIn("PQCSUITE_CA_PASSPHRASE", self.fails("ca", "init", "--name", "T", "--encrypt", "--dir", "ca2"))
+        self.assertFalse((self.d / "ops.key").exists() or (self.d / "ca2" / "ca.crt").exists())
+
     def test_config_files_name_what_is_missing_or_wrong(self):
         cfg = self.d / "c.toml"
         cfg.write_text('[[edge]]\nname = "a"\nlisten = "127.0.0.1:0"\n')

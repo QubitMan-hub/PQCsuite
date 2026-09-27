@@ -11,7 +11,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from cryptography import x509
-from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import mldsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
@@ -102,11 +102,15 @@ def cert_pem(cert):
 def write(path, data, secret=False):
     """Write atomically; secret files are created owner-only."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0), 0o600 if secret else 0o644)
-    with os.fdopen(fd, "wb") as f:
-        f.write(data)
-    os.replace(tmp, path)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 HOSTNAME = re.compile(r"(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?", re.I)
@@ -244,19 +248,19 @@ class CA:
 
     def issue(self, common_name, kind, names=(), days=397, algorithm="ML-DSA-65", out=None, passphrase=None, replace=False):
         """Generate a key pair and certificate; writes cert.pem, key.pem and chain.pem to `out`, which must not hold a key yet
-        unless `replace` (renewal in place)."""
-        if out and not replace and (Path(out) / "key.pem").exists():
-            raise CAError(f"{out} already holds a key; choose another --out, or replace it with 'ca renew SERIAL --out {out}'")
-        key = generate(algorithm)
-        names = list(dict.fromkeys(([common_name] if kind != "client" else []) + list(names)))
-        cert, rec = self.sign(key.public_key(), common_name, kind, names, days)
-        safe = re.sub(r"[^\w.-]", "_", common_name)
-        out = Path(out or self.root / "issued" / f"{safe}-{rec.serial[:8]}")
-        write(out / "key.pem", key_pem(key, passphrase), secret=True)
-        write(out / "cert.pem", cert_pem(cert))
-        write(out / "chain.pem", cert_pem(cert) + self.chain())
-        rec.path = str(out.resolve())
+        unless `replace` (renewal in place). Holds the CA lock throughout, so two renewals of one folder cannot mix their files."""
         with locked(self.root):
+            if out and not replace and (Path(out) / "key.pem").exists():
+                raise CAError(f"{out} already holds a key; choose another --out, or replace it with 'ca renew SERIAL --out {out}'")
+            key = generate(algorithm)
+            names = list(dict.fromkeys(([common_name] if kind != "client" else []) + list(names)))
+            cert, rec = self.sign(key.public_key(), common_name, kind, names, days)
+            safe = re.sub(r"[^\w.-]", "_", common_name)
+            out = Path(out or self.root / "issued" / f"{safe}-{rec.serial[:8]}")
+            write(out / "key.pem", key_pem(key, passphrase), secret=True)
+            write(out / "cert.pem", cert_pem(cert))
+            write(out / "chain.pem", cert_pem(cert) + self.chain())
+            rec.path = str(out.resolve())
             self._save([rec if r.serial == rec.serial else r for r in self.records()])
         return out, rec
 
@@ -320,6 +324,10 @@ class CA:
     def maintain(self, renew_within=30, crl_days=7, algorithm="ML-DSA-65"):
         """Re-sign the CRL, and renew certificates expiring within `renew_within` days into the folder they were issued to, where
         edges and VPN gateways pick them up without a restart. Run it daily. Encrypted leaf keys are reported, not renewed."""
+        with locked(self.root):
+            return self._maintain(renew_within, crl_days, algorithm)
+
+    def _maintain(self, renew_within, crl_days, algorithm):
         newest = {}
         for r in self.records():
             if r.status == "valid" and r.kind != "ca" and r.path and (r.path not in newest or r.not_after > newest[r.path].not_after):
@@ -352,8 +360,11 @@ def signed_by(issuer, tbs, signature):
         return True
     except UnsupportedAlgorithm:
         return signers.verify(_spki(issuer), tbs, signature)
-    except Exception:
+    except InvalidSignature:
         return False
+    except TypeError:
+        raise CAError(f"{issuer.subject.rfc4514_string()} has a classical key; certificates and CRLs here are signed with ML-DSA or "
+                      "SLH-DSA, so it cannot be their issuer") from None
 
 
 def check_revocation(serial, crl_pem, ca_certs):
