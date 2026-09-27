@@ -72,6 +72,8 @@ jobs:
           sudo modprobe wireguard || true
           sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib python -m unittest tests.test_wireguard -v 2>&1 | tee wg.log
           grep -q "test_traffic_rotation_and_revocation .* ok" wg.log
+      - name: VPN demo (branch over IPsec, laptop over WireGuard)
+        run: sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib PQCSUITE_STRONGSWAN=/opt/pqc python examples/vpn_demo.py --auto
   kubernetes:
     runs-on: ubuntu-24.04
     steps:
