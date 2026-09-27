@@ -65,6 +65,18 @@ class TLSTest(unittest.TestCase):
             c.sendall(b"ping")
             return c.info(), c.recv(timeout=3)
 
+    def test_a_client_without_post_quantum_support_gets_an_actionable_log_line(self):
+        from pqcsuite.tls.openssl import Context
+        s = self.server()
+        classical = Context(False, "X25519:secp256r1", None, tls.CIPHERSUITES, None, None, None, False)
+        with self.assertLogs("pqcsuite", "WARNING") as logs:
+            with self.assertRaises(tls.TLSError):
+                tls.connect("127.0.0.1", s.port, classical, "localhost", timeout=3)
+            deadline = time.monotonic() + 3
+            while not any("post-quantum key exchange" in m for m in logs.output) and time.monotonic() < deadline:
+                time.sleep(0.05)
+        self.assertTrue(any("use policy transition" in m for m in logs.output), logs.output)
+
     def test_pqc_handshake_and_data(self):
         s = self.server()
         info, reply = self.roundtrip(s.port, self.client())

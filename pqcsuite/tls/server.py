@@ -14,6 +14,13 @@ from .openssl import TLSError
 log = logging.getLogger("pqcsuite.tls")
 
 
+HINTS = {  # OpenSSL's words for the two ways a client without post-quantum support is refused
+    "no shared signature algorithms": " (the client cannot verify ML-DSA certificates, as browsers today: use policy transition with a "
+                                      "fallback certificate)",
+    "no suitable key share": " (the client offers no post-quantum key exchange: update it, or use policy transition)",
+}
+
+
 class Revocation:
     """Checks client certificates against a CRL file, re-reading it whenever it changes. Fails closed."""
 
@@ -128,8 +135,7 @@ class Server:
                     log.info("%s: %s closed the connection during the handshake", self.name, peer)
                     return
                 self.stats.add("handshake_failed")
-                hint = (" (the client cannot verify ML-DSA certificates, as browsers today: use policy transition with a fallback "
-                        "certificate)") if "no suitable signature algorithm" in str(e) else ""
+                hint = next((h for k, h in HINTS.items() if k in str(e)), "")
                 log.warning("%s: rejected %s: %s%s", self.name, peer, e, hint)
                 return
             info = conn.info()
