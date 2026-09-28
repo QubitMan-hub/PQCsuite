@@ -35,7 +35,17 @@ log = logging.getLogger("pqcsuite.acme")
 ERR = "urn:ietf:params:acme:error:"
 CURVES = {"P-256": (ec.SECP256R1(), hashes.SHA256(), "ES256"), "P-384": (ec.SECP384R1(), hashes.SHA384(), "ES384"),
           "P-521": (ec.SECP521R1(), hashes.SHA512(), "ES512")}
-NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """http-01 validation talks only to the identifier's own host and port: a redirect would let a client make this server
+    probe other (internal) addresses and read the answer from the error."""
+
+    def redirect_request(self, *args):
+        return None
+
+
+FETCH = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
 REASONS = {0: "unspecified", 1: "keyCompromise", 3: "affiliationChanged", 4: "superseded", 5: "cessationOfOperation"}
 
 
@@ -141,7 +151,10 @@ class Service:
             jws = json.loads(body)
             protected = json.loads(unb64u(jws["protected"]))
             alg, sig = protected["alg"], unb64u(jws["signature"])
-        except (ValueError, KeyError, TypeError):
+            if not (isinstance(protected, dict) and isinstance(protected.get("kid", ""), str) and isinstance(protected.get("jwk", {}), dict)
+                    and isinstance(jws.get("payload", ""), str)):
+                raise TypeError
+        except (ValueError, KeyError, TypeError, AttributeError):
             raise Problem("malformed", "the body must be a flattened JWS") from None
         with self.lock:
             if self.nonces.pop(protected.get("nonce"), None) is None:
@@ -165,7 +178,12 @@ class Service:
         if alg not in algs:
             raise Problem("badSignatureAlgorithm", f"use {', '.join(sorted(algs))} with this key")
         verify(key, alg, f"{jws['protected']}.{jws.get('payload', '')}".encode(), sig)
-        payload = json.loads(unb64u(jws["payload"])) if jws.get("payload") else None
+        try:
+            payload = json.loads(unb64u(jws["payload"])) if jws.get("payload") else None
+        except ValueError:
+            raise Problem("malformed", "the payload is not JSON") from None
+        if payload is not None and not isinstance(payload, dict):
+            raise Problem("malformed", "the payload must be a JSON object")
         return payload, account, jwk
 
     def handle(self, method, path, body):
@@ -252,9 +270,9 @@ class Service:
         return not self.allow or any(fnmatch.fnmatch(value, pat) for pat in self.allow)
 
     def new_order(self, p, account):
-        ids = p.get("identifiers") or []
-        if not ids or len(ids) > 100:
-            raise Problem("malformed", "an order needs 1 to 100 identifiers")
+        ids = p.get("identifiers")
+        if not (isinstance(ids, list) and 1 <= len(ids) <= 100 and all(isinstance(i, dict) for i in ids)):
+            raise Problem("malformed", "an order needs a list of 1 to 100 identifiers")
         clean = []
         for i in ids:
             t, v = i.get("type"), str(i.get("value", "")).lower().rstrip(".")
@@ -351,7 +369,7 @@ class Service:
         host = f"[{host}]" if ":" in host else host
         url = f"http://{host}:{self.http_port}/.well-known/acme-challenge/{a['token']}"
         try:
-            with NO_PROXY.open(url, timeout=10) as r:
+            with FETCH.open(url, timeout=10) as r:
                 got = r.read(4096).decode(errors="replace").strip()
             ok, detail = got == key_authz, f"{url} answered something else"
         except OSError as e:
@@ -412,7 +430,7 @@ class Service:
         if not any(c["serial"] == serial and c["account"] == account for c in self.state["certs"].values()):
             raise Problem("unauthorized", "this account did not order that certificate", 403)
         reason = p.get("reason", 0)
-        if reason not in REASONS:
+        if not isinstance(reason, int) or reason not in REASONS:
             raise Problem("badRevocationReason", f"reason must be one of {sorted(REASONS)}")
         try:
             self.ca.revoke(serial, REASONS[reason])

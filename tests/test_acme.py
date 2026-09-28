@@ -196,5 +196,43 @@ class ACMETest(unittest.TestCase):
         leaf.verify_directly_issued_by(self.ca.cert)
 
 
+
+class Redirect(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(302)
+        self.send_header("Location", "http://127.0.0.1:1/internal")
+        self.end_headers()
+
+    def log_message(self, *a):
+        pass
+
+
+class ValidationTest(unittest.TestCase):
+    def test_http01_does_not_follow_redirects_to_other_addresses(self):
+        with tempfile.TemporaryDirectory() as d:
+            web = start(ThreadingHTTPServer(("127.0.0.1", 0), Redirect), self)
+            svc = Service(CA.init(Path(d) / "pki", "R"), "http://acme", http_port=web, validate_async=False)
+            svc.state["authz"]["z"] = {"account": "a", "identifier": {"type": "ip", "value": "127.0.0.1"}, "status": "pending",
+                                       "token": "t", "challenge_status": "pending", "error": None, "validated": None}
+            svc.validate("z", "t.tp")
+            detail = svc.state["authz"]["z"]["error"]["detail"]
+        self.assertIn("302", detail)
+        self.assertNotIn("refused", detail)
+
+    def test_wrong_json_types_are_malformed_requests_not_crashes(self):
+        from pqcsuite.pki.acme import Problem
+        with tempfile.TemporaryDirectory() as d:
+            svc = Service(CA.init(Path(d) / "pki", "R"), "http://acme")
+            for prot in ({"kid": 5}, {"jwk": "x"}, ["x"]):
+                prot = prot if isinstance(prot, list) else {"alg": "ES256", "nonce": svc.nonce(), "url": "http://acme/new-order", **prot}
+                body = json.dumps({"protected": b64u(json.dumps(prot).encode()), "payload": "", "signature": "AA"}).encode()
+                with self.assertRaises(Problem) as e:
+                    svc.handle("POST", "/new-order", body)
+                self.assertEqual(e.exception.kind, "malformed")
+            for ids in (["x"], 1, [None], None):
+                with self.assertRaisesRegex(Problem, "list of 1 to 100"):
+                    svc.new_order({"identifiers": ids}, "acct")
+
+
 if __name__ == "__main__":
     unittest.main()
