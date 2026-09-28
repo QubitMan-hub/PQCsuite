@@ -29,6 +29,7 @@ class Roles:
     siblings: bool = True
     recognition: bool = True
     purpose: bool = True
+    trust_store: bool = True
     trails: bool = True
 
     @classmethod
@@ -142,12 +143,16 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
         held = alpha.recognise(sightings, lines) if roles.recognition else 0
     else:
         sightings, looks, held = den.admit_all(h.sightings), dict.fromkeys(alpha.LOOKS, 0), 0
+    stores = alpha.trust_stores(h.artifacts) if roles.trust_store else {}
+    for s in sightings:
+        if s.file in stores:
+            s.context.add("trust-store")
     assets = alpha.lead(den.assets(sightings), horizon, roles.purpose)
     if baseline:
         seen = load_baseline(baseline)
         for a in assets:
             a.new_files = sorted({s.file.split("!")[0] for s in a.sightings if (a.variant, s.file.split("!")[0]) not in seen})
-    al = alpha.alerts(h.artifacts, h.libraries, sightings)
+    al = alpha.alerts(h.artifacts, h.libraries, sightings, stores)
     verdicts = Counter(s.verdict for s in sightings)
     stats = {"files_code": h.files["source"], "files_config": h.files["config"], "files_artifacts": h.files["artifacts"], "files_binary": h.files["binary"],
              "libraries": len(h.libraries), "endpoints": len(h.endpoints), "raw_sightings": len(h.sightings),

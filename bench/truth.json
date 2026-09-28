@@ -85,6 +85,16 @@
   "certs/signing.key": [
     "ECC"
   ],
+  "certs/roots.pem": [
+    "RSA",
+    "ECC",
+    "ECDSA",
+    "SHA-256"
+  ],
+  "certs/chain.pem": [
+    "RSA",
+    "SHA-256"
+  ],
   "java/Hasher.java": [
     "SHA-1"
   ],

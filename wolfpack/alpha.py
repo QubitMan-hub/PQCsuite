@@ -200,6 +200,14 @@ def declared_non_security(a):
     return all(s.params.get("purpose") == "non-security" for s in a.sightings)
 
 
+def trust_stores(arts, least=5):
+    """Files of five or more certificates, every one self-signed, and nothing else: roots the project trusts, not keys it holds."""
+    by = defaultdict(list)
+    for a in arts:
+        by[a.file].append(a)
+    return {f: g for f, g in by.items() if "://" not in f and len(g) >= least and all(a.kind == "certificate" and a.details.get("self_signed") for a in g)}
+
+
 def assess(a, h, hybrid_files, purpose=True):
     c = CATALOG[a.algo]
     bits = classical_bits(a.algo, a.params)
@@ -264,6 +272,10 @@ def assess(a, h, hybrid_files, purpose=True):
         tier = "low"
         a.why = "Declared not for security (usedforsecurity=False), so a checksum or cache key; this is the developer's statement, not verified"
         a.action = "Keep it out of passwords, signatures and integrity checks"
+    if tier in ("critical", "high", "medium") and all("trust-store" in s.context for s in a.sightings):
+        tier = "low"
+        a.why = "Root certificates in a trust store: keys the project trusts, not keys it holds"
+        a.action = "Update the bundle; post-quantum roots arrive with CA updates"
     if a.test_only and tier in ("critical", "high", "medium"):
         tier = TIERS[TIERS.index(tier) + 1]
         a.why += " (test code only)"
@@ -272,10 +284,14 @@ def assess(a, h, hybrid_files, purpose=True):
     return a
 
 
-def alerts(arts, libs, sightings):
-    out = []
+def alerts(arts, libs, sightings, stores=None):
+    out, stores = [], stores or {}
     now = datetime.now(timezone.utc)
+    for f, g in stores.items():
+        out.append(("info", f"Trust store of {len(g)} root certificates ({summary(g)}); ranked low", f"{f}:1", "Keep the bundle up to date"))
     for art in arts:
+        if art.file in stores:
+            continue
         test = any("test" in s.context for s in sightings if s.file == art.file)
         if art.kind == "private-key" and not art.file.startswith("tls://"):
             sev = "high" if test else "critical"
@@ -296,6 +312,13 @@ def alerts(arts, libs, sightings):
         if not lib.used_in:
             out.append(("info", f"{lib.name} is declared but no import was found", f"{lib.manifest}:{lib.line}", "Remove it or confirm indirect use"))
     return sorted(out, key=lambda x: (TIERS + ["info"]).index(x[0]))
+
+
+def summary(g):
+    n = defaultdict(int)
+    for a in g:
+        n[a.algo] += 1
+    return ", ".join(f"{v} {k}" for k, v in sorted(n.items(), key=lambda x: -x[1]))
 
 
 def readiness(assets):

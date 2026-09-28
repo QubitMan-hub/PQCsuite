@@ -153,6 +153,8 @@ def build(project, assets, arts, libs, endpoints=()):
 
 
 LEVEL = {"critical": "error", "high": "error", "medium": "warning", "low": "note"}
+QUIET = {"non-security": "declared not for security here (usedforsecurity=False): fine as a checksum; keep it out of passwords and signatures",
+         "trust-store": "a root certificate in a trust store: trusted, not held; it changes when the bundle is updated"}
 
 
 def sarif(assets, alerts):
@@ -166,10 +168,9 @@ def sarif(assets, alerts):
         for s in a.sightings:
             if s.file.startswith("tls://"):
                 continue
-            declared = "non-security" in s.context and a.tier in ("critical", "high", "medium")
-            text = (f"{a.variant}, declared not for security here (usedforsecurity=False): fine as a checksum; keep it out of passwords and "
-                    f"signatures" if declared else f"{a.variant} [{a.tier}]: {a.why}. Fix: {a.action}")
-            results.append({"ruleId": rid, "level": LEVEL["low" if declared else a.tier], "message": {"text": text},
+            quiet = next((t for c, t in QUIET.items() if c in s.context), None) if a.tier in ("critical", "high", "medium") else None
+            text = f"{a.variant}, {quiet}" if quiet else f"{a.variant} [{a.tier}]: {a.why}. Fix: {a.action}"
+            results.append({"ruleId": rid, "level": LEVEL["low" if quiet else a.tier], "message": {"text": text},
                             "locations": [{"physicalLocation": {"artifactLocation": {"uri": s.file}, "region": {"startLine": max(1, s.line)}}}],
                             "properties": {"confidence": s.confidence, "evidence": s.evidence}})
     for sev, title, where, fix in alerts:

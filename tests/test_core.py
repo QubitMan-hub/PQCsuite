@@ -201,6 +201,21 @@ class Roles(unittest.TestCase):
                       for x in cbom.sarif(r.assets, [])["runs"][0]["results"]}
             self.assertEqual(levels, {"etag.py": cbom.LEVEL["low"], "login.py": cbom.LEVEL["critical"]})
 
+    def test_a_bundle_of_self_signed_roots_is_one_trust_store_line(self):
+        import shutil
+        import tempfile
+        r = pack.run(CORPUS, "corpus")
+        self.assertEqual({s.file for s in r.sightings if "trust-store" in s.context}, {"certs/roots.pem"})
+        self.assertTrue(any(w.startswith("certs/chain.pem") for _, _, w, _ in r.alerts))
+        with tempfile.TemporaryDirectory() as d:
+            shutil.copy(CORPUS / "certs" / "roots.pem", d)
+            r = pack.run(d, "t")
+            self.assertEqual({a.tier for a in r.assets if a.algo in ("RSA", "ECC", "ECDSA")}, {"low"})
+            self.assertEqual([(sev, t) for sev, t, _, _ in r.alerts], [("info", "Trust store of 5 root certificates (3 RSA, 2 ECC); ranked low")])
+            r = pack.run(d, "t", roles=pack.Roles.without("trust-store"))
+            self.assertEqual({a.tier for a in r.assets if a.algo == "RSA"}, {"high"})
+            self.assertEqual(len(r.alerts), 5)
+
     def test_python_this_interpreter_cannot_parse_is_named_in_the_notes(self):
         import tempfile
         with tempfile.TemporaryDirectory() as d:
