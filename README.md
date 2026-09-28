@@ -29,6 +29,8 @@ The CA and Vault work everywhere. TLS and the VPN key agreement need **OpenSSL 3
 | Windows | Install OpenSSL 3.5+ and put its `bin` on `PATH`, or set `PQCSUITE_OPENSSL` to that folder |
 | Older Linux | Build OpenSSL 3.5 and run with `LD_LIBRARY_PATH=/path/to/openssl/lib` |
 
+Config and target files can be written with any editor, Notepad and PowerShell included: UTF-8 with or without a byte-order mark, or UTF-16.
+
 ## TLS 1.3 + mTLS
 
 ```
@@ -70,7 +72,8 @@ pqcsuite tls connect app.acme.example:8443 --ca pki/ca.crt --send hello
 
 - **Hierarchy:** ML-DSA or SLH-DSA (FIPS 205) roots, and issuing CAs under them (`ca init --parent`). SLH-DSA needs OpenSSL 3.5+.
 - **Keys:** encrypted PKCS#8 files, AWS KMS ML-DSA keys (`--kms`, signing the 64-byte external mu), or any HSM with a command-line signer (`--signer-command`). KMS is tested against a stand-in for its API, not AWS itself.
-- **Lifecycle:** issue, sign CSRs, revoke, CRLs. `pqcsuite ca maintain` (daily) renews what expires within 30 days in place and re-signs the CRL.
+- **Lifecycle:** issue, sign CSRs, revoke, CRLs. `pqcsuite ca maintain` (daily) renews what expires within 30 days in place, with the same algorithm, and re-signs the CRL. Listing and reports read the CA without its passphrase; only signing needs it.
+- **External signers are checked:** a signature from KMS or an HSM command is verified against the CA's public key before anything is issued.
 - **EST (RFC 7030):** `ca serve` on post-quantum TLS; `ca token` makes one-time tokens bound to a name. Machines run `ca enroll` (the key never leaves them) and renew from cron over mutual TLS.
 - **ACME (RFC 8555):** `ca acme` with http-01, external account binding and an allow-list. The CSR must carry an ML-DSA key (`ca csr`, then `certbot --csr`). Clients that generate RSA or ECDSA keys, such as cert-manager, are refused with a clear error.
 
