@@ -276,7 +276,12 @@ class EdgeTest(unittest.TestCase):
         edge.kill()
         edge.wait()
         time.sleep(2.5)
-        self.assertFalse([w for w in workers if Path(f"/proc/{w}").exists()], "workers outlived the parent")
+        def running(pid):
+            try:
+                return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z"
+            except OSError:
+                return False
+        self.assertFalse([w for w in workers if running(w)], "workers outlived the parent")
 
     def test_originate_reloads_a_renewed_client_certificate(self):
         with tempfile.TemporaryDirectory() as d:

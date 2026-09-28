@@ -228,10 +228,10 @@ def cmd_edge(a):
     worker = bool(os.environ.get(WORKER))
     shared = a.workers > 1 or worker
     if shared:
-        if not sys.platform.startswith("linux"):
-            raise ValueError("--workers needs Linux, where the kernel spreads connections over the processes (SO_REUSEPORT)")
         if any(parse_addr(r.listen)[1] == 0 for r in routes):
             raise ValueError("--workers needs a fixed listen port, not 0")
+        if not sys.platform.startswith("linux"):
+            raise ValueError("--workers needs Linux, where the kernel spreads connections over the processes (SO_REUSEPORT)")
     edges = [Edge(r).bind(reuse_port=shared) for r in routes]
     workers = Workers(a.workers) if a.workers > 1 and not worker else None
     if worker:
