@@ -15,7 +15,7 @@ Current version: 1.2.0. 1.0.0 was the first production release (Docker image, Gi
 ```powershell
 cd wolf-pack; py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 70 tests, must stay green
+python -m unittest discover -s tests -v          # 77 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -42,6 +42,7 @@ wolfpack/
                  the one constant table, also packed into byte patterns for binaries
     pysrc.py     Python AST scout: import aliasing, constant propagation, params, lib attribution
     rules.py     regex rules per language (java, go, js, c, csharp, rust, and shell as "hash"); rule decorator
+    params.py    values through parameters: crypto API with a parameter, resolved from literal arguments at call sites
     names.py     code named for its algorithm (aes_encrypt(), class HkdfSha256) and all-caps constants that name one
                  (case KEY_ED25519:); skips declarations, headers, tests, predicates, sizes, errors, flags
     source.py    runs rules and names on code, rules on comments, constant propagation (in-file, shared_constants
@@ -127,7 +128,7 @@ New scout: return a list of `Sighting`s with the right evidence type, add a swit
 1. Held-out benchmark: done and scored (eval/heldout/README.md). Amendment 3 replaced the human audit with a label-support check and an AI audit (labels/SUPPORT.md). Headline 158d69f: strict P 0.886, R 0.336. 1.1.0: P 0.820, R 0.430. 1.2.0 (after tuning on held-out data): P 0.803, R 0.911. The held-out repos and the 22 in eval/unseen are now tuned on; any new claim about unseen code needs a new, unseen, labelled set.
 2. Head-to-head with CBOMkit on the Java/Python/Go subset: run sonar-cryptography via its Docker setup, convert both CBOMs to (file, family) pairs, and score both against the same labels. Harness and a first unlabelled six-repo run are in `eval/cbomkit/`. Second baseline candidate: OWASP cdxgen `--include-crypto` (Java and JS/TS source crypto); see docs/HANDOFF.md, "Other baselines".
 3. Done in stage 3: format-sniffing lists (`recognition` role). Sniffers not written as startswith/in/HasPrefix are still counted.
-4. Cross-file constants: done for Java/Kotlin/C# `Owner.NAME`, Go `pkg.Name`, C header macros, and (1.2.0) JavaScript/TypeScript `export const` imported by name from a relative module. Not done: values passed through parameters into another function (the flow look catches a literal passed straight into a call).
+4. Cross-file constants: done for Java/Kotlin/C# `Owner.NAME`, Go `pkg.Name`, C header macros, and (1.2.0) JavaScript/TypeScript `export const` imported by name from a relative module. 1.2.0 also resolves a crypto API called with a parameter from the literals at its call sites (`parameters` role, scouts/params.py; Java, JS/TS, Python).
 5. Done in 1.2.0: container images (`wolfpack scan image.tar`), cloud KMS/HSM key specs, runtime-built names (`concat`), code named for its algorithm (`names`), multi-line YAML/JSON lists (`lists`).
 6. Open: a second held-out set, labelled blind, to measure 1.2.0 on code it was not tuned on. Known remaining misses: WireGuard's own C and JS key code (no name), library defaults (TOTP's SHA-1), declared-vs-used lines in class registries (nsec), BouncyCastle's DsaDigestSigner over ECDSA read as DSA.
 

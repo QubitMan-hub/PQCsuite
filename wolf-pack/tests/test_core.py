@@ -352,6 +352,13 @@ class Roles(unittest.TestCase):
         self.assertNotIn("MD5", declared)
         self.assertTrue(all("declared" in s.context for a in r.assets if a.declared for s in a.sightings))
 
+    def test_parameters_carry_literals_from_call_sites_to_the_api(self):
+        self.assertEqual(self.accepted((), "java/DigestUtil.java"), {"SHA-512"})
+        self.assertEqual(self.accepted(("parameters",), "java/DigestUtil.java"), set())
+        from wolfpack.scouts.params import params_of
+        self.assertEqual(params_of("byte[] data, final String algorithm"), ["data", "algorithm"])
+        self.assertEqual(params_of("self, name: str = 'sha256', *, n=1"), ["self", "name", "n"])
+
     def test_concat_keeps_only_complete_parts(self):
         self.assertEqual(self.accepted((), "js/runtime_names.js"), {"RSA"})
         self.assertEqual(self.accepted(("concat",), "js/runtime_names.js"), set())

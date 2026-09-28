@@ -255,5 +255,11 @@
   "cs/AlgFactory.cs": [
     "HMAC",
     "SHA-256"
+  ],
+  "java/DigestUtil.java": [
+    "SHA-512"
+  ],
+  "java/Archive.java": [
+    "SHA-512"
   ]
 }

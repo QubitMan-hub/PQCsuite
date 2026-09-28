@@ -7,7 +7,7 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 from . import den, alpha
-from .scouts import MAX_BYTES, source, config, artifacts, deps, tls, binary, implementations, carried_hashes, oversized
+from .scouts import MAX_BYTES, source, config, artifacts, deps, tls, binary, implementations, params, carried_hashes, oversized
 
 SCOUTS = ("source", "implementations", "config", "artifacts", "binary")
 
@@ -19,6 +19,7 @@ class Roles:
     names: bool = True
     concat: bool = True
     symbols: bool = True
+    parameters: bool = True
     implementations: bool = True
     config: bool = True
     lists: bool = True
@@ -81,6 +82,8 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=()):
         if big:
             h.notes.append(f"{len(big)} source file(s) over {MAX_BYTES // 1_000_000} MB not read (usually generated or minified code): "
                            + ", ".join(big[:5]) + (" ..." if len(big) > 5 else ""))
+    if roles.source and roles.parameters:
+        h.sightings += params.scan(root, scope)
     if roles.implementations:
         s, h.files["implementations"] = implementations.scan(root, scope)
         h.sightings += s
