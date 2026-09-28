@@ -151,6 +151,17 @@ def general_names(names):
     return out
 
 
+def names_of(obj):
+    """The common name and SAN host names and addresses of a certificate or a signing request."""
+    cn = obj.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+    try:
+        san = obj.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+        names = san.get_values_for_type(x509.DNSName) + [str(ip) for ip in san.get_values_for_type(x509.IPAddress)]
+    except x509.ExtensionNotFound:
+        names = []
+    return (cn[0].value if cn else ""), names
+
+
 class CA:
     def __init__(self, root, passphrase=None):
         self.root = Path(root)
@@ -318,13 +329,8 @@ class CA:
             raise CAError("not a certificate signing request (PEM or DER)") from None
         if not csr.is_signature_valid:
             raise CAError("the CSR's signature does not verify")
-        cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
-        try:
-            san = csr.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
-            names = san.get_values_for_type(x509.DNSName) + [str(ip) for ip in san.get_values_for_type(x509.IPAddress)]
-        except x509.ExtensionNotFound:
-            names = []
-        return self.sign(csr.public_key(), cn[0].value if cn else "unnamed", kind, names, days)
+        cn, names = names_of(csr)
+        return self.sign(csr.public_key(), cn or "unnamed", kind, names, days)
 
     def revoke(self, serial, reason="unspecified"):
         if not isinstance(reason, str) or reason != "unspecified" and reason not in REASONS:

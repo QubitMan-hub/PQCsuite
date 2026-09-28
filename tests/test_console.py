@@ -1,6 +1,7 @@
 import json
 import tempfile
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -8,7 +9,7 @@ from pathlib import Path
 
 from pqcsuite import vault
 from pqcsuite.pki import CA
-from pqcsuite.console import App, Settings, serve
+from pqcsuite.console import App, Backoff, Settings, serve
 
 
 class ConsoleTest(unittest.TestCase):
@@ -143,6 +144,19 @@ class ConsoleTest(unittest.TestCase):
             self.call("/api/certificates/revoke", ["serial"])
         self.assertEqual(e.exception.code, 400)
         self.assertEqual(self.call("/api/scan", {"targets": ["127.0.0.1:1"]})[2], {"started": 1})
+
+
+class BackoffTest(unittest.TestCase):
+    def test_an_address_is_refused_for_the_window_and_then_forgotten(self):
+        b = Backoff(limit=2, window=0.2)
+        b.failed("10.0.0.1")
+        self.assertFalse(b.blocked("10.0.0.1"))
+        b.failed("10.0.0.1")
+        self.assertTrue(b.blocked("10.0.0.1"))
+        self.assertFalse(b.blocked("10.0.0.2"))
+        time.sleep(0.3)
+        self.assertFalse(b.blocked("10.0.0.1"))
+        self.assertEqual(b.failures, {})
 
 
 if __name__ == "__main__":

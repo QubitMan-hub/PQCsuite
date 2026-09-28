@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, pkcs7
 from cryptography.x509.oid import NameOID
 
 from .. import tls
-from . import CA, CAError, USAGE, algorithm_of, cert_pem, check_revocation, general_names, generate, key_pem, locked, now, write
+from . import CA, CAError, USAGE, algorithm_of, cert_pem, check_revocation, general_names, generate, key_pem, locked, names_of, now, write
 from ..tls.http import HTTPError, request
 
 PREFIX = "/.well-known/est"
@@ -52,16 +52,6 @@ def create_token(ca, common_name, kind, names=(), hours=24):
 
 def _pkcs7(certs):
     return base64.encodebytes(pkcs7.serialize_certificates(certs, Encoding.DER))
-
-
-def _csr_names(csr):
-    cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
-    try:
-        san = csr.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
-        names = san.get_values_for_type(x509.DNSName) + [str(i) for i in san.get_values_for_type(x509.IPAddress)]
-    except x509.ExtensionNotFound:
-        names = []
-    return (cn[0].value if cn else ""), names
 
 
 class Service:
@@ -101,7 +91,7 @@ class Service:
             tid, _, secret = base64.b64decode(auth.removeprefix("Basic ")).decode().partition(":")
         except ValueError:
             tid = secret = ""
-        cn, names = _csr_names(csr)
+        cn, names = names_of(csr)
         with locked(self.ca.root):
             tokens = _load_tokens(self.ca.root)
             t = next((t for t in tokens if t["id"] == tid), None)
@@ -130,7 +120,7 @@ class Service:
         if crl.exists():
             check_revocation(current.serial_number, crl.read_bytes(), self.ca.cert)
         rec = next((r for r in self.ca.records() if r.serial == format(current.serial_number, "x")), None)
-        cn, names = _csr_names(csr)
+        cn, names = names_of(csr)
         if not rec or rec.status != "valid":
             raise CAError("the presenting certificate is not a valid certificate of this CA")
         if cn != rec.common_name or not set(names) <= set(rec.names):
@@ -233,12 +223,7 @@ def renew(url, folder, algorithm=None, within_days=None, passphrase=None, server
     current = x509.load_pem_x509_certificate((folder / "cert.pem").read_bytes())
     if within_days is not None and current.not_valid_after_utc - now() > dt.timedelta(days=within_days):
         return None
-    cn = current.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-    try:
-        san = current.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
-        names = san.get_values_for_type(x509.DNSName) + [str(i) for i in san.get_values_for_type(x509.IPAddress)]
-    except x509.ExtensionNotFound:
-        names = []
+    cn, names = names_of(current)
     key = generate(algorithm or algorithm_of(current.public_key()) or "ML-DSA-65")
     ctx = tls.client_context(folder / "ca.crt", folder / "chain.pem", folder / "key.pem", key_passphrase=passphrase)
     certs = _parse_certs(_call(url, ctx, "/simplereenroll", _csr(key, cn, names), {"Content-Type": "application/pkcs10"}, server_name), key)

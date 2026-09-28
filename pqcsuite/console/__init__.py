@@ -290,8 +290,9 @@ class Backoff:
 
     def blocked(self, addr):
         with self.lock:
-            recent = [t for t in self.failures.get(addr, []) if time.monotonic() - t < self.window]
-            self.failures[addr] = recent
+            recent = [t for t in self.failures.pop(addr, []) if time.monotonic() - t < self.window]
+            if recent:
+                self.failures[addr] = recent
             return len(recent) >= self.limit
 
     def failed(self, addr):

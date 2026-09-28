@@ -219,6 +219,23 @@ class ValidationTest(unittest.TestCase):
         self.assertIn("302", detail)
         self.assertNotIn("refused", detail)
 
+    def test_a_target_that_does_not_speak_http_fails_the_challenge(self):
+        with tempfile.TemporaryDirectory() as d:
+            srv = socket.create_server(("127.0.0.1", 0))
+            self.addCleanup(srv.close)
+
+            def answer():
+                conn, _ = srv.accept()
+                conn.recv(4096)
+                conn.sendall(b"not http\r\n\r\n")
+                conn.close()
+            threading.Thread(target=answer, daemon=True).start()
+            svc = Service(CA.init(Path(d) / "pki", "R"), "http://acme", http_port=srv.getsockname()[1], validate_async=False)
+            svc.state["authz"]["z"] = {"account": "a", "identifier": {"type": "ip", "value": "127.0.0.1"}, "status": "pending",
+                                       "token": "t", "challenge_status": "pending", "error": None, "validated": None}
+            svc.validate("z", "t.tp")
+            self.assertEqual(svc.state["authz"]["z"]["status"], "invalid")
+
     def test_wrong_json_types_are_malformed_requests_not_crashes(self):
         from pqcsuite.pki.acme import Problem
         with tempfile.TemporaryDirectory() as d:

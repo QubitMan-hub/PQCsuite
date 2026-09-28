@@ -38,12 +38,24 @@ def key_name(key):
     return algorithm_of(key) or type(key).__name__
 
 
+def _result(target, protocol, **found):
+    return {"target": target, "protocol": protocol, "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False,
+            **found}
+
+
+def _unverified():
+    """A client context for looking, not trusting: legacy probes only record what the server offers."""
+    import ssl
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
+    return ctx
+
+
 def _legacy(host, port, server_name, timeout):
     """(version, certificate) from a server that refuses TLS 1.3 but still talks TLS 1.2 or older."""
     import ssl
     from cryptography import x509
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
+    ctx = _unverified()
     ctx.maximum_version = ssl.TLSVersion.TLSv1_2
     ctx.set_ciphers("DEFAULT:@SECLEVEL=0")
     with socket.create_connection((host, port), timeout=timeout) as raw, ctx.wrap_socket(raw, server_hostname=server_name) as s:
@@ -56,9 +68,7 @@ def _old_versions(host, port, server_name, timeout):
     import ssl
     found = []
     for name in LEGACY_TLS:
-        v = getattr(ssl.TLSVersion, name)
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
+        v, ctx = getattr(ssl.TLSVersion, name), _unverified()
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
@@ -116,7 +126,7 @@ def ssh_kexinit(host, port, timeout):
 
 
 def probe_ssh(host, port, timeout):
-    out = {"target": f"ssh://{_join(host, port)}", "protocol": "ssh", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
+    out = _result(f"ssh://{_join(host, port)}", "ssh")
     try:
         banner, kex, hostkeys = ssh_kexinit(host, port, timeout)
     except (OSError, ValueError) as e:
@@ -156,7 +166,7 @@ def probe(target, server_name=None, timeout=8.0):
     kind, host, port = endpoint(target)
     if kind == "ssh":
         return probe_ssh(host, port, timeout)
-    out = {"target": _join(host, port), "protocol": "tls", "accepts": [], "negotiated": None, "certificate": None, "error": None, "cnsa2": False}
+    out = _result(_join(host, port), "tls")
     try:
         out["negotiated"], cert = _hello(host, port, ":".join(PQ + CLASSICAL), server_name or host, timeout)
     except (tls.TLSError, OSError) as e:
@@ -192,8 +202,7 @@ def scan(targets, workers=16, timeout=8.0):
             return probe(t, timeout=timeout)
         except Exception as e:
             log.exception("readiness: probing %s failed", t)
-            return {"target": t, "protocol": "ssh" if t.startswith("ssh://") else "tls", "accepts": [], "negotiated": None,
-                    "certificate": None, "error": f"unexpected answer: {e}", "cnsa2": False, "grade": "F"}
+            return _result(t, "ssh" if t.startswith("ssh://") else "tls", error=f"unexpected answer: {e}", grade="F")
     with ThreadPoolExecutor(workers) as pool:
         return list(pool.map(one, targets))
 

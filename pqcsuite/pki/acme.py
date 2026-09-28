@@ -12,6 +12,7 @@ import datetime as dt
 import fnmatch
 import hashlib
 import hmac
+import http.client
 import ipaddress
 import json
 import logging
@@ -372,8 +373,8 @@ class Service:
             with FETCH.open(url, timeout=10) as r:
                 got = r.read(4096).decode(errors="replace").strip()
             ok, detail = got == key_authz, f"{url} answered something else"
-        except OSError as e:
-            ok, detail = False, f"could not fetch {url}: {e}"
+        except (OSError, ValueError, http.client.HTTPException) as e:
+            ok, detail = False, f"could not fetch {url}: {e or type(e).__name__}"
         with self.lock:
             a["challenge_status"] = a["status"] = "valid" if ok else "invalid"
             if ok:
@@ -430,7 +431,7 @@ class Service:
         if not any(c["serial"] == serial and c["account"] == account for c in self.state["certs"].values()):
             raise Problem("unauthorized", "this account did not order that certificate", 403)
         reason = p.get("reason", 0)
-        if not isinstance(reason, int) or reason not in REASONS:
+        if not isinstance(reason, int) or isinstance(reason, bool) or reason not in REASONS:
             raise Problem("badRevocationReason", f"reason must be one of {sorted(REASONS)}")
         try:
             self.ca.revoke(serial, REASONS[reason])
