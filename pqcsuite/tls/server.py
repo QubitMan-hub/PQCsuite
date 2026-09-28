@@ -125,7 +125,8 @@ class Server:
                 sock.close()
                 continue
             t = threading.Thread(target=self._run, args=(sock, addr, self.ctx), daemon=True)
-            self.threads.add(t)
+            with self.lock:
+                self.threads.add(t)
             t.start()
 
     def _admit(self, host):
@@ -152,7 +153,7 @@ class Server:
                 cert = conn.peer_certificate()
                 if self.revocation and cert:
                     self.revocation.check(cert.serial_number, conn.peer_chain()[1:])
-            except (TLSError, CAError, OSError) as e:
+            except (TLSError, CAError, OSError, ValueError) as e:
                 if any(x in str(e) for x in ("Broken pipe", "Connection reset")):
                     self.stats.add("client_left")
                     log.info("%s: %s closed the connection during the handshake", self.name, peer)
@@ -185,7 +186,8 @@ class Server:
             else:
                 sock.close()
             self.slots.release()
-            self.threads.discard(threading.current_thread())
+            with self.lock:
+                self.threads.discard(threading.current_thread())
 
     def start(self):
         t = threading.Thread(target=self.serve_forever, daemon=True, name=self.name)
@@ -201,5 +203,7 @@ class Server:
             pass
         self.sock.close()
         deadline = time.monotonic() + grace
-        for t in list(self.threads):
+        with self.lock:
+            threads = list(self.threads)
+        for t in threads:
             t.join(max(0, deadline - time.monotonic()))

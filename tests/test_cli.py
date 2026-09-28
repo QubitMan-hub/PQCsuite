@@ -86,6 +86,8 @@ class CLITest(unittest.TestCase):
         self.assertIn("connection refused", self.fails("tls", "connect", f"127.0.0.1:{closed}", *ca))
         self.assertEqual(probe(f"127.0.0.1:{closed}", timeout=10)["error"], "connection refused (nothing is listening on that port)")
         self.assertIn("No such file or directory: ", self.fails("readiness", "scan", self.d / "none.txt"))
+        self.assertIn("0 to 65535", self.fails("tls", "connect", "127.0.0.1:99999", *ca))
+        self.assertIn("0 to 65535", self.fails("readiness", "probe", "127.0.0.1:70000"))
 
     def test_scan_targets_as_people_write_them(self):
         from pqcsuite.readiness.scan import endpoint

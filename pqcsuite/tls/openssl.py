@@ -206,7 +206,11 @@ class Context:
 
     def wrap(self, sock, server_name=None, timeout=10.0):
         """Run the handshake on a connected socket and return a Connection. The socket is owned by the Connection from here on."""
-        conn = Connection(self, sock, timeout)
+        try:
+            conn = Connection(self, sock, timeout)
+        except Exception:
+            sock.close()
+            raise
         try:
             conn.handshake(server_name)
         except Exception:

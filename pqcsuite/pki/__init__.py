@@ -383,7 +383,10 @@ def signed_by(issuer, tbs, signature):
 def check_revocation(serial, crl_pem, ca_certs):
     """Raise if the certificate with this serial number is revoked, or if the CRL is forged or stale. Fails closed.
     `ca_certs` is the issuing CA's certificate, or several of which one issued the CRL."""
-    crl = x509.load_pem_x509_crl(crl_pem)
+    try:
+        crl = x509.load_pem_x509_crl(crl_pem)
+    except ValueError:
+        raise CAError("the CRL file is damaged or not a CRL; re-sign it with 'pqcsuite ca crl'") from None
     issuers = [c for c in (ca_certs if isinstance(ca_certs, (list, tuple)) else [ca_certs]) if c.subject == crl.issuer]
     if not any(signed_by(c, crl.tbs_certlist_bytes, crl.signature) for c in issuers):
         raise CAError("the CRL was not signed by this CA")

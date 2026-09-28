@@ -152,6 +152,23 @@ class TLSTest(unittest.TestCase):
         self.assertEqual(reply, b"")
         self.roundtrip(s.port, self.client(self.alice))
 
+    def test_a_damaged_crl_refuses_everyone_and_says_why(self):
+        crl = Path(self.tmp.name) / "damaged-crl.pem"
+        crl.write_bytes(b"-----BEGIN X509 CRL-----\nAAAA\n-----END X509 CRL-----\n")
+        make = lambda: tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", self.cafile, True, key_passphrase=b"server-pass")
+        s = Server(("127.0.0.1", 0), make, echo, crl=str(crl), ca=self.cafile, handshake_timeout=3)
+        s.start()
+        self.addCleanup(s.stop, 1)
+        with self.assertLogs("pqcsuite", "WARNING") as logs:
+            try:
+                reply = self.roundtrip(s.port, self.client(self.alice))[1]
+            except (tls.TLSError, OSError):
+                reply = b""
+            time.sleep(0.2)
+        self.assertEqual(reply, b"")
+        self.assertEqual(s.stats.snapshot()["handshake_failed"], 1)
+        self.assertIn("CRL file is damaged", logs.output[0])
+
     def test_silent_client_times_out(self):
         s = self.server()
         with socket.create_connection(("127.0.0.1", s.port)) as raw:

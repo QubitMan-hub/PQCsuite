@@ -85,6 +85,6 @@ __all__ = ["Connection", "Context", "OpenSSLUnavailable", "POLICIES", "Policy", 
 
 def hostport(s, default_host="0.0.0.0"):
     host, _, port = s.rpartition(":")
-    if not port.isdigit():
-        raise ValueError(f"expected host:port, got {s!r}")
+    if not (port.isascii() and port.isdigit() and int(port) <= 65535):
+        raise ValueError(f"expected host:port with a port from 0 to 65535, got {s!r}")
     return host.strip("[]") or default_host, int(port)
