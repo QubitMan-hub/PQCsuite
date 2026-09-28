@@ -148,11 +148,21 @@ def _target(url):
     return u.hostname, u.port or 443
 
 
-def _parse_certs(body):
+def _parse_certs(body, key=None):
+    """With `key`: its certificate first, then each issuer. PKCS#7 keeps certificates as a sorted set, so the order they arrive
+    in means nothing."""
     try:
-        return pkcs7.load_der_pkcs7_certificates(base64.b64decode(b"".join(body.split())))
+        certs = pkcs7.load_der_pkcs7_certificates(base64.b64decode(b"".join(body.split())))
     except ValueError:
         raise CAError("the EST server returned something that is not a certificate") from None
+    if key is None:
+        return certs
+    chain = [c for c in certs if c.public_key() == key.public_key()][:1]
+    if not chain:
+        raise CAError("the EST server did not return a certificate for our key")
+    while nxt := next((c for c in certs if c.subject == chain[-1].issuer and c not in chain), None):
+        chain.append(nxt)
+    return chain
 
 
 def _call(url, ctx, path, body=b"", headers=None, server_name=None):
@@ -209,14 +219,14 @@ def enroll(url, token, common_name, names=(), out=".", ca=None, algorithm="ML-DS
     auth = base64.b64encode(f"{tid}:{secret}".encode()).decode()
     body = _call(url, tls.client_context(ca), "/simpleenroll", _csr(key, common_name, names),
                  {"Content-Type": "application/pkcs10", "Authorization": f"Basic {auth}"}, server_name)
-    certs = _parse_certs(body)
+    certs = _parse_certs(body, key)
     _save(out, key, certs, ca_cert, passphrase)
     return certs[0]
 
 
-def renew(url, folder, algorithm="ML-DSA-65", within_days=None, passphrase=None, server_name=None):
-    """Re-enroll with the current certificate in `folder` and replace it in place (servers pick it up without a restart).
-    With `within_days`, do nothing until the certificate is that close to expiry."""
+def renew(url, folder, algorithm=None, within_days=None, passphrase=None, server_name=None):
+    """Re-enroll with the current certificate in `folder` and replace it in place (servers pick it up without a restart), with a
+    new key of the same algorithm unless `algorithm` is given. With `within_days`, do nothing until it is that close to expiry."""
     folder = Path(folder)
     current = x509.load_pem_x509_certificate((folder / "cert.pem").read_bytes())
     if within_days is not None and current.not_valid_after_utc - now() > dt.timedelta(days=within_days):
@@ -227,9 +237,9 @@ def renew(url, folder, algorithm="ML-DSA-65", within_days=None, passphrase=None,
         names = san.get_values_for_type(x509.DNSName) + [str(i) for i in san.get_values_for_type(x509.IPAddress)]
     except x509.ExtensionNotFound:
         names = []
-    key = generate(algorithm)
+    key = generate(algorithm or algorithm_of(current.public_key()) or "ML-DSA-65")
     ctx = tls.client_context(folder / "ca.crt", folder / "chain.pem", folder / "key.pem", key_passphrase=passphrase)
-    certs = _parse_certs(_call(url, ctx, "/simplereenroll", _csr(key, cn, names), {"Content-Type": "application/pkcs10"}, server_name))
+    certs = _parse_certs(_call(url, ctx, "/simplereenroll", _csr(key, cn, names), {"Content-Type": "application/pkcs10"}, server_name), key)
     _save(folder, key, certs, x509.load_pem_x509_certificate((folder / "ca.crt").read_bytes()), passphrase)
     return certs[0]
 

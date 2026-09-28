@@ -333,14 +333,15 @@ class CA:
         write(self.root / "crl.pem", data)
         return data
 
-    def renew(self, serial, days=397, algorithm="ML-DSA-65", out=None, passphrase=None):
-        """A new key and certificate with the same name and SANs; the old one stays valid until it expires or is revoked."""
+    def renew(self, serial, days=397, algorithm=None, out=None, passphrase=None):
+        """A new key and certificate with the same name, SANs and (unless `algorithm` is given) algorithm; the old one stays
+        valid until it expires or is revoked."""
         r = self.find(serial)
         if r.status == "revoked":
             raise CAError(f"{r.serial} is revoked; issue a new certificate instead of renewing it")
-        return self.issue(r.common_name, r.kind, r.names, days, algorithm, out, passphrase, replace=True)
+        return self.issue(r.common_name, r.kind, r.names, days, algorithm or r.algorithm, out, passphrase, replace=True)
 
-    def maintain(self, renew_within=30, crl_days=7, algorithm="ML-DSA-65"):
+    def maintain(self, renew_within=30, crl_days=7, algorithm=None):
         """Re-sign the CRL, and renew certificates expiring within `renew_within` days into the folder they were issued to, where
         edges and VPN gateways pick them up without a restart. Run it daily. Encrypted leaf keys are reported, not renewed."""
         with locked(self.root):

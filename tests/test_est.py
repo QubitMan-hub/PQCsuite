@@ -77,9 +77,10 @@ class ESTTest(unittest.TestCase):
 
     def test_renewal_in_place_keeps_identity(self):
         token = est.create_token(self.ca, "db.acme", "server")
-        first = est.enroll(self.url, token, "db.acme", [], self.d / "db", self.cafile)
+        first = est.enroll(self.url, token, "db.acme", [], self.d / "db", self.cafile, algorithm="ML-DSA-87")
         self.assertIsNone(est.renew(self.url, self.d / "db", within_days=30))
         second = est.renew(self.url, self.d / "db")
+        self.assertIsInstance(second.public_key(), type(first.public_key()), "renewal must keep ML-DSA-87")
         self.assertNotEqual(first.serial_number, second.serial_number)
         self.assertEqual(x509.load_pem_x509_certificate((self.d / "db" / "cert.pem").read_bytes()), second)
         self.ca.revoke(format(second.serial_number, "x"))

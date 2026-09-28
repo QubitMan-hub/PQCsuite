@@ -175,6 +175,14 @@ class CATest(unittest.TestCase):
         with self.assertRaisesRegex(CAError, "is revoked"):
             self.ca.renew(new.serial, out=out)
 
+    def test_renewal_keeps_the_algorithm(self):
+        out = Path(self.tmp.name) / "vault"
+        _, rec = self.ca.issue("vault.bank", "server", algorithm="ML-DSA-87", days=10, out=out)
+        renewed, _ = self.ca.maintain(renew_within=30)
+        self.assertEqual([r.algorithm for r in renewed], ["ML-DSA-87"])
+        self.assertEqual(self.ca.renew(renewed[0].serial, out=out)[1].algorithm, "ML-DSA-87")
+        self.assertEqual(self.ca.renew(renewed[0].serial, algorithm="ML-DSA-65", out=out)[1].algorithm, "ML-DSA-65")
+
     def test_reading_needs_no_passphrase_and_signing_does(self):
         self.ca.issue("web.example", "server")
         reader = CA(self.root)

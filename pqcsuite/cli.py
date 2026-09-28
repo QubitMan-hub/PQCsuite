@@ -573,7 +573,8 @@ def parser():
             p.add_argument("--san", action="append", default=[], help="DNS name or IP (repeatable; servers default to the common name)")
         else:
             p.add_argument("serial")
-        p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-65")
+        p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-65" if name == "issue" else None,
+                       help=None if name == "issue" else "default: the algorithm of the certificate being renewed")
         p.add_argument("--days", type=int, default=397)
         p.add_argument("--out", help="folder for cert.pem, chain.pem and key.pem")
         p.add_argument("--key-passphrase-env", help="encrypt the new key with the passphrase in this environment variable")
