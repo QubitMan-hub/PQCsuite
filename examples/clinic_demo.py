@@ -234,7 +234,7 @@ def main():
                   contains=["MD5", "AES-ECB", "TLS 1.1", "Private key stored in repository"])
             print("\n  Say: the comment about MD5 in tokens.py is not flagged. Wolf Pack flags what the code does, not what it mentions.")
         else:
-            print("\n  (wolfpack is not installed here, so this step is skipped: pip install the WolfPack-CBOM package to show it)")
+            print("\n  (wolfpack is not installed here, so this step is skipped: pip install ./wolf-pack to show it)")
 
         d.step("A private certificate authority for the clinic",
                "The clinic gets its own quantum-safe passport office. It issues ML-DSA certificates to the portal and to "

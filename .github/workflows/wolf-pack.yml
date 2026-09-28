@@ -1,7 +1,14 @@
-name: ci
-on: [push, pull_request]
+name: wolf-pack
+on:
+  push:
+    paths: ["wolf-pack/**", ".github/workflows/wolf-pack.yml"]
+  pull_request:
+    paths: ["wolf-pack/**", ".github/workflows/wolf-pack.yml"]
 permissions:
   contents: read
+defaults:
+  run:
+    working-directory: wolf-pack
 jobs:
   test:
     strategy:
@@ -28,11 +35,11 @@ jobs:
           python-version: "3.12"
       - run: pip wheel . --no-deps -w dist
       - run: python -m venv /tmp/clean && /tmp/clean/bin/pip install dist/*.whl
-      - run: cd /tmp && /tmp/clean/bin/wolfpack --version && /tmp/clean/bin/wolfpack scan "$GITHUB_WORKSPACE/bench/corpus" -o /tmp/out -q
+      - run: cd /tmp && /tmp/clean/bin/wolfpack --version && /tmp/clean/bin/wolfpack scan "$GITHUB_WORKSPACE/wolf-pack/bench/corpus" -o /tmp/out -q
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wheel
-          path: dist/*.whl
+          path: wolf-pack/dist/*.whl
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -44,15 +51,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./
+      - uses: ./wolf-pack
         with:
-          path: bench/corpus
+          path: wolf-pack/bench/corpus
           upload-sarif: "false"
       - id: gate
-        uses: ./
+        uses: ./wolf-pack
         continue-on-error: true
         with:
-          path: bench/corpus
+          path: wolf-pack/bench/corpus
           output: gated
           fail-on: critical
           upload-sarif: "false"

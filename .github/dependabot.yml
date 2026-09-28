@@ -1,10 +1,10 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    directories: ["/", "/wolf-pack"]
     schedule:
       interval: weekly
   - package-ecosystem: pip
-    directory: /
+    directories: ["/", "/wolf-pack"]
     schedule:
       interval: weekly

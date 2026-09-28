@@ -130,7 +130,7 @@ def main():
                   contains=["3DES", "RSA-1024", "SHA-1", "TLS 1.0"])
             print("\n  Say: session.py mentions MD5 in a comment and is not flagged. Wolf Pack reports what code does, not what it mentions.")
         else:
-            print("\n  (wolfpack is not installed here, so this step is skipped: pip install the WolfPack-CBOM package to show it)")
+            print("\n  (wolfpack is not installed here, so this step is skipped: pip install ./wolf-pack to show it)")
 
         d.step("The bank's own quantum-safe certificate authority",
                "An ML-DSA root for the bank, a certificate for the payment API, one for a licensed fintech partner, one for "

@@ -9,6 +9,7 @@ Project site: [`site/index.html`](site/index.html), a single self-contained page
 ## Quick start (PowerShell)
 
 ```powershell
+cd wolf-pack
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"          # gives you the `wolfpack` command
@@ -46,7 +47,7 @@ permissions:
   security-events: write          # for code scanning; drop it with upload-sarif: false
 steps:
   - uses: actions/checkout@v4
-  - uses: QubitMan-hub/WolfPack-CBOM@main
+  - uses: QubitMan-hub/PQCsuite/wolf-pack@main
     with:
       fail-on: critical           # empty never fails the build
       # baseline: cbom-main.json  # then only cryptography added since it fails

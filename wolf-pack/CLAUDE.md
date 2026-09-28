@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guide for Claude Code working in this repo. Read this first, then `docs/HANDOFF.md` for the full history.
+Guide for Claude Code working on Wolf Pack, which lives in `wolf-pack/` of the PQCsuite repository (it moved from its own WolfPack-CBOM repository; paths and commands here are relative to `wolf-pack/`). Read this first, then `docs/HANDOFF.md` for the full history.
 
 ## What this is
 
@@ -13,7 +13,7 @@ Current version: 1.0.0 (first production release: Docker image, GitHub Action, `
 ## Commands
 
 ```powershell
-py -m venv .venv; .\.venv\Scripts\Activate.ps1
+cd wolf-pack; py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 python -m unittest discover -s tests -v          # 57 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
@@ -64,7 +64,7 @@ wolfpack/
   bench.py       scores at (file, algorithm family) granularity across 3 configs
 bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 106 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
-Dockerfile, action.yml  container image and GitHub Action (CI builds and runs both, and the wheel)
+Dockerfile, action.yml  container image and GitHub Action (../.github/workflows/wolf-pack.yml builds and runs both, and the wheel)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)
 tests/test_core.py
 eval/cbomkit/     CBOMkit head-to-head harness (compare.py) and first results
@@ -75,7 +75,7 @@ eval/stress/      40-repo stress test (tuned on; never evidence)
 docs/HANDOFF.md  history, decisions, validation evidence, open questions
 docs/PACK.md     role map, switches, glossary, naming rules
 site/            project page (index.html); site/demo/app.py is the file its "Watch a hunt" demo shows
-.claude/skills/tidy  repo cleanup procedure: measure, derive instead of restating, snapshot-verify
+../.claude/skills/wolf-pack-tidy  cleanup procedure: measure, derive instead of restating, snapshot-verify
 ```
 
 ## Key concepts

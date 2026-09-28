@@ -1,6 +1,6 @@
 ---
-name: tidy
-description: Keep the Wolf Pack repo minimal without changing what it finds. Use when asked to clean up, simplify, minimise or de-duplicate code, tables, files or docs in this repo.
+name: wolf-pack-tidy
+description: Keep Wolf Pack (the wolf-pack/ folder) minimal without changing what it finds. Use when asked to clean up, simplify, minimise or de-duplicate code, tables, files or docs in wolf-pack/. Run every command from wolf-pack/.
 ---
 
 # Tidy

@@ -9,3 +9,4 @@ __pycache__/
 *.key
 !tests/**/*.pem
 .coverage
+!wolf-pack/bench/corpus/**
