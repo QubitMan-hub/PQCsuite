@@ -2,6 +2,7 @@
 import argparse
 import csv
 import json
+import os
 import random
 import re
 import subprocess
@@ -18,8 +19,9 @@ from wolfpack.elders import CATALOG
 from wolfpack.scouts import iter_files, rel, is_test, config, artifacts
 from wolfpack.scouts.lexer import LANGS
 
-REPOS = HERE / "repos"
-LABELS = HERE / "labels"
+KIT = Path(os.environ.get("HELDOUT_KIT") or HERE).resolve()
+REPOS = KIT / "repos"
+LABELS = KIT / "labels"
 VOCABULARY = ("RSA", "DSA", "DH", "ECC", "ECDSA", "ECDH", "Ed25519", "Ed448", "X25519", "X448", "ML-KEM", "ML-DSA", "SLH-DSA", "FN-DSA", "HQC",
               "X25519MLKEM768", "sntrup761x25519", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "AES", "ChaCha20", "3DES", "DES", "RC4", "RC2",
               "Blowfish", "MD4", "MD5", "SHA-1", "SHA-224", "SHA-256", "SHA-384", "SHA-512", "SHA3-256", "SHA3-384", "SHA3-512", "BLAKE2",
@@ -30,7 +32,7 @@ COLUMNS = ["file", "used", "declared", "notes"]
 
 
 def manifest():
-    return json.loads((HERE / "repos.json").read_text(encoding="utf-8"))
+    return json.loads((KIT / "repos.json").read_text(encoding="utf-8"))
 
 
 def scope(root):

@@ -1,0 +1,146 @@
+[
+ {
+  "name": "hkdf",
+  "repo": "patrickfav/hkdf",
+  "commit": "60152fff852506a1b46f730b14d1b8f8ff69d071",
+  "language": "java",
+  "kind": "library",
+  "why": "HKDF (RFC 5869) over HMAC-SHA256/512"
+ },
+ {
+  "name": "commons-crypto",
+  "repo": "apache/commons-crypto",
+  "commit": "983967f500842a6e8085007827449895cb6d4fa7",
+  "language": "java",
+  "kind": "library",
+  "why": "AES ciphers and random through OpenSSL JNI or JCE"
+ },
+ {
+  "name": "oscrypto",
+  "repo": "wbond/oscrypto",
+  "commit": "76bfdcb7285d856c44f8d0fbafe0ecca1c6d2f8b",
+  "language": "python",
+  "kind": "library",
+  "why": "OS-native crypto wrappers: RSA, DSA, EC, AES, 3DES, RC4, TLS"
+ },
+ {
+  "name": "python-spake2",
+  "repo": "warner/python-spake2",
+  "commit": "a13d32d2b6cc5945eca182c4f89b6b4bafb2d78a",
+  "language": "python",
+  "kind": "library",
+  "why": "SPAKE2 password-authenticated key exchange, HKDF, SHA-256"
+ },
+ {
+  "name": "python-sshpubkeys",
+  "repo": "ojarva/python-sshpubkeys",
+  "commit": "5f788694842d5594ad4856ac0b9ae361d95f86ca",
+  "language": "python",
+  "kind": "library",
+  "why": "Parses and validates SSH public keys: RSA, DSA, ECDSA, Ed25519"
+ },
+ {
+  "name": "sha256-simd",
+  "repo": "minio/sha256-simd",
+  "commit": "6096f891a77bfe490cbea7a424c821b5fdb92849",
+  "language": "go",
+  "kind": "implementation",
+  "why": "SIMD-accelerated SHA-256"
+ },
+ {
+  "name": "memguard",
+  "repo": "awnumar/memguard",
+  "commit": "a5d81463bf244cf7b7867ecc599028659effe072",
+  "language": "go",
+  "kind": "library",
+  "why": "Secure memory enclaves sealed with XSalsa20-Poly1305, BLAKE2b"
+ },
+ {
+  "name": "smallstep-crypto",
+  "repo": "smallstep/crypto",
+  "commit": "f00a44434bd95821aed2caa20bbbc8599d501838",
+  "language": "go",
+  "kind": "library",
+  "why": "Key, JOSE, X.509, KMS and TPM helpers"
+ },
+ {
+  "name": "noble-ciphers",
+  "repo": "paulmillr/noble-ciphers",
+  "commit": "fe4336756e8b352ea520d8bd6e8547552e352189",
+  "language": "typescript",
+  "kind": "implementation",
+  "why": "AES, ChaCha20, Salsa20, Poly1305, GHASH in TypeScript"
+ },
+ {
+  "name": "bcrypt.js",
+  "repo": "dcodeIO/bcrypt.js",
+  "commit": "1211e9a2213e0b3ee232a204b3ce899beebce31a",
+  "language": "javascript",
+  "kind": "implementation",
+  "why": "bcrypt in pure JavaScript"
+ },
+ {
+  "name": "bip39",
+  "repo": "bitcoinjs/bip39",
+  "commit": "a7ecbfe2e60d0214ce17163d610cad9f7b23140c",
+  "language": "typescript",
+  "kind": "library",
+  "why": "Mnemonic seeds: PBKDF2-HMAC-SHA512 and SHA-256 checksums"
+ },
+ {
+  "name": "sha2",
+  "repo": "ogay/sha2",
+  "commit": "b90991f90967a46d0955dc981e9e3cd53c13b061",
+  "language": "c",
+  "kind": "implementation",
+  "why": "SHA-224/256/384/512 in C"
+ },
+ {
+  "name": "libscrypt",
+  "repo": "technion/libscrypt",
+  "commit": "69a6f21d7648e18e4e5711d22d0db1af4620b3e9",
+  "language": "c",
+  "kind": "implementation",
+  "why": "scrypt with PBKDF2-HMAC-SHA256 and Salsa20/8"
+ },
+ {
+  "name": "argon2",
+  "repo": "P-H-C/phc-winner-argon2",
+  "commit": "f57e61e19229e23c4445b85494dbf7c07de721cb",
+  "language": "c",
+  "kind": "implementation",
+  "why": "Argon2 reference implementation with BLAKE2b"
+ },
+ {
+  "name": "identitymodel",
+  "repo": "IdentityModel/IdentityModel",
+  "commit": "5f76150f8ee305b3a5d51ca1af692f8475a2d745",
+  "language": "csharp",
+  "kind": "library",
+  "why": "OAuth and OpenID Connect client helpers: JWK, hashing, PKCE"
+ },
+ {
+  "name": "rust-kdfs",
+  "repo": "RustCrypto/KDFs",
+  "commit": "19a0df65a558feefed0722dd0de73ef4b966d79f",
+  "language": "rust",
+  "kind": "library",
+  "why": "HKDF, concat-KDF, ANSI X9.63 KDF crates"
+ },
+ {
+  "name": "halite",
+  "repo": "paragonie/halite",
+  "commit": "922dd421082b4d3f1baf8d16bc3ebda8fccaf22b",
+  "language": "php",
+  "kind": "library",
+  "why": "libsodium wrapper: XSalsa20, XChaCha20, BLAKE2b, Argon2, X25519, Ed25519"
+ },
+ {
+  "name": "php-jwt",
+  "repo": "firebase/php-jwt",
+  "commit": "f502cdbf279cd7532060b041f7c22a05208c0b93",
+  "language": "php",
+  "kind": "library",
+  "why": "JWT: HMAC, RSA, ECDSA, Ed25519"
+ }
+]
