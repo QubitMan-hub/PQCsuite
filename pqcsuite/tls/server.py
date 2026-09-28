@@ -5,10 +5,11 @@ import socket
 import threading
 import time
 from collections import Counter
+from pathlib import Path
 
 from cryptography import x509
 
-from ..pki import CAError, check_revocation
+from ..pki import CAError, check_revocation, shared
 from .openssl import TLSError
 
 log = logging.getLogger("pqcsuite.tls")
@@ -35,8 +36,7 @@ class Revocation:
         """`chain` is the verified chain above the certificate, where an intermediate CA's certificate comes from."""
         m = os.stat(self.crl_path).st_mtime
         if m != self.mtime:
-            with open(self.crl_path, "rb") as f:
-                self.data, self.mtime = f.read(), m
+            self.data, self.mtime = shared(Path(self.crl_path).read_bytes), m
         check_revocation(serial, self.data, self.cas + list(chain))
 
 

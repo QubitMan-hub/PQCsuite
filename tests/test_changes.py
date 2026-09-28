@@ -16,7 +16,7 @@ from cryptography import x509
 from pqcsuite import ConfigWatch, latest_release, tls
 from pqcsuite.cli import serve_json
 from pqcsuite.console import App, Settings
-from pqcsuite.pki import CA, CAError, fetch_crl, follow_crl
+from pqcsuite.pki import CA, CAError, fetch_crl, follow_crl, shared
 from pqcsuite.vpn import Peer, Site, validate
 from pqcsuite.vpn.wireguard import Gateway, GatewayConfig
 
@@ -37,7 +37,7 @@ def wait(check, seconds=5.0):
 
 
 def revoked(path):
-    return {r.serial_number for r in x509.load_pem_x509_crl(Path(path).read_bytes())}
+    return {r.serial_number for r in x509.load_pem_x509_crl(shared(Path(path).read_bytes))}
 
 
 class CRLDistributionTest(unittest.TestCase):

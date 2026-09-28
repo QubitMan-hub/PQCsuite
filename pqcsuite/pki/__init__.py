@@ -8,6 +8,7 @@ import json
 import os
 import re
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -107,6 +108,18 @@ def cert_pem(cert):
     return cert.public_bytes(serialization.Encoding.PEM)
 
 
+def shared(action, tries=40):
+    """Windows refuses to open or replace a file while another thread has it open (a CRL being read while its new copy is
+    swapped in); such a clash lasts milliseconds, so try again briefly. Elsewhere this runs `action` once."""
+    for n in range(tries):
+        try:
+            return action()
+        except PermissionError:
+            if os.name != "nt" or n == tries - 1:
+                raise
+            time.sleep(0.025)
+
+
 def write(path, data, secret=False):
     """Write atomically; secret files are created owner-only."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -115,7 +128,7 @@ def write(path, data, secret=False):
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
-        os.replace(tmp, path)
+        shared(lambda: os.replace(tmp, path))
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
