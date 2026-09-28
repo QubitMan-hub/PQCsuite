@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 const AxeBuilder = require("@axe-core/playwright").default;
 
 const SITE = "http://127.0.0.1:8765/";
-const PAGES = ["index.html", "wolf-pack.html", "404.html"];
+const PAGES = ["index.html", "wolf-pack.html", "404.html", "wolf-pack-sample.html", "wolf-pack-inventory.html"];
 const WIDTHS = [1280, 900, 390, 360];
 
 const serious = async page =>

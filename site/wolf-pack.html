@@ -31,9 +31,10 @@
     <nav id="nav" aria-label="Main">
       <a class="back" href="index.html">PQC Suite</a>
       <a href="#sources">What it reads</a>
-      <a href="#pack">How it decides</a>
+      <a href="#features">Features</a>
+      <a href="#samples">Samples</a>
+      <a href="#results">Results</a>
       <a href="#run">Running it</a>
-      <a href="#outputs">Output</a>
       <a class="btn" href="#contact">Book a code scan</a>
     </nav>
     <button class="menu" type="button" aria-expanded="false" aria-controls="nav"><span></span>Menu</button>
@@ -50,6 +51,7 @@
         <div class="actions">
           <a class="btn" href="#contact">Book a code scan</a>
           <a class="link" href="wolf-pack-sample.html">Open a sample report</a>
+          <a class="link" href="wolf-pack-inventory.html">Open a sample dashboard</a>
         </div>
         <p class="fine">Runs on your laptop, in a container or in CI. Your code never leaves the machine that scans it.</p>
       </div>
@@ -67,6 +69,13 @@
     </div>
   </div>
 
+  <nav class="wrap jump" aria-label="On this page">
+    <a href="#sources"><span>Coverage</span><b>What it reads</b><code>code, configs, keys, traffic</code></a>
+    <a href="#features"><span>After the scan</span><b>Fix, gate, prove</b><code>policy, fixes, signed CBOMs</code></a>
+    <a href="#samples"><span>Try before you book</span><b>Sample outputs</b><code>report and dashboard</code></a>
+    <a href="#results"><span>Honest numbers</span><b>How accurate it is</b><code>unseen repositories</code></a>
+  </nav>
+
   <section id="sources">
     <div class="wrap">
       <div class="intro">
@@ -75,12 +84,15 @@
         <p>An endpoint scan shows what your servers offer. Most cryptography lives deeper: a hash in a login module, a key size in a config file, an old OpenSSL inside a vendor binary. Wolf Pack reads all of it and hands you one list, in the CycloneDX format auditors and tools already accept.</p>
       </div>
       <ul class="sources">
-        <li><b>Source code</b><p>Python, Java and Kotlin, Go, JavaScript and TypeScript, C and C++, C# and Rust.</p></li>
-        <li><b>Configuration</b><p>nginx, Apache, HAProxy, sshd, openssl.cnf, Spring properties, YAML, INI and TOML.</p></li>
+        <li><b>Source code</b><p>Python, Java and Kotlin, Go, JavaScript and TypeScript, C and C++, C#, Rust, Swift and PHP, including algorithm names passed into functions or built from pieces.</p></li>
+        <li><b>Configuration</b><p>nginx, Apache, HAProxy, sshd, openssl.cnf, Spring properties, YAML, JSON, INI and TOML.</p></li>
+        <li><b>Cloud and Kubernetes</b><p>Kubernetes TLS secrets and ingress annotations, AWS and Azure load-balancer TLS policies, and KMS key specs in Terraform.</p></li>
         <li><b>Keys and certificates</b><p>Including private keys that were committed by mistake, and certificates that outlive 2030.</p></li>
-        <li><b>Binaries and JARs</b><p>Algorithm constants, embedded OpenSSL and other library versions, JCA names in class files.</p></li>
+        <li><b>Binaries, JARs and containers</b><p>Algorithm constants, embedded OpenSSL versions and JCA names, also inside a saved Docker or OCI image.</p></li>
         <li><b>Dependencies</b><p>Manifests for pip, npm, Maven, Gradle, Go, Cargo and NuGet, checked against what the code imports.</p></li>
         <li><b>Live TLS and SSH</b><p>What each server negotiates, including whether it accepts hybrid ML-KEM groups.</p></li>
+        <li><b>Traffic captures</b><p>TLS and SSH handshakes in a pcap file: what clients and servers really agreed, without touching them.</p></li>
+        <li><b>Other tools' CBOMs</b><p>CycloneDX files from CBOMkit or another scanner can join the organisation inventory.</p></li>
       </ul>
     </div>
   </section>
@@ -97,6 +109,27 @@
         <div><span class="role">02 · den</span><b>Check the evidence</b><p>Mentions in comments, documentation, log messages and deny-lists are rejected. What is held back stays in the audit trail with the reason.</p></div>
         <div><span class="role">03 · alpha</span><b>Decide what matters</b><p>Ranks each finding by how exposed it is and how long the data must stay secret, and says what to replace it with.</p></div>
       </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Features</p>
+        <h2>From a list of findings to a finished migration</h2>
+        <p>Finding the cryptography is the first step. These features turn the list into work your team can plan, check and prove.</p>
+      </div>
+      <ul class="features">
+        <li><b>How to fix it, where it was found</b><p>Each finding says what to replace it with in that language, library or config file: the JDK, Go, .NET or OpenSSL call, or the nginx and sshd line.</p><code>report.html, SARIF help</code></li>
+        <li><b>Policy and deadlines</b><p>Checks the scan against NIST IR 8547 or CNSA 2.0, or your own rules, and lists what is overdue and what falls due next.</p><code>--policy nist-ir-8547</code></li>
+        <li><b>Used or only declared</b><p>An algorithm the code calls is marked apart from one that only appears in a list of supported names, so you fix the calls first.</p><code>wolfpack:usage</code></li>
+        <li><b>One view of the organisation</b><p>Merges the scans of every system into one inventory and dashboard: weakest systems first, and where each algorithm is used.</p><code>wolfpack merge</code></li>
+        <li><b>Progress over time</b><p>Each merge can be added to a history, so the dashboard charts the quantum-safe share and the policy breaches run by run.</p><code>--history runs.jsonl</code></li>
+        <li><b>Fast checks on every pull request</b><p>Scans only the files changed since a branch, and fails the build only on cryptography that is new since the last release.</p><code>--changed-since main</code></li>
+        <li><b>Signed inventories</b><p>Signs the CBOM with ML-DSA-65, so an auditor can check who produced it and that nothing changed since.</p><code>wolfpack sign, verify</code></li>
+        <li><b>An audit trail</b><p>Everything the scouts found is kept with the evidence and the reason it was accepted, held or rejected.</p><code>findings.json</code></li>
+        <li><b>Silence what you have checked</b><p>A <code>wolfpack:ignore</code> comment on a line, or an exclude pattern, keeps a reviewed finding out of later runs.</p><code>.wolfpack.toml</code></li>
+      </ul>
     </div>
   </section>
 
@@ -136,7 +169,21 @@
 fail_on    = "high"
 shelf_life = 15     # years the data stays secret
 migration  = 6      # years your migration takes
-tls        = ["api.example.com:443"]</pre>
+tls        = ["api.example.com:443"]
+
+[policy]
+profiles = ["nist-ir-8547"]</pre>
+      </div>
+      <div class="settings">
+        <div>
+          <h3>More ways to use it</h3>
+          <p>Every command writes the same four outputs, so they combine: scan each system, then merge the results into one dashboard.</p>
+        </div>
+        <pre>wolfpack scan app-image.tar          # a saved container image
+wolfpack scan --pcap gateway.pcap    # handshakes from a capture
+wolfpack scan --tls api.example.com:443 --ssh bastion.example.com
+wolfpack merge scans/ --name "Example Bank" --history runs.jsonl
+wolfpack keygen; wolfpack sign wolfpack-out/cbom.json --key wolfpack-keys/signing-key.pem</pre>
       </div>
     </div>
   </section>
@@ -153,7 +200,50 @@ tls        = ["api.example.com:443"]</pre>
         <li><code>wolfpack.sarif</code><span>Findings for GitHub code scanning and other SARIF tools</span></li>
         <li><code>findings.json</code><span>Everything, including what was rejected and why</span></li>
       </ul>
-      <p class="more"><a class="link" href="wolf-pack-sample.html">Open the sample report</a><span>Wolf Pack's report on an example payments API: Java, Python and Go code, an nginx configuration and a certificate.</span></p>
+    </div>
+  </section>
+
+  <section id="samples">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Samples</p>
+        <h2>See the output before you run it</h2>
+        <p>Both pages were written by Wolf Pack itself, from three small example systems that ship with it. The code is invented; the findings are real output.</p>
+      </div>
+      <div class="samples">
+        <a href="wolf-pack-sample.html">
+          <span>One system</span><b>Sample report</b>
+          <p>An example payments API: Java, Python and Go code, an nginx configuration and a certificate. The migration queue, how to fix each finding, and a NIST IR 8547 policy check.</p>
+          <em>Open the report</em>
+        </a>
+        <a href="wolf-pack-inventory.html">
+          <span>The whole organisation</span><b>Sample dashboard</b>
+          <p>The payments API, a customer portal and a set of batch jobs merged into one inventory: which system is weakest, what to migrate first, and where each algorithm is used.</p>
+          <em>Open the dashboard</em>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="results">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Results</p>
+        <h2>How accurate it is, measured honestly</h2>
+        <p>Scanners are usually scored on code their authors tuned them on. Wolf Pack was scored on repositories it had never seen, against labels written before it ran.</p>
+      </div>
+      <div class="scroll" tabindex="0">
+        <table class="results">
+          <thead><tr><th>Test</th><th>What was measured</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>18 unseen open-source repositories, first run</td><td>Of the algorithms it reported, how many the code really uses; of those used, how many it found</td><td><b>89%</b> precise, <b>34%</b> found</td></tr>
+            <tr><td>The same 18, version 1.2.0</td><td>After fixing the misses the first run exposed, so no longer unseen</td><td><b>80%</b> precise, <b>91%</b> found</td></tr>
+            <tr><td>10 more repositories, never used before</td><td>Findings that version 1.2.0 added, checked by hand</td><td><b>77%</b> used, <b>91%</b> used or declared</td></tr>
+            <tr><td>12 larger repositories</td><td>80 random findings, checked by hand</td><td><b>73</b> used, 7 declared, 0 wrong</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">The first row is the one to quote: it is the only result on code no one had tuned on. The hand checks were done by whoever wrote the rules, which leans towards counting a finding as right. A second set of 18 unseen repositories is pinned and pre-registered, with the version frozen before labelling, so the 1.2.0 numbers can be tested the same way.</p>
     </div>
   </section>
 
@@ -166,9 +256,11 @@ tls        = ["api.example.com:443"]</pre>
           <p>Every finding carries its evidence and a confidence, so you can see why it is there. These are the cases where you should look twice.</p>
         </div>
         <ul class="limits">
-          <li>Python is fully parsed. Other languages use rules, so algorithm names built at runtime or passed between functions can be missed.</li>
+          <li>Python is fully parsed. Other languages use rules: names passed through one function or joined from literals are followed, but values that travel further, or come from input at runtime, can be missed.</li>
+          <li>Cryptography written by hand, with no library call or algorithm name, is found only when it uses a well-known constant.</li>
           <li>An algorithm found in a binary is built into it, which does not always mean it is used.</li>
-          <li>Container images and cloud key management settings are not scanned.</li>
+          <li>A traffic capture shows only the handshakes it contains; TLS 1.3 hides the server certificate, so capture a live probe too.</li>
+          <li>Fixes name the first library releases with the feature. Check them against the versions you can deploy.</li>
           <li>The year a quantum computer could break RSA is an assumption you set, 2035 by default, not a prediction.</li>
         </ul>
       </div>
@@ -200,7 +292,7 @@ tls        = ["api.example.com:443"]</pre>
     </div>
     <nav aria-label="Footer">
       <div><b>PQC Suite</b><a href="index.html#tls">TLS 1.3 + mTLS</a><a href="index.html#vpn">IPsec VPN</a><a href="index.html#vault">Vault</a><a href="index.html#readiness">Readiness assessment</a><a href="index.html#faq">Questions</a></div>
-      <div><b>Also from Acxelin</b><a href="wolf-pack.html">Wolf Pack CBOM</a><span>Finds the cryptography in your code</span></div>
+      <div><b>Wolf Pack CBOM</b><a href="#features">Features</a><a href="wolf-pack-sample.html">Sample report</a><a href="wolf-pack-inventory.html">Sample dashboard</a><a href="#results">Results</a></div>
       <div><b>Contact</b><a href="mailto:info@acxelinquantum.com">info@acxelinquantum.com</a><a href="https://forms.office.com/Pages/ResponsePage.aspx?id=G7il0FYBPk-mQiu5eNm4__Zpyi-xUOBMtEt0p-905AxUME9LMzZFV0JLWEFDMzdJMTM1MzYxSEVORy4u" target="_blank" rel="noopener">Book a call</a></div>
     </nav>
     <small>© 2026 Acxelin Quantum. ML-KEM (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205).</small>

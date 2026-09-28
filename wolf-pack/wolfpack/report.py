@@ -72,7 +72,7 @@ def endpoints_html(eps):
         rows.append(f"<tr><td>{e(ep['target'])}</td><td>{e(ep.get('version') or '')}</td>"
                     f"<td>{'<span class=yes>yes, ' + e(pq) + '</span>' if pq else 'no'}</td><td>{e(ep.get('preferred_group') or 'unknown')}</td>"
                     f"<td class=w>{e(', '.join(others[:8]))}</td><td class=w>{e(extra)}{'<br>legacy accepted: ' + e(legacy) if legacy else ''}</td></tr>")
-    return f"""<h2>Live endpoints</h2><div class="scroll"><table><thead><tr><th>Endpoint</th><th>Version</th><th>Hybrid PQ key exchange</th>
+    return f"""<h2>Live endpoints</h2><div class="scroll" tabindex="0"><table><thead><tr><th>Endpoint</th><th>Version</th><th>Hybrid PQ key exchange</th>
 <th>Preferred group</th><th>Classical groups accepted</th><th>Certificate or host keys</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>"""
 
 
@@ -86,7 +86,7 @@ def policy_html(c):
                     f"<td class='w dim'>{e(', '.join(v['files'][:3]))}</td></tr>")
     verdict = "passes" if c["passed"] else f"fails: {_plural(c['overdue'], 'rule')} already broken"
     return (f"<h2>Policy</h2><p>Checked against {e(', '.join(c['profiles']) or 'own rules')} as of {c['as_of']}: <span class=yes>{verdict}</span>, "
-            f"{c['upcoming']} more due later.</p><div class=scroll><table><thead><tr><th>Due</th><th>Rule</th><th>Asset</th><th>Why</th><th>Where</th></tr></thead>"
+            f"{c['upcoming']} more due later.</p><div class=scroll tabindex=0><table><thead><tr><th>Due</th><th>Rule</th><th>Asset</th><th>Why</th><th>Where</th></tr></thead>"
             f"<tbody>{''.join(rows) or '<tr><td colspan=5 class=dim>No rule broken.</td></tr>'}</tbody></table></div>")
 
 
@@ -139,12 +139,12 @@ def html(r):
 {base}
 {pol}
 <h2>Migration queue</h2>
-<div class="scroll"><table><thead><tr><th></th><th>Tier</th><th>Asset</th><th>Why</th><th>Do this</th><th>Exposure</th><th>Seen</th><th>Conf.</th></tr></thead>
+<div class="scroll" tabindex="0"><table><thead><tr><th></th><th>Tier</th><th>Asset</th><th>Why</th><th>Do this</th><th>Exposure</th><th>Seen</th><th>Conf.</th></tr></thead>
 <tbody>{''.join(rows) or '<tr><td colspan=8 class=dim>No cryptography found.</td></tr>'}</tbody></table></div>
 <h2>Hygiene alerts</h2>{alerts}
 <h2>Where each asset lives</h2>{''.join(detail)}
 <h2>Crypto libraries</h2>
-<div class="scroll"><table><thead><tr><th>Library</th><th>Source</th><th>Version</th><th>Imported by</th><th>PQ-capable</th><th>Where declared</th></tr></thead>
+<div class="scroll" tabindex="0"><table><thead><tr><th>Library</th><th>Source</th><th>Version</th><th>Imported by</th><th>PQ-capable</th><th>Where declared</th></tr></thead>
 <tbody>{libs or '<tr><td colspan=6 class=dim>No known crypto libraries declared.</td></tr>'}</tbody></table></div>
 <h2>Held back by the den</h2>
 <p class="dim">{'; '.join(f'{v} {k}' for k, v in why.most_common())}</p>

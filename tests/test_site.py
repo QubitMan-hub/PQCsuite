@@ -68,6 +68,13 @@ class SiteTest(unittest.TestCase):
         self.assertIn("wolf-pack-sample.html", self.page("wolf-pack.html").refs)
         self.assertIn("payments-api", (SITE / "wolf-pack-sample.html").read_text(encoding="utf-8"))
 
+    def test_sample_dashboard_is_published_and_linked(self):
+        for name in ("wolf-pack.html", "index.html"):
+            self.assertIn("wolf-pack-inventory.html", self.page(name).refs)
+        html = (SITE / "wolf-pack-inventory.html").read_text(encoding="utf-8")
+        for system in ("payments-api", "customer-portal", "batch-jobs"):
+            self.assertIn(system, html)
+
     def test_wolf_pack_is_reachable_but_not_a_product(self):
         p = self.page("index.html")
         self.assertIn("wolf-pack.html", p.refs)

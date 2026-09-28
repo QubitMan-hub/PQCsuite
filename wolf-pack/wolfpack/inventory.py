@@ -187,10 +187,10 @@ def html(org, systems, history=()):
 <div><span>quantum-safe asymmetric</span><b>{sm['pq_ready_percent']}%</b><small>of asymmetric algorithms in use</small></div>
 <div><span>systems at high or worse</span><b>{at['critical'] + at['high']}</b><small>{at['high']} high, {at['critical']} critical</small></div></div>
 {trend_html(list(history))}
-<h2>Systems, weakest first</h2><div class=scroll><table><tr><th></th><th>system</th><th>critical</th><th>high</th><th>quantum-safe</th><th>hybrid</th><th>policy</th><th>worst finding → replacement</th></tr>
+<h2>Systems, weakest first</h2><div class=scroll tabindex=0><table><tr><th></th><th>system</th><th>critical</th><th>high</th><th>quantum-safe</th><th>hybrid</th><th>policy</th><th>worst finding → replacement</th></tr>
 {''.join(rows)}</table></div>
-<h2>Migrate first</h2><div class=scroll><table><tr><th></th><th>system</th><th>algorithm</th><th>replacement</th><th>places</th></tr>{todo or '<tr><td colspan=5 class=dim>nothing at high or critical</td></tr>'}</table></div>
-<h2>Where each algorithm is used</h2><div class=scroll><table><tr><th></th><th>algorithm</th><th>systems</th><th>which</th><th>variants</th></tr>{''.join(use)}</table></div>
+<h2>Migrate first</h2><div class=scroll tabindex=0><table><tr><th></th><th>system</th><th>algorithm</th><th>replacement</th><th>places</th></tr>{todo or '<tr><td colspan=5 class=dim>nothing at high or critical</td></tr>'}</table></div>
+<h2>Where each algorithm is used</h2><div class=scroll tabindex=0><table><tr><th></th><th>algorithm</th><th>systems</th><th>which</th><th>variants</th></tr>{''.join(use)}</table></div>
 <footer>{'Tiers for ' + e(', '.join(est)) + ' are estimated from the algorithm alone: those CBOMs came from another tool or carry no Wolf Pack tiers. ' if est else ''}Each system's own report has the evidence behind every finding.</footer>
 </main></html>"""
 
@@ -236,7 +236,7 @@ def trend_html(rows):
     svg = (f"<svg viewBox='0 0 {w} {h}' role=img aria-label='Share of quantum-safe asymmetric algorithms over time' style='max-width:100%;height:auto'>"
            f"<line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke=currentColor stroke-width=1 /><polyline points='{line}' fill=none stroke=currentColor stroke-width=2 />{dots}{axis}</svg>")
     table = "".join(f"<tr><td>{e(r['date'])}</td><td>{r['pq_ready_percent']}%</td><td>{r['critical']}</td><td>{r['high']}</td><td>{r['breaches']}</td></tr>" for r in rows[-12:])
-    return (f"<h2>Readiness over time</h2>{svg}<div class=scroll><table><tr><th>date</th><th>quantum-safe</th><th>systems critical</th>"
+    return (f"<h2>Readiness over time</h2>{svg}<div class=scroll tabindex=0><table><tr><th>date</th><th>quantum-safe</th><th>systems critical</th>"
             f"<th>systems high</th><th>policy breaches</th></tr>{table}</table></div>")
 
 

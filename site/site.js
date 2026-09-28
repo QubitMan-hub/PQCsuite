@@ -79,3 +79,9 @@ if (finder) {
   render();
   document.getElementById("start").hidden = false;
 }
+
+const up = Object.assign(document.createElement("a"), { href: "#main", className: "up", textContent: "Top" });
+up.setAttribute("aria-label", "Back to top");
+up.hidden = true;
+document.body.append(up);
+addEventListener("scroll", () => (up.hidden = scrollY < 1200), { passive: true });
