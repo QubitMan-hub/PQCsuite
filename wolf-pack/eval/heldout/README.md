@@ -1,6 +1,6 @@
 # Held-out benchmark
 
-**Status (25 September 2026):** labels are done and committed: `labels/ai-a`, `labels/ai-b`, and the adjudicated `labels/final` (see `labels/LOG.md` and pre-registration amendments 1 and 2). The last step before scoring is the human audit of `labels/audit/` (63 files).
+**Status (25 September 2026):** labels are done and committed: `labels/ai-a`, `labels/ai-b`, and the adjudicated `labels/final` (see `labels/LOG.md` and pre-registration amendments 1 and 2). No person was available for the human audit, so amendment 3 replaced it with a label-support check and an AI audit (28 September 2026). AI-audit agreement is Dice 0.939 strict and 0.960 inclusive. Of 393 `used` labels, 1 looks doubtful. The details are in `labels/SUPPORT.md`. Scoring is next.
 
 The benchmark for the paper: 18 real repositories that Wolf Pack was not developed on, labelled blind by someone other than the author, then used to score Wolf Pack, its ablations and CBOMkit. The development corpus in `bench/` only shows that each part of the pack works. This benchmark is the one that measures it.
 
