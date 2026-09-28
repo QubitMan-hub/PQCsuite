@@ -16,12 +16,8 @@ from pqcsuite import tls
 from pqcsuite.console import App, Settings
 from pqcsuite.pki import CA, verify_crl
 from pqcsuite.tls.server import Server
+from tests.helpers import REASON
 
-try:
-    tls.lib()
-    REASON = None
-except tls.OpenSSLUnavailable as e:
-    REASON = str(e)
 
 WORKER = textwrap.dedent("""
     import sys

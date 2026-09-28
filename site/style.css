@@ -171,6 +171,11 @@ section { padding-block: 104px 0; }
 .jump span { font: 500 12px/1.3 var(--text); letter-spacing: .08em; text-transform: uppercase; color: var(--blue); padding-right: 18px; }
 .jump b { font: 500 20px/1.25 var(--display); color: var(--ink); }
 .jump code { font-size: 13px; color: var(--muted); }
+.jump small { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 14px; line-height: 1.4; color: var(--body); }
+.ca { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-bottom: 24px; padding: 16px 20px; border-radius: 10px; background: var(--ink); }
+.ca b { font: 500 18px/1.3 var(--display); color: #fff; }
+.ca span { font-size: 15px; line-height: 1.45; color: #d5dce4; }
+@media (min-width: 901px) { .jump a::before { content: ""; position: absolute; left: 32px; top: -25px; width: 2px; height: 24px; background: var(--amber); } }
 @media (max-width: 900px) { .jump { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .jump { grid-template-columns: minmax(0, 1fr); } }
 .product .name span { font: 500 13px/1 var(--text); letter-spacing: .1em; text-transform: uppercase; color: var(--blue); }

@@ -19,12 +19,8 @@ from pqcsuite import tls
 from pqcsuite.pki import CA, algorithm_of
 from pqcsuite.tls import CIPHERSUITES
 from pqcsuite.tls.openssl import Context
+from tests.helpers import REASON
 
-try:
-    tls.lib()
-    REASON = None
-except tls.OpenSSLUnavailable as e:
-    REASON = str(e)
 
 CLASSICAL = "X25519:secp256r1"
 REFUSED = "refused"

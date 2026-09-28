@@ -130,11 +130,12 @@
         <h2>Four products, one certificate authority</h2>
         <p>Each one works on its own. Together they share identities, revocation and one report for your auditors.</p>
       </div>
+      <p class="ca"><b>Your certificate authority</b><span>An ML-DSA root, with its key in a file, AWS KMS or an HSM. What each product takes from it:</span></p>
       <nav class="jump" aria-label="The four products">
-        <a href="#tls"><span>Traffic</span><b>TLS 1.3 + mTLS</b><code>pqcsuite tls</code></a>
-        <a href="#vpn"><span>Tunnels</span><b>IPsec VPN</b><code>pqcsuite vpn</code></a>
-        <a href="#vault"><span>Backups</span><b>Vault</b><code>pqcsuite vault</code></a>
-        <a href="#readiness"><span>Audits</span><b>Readiness assessment</b><code>pqcsuite readiness</code></a>
+        <a href="#tls"><span>Traffic</span><b>TLS 1.3 + mTLS</b><code>pqcsuite tls</code><small>Server and client certificates</small></a>
+        <a href="#vpn"><span>Tunnels</span><b>IPsec VPN</b><code>pqcsuite vpn</code><small>Gateway identities and revocation</small></a>
+        <a href="#vault"><span>Backups</span><b>Vault</b><code>pqcsuite vault</code><small>Who signed each backup</small></a>
+        <a href="#readiness"><span>Audits</span><b>Readiness assessment</b><code>pqcsuite readiness</code><small>Every certificate, in the report</small></a>
       </nav>
 
       <article class="product" id="tls">
@@ -146,7 +147,6 @@
             <li>Mutual TLS, with revoked machines refused at their next connection</li>
           </ul></div>
           <div><h4>Behind the scenes</h4><ul>
-            <li>Your own certificate authority, with keys in a file, AWS KMS or an HSM</li>
             <li>Machines enrol and renew by themselves over EST or ACME</li>
             <li>Renewed certificates load without a restart</li>
           </ul></div>

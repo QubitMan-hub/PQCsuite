@@ -20,21 +20,7 @@ from pqcsuite.console import App, Settings
 from pqcsuite.pki import CA, CAError, fetch_crl, follow_crl, shared
 from pqcsuite.vpn import Peer, Site, validate
 from pqcsuite.vpn.wireguard import Gateway, GatewayConfig
-
-try:
-    tls.lib()
-    REASON = None
-except tls.OpenSSLUnavailable as e:
-    REASON = str(e)
-
-
-def wait(check, seconds=5.0):
-    deadline = time.monotonic() + seconds
-    while time.monotonic() < deadline:
-        if check():
-            return True
-        time.sleep(0.05)
-    return check()
+from tests.helpers import REASON, wait
 
 
 def revoked(path):

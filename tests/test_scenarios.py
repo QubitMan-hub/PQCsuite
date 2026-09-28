@@ -14,12 +14,7 @@ from pathlib import Path
 
 from pqcsuite import tls
 from pqcsuite.pki import CA
-
-try:
-    tls.lib()
-    REASON = None
-except tls.OpenSSLUnavailable as e:
-    REASON = str(e)
+from tests.helpers import REASON
 
 
 def openssl_cli():

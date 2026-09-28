@@ -10,12 +10,7 @@ from cryptography import x509
 from pqcsuite import tls
 from pqcsuite.pki import est
 from pqcsuite.pki import CA, CAError, generate
-
-try:
-    tls.lib()
-    REASON = None
-except tls.OpenSSLUnavailable as e:
-    REASON = str(e)
+from tests.helpers import REASON
 
 
 @unittest.skipIf(REASON, REASON)

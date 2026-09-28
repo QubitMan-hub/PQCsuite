@@ -17,12 +17,7 @@ from pqcsuite.readiness import scan
 from pqcsuite.pki import CA
 from pqcsuite.tls.openssl import Context
 from pqcsuite.tls.server import Server
-
-try:
-    tls.lib()
-    REASON = None
-except tls.OpenSSLUnavailable as e:
-    REASON = str(e)
+from tests.helpers import REASON
 
 
 def rsa_cert(d):

@@ -9,12 +9,7 @@ from pathlib import Path
 from pqcsuite import tls
 from pqcsuite.cli import main
 from pqcsuite.pki import CA
-
-try:
-    tls.lib()
-    REASON = None
-except tls.OpenSSLUnavailable as e:
-    REASON = str(e)
+from tests.helpers import REASON
 
 
 class CLITest(unittest.TestCase):

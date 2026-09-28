@@ -19,12 +19,7 @@ from pqcsuite import tls
 from pqcsuite.pki import CA
 from pqcsuite.tls.edge import Edge, Route, metrics_text
 from pqcsuite.tls.server import Server
-
-try:
-    tls.lib()
-    REASON = None
-except tls.OpenSSLUnavailable as e:
-    REASON = str(e)
+from tests.helpers import REASON, wait
 
 
 def echo(conn, addr):
@@ -75,9 +70,7 @@ class TLSTest(unittest.TestCase):
         with self.assertLogs("pqcsuite", "WARNING") as logs:
             with self.assertRaises(tls.TLSError):
                 tls.connect("127.0.0.1", s.port, classical, "localhost", timeout=3)
-            deadline = time.monotonic() + 3
-            while not any("post-quantum key exchange" in m for m in logs.output) and time.monotonic() < deadline:
-                time.sleep(0.05)
+            wait(lambda: any("post-quantum key exchange" in m for m in logs.output), 3)
         self.assertTrue(any("use policy transition" in m for m in logs.output), logs.output)
 
     def test_pqc_handshake_and_data(self):
@@ -135,9 +128,7 @@ class TLSTest(unittest.TestCase):
                     _, reply = self.roundtrip(s.port, self.client(who))
                     self.assertEqual(reply, b"")
                     raise tls.TLSError("closed")
-        deadline = time.monotonic() + 5
-        while s.stats.snapshot()["handshake_failed"] < 2 and time.monotonic() < deadline:
-            time.sleep(0.02)
+        wait(lambda: s.stats.snapshot()["handshake_failed"] >= 2)
         self.assertGreaterEqual(s.stats.snapshot()["handshake_failed"], 2)
 
     def test_revoked_client_is_refused(self):
@@ -203,9 +194,7 @@ class TLSTest(unittest.TestCase):
         before = serial()
         time.sleep(1.1)
         self.ca.renew(rec.serial, out=d)
-        deadline = time.monotonic() + 8
-        while serial() == before and time.monotonic() < deadline:
-            time.sleep(0.5)
+        wait(lambda: serial() != before, 8)
         self.assertNotEqual(serial(), before)
         self.assertEqual(s.stats.snapshot()["reloads"], 1)
         (d / "chain.pem").rename(d / "moved.pem")

@@ -14,13 +14,9 @@ from pqcsuite import tls
 from pqcsuite.pki import signers
 from pqcsuite.pki import CA, CAError, check_revocation, generate, key_pem, signed_by
 from pqcsuite.tls.server import Server
+from tests.helpers import REASON
 from tests.test_tls import echo
 
-try:
-    tls.lib()
-    REASON = None
-except tls.OpenSSLUnavailable as e:
-    REASON = str(e)
 
 SPKI = serialization.PublicFormat.SubjectPublicKeyInfo
 
