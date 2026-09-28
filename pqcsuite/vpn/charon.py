@@ -1,5 +1,6 @@
 """strongSwan's charon, driven through its VICI API: no config files, no parsing of command output."""
 import socket
+import threading
 from urllib.parse import urlparse
 
 from . import PROFILES
@@ -22,6 +23,7 @@ def connect(uri):
             raise CharonError(f"unsupported VICI address {uri}; use unix:///path or tcp://host:port")
     except OSError as e:
         raise CharonError(f"cannot reach charon at {uri}: {e} (is strongSwan running?)") from None
+    s.settimeout(60)
     return vici.Session(s)
 
 
@@ -53,6 +55,7 @@ class Charon:
     def __init__(self, uri):
         self.uri = uri
         self.session = connect(uri)
+        self.lock = threading.Lock()
 
     def close(self):
         self.session.transport.socket.close()
@@ -64,20 +67,22 @@ class Charon:
         self.close()
 
     def _call(self, fn, *args):
+        """One request at a time: the session is a single socket shared by the controller's threads and the metrics server."""
         import vici.exception
         try:
-            result = fn(*args)
-            return list(result) if hasattr(result, "__next__") else result
+            with self.lock:
+                result = fn(*args)
+                return list(result) if hasattr(result, "__next__") else result
         except vici.exception.CommandException as e:
             raise CharonError(str(e)) from None
 
     def version(self):
-        v = self.session.version()
+        v = self._call(self.session.version)
         return f"{text(v['daemon'])} {text(v['version'])}"
 
     def ml_kem(self):
         """ML-KEM key exchanges this charon supports."""
-        return sorted(text(k) for k in self.session.get_algorithms().get("ke", {}) if text(k).startswith("ML_KEM"))
+        return sorted(text(k) for k in self._call(self.session.get_algorithms).get("ke", {}) if text(k).startswith("ML_KEM"))
 
     def load_keys(self, site, peer, psk, ppk, ppk_id, key_tag):
         self._call(self.session.load_shared, {"id": f"psk-{peer}", "type": "IKE", "data": psk, "owners": [site, peer]})
@@ -87,7 +92,7 @@ class Charon:
         self._call(self.session.unload_shared, {"id": key_id})
 
     def shared_ids(self):
-        return [text(k) for k in self.session.get_shared().get("keys", [])]
+        return [text(k) for k in self._call(self.session.get_shared).get("keys", [])]
 
     def load_conn(self, config):
         self._call(self.session.load_conn, config)
@@ -105,7 +110,7 @@ class Charon:
     def tunnels(self):
         """One dict per IKE SA: who, state, algorithms, whether a PPK was used, and its child SAs with traffic counters."""
         out = []
-        for sa in self.session.list_sas():
+        for sa in self._call(self.session.list_sas):
             for name, ike in sa.items():
                 kes = [text(ike.get(k)) for k in ["dh-group"] + [f"ake{i}" for i in range(1, 8)] if ike.get(k)]
                 out.append({

@@ -71,6 +71,29 @@ class ConfigTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "PQCSUITE_TEST_UNSET_VAR is not set"):
             Controller(site, charon=object()).passphrase()
 
+    def test_one_vici_request_at_a_time(self):
+        import threading
+        from pqcsuite.vpn.charon import Charon
+
+        class Session:
+            busy, overlaps = False, 0
+
+            def list_sas(self):
+                if Session.busy:
+                    Session.overlaps += 1
+                Session.busy = True
+                time.sleep(0.01)
+                yield {}
+                Session.busy = False
+        ch = Charon.__new__(Charon)
+        ch.session, ch.lock = Session(), threading.Lock()
+        threads = [threading.Thread(target=ch.tunnels) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(Session.overlaps, 0)
+
     def test_example_configs_load(self):
         root = Path(__file__).parent.parent / "examples"
         for f in ("vpn-hq.toml", "vpn-branch.toml"):
