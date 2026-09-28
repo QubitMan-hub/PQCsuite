@@ -50,6 +50,14 @@ def iter_files(root, scope=Scope(), max_bytes=MAX_BYTES, skip=None):
                 continue
 
 
+def oversized(root, scope=Scope()):
+    """Source files over MAX_BYTES, which the scouts do not read (usually generated or minified code)."""
+    from .lexer import LANGS
+    if Path(root).is_file():
+        return []
+    return [rel(root, p) for p in iter_files(root, scope, max_bytes=float("inf")) if p.suffix.lower() in LANGS and p.stat().st_size > MAX_BYTES]
+
+
 def rel(root, p):
     root = Path(root)
     try:

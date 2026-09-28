@@ -185,6 +185,16 @@ class Roles(unittest.TestCase):
         self.assertEqual(self.accepted(["implementations"], "c/keccak.c"), set())
         self.assertEqual(self.accepted(["implementations"], "c/ripemd160_impl.c"), set())
 
+    def test_files_too_large_to_read_are_named_in_the_notes(self):
+        import tempfile
+        from wolfpack.scouts import MAX_BYTES
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "app.min.js").write_text("x" * (MAX_BYTES + 1), encoding="utf-8")
+            (Path(d) / "small.py").write_text("import hashlib\nhashlib.md5()\n", encoding="utf-8")
+            notes = pack.run(d, "t").notes
+            self.assertTrue(any("app.min.js" in n and "not read" in n for n in notes), notes)
+            self.assertFalse([n for n in pack.run(Path(d) / "app.min.js", "t").notes if "not read" in n])
+
     def test_sha1_keeps_the_initial_values_it_shares_with_ripemd160(self):
         import tempfile
         from wolfpack.scouts import binary, implementations
