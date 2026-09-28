@@ -97,5 +97,21 @@ class ESTTest(unittest.TestCase):
             est._call(self.url, tls.client_context(self.cafile), "/simplereenroll", est._csr(generate("ML-DSA-65"), "app.acme", []), {})
 
 
+class HTTPTest(unittest.TestCase):
+    def test_a_request_trickled_a_byte_at_a_time_runs_out_of_time(self):
+        from pqcsuite.tls import http
+
+        class Trickle:
+            def recv(self, size, timeout):
+                if timeout <= 0:
+                    raise tls.TLSError("read timed out")
+                time.sleep(0.1)
+                return b"x"
+        start = time.monotonic()
+        with self.assertRaises(tls.TLSError):
+            http.read_request(Trickle(), timeout=1)
+        self.assertLess(time.monotonic() - start, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

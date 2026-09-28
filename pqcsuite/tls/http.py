@@ -1,4 +1,8 @@
 """Just enough HTTP/1.1 over a PQC TLS Connection for the EST enrollment service: one request per connection."""
+import logging
+import time
+
+log = logging.getLogger("pqcsuite.http")
 MAX_HEAD, MAX_BODY = 16384, 1 << 20
 REASONS = {200: "OK", 201: "Created", 204: "No Content", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
            405: "Method Not Allowed", 409: "Conflict", 413: "Payload Too Large", 500: "Internal Server Error"}
@@ -11,9 +15,12 @@ class HTTPError(Exception):
 
 
 def _read_message(conn, timeout):
+    """One message within `timeout` seconds in total, so a client trickling a byte at a time cannot hold the connection."""
+    deadline = time.monotonic() + timeout
+    left = lambda: max(0.0, deadline - time.monotonic())
     buf = b""
     while b"\r\n\r\n" not in buf:
-        chunk = conn.recv(4096, timeout=timeout)
+        chunk = conn.recv(4096, timeout=left())
         if not chunk:
             raise HTTPError(400, "connection closed before the headers ended")
         buf += chunk
@@ -34,7 +41,7 @@ def _read_message(conn, timeout):
     if n > MAX_BODY or n < 0:
         raise HTTPError(413, "body too large")
     while len(body) < n:
-        chunk = conn.recv(min(65536, n - len(body)), timeout=timeout)
+        chunk = conn.recv(min(65536, n - len(body)), timeout=left())
         if not chunk:
             raise HTTPError(400, "connection closed inside the body")
         body += chunk
@@ -76,5 +83,8 @@ def handler(app):
             status, out, extra = app(method, path, headers, body, conn)
         except HTTPError as e:
             status, out, extra = e.status, str(e).encode(), {"Content-Type": "text/plain"}
+        except Exception:
+            log.exception("http: request from %s failed", addr[0])
+            status, out, extra = 500, b"internal error; see the server log", {"Content-Type": "text/plain"}
         send_response(conn, status, out, extra)
     return handle
