@@ -14,8 +14,13 @@ These are micro-averaged over 18 repos and about 600 files, with 95% bootstrap i
 | **Headline: `158d69f`** | inclusive | 0.987 [0.97, 1.00] | 0.277 [0.14, 0.47] | 0.432 |
 | Later version: 1.1.0 (`78ec4ed`) | strict | 0.820 [0.70, 1.00] | 0.430 [0.29, 0.57] | 0.564 |
 | Later version: 1.1.0 | inclusive | 0.976 [0.96, 1.00] | 0.379 [0.26, 0.50] | 0.545 |
+| **After tuning on held-out data:** 1.2.0 | strict | 0.817 [0.68, 0.96] | 0.896 [0.85, 0.94] | 0.854 |
+| After tuning on held-out data: 1.2.0 | inclusive | 0.968 [0.95, 0.99] | 0.785 [0.72, 0.86] | 0.867 |
 
-Files: `results-headline-158d69f.json` and `results-later-1.1.0.json`. The later version includes the stress-test fixes. It was not tuned on these repos; no fix has come from held-out errors.
+Files: `results-headline-158d69f.json`, `results-later-1.1.0.json` and `results-tuned-1.2.0.json`.
+
+- **1.1.0** includes the stress-test fixes but was not tuned on these repos.
+- **1.2.0** was built after reading 1.1.0's misses on these repos, so its row is **after tuning on held-out data**. It shows how far the pack can go on this code, not how it does on code it has never seen. Its new rules were then checked on ten unseen repos (`eval/unseen/`): 77% of the pairs it adds are used and 91% are used or declared, by the developer's own review. The headline stays 158d69f.
 
 **What the numbers say.** Wolf Pack is precise on unseen code, but it finds about a third of the used pairs. Recall is lowest where cryptography is implemented by hand, or reached through the project's own wrappers, with no library call or algorithm name to match:
 

@@ -17,8 +17,11 @@ CONFIGS = [
     ("without propagation", ("propagation",)),
     ("without cross-file", ("cross-file",)),
     ("without source scouts", ("source",)),
+    ("without names", ("names",)),
+    ("without concat", ("concat",)),
     ("without implementation scouts", ("implementations",)),
     ("without config scouts", ("config",)),
+    ("without lists", ("lists",)),
     ("without artifact scouts", ("artifacts",)),
     ("without binary scouts", ("binary",)),
 ]

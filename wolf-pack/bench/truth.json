@@ -202,5 +202,49 @@
     "ECDSA",
     "AES",
     "SHA-384"
+  ],
+  "c/blowfish_impl.c": [
+    "Blowfish"
+  ],
+  "c/cipher_api.h": [],
+  "java/PasswordStore.java": [
+    "Argon2"
+  ],
+  "js/runtime_names.js": [
+    "RSA"
+  ],
+  "yaml/gateway.yaml": [
+    "TLS 1.2",
+    "ECDH",
+    "ECDSA",
+    "AES",
+    "SHA-384",
+    "ChaCha20"
+  ],
+  "go/noise.go": [
+    "X25519",
+    "ChaCha20",
+    "BLAKE2",
+    "AES"
+  ],
+  "py/jwe_use.py": [
+    "RSA",
+    "SHA-256",
+    "AES",
+    "X25519",
+    "HMAC",
+    "SHA-512"
+  ],
+  "infra/kms.tf": [
+    "RSA",
+    "AES",
+    "ECDSA",
+    "SHA-256"
+  ],
+  "js/settings.js": [
+    "SHA-1"
+  ],
+  "js/checksum.js": [
+    "SHA-1"
   ]
 }

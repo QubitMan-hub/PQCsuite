@@ -1,0 +1,8 @@
+tls:
+  min_version: TLSv1.2
+  ciphers:
+    - ECDHE-ECDSA-AES256-GCM-SHA384
+    - ECDHE-ECDSA-CHACHA20-POLY1305
+  disabled_ciphers:
+    - RC4-SHA
+    - DES-CBC3-SHA

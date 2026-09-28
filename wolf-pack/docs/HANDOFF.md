@@ -143,6 +143,26 @@ Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3
 5. A comment near a list caused a false deny, so deny detection now reads the variable name only.
 6. The `"AES_SALT"` field name was classified as AES. Symmetric-name parsing now requires the remaining tokens to be sizes or modes.
 
+## Scoring, gaps closed, and 1.2.0 (28 September 2026)
+
+- **Audit:** no person was available for the human audit. Amendment 3 replaced it with two checks (`eval/heldout/labels/SUPPORT.md`):
+  - a mechanical label-support check: 355 of 393 `used` labels are named in their file's code; of the other 38, 18 are blind spots of the check, 19 are correct inferences and 1 is doubtful;
+  - an AI audit of the 63-file sample: Dice 0.939 strict and 0.960 inclusive.
+- **First scores** (strict):
+  - headline 158d69f: P 0.886, R 0.336;
+  - 1.1.0: P 0.820, R 0.430.
+
+  Precision held up on unseen code. Recall did not: most misses were code named for its algorithm with no library API (`aes_encrypt`, `BCrypt.HashPassword`, `class HkdfSha256`), plus Noise and JOSE names, and hashlib functions passed as values.
+- **1.2.0** was built from those misses:
+  - the `names`, `concat` and `lists` roles;
+  - Noise, JOSE and KMS formats, PyNaCl, JS imports and container images;
+  - eight algorithms added to the catalog;
+  - the flow look now follows byte literals and branches.
+
+  Held-out (after tuning on held-out data): strict P 0.817, R 0.896, F1 0.854. Removing `names` drops recall to 0.514.
+- **Generalisation check** (`eval/unseen/`): ten repos never used before. Of 100 random pairs that 1.2.0 adds, 77 are used, 14 declared and 9 wrong, by the developer's own review. The error causes were fixed after the review, so those repos are tuned on now too.
+- **Next for the paper:** a second blind-labelled held-out set to measure 1.2.0 honestly; then the CBOMkit run for H1. Building CBOMkit from source in the cloud session was refused by the session's permission check.
+
 ## Known limitations
 
 - **Analysis depth:** only Python has true AST analysis. Other languages rely on rules plus intra-file constant propagation.
@@ -150,7 +170,8 @@ Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3
 - **Declared support:** algorithm lists count as declared support, including detection-only lists.
 - **Binary constants:** compiler immediates (for example OpenSSL's MD5 and SHA-1 initial values) are missed, and "found in a binary" means implemented or linked, not necessarily used.
 - **Group probe coverage:** the probe needs RFC 8446-conforming servers, and TLS 1.2-only servers get no group list.
-- **Not yet scanned:** containers, cloud KMS and HSMs.
+- **Container images:** only `docker save` and OCI archives. Registries are not pulled, and zstd-compressed layers are skipped with a note.
+- **Names:** the `names` role trusts code that names its algorithm. A class that only mentions one, such as a factory property returning `new Aes256Gcm()`, counts as used, which the held-out labellers sometimes called declared (nsec).
 
 ## Open questions for the paper
 

@@ -16,8 +16,11 @@ SCOUTS = ("source", "implementations", "config", "artifacts", "binary")
 class Roles:
     """Which members of the pack take part. Switching one off is an ablation; docs/PACK.md says what each one does."""
     source: bool = True
+    names: bool = True
+    concat: bool = True
     implementations: bool = True
     config: bool = True
+    lists: bool = True
     artifacts: bool = True
     binary: bool = True
     propagation: bool = True
@@ -66,7 +69,7 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=()):
     h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
     if roles.source:
         unparsed = []
-        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed)
+        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed, roles.names, roles.concat)
         h.sightings += s
         if unparsed:
             h.notes.append(f"{len(unparsed)} Python file(s) could not be parsed by this Python ({sys.version.split()[0]}): newer syntax, or not "
@@ -81,7 +84,7 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=()):
         s, h.files["implementations"] = implementations.scan(root, scope)
         h.sightings += s
     if roles.config:
-        s, h.files["config"] = config.scan(root, scope)
+        s, h.files["config"] = config.scan(root, scope, roles.lists)
         h.sightings += s
     if roles.artifacts:
         h.artifacts, s, h.files["artifacts"] = artifacts.scan(root, scope)

@@ -18,6 +18,80 @@ class Elders(unittest.TestCase):
         self.assertEqual(lookup("HMACSHA1"), "HMAC")
 
 
+class Image(unittest.TestCase):
+    @staticmethod
+    def layer(files, gz=False):
+        import io
+        import tarfile
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz" if gz else "w") as t:
+            for name, data in files.items():
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                t.addfile(info, io.BytesIO(data))
+        return buf.getvalue()
+
+    def archive(self, path, members):
+        import io
+        import tarfile
+        with tarfile.open(path, "w") as t:
+            for name, data in members.items():
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                t.addfile(info, io.BytesIO(data))
+
+    def test_docker_save_layers_and_whiteouts(self):
+        import json
+        import tempfile
+        from wolfpack import image
+        base = self.layer({"app/old.py": b"import hashlib\nhashlib.md5(b'x')\n", "../escape.py": b"import hashlib\nhashlib.sha1(b'x')\n"})
+        top = self.layer({"app/.wh.old.py": b"", "app/new.py": b"import hashlib\nhashlib.sha256(b'x')\n"}, gz=True)
+        with tempfile.TemporaryDirectory() as d:
+            tar = Path(d) / "img.tar"
+            self.archive(tar, {"manifest.json": json.dumps([{"Layers": ["a/layer.tar", "b/layer.tar"]}]).encode(), "a/layer.tar": base, "b/layer.tar": top})
+            self.assertTrue(image.is_image(tar))
+            root = Path(d) / "root"
+            notes = image.unpack(tar, root)
+            self.assertIn("2 layer(s)", notes[0])
+            self.assertEqual(sorted(p.relative_to(root).as_posix() for p in root.rglob("*.py")), ["app/new.py"])
+            self.assertEqual({s.algo for s in pack.run(root, "img").sightings if s.verdict == "accepted"}, {"SHA-256"})
+
+    def test_oci_layout(self):
+        import hashlib
+        import json
+        import tempfile
+        from wolfpack import image
+        layer = self.layer({"srv/app.py": b"import hashlib\nhashlib.sha512(b'x')\n"}, gz=True)
+        digest = lambda b: "sha256:" + hashlib.sha256(b).hexdigest()
+        man = json.dumps({"layers": [{"digest": digest(layer)}]}).encode()
+        idx = json.dumps({"manifests": [{"digest": digest(man)}]}).encode()
+        with tempfile.TemporaryDirectory() as d:
+            tar = Path(d) / "oci.tar"
+            self.archive(tar, {"oci-layout": b"{}", "index.json": idx, "blobs/" + digest(man).replace(":", "/"): man,
+                               "blobs/" + digest(layer).replace(":", "/"): layer})
+            image.unpack(tar, Path(d) / "root")
+            self.assertTrue((Path(d) / "root/srv/app.py").exists())
+
+
+class Formats(unittest.TestCase):
+    def test_noise_and_jose(self):
+        from wolfpack.scouts.suites import noise_name, jose_alg
+        self.assertEqual([a for a, _ in noise_name("Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s")], ["X25519", "ChaCha20-Poly1305", "BLAKE2"])
+        self.assertEqual([a for a, _ in jose_alg("PBES2-HS512+A256KW")], ["PBKDF2", "AES"])
+        self.assertEqual(jose_alg("dir"), [])
+
+    def test_kms_key_specs(self):
+        from wolfpack.scouts.suites import kms_spec
+        self.assertEqual(kms_spec("RSA_SIGN_PSS_3072_SHA256")[0], ("RSA", {"key_size": 3072, "hash": "SHA-256"}))
+        self.assertEqual(kms_spec("ECC_NIST_P384"), [("ECC", {"curve": "P-384"})])
+        self.assertEqual(kms_spec("ENCRYPT_DECRYPT"), [])
+
+    def test_hashlib_reference_counts_unless_only_compared(self):
+        from wolfpack.scouts.pysrc import scan_python
+        found = {a for a, *_ in scan_python("x.py", "import hashlib\ndef f(d=hashlib.sha1):\n    if d in [hashlib.md5]:\n        pass\n")}
+        self.assertEqual(found, {"SHA-1"})
+
+
 class Suites(unittest.TestCase):
     def test_negations_are_ignored(self):
         algos = {a for a, _ in cipher_string("ECDHE-RSA-AES128-GCM-SHA256:HIGH:!aNULL:!MD5:!RC4")}
@@ -38,6 +112,11 @@ class Pack(unittest.TestCase):
 
     def accepted(self, f):
         return {s.algo for s in self.r.sightings if s.file == f and s.verdict == "accepted"}
+
+    def test_cloud_kms_keys_but_not_retired_ones_in_comments(self):
+        self.assertEqual(self.accepted("infra/kms.tf"), {"RSA", "AES", "ECDSA", "SHA-256"})
+        sizes = {s.params.get("key_size") for s in self.r.sightings if s.file == "infra/kms.tf" and s.verdict == "accepted" and s.algo == "RSA"}
+        self.assertEqual(sizes, {2048, 3072})
 
     def test_traps_rejected(self):
         self.assertEqual(self.accepted("py/notes.py"), set())
@@ -155,6 +234,31 @@ class Roles(unittest.TestCase):
 
     def test_second_look_covers_its_parts(self):
         self.assertEqual(pack.Roles.without("second-look").off, ["flow", "registries", "siblings"])
+
+    def test_names_find_code_named_for_its_algorithm_but_not_declarations(self):
+        self.assertEqual(self.accepted((), "c/blowfish_impl.c"), {"Blowfish"})
+        self.assertEqual(self.accepted((), "c/cipher_api.h"), set())
+        self.assertEqual(self.accepted((), "java/PasswordStore.java"), {"Argon2"})
+        self.assertEqual(self.accepted(("names",), "c/blowfish_impl.c"), set())
+
+    def test_javascript_imports_carry_constants_across_modules(self):
+        self.assertEqual(self.accepted((), "js/checksum.js"), {"SHA-1"})
+        self.assertEqual(self.accepted((), "js/settings.js"), {"SHA-1"})
+        self.assertEqual(self.accepted(("cross-file",), "js/checksum.js"), set())
+
+    def test_concat_keeps_only_complete_parts(self):
+        self.assertEqual(self.accepted((), "js/runtime_names.js"), {"RSA"})
+        self.assertEqual(self.accepted(("concat",), "js/runtime_names.js"), set())
+
+    def test_lists_read_multiline_entries_and_skip_denied_ones(self):
+        self.assertEqual(self.accepted((), "yaml/gateway.yaml"), {"TLS 1.2", "ECDH", "ECDSA", "AES", "SHA-384", "ChaCha20-Poly1305"})
+        self.assertEqual(self.accepted(("lists",), "yaml/gateway.yaml"), {"TLS 1.2"})
+
+    def test_flow_follows_byte_literals_and_branches(self):
+        self.assertIn("X25519", self.accepted((), "py/jwe_use.py"))
+        self.assertIn("AES", self.accepted((), "go/noise.go"))
+        self.assertNotIn("X25519", self.accepted(("flow",), "py/jwe_use.py"))
+        self.assertEqual(self.accepted(("flow",), "go/noise.go"), {"X25519", "ChaCha20-Poly1305", "BLAKE2"})
 
     def test_propagation_recovers_key_size(self):
         import tempfile

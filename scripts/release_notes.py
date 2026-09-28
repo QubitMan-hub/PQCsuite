@@ -1,7 +1,7 @@
 """Prints the changelog section for a release, after checking the version matches the package.
 
     python scripts/release_notes.py . 0.1.0          # the suite: CHANGELOG.md, pyproject.toml
-    python scripts/release_notes.py wolf-pack 1.1.0  # Wolf Pack: wolf-pack/CHANGELOG.md, wolf-pack/pyproject.toml
+    python scripts/release_notes.py wolf-pack 1.2.0  # Wolf Pack: wolf-pack/CHANGELOG.md, wolf-pack/pyproject.toml
 """
 import re
 import sys

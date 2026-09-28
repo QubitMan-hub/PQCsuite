@@ -188,6 +188,11 @@ def _(m, x):
     return [(f"ML-KEM-{m.group(2)}", {})]
 
 
+simple("go", r'\bnoise\.(DH25519|DH448|CipherChaChaPoly|CipherAESGCM|HashBLAKE2s|HashBLAKE2b|HashSHA256|HashSHA512)\b',
+       {"DH25519": "X25519", "DH448": "X448", "CipherChaChaPoly": "ChaCha20-Poly1305", "CipherAESGCM": "AES", "HashBLAKE2s": "BLAKE2",
+        "HashBLAKE2b": "BLAKE2", "HashSHA256": "SHA-256", "HashSHA512": "SHA-512"}, lib="noise")
+
+
 @rule("go", r'\bhmac\.New\(\s*(sha1|sha256|sha512|md5)\.New')
 def _(m, x):
     return [("HMAC", {"hash": lookup(m.group(1))})]
@@ -413,3 +418,7 @@ simple("rust", r'\b(Md5|Sha1|Sha224|Sha256|Sha384|Sha512)::(?:new|digest)\b|\b(m
 def _(m, x):
     a = pq_from_text(m.group(0))
     return [(a, {}, "identifier")] if a else []
+
+
+# Shell: WireGuard keys are Curve25519 by the protocol's definition
+simple("hash", r'\bwg\s+(?:genkey|pubkey)\b', "X25519", lib="wireguard-tools")

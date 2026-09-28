@@ -1,5 +1,6 @@
 import argparse
 import json
+import shutil
 import sys
 import tempfile
 import tomllib
@@ -8,7 +9,7 @@ from pathlib import Path
 
 from cryptography.utils import CryptographyDeprecationWarning
 
-from . import __version__, pack, cbom, report
+from . import __version__, pack, cbom, report, image
 from .alpha import Horizon, TIERS
 from .pack import ROLES
 from .scouts import Scope
@@ -23,7 +24,7 @@ def main(argv=None):
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("scan", aliases=["hunt"], help="send the pack over a repository and/or live TLS and SSH endpoints")
-    s.add_argument("path", nargs="?", default=None, help="folder to scan (default: current folder, or none if only --tls/--ssh are given)")
+    s.add_argument("path", nargs="?", default=None, help="folder to scan, or a container image saved with `docker save` or as an OCI archive (default: current folder, or none if only --tls/--ssh are given)")
     s.add_argument("--tls", action="append", default=[], metavar="HOST:PORT", help="probe a live TLS endpoint, including which key-exchange groups it accepts (repeatable)")
     s.add_argument("--ssh", action="append", default=[], metavar="HOST[:PORT]", help="read a live SSH server's algorithm lists (repeatable)")
     s.add_argument("--baseline", metavar="CBOM", help="previous cbom.json; report what is new and gate CI only on new findings")
@@ -81,7 +82,17 @@ def main(argv=None):
     except OSError as e:
         sys.exit(f"wolfpack: cannot write to {out}: {e}")
     h = Horizon(a.shelf_life, a.migration, a.crqc_year)
-    r = pack.run(root, name, a.tls, h, a.threshold, pack.Roles.without(*a.without), Scope(a.include_vendor, tuple(a.exclude)), a.ssh, a.baseline)
+    unpacked, notes = None, []
+    if image.is_image(root):
+        unpacked = Path(tempfile.mkdtemp(prefix="wolfpack-image-"))
+        notes = image.unpack(root, unpacked)
+        name = a.name or root.name.split(".")[0]
+    try:
+        r = pack.run(unpacked or root, name, a.tls, h, a.threshold, pack.Roles.without(*a.without), Scope(a.include_vendor, tuple(a.exclude)), a.ssh, a.baseline)
+    finally:
+        if unpacked:
+            shutil.rmtree(unpacked, ignore_errors=True)
+    r.notes[:0] = notes
     try:
         _write(out, name, r)
     except OSError as e:

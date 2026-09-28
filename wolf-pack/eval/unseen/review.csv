@@ -1,0 +1,101 @@
+sample,index,repo,file,family,line,evidence,snippet,verdict,why
+1,0,jose,src/lib/key_management.ts,ConcatKDF,134,identifier,"async function concatKdf(Z: Uint8Array, keyDataLength: number, OtherInfo: Uint8Array) {",used,
+1,1,jose,tap/aes.ts,SHA-256,18,string,"'A128CBC-HS256',",used,
+1,2,SSH.NET,src/Renci.SshNet/PrivateKeyFile.PKCS1.cs,ECDSA,81,identifier,return new EcdsaKey(decryptedData);,used,
+1,3,curve25519-dalek,curve25519-dalek/src/backend/vector/scalar_mul/pippenger.rs,X25519,12,identifier,#[curve25519_dalek_derive::unsafe_target_feature_specialize(,wrong,"crate name in a Rust attribute macro, not X25519 use"
+1,4,jose,tap/keyobject-stub.ts,SHA-1,73,string,case 'RSA-OAEP':,used,
+1,5,jose,tap/general.ts,AES,16,string,"const a = await keys.generateSecret('A256KW', { extractable: true })",used,
+1,6,jose,src/types.d.ts,PBKDF2,51,string,| 'PBES2-HS256+A128KW',declared,TypeScript union type
+1,7,curve25519-dalek,curve25519-dalek/src/montgomery.rs,X25519,550,identifier,let raw_bytes = constants::X25519_BASEPOINT.as_bytes();,used,
+1,8,jose,tap/env.ts,SHA-512,104,string,case 'PBES2-HS512+A256KW':,declared,runtime support check in the test environment
+1,9,jose,src/lib/jwe_algorithms.ts,PBKDF2,142,string,"'PBES2-HS256+A128KW': pbes2(),",used,
+1,10,libhydrogen,impl/hydrogen_p.h,X25519,71,identifier,"static int hydro_x25519_scalarmult(uint8_t       out[hydro_x25519_BYTES],",used,
+1,11,age,cmd/age/parse.go,X25519,45,identifier,return age.ParseX25519Recipient(arg),used,
+1,12,jose,tap/keyobject-stub.ts,ECDH,93,string,case 'ECDH-ES':,used,
+1,13,SSH.NET,src/Renci.SshNet/Security/Cryptography/EcdsaKey.cs,ECDSA,17,identifier,"public partial class EcdsaKey : Key, IDisposable",used,
+1,14,curve25519-dalek,curve25519-dalek/src/constants.rs,Ed25519,229,identifier,"assert_eq!(constants::ED25519_SQRTAM2.square(), a_minus_two)",used,
+1,15,scrypt,src/main/c/crypto_scrypt-nosse.c,Salsa20,46,identifier,static void salsa20_8(uint32_t[16]);,used,
+1,16,SSH.NET,src/Renci.SshNet/Security/Cryptography/Ciphers/AesGcmCipher.cs,AES,14,identifier,"internal sealed partial class AesGcmCipher : SymmetricCipher, IDisposable",used,
+1,17,age,tag/tag.go,ChaCha20,142,identifier,"enc, s, err := hpke.NewSender(r.pk, hpke.HKDFSHA256(), hpke.ChaCha20Poly1305(), []byte(label))",used,
+1,18,jose,tap/pem.ts,ECDH,59,string,"[['ECDH-ES', 'P-256'], KEYS.P256.pkcs8],",used,
+1,19,SSH.NET,src/Renci.SshNet/Security/KeyExchangeECCurve25519.BouncyCastleImpl.cs,X25519,9,identifier,internal partial class KeyExchangeECCurve25519,used,
+1,20,curve25519-dalek,ed25519-dalek/src/signing.rs,SHA-512,527,identifier,let scalar_and_hash_prefix = Sha512::default().chain_update(self.secret_key).finalize();,used,
+1,21,SSH.NET,src/Renci.SshNet/Security/Cryptography/Ciphers/ChaCha20Poly1305Cipher.cs,ChaCha20,20,identifier,internal sealed class ChaCha20Poly1305Cipher : SymmetricCipher,used,
+1,22,SSH.NET,src/Renci.SshNet/PrivateKeyFile.PuTTY.cs,RSA,180,string,"case ""ssh-rsa"":",used,
+1,23,jose,src/key/generate_key_pair.ts,AES,38,string,| 'ECDH-ES+A128KW',declared,TypeScript union type
+1,24,jose,tap/env.ts,SHA-256,102,string,case 'PBES2-HS256+A128KW':,declared,runtime support check in the test environment
+1,25,jose,test-d/api.ts,AES,299,string,const _gsLiteral: jose.GenerateSecretAlgorithm = 'A128CBC-HS256',declared,type-level test of a string literal type
+1,26,scrypt,src/main/c/crypto_scrypt-sse.c,SHA-256,335,identifier,"PBKDF2_SHA256(passwd, passwdlen, salt, saltlen, 1, B, p * 128 * r);",used,
+1,27,jose,src/lib/jwe_algorithms.ts,HMAC,181,string,"'A128CBC-HS256': contentEncryption(256, true),",used,
+1,28,jose,tap/ecdh.ts,AES,47,string,"await roundtrip.jwe(t, lib, keys, alg, 'A128GCM', kps[k])",used,
+1,29,curve25519-dalek,x25519-dalek/src/x25519.rs,X25519,390,identifier,"pub fn x25519(k: [u8; 32], u: [u8; 32]) -> [u8; 32] {",used,
+1,30,age,cmd/age/encrypted_keys.go,scrypt,18,identifier,type LazyScryptIdentity struct {,used,
+1,31,scrypt,src/main/c/crypto_scrypt-sse.c,scrypt,262,identifier,"crypto_scrypt(const uint8_t * passwd, size_t passwdlen,",used,
+1,32,jose,tap/ecdh.ts,X25519,21,string,"['ECDH-ES', { crv: 'X25519' }],",used,
+1,33,jose,tap/pbes2.ts,SHA-256,14,string,"const algorithms = ['PBES2-HS256+A128KW', 'PBES2-HS384+A192KW', 'PBES2-HS512+A256KW']",used,
+1,34,scrypt,src/main/java/com/lambdaworks/crypto/PBKDF.java,PBKDF2,30,identifier,"public static byte[] pbkdf2(String alg, byte[] P, byte[] S, int c, int dkLen) throws GeneralSecurityException {",used,
+1,35,SSH.NET,src/Renci.SshNet/PrivateKeyFile.PuTTY.cs,AES,63,string,"case ""aes256-cbc"":",used,
+1,36,SSH.NET,src/Renci.SshNet/PrivateKeyFile.OpenSSH.cs,AES,97,string,"case ""aes128-cbc"":",used,
+1,37,SSH.NET,src/Renci.SshNet/Security/Cryptography/Ciphers/AesGcmCipher.BouncyCastleImpl.cs,AES,11,identifier,internal partial class AesGcmCipher,used,
+1,38,jose,src/types.d.ts,ECDH,43,string,| 'ECDH-ES',declared,TypeScript union type
+1,39,SSH.NET,src/Renci.SshNet/Messages/Transport/KeyExchangeEcdhInitMessage.cs,ECDH,8,identifier,"internal sealed class KeyExchangeEcdhInitMessage : Message, IKeyExchangedAllowed",used,
+1,40,jose,tap/jwk.ts,ECDH,17,string,"['ECDH-ES', KEYS.P256.jwk],",used,
+1,41,jose,src/key/generate_key_pair.ts,ECDH,37,string,| 'ECDH-ES',declared,TypeScript union type
+1,42,age,tag/internal/tagtest/tagtest.go,HKDF,80,identifier,"r, err := hpke.NewRecipient(enc, i.k, hpke.HKDFSHA256(), hpke.ChaCha20Poly1305(), []byte(""age-encryption.org/p256tag""))",used,
+1,43,jose,src/jwk/thumbprint.ts,RSA,94,string,case 'RSA':,used,
+1,44,joserfc,src/joserfc/_rfc7518/derive_key.py,ConcatKDF,14,identifier,def derive_key_for_concat_kdf(,used,
+1,45,jose,tap/rsaes.ts,SHA-512,16,string,"const algorithms = ['RSA-OAEP', 'RSA-OAEP-256', 'RSA-OAEP-384', 'RSA-OAEP-512']",used,
+1,46,SSH.NET,src/Renci.SshNet/PrivateKeyFile.PKCS1.cs,3DES,50,string,"case ""DES-EDE3-CBC"":",used,
+1,47,py,ecies/keys/helper.py,X25519,22,string,"elif curve == ""x25519"" or curve == ""ed25519"":",used,
+1,48,jose,tap/env.ts,HMAC,88,string,case 'A192CBC-HS384':,declared,runtime support check in the test environment
+1,49,scrypt,src/main/c/crypto_scrypt-nosse.c,SHA-256,307,identifier,"PBKDF2_SHA256(passwd, passwdlen, salt, saltlen, 1, B, p * 128 * r);",used,
+1,50,SSH.NET,src/Renci.SshNet/Security/Cryptography/ED25519DigitalSignature.cs,Ed25519,12,identifier,"public class ED25519DigitalSignature : DigitalSignature, IDisposable",used,
+1,51,SSH.NET,src/Renci.SshNet/Security/Cryptography/EcdsaKey.BouncyCastleImpl.cs,DSA,49,identifier,"_signer = new DsaDigestSigner(new ECDsaSigner(), digest, PlainDsaEncoding.Instance);",wrong,BouncyCastle's generic DsaDigestSigner wrapping an ECDSA signer
+1,52,jose,tap/pbes2.ts,PBKDF2,14,string,"const algorithms = ['PBES2-HS256+A128KW', 'PBES2-HS384+A192KW', 'PBES2-HS512+A256KW']",used,
+1,53,joserfc,src/joserfc/drafts/jwe_ecdh_1pu.py,ECDH,19,identifier,class ECDH1PUAlgModel(JWEKeyAgreement):,used,
+1,54,jose,tap/env.ts,PBKDF2,92,string,case 'PBES2-HS384+A192KW':,declared,runtime support check in the test environment
+1,55,curve25519-dalek,curve25519-dalek/src/backend/vector/scalar_mul/variable_base.rs,X25519,3,identifier,#[curve25519_dalek_derive::unsafe_target_feature_specialize(,wrong,"crate name in a Rust attribute macro, not X25519 use"
+1,56,age,plugin/encode.go,ECDH,89,identifier,if pk.Curve() != ecdh.X25519() {,wrong,ecdh.X25519() read as ECDH as well as X25519
+1,57,SSH.NET,src/Renci.SshNet/PrivateKeyFile.PKCS1.cs,RSA,79,identifier,return new RsaKey(decryptedData);,used,
+1,58,scrypt,src/main/java/com/lambdaworks/crypto/SCrypt.java,PBKDF2,96,identifier,"PBKDF.pbkdf2(mac, salt, 1, B, p * 128 * r);",used,
+1,59,SSH.NET,src/Renci.SshNet/Security/KeyExchangeECDH.cs,ECDH,8,identifier,internal abstract partial class KeyExchangeECDH : KeyExchangeEC,used,
+2,0,SSH.NET,src/Renci.SshNet/Security/Cryptography/Ciphers/TripleDesCipher.cs,3DES,15,identifier,"public sealed partial class TripleDesCipher : BlockCipher, IDisposable",used,
+2,1,jose,tap/aes.ts,HMAC,18,string,"'A128CBC-HS256',",used,
+2,2,scrypt,src/main/c/sha256.c,HMAC,295,identifier,"HMAC_SHA256_Init(HMAC_SHA256_CTX * ctx, const void * _K, size_t Klen)",used,
+2,3,py,ecies/keys/helper.py,Ed25519,22,string,"elif curve == ""x25519"" or curve == ""ed25519"":",used,
+2,4,joserfc,src/joserfc/drafts/jwe_ecdh_1pu.py,ConcatKDF,84,identifier,"return derive_key_for_concat_kdf(shared_key, headers, enc.cek_size, self.key_size, tag)",used,
+2,5,SSH.NET,src/Renci.SshNet/PrivateKeyFile.PKCS8.cs,Ed25519,87,identifier,return new ED25519Key(key);,used,
+2,6,age,age.go,HMAC,371,identifier,"} else if !hmac.Equal(mac, hdr.MAC) {",used,
+2,7,SSH.NET,src/Renci.SshNet/Security/Cryptography/Ciphers/AesCipher.cs,AES,14,identifier,"public sealed partial class AesCipher : BlockCipher, IDisposable",used,
+2,8,jose,src/lib/jwe_algorithms.ts,SHA-512,131,string,"'RSA-OAEP-512': rsaes(512),",used,
+2,9,scrypt,src/main/include/sha256.h,HMAC,42,identifier,typedef struct HMAC_SHA256Context {,declared,struct type declared in a header
+2,10,jose,src/key/import.ts,AES,215,string,if (normalized.kty !== 'oct' && !alg) {,wrong,JWK kty 'oct' read as AES
+2,11,jose,src/lib/jwe_algorithms.ts,SHA-1,68,string,"subtle: { name: 'RSA-OAEP', hash: `SHA-${bits}` },",used,
+2,12,jose,tap/general.ts,RSA,17,string,"const b = await keys.generateKeyPair('RSA-OAEP-256', { extractable: true })",used,
+2,13,curve25519-dalek,curve25519-dalek/src/lizard/u64_constants.rs,X25519,8,identifier,FieldElement51(fiat_crypto::curve25519_64::fiat_25519_tight_field_element(element)),wrong,"curve25519 field arithmetic crate path, not X25519 use"
+2,14,SSH.NET,src/Renci.SshNet/Security/KeyExchangeECDH256.cs,ECDH,8,identifier,internal sealed class KeyExchangeECDH256 : KeyExchangeECDH,used,
+2,15,SSH.NET,src/Renci.SshNet/PrivateKeyFile.SSHCOM.cs,RSA,73,string,"if (keyType.Contains(""rsa"", StringComparison.Ordinal))",used,
+2,16,jose,src/lib/jwe_algorithms.ts,SHA-384,130,string,"'RSA-OAEP-384': rsaes(384),",used,
+2,17,SSH.NET,src/Renci.SshNet/PrivateKeyFile.OpenSSH.cs,Ed25519,195,string,"case ""ssh-ed25519"":",used,
+2,18,curve25519-dalek,curve25519-dalek/src/montgomery.rs,Ed25519,484,identifier,impl Mul<&Scalar> for &MontgomeryPoint {,used,
+2,19,jose,src/key/generate_key_pair.ts,SHA-1,25,string,| 'RSA-OAEP',declared,TypeScript union type
+2,20,jose,tap/env.ts,AES,88,string,case 'A192CBC-HS384':,declared,runtime support check in the test environment
+2,21,SSH.NET,src/Renci.SshNet/Messages/Transport/KeyExchangeEcdhReplyMessage.cs,ECDH,6,identifier,public class KeyExchangeEcdhReplyMessage : Message,used,
+2,22,jose,tap/pem.ts,SHA-1,56,string,"['RSA-OAEP', KEYS.RSA.pkcs8],",used,
+2,23,scrypt,src/main/c/sha256.c,PBKDF2,363,identifier,"PBKDF2_SHA256(const uint8_t * passwd, size_t passwdlen, const uint8_t * salt,",used,
+2,24,age,cmd/age-keygen/keygen.go,X25519,144,identifier,"k, err := age.GenerateX25519Identity()",used,
+2,25,SSH.NET,src/Renci.SshNet/Security/KeyExchangeSNtruP761X25519Sha512.cs,ECDH,56,identifier,SendMessage(new KeyExchangeEcdhInitMessage(_clientExchangeValue));,wrong,message class shared with a hybrid sntrup761x25519 exchange read as ECDH
+2,26,jose,tap/aeskw.ts,AES,14,string,"const algorithms = ['A128KW', 'A192KW', 'A256KW', 'A128GCMKW', 'A192GCMKW', 'A256GCMKW']",used,
+2,27,SSH.NET,src/Renci.SshNet/Security/Certificate.cs,ECDSA,354,identifier,return new EcdsaKey(keyData);,used,
+2,28,age,pq.go,ChaCha20,72,identifier,"enc, s, err := hpke.NewSender(r.pk, hpke.HKDFSHA256(), hpke.ChaCha20Poly1305(), []byte(pqLabel))",used,
+2,29,joserfc,src/joserfc/_rfc7515/model.py,AES,113,string,"key_type = ""oct""",wrong,JWK kty 'oct' read as AES
+2,30,SSH.NET,src/Renci.SshNet/PrivateKeyFile.OpenSSH.cs,ChaCha20,121,string,"case ""chacha20-poly1305@openssh.com"":",used,
+2,31,libhydrogen,impl/sign.h,X25519,12,identifier,"hydro_x25519_swapin(scalar1, eph_sk);",used,
+2,32,jose,src/types.d.ts,AES,37,string,| 'A128KW',declared,TypeScript union type
+2,33,SSH.NET,src/Renci.SshNet/PrivateKeyFile.OpenSSH.cs,3DES,93,string,"case ""3des-cbc"":",used,
+2,34,libhydrogen,impl/kx.h,X25519,136,identifier,"if (hydro_x25519_scalarmult_base(static_kp->pk, static_kp->sk) != 0) {",used,
+2,35,SSH.NET,src/Renci.SshNet/Security/KeyExchangeECDH384.cs,ECDH,8,identifier,internal sealed class KeyExchangeECDH384 : KeyExchangeECDH,used,
+2,36,jose,src/key/export.ts,AES,92,string,"kty: 'oct',",wrong,JWK kty 'oct' read as AES
+2,37,jose,tap/env.ts,SHA-384,88,string,case 'A192CBC-HS384':,declared,runtime support check in the test environment
+2,38,jose,src/lib/key_management.ts,PBKDF2,320,string,case 'PBKDF2': {,used,
+2,39,SSH.NET,src/Renci.SshNet/Security/KeyExchangeECDH521.cs,ECDH,8,identifier,internal sealed class KeyExchangeECDH521 : KeyExchangeECDH,used,

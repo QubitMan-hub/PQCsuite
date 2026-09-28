@@ -4,7 +4,7 @@ from ..elders import lookup, pq_from_text, curve, CATALOG
 from ..model import Sighting
 from . import iter_files, rel, is_test, read, DENY
 from .lexer import split_hash
-from .suites import cipher_string, ssh_token, sig_scheme
+from .suites import cipher_string, ssh_token, sig_scheme, kms_spec
 
 EXT = {".conf", ".cnf", ".cfg", ".ini", ".yaml", ".yml", ".properties", ".toml", ".env", ".xml", ".json", ".tf", ".hcl"}
 NAMES = {"sshd_config", "ssh_config", "openssl.cnf", "nginx.conf", "httpd.conf", "haproxy.cfg", "java.security", "dockerfile", ".env"}
@@ -18,6 +18,7 @@ PAIRS = [
     (re.compile(r"^\s*(?:ssl_ecdh_curve|Groups|Curves|ssl-default-bind-curves|ssl_ecdh_curves|curves|groups|named[_-]?groups)\s*[=:\s]\s*(.+)", re.I), "groups"),
     (re.compile(r"^\s*[\w.\-\"']*(?:min[_-]?(?:tls|ssl|proto(?:col)?)?[_-]?version|MinProtocol|MaxProtocol|ssl-min-ver|ssl-max-ver|enabled[_-]?protocols|sslEnabledProtocols|sslProtocol|tls[_-]?versions?|protocols?)[\w\"']*\s*[=:]\s*(.+)", re.I), "protocols"),
     (re.compile(r"\bssl-(?:min|max)-ver\s+(\S+)", re.I), "protocols"),
+    (re.compile(r"""^\s*["']?(?:customer_master_key_spec|key_spec|KeySpec|CustomerMasterKeySpec|key_type|kty|KeyType)["']?\s*[=:]\s*["']?([\w\-]+)""", re.I), "kms"),
     (re.compile(r"^\s*[\w.\-\"']*(?:algorithm|alg|signing[_-]?alg\w*|key[_-]?algorithm|keyAlgorithm|hash[_-]?algorithm|digest[_-]?algorithm|kex)[\w\"']*\s*[=:]\s*[\"']?([\w\-/]+)", re.I), "algo"),
     (re.compile(r"^\s*[\w.\-\"']*(?:key[_-]?size|keysize|key[_-]?length|rsa[_-]?bits|modulus[_-]?length|size)[\w\"']*\s*[=:]\s*[\"']?(\d{3,5})\b", re.I), "size"),
 ]
@@ -53,9 +54,12 @@ def parse_line(kind, m):
         for t in re.split(r",", m.group(2).split("#")[0].strip()):
             out += ssh_token(t)
         return out
+    if kind == "kms":
+        v = m.group(1)
+        return kms_spec(v) or ([(lookup(v), {})] if v.upper() in ("RSA", "EC") and lookup(v) else [])
     if kind == "algo":
         v = m.group(1)
-        r = sig_scheme(v)
+        r = sig_scheme(v) or kms_spec(v)
         return r if r else ([(lookup(v), {})] if lookup(v) else [])
     return []
 
@@ -68,7 +72,38 @@ def sniffed(p, text):
     return len({m.group(1) for m in SNIFF.finditer(text[:50000])}) >= 2
 
 
-def scan(root, scope=False):
+KEY_OPEN = re.compile(r"""^(\s*)["']?([\w.\-]+)["']?\s*[:=]\s*(\[)?\s*$""")
+YAML_ITEM = re.compile(r"""^(\s*)-\s+["']?([^"'#\n]+?)["']?\s*(?:#.*)?$""")
+JSON_ITEM = re.compile(r"""^\s*["']([^"']+)["']\s*,?\s*$""")
+
+
+def list_items(stream):
+    """Entries of multi-line YAML or JSON lists, as {line: "key: entry"}, so each entry is read as if written on its key's line."""
+    out, lines = {}, stream.splitlines()
+    for i, line in enumerate(lines):
+        m = KEY_OPEN.match(line)
+        if not m:
+            continue
+        indent, key, bracket = len(m.group(1)), m.group(2), m.group(3)
+        for j in range(i + 1, min(len(lines), i + 200)):
+            t = lines[j]
+            if not t.strip() or t.strip().startswith("#"):
+                continue
+            if bracket:
+                if t.strip().startswith("]"):
+                    break
+                item = JSON_ITEM.match(t)
+            else:
+                item = YAML_ITEM.match(t)
+                if item and len(item.group(1)) < indent:
+                    item = None
+            if not item:
+                break
+            out[j + 1] = f"{key}: {item.group(item.lastindex).strip()}"
+    return out
+
+
+def scan(root, scope=False, lists=True):
     sink, n = [], 0
     for p in iter_files(root, scope):
         if p.suffix and not is_config(p):
@@ -81,10 +116,11 @@ def scan(root, scope=False):
         base = {"test"} if is_test(path) else set()
         code, comments, _ = split_hash(text) if p.suffix.lower() not in (".json", ".xml") else (text, "", [])
         for stream, ctx in ((code, base), (comments, base | {"comment"})):
+            items = list_items(stream) if lists else {}
             for i, line in enumerate(stream.splitlines(), 1):
                 if not line.strip():
                     continue
-                probe = line.strip().lstrip("#; ").strip()
+                probe = items.get(i) or line.strip().lstrip("#; ").strip()
                 if DENY.search(probe.split("=")[0].split(":")[0]):
                     continue
                 for rx, kind in PAIRS:

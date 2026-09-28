@@ -120,7 +120,7 @@ def flows(sightings, lines, threshold=0.6):
         hit = None
         for _, lit in lits:
             e = re.escape(lit)
-            m = re.match(r"\s*(?:(?:const|let|var|final|static|private|public|protected|readonly|val)\s+)*(?:[\w<>\[\]]+\s+)?([A-Za-z_]\w*)\s*[:=]\s*['\"`]" + e, line)
+            m = re.match(r"\s*(?:(?:const|let|var|final|static|private|public|protected|readonly|val)\s+)*(?:[\w<>\[\]]+\s+)?([A-Za-z_]\w*)\s*[:=]\s*(?:[rbuRBU]{1,2})?['\"`]" + e, line)
             if m:
                 var = re.escape(m.group(1))
                 for k in range(s.line, min(len(ls), s.line + 40)):
@@ -130,6 +130,9 @@ def flows(sightings, lines, threshold=0.6):
             elif re.search(r"\w\s*\([^)]*['\"`]" + e + r"['\"`]", line) and not NOISE.search(line) or re.search(
                     r"(alg\w*|cipher\w*|hash\w*|digest\w*|curve\w*|kex\w*|sig\w*|scheme\w*|transformation\w*|protocol\w*|padding\w*)['\"]?\s*(?::[^=\n]{1,40})?[:=]\s*[\[(]?\s*['\"`]" + e, line, re.I):
                 hit = "literal is passed directly into a call or algorithm setting"
+            elif re.search(r"^\s*case\s+['\"`]" + e + r"['\"`]\s*:", line) or re.search(
+                    r"(alg\w*|cipher\w*|hash\w*|digest\w*|curve\w*|kex\w*|sig\w*|scheme\w*|mode\w*)\s*===?\s*['\"`]" + e + r"['\"`]", line, re.I):
+                hit = "code branches on the literal"
             if hit:
                 break
         if hit:

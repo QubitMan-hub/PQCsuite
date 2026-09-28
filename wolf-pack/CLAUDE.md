@@ -8,14 +8,14 @@ Wolf Pack CBOM is a pure-Python scanner that inventories cryptography in source 
 
 Owner: Lakshmi Monish (QubitMan), CS student at BITS Pilani. He develops on Windows with PowerShell. He works one stage at a time, wants honest assessments including limitations, pushes back on overclaiming, and prefers code with minimal comments and no unnecessary lines.
 
-Current version: 1.1.0 (1.0.0 was the first production release: Docker image, GitHub Action, `.wolfpack.toml`, `--exclude`; 1.1.0 added trust stores, declared non-security hashes and named unparseable files; see CHANGELOG.md). It was built in a Claude.ai chat, then moved here. The company site presents it on its own page (`site/wolf-pack.html` at the repository root), linked from the main page's header, footer and starting-point finder but never listed as one of the suite's products.
+Current version: 1.2.0. 1.0.0 was the first production release (Docker image, GitHub Action, `.wolfpack.toml`, `--exclude`). 1.1.0, never released, added trust stores, declared non-security hashes and named unparseable files. 1.2.0 added the `names`, `concat` and `lists` roles, container images, cloud KMS keys, JS imports, and the Noise and JOSE formats; it was tuned on held-out data. See CHANGELOG.md. It was built in a Claude.ai chat, then moved here. The company site presents it on its own page (`site/wolf-pack.html` at the repository root), linked from the main page's header, footer and starting-point finder but never listed as one of the suite's products.
 
 ## Commands
 
 ```powershell
 cd wolf-pack; py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 57 tests, must stay green
+python -m unittest discover -s tests -v          # 68 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -41,11 +41,13 @@ wolfpack/
     implementations.py  algorithms implemented in source, by published constants (IVs, round constants, S-boxes, primes);
                  the one constant table, also packed into byte patterns for binaries
     pysrc.py     Python AST scout: import aliasing, constant propagation, params, lib attribution
-    rules.py     regex rules per language (java, go, js, c, csharp, rust); rule decorator
-    source.py    runs rules on code and comments, constant propagation (in-file and shared_constants
-                 across files), string scout, classify_literal
-    suites.py    TLS cipher suites, OpenSSL cipher strings (skips ! and -), SSH names, sig schemes
-    config.py    nginx, Apache, HAProxy, sshd, openssl.cnf, properties, YAML/INI/TOML; DENY skips disabled lists
+    rules.py     regex rules per language (java, go, js, c, csharp, rust, and shell as "hash"); rule decorator
+    names.py     code named for its algorithm (aes_encrypt(), class HkdfSha256); skips declarations, tests, predicates
+    source.py    runs rules and names on code, rules on comments, constant propagation (in-file, shared_constants
+                 across files, js_imports), string scout, classify_literal, concatenated (runtime-built names)
+    suites.py    TLS cipher suites, OpenSSL cipher strings (skips ! and -), SSH names, sig schemes, Noise names, JOSE ids, KMS key specs
+    config.py    nginx, Apache, HAProxy, sshd, openssl.cnf, properties, YAML/INI/TOML, Terraform KMS keys; multi-line lists;
+                 DENY skips disabled lists
     artifacts.py certs, keys, OpenSSH keys, embedded PEM; OID maps incl. ML-DSA/ML-KEM
     binary.py    native constants (from implementations.py), embedded lib versions, JAR/WAR class constants
     deps.py      manifests across 6 ecosystems, KNOWN crypto libs, usage cross-check
@@ -60,9 +62,10 @@ wolfpack/
   pack.py        Roles (switchboard), hunt (scouts), run (the pipeline), baseline diff
   cbom.py        CycloneDX 1.6 builder (provides, services), SARIF 2.1.0, audit trail
   report.py      self-contained monochrome HTML report and terminal summary
+  image.py       container images (docker save / OCI archive): layers unpacked in order, whiteouts applied
   cli.py         scan / bench subcommands, .wolfpack.toml settings, exit codes 0 / 1 error / 2 fail-on
-  bench.py       scores at (file, algorithm family) granularity across 3 configs
-bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 106 labelled pairs
+  bench.py       scores at (file, algorithm family) granularity, full pack and one ablation per role
+bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 130 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
 Dockerfile, action.yml  container image and GitHub Action (../.github/workflows/wolf-pack.yml builds and runs both, and the wheel)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)
@@ -117,12 +120,11 @@ New scout: return a list of `Sighting`s with the right evidence type, add a swit
 
 ## Next work, in priority order
 
-1. Held-out benchmark for the paper: 15 to 20 real GitHub repos across Java, Python, Go, JS, C and C#, labelled blind by someone other than the author before running any tool. Kit is in `eval/heldout/`; Labels are done (amendment 1: two isolated AI labellers + adjudicator, in labels/final). Next: a person fills labels/audit (63 files, blind, no AI), then `heldout.py agree final audit`, then score. Headline Wolf Pack version is commit 158d69f (amendment 2); later versions are reported separately. Never run Wolf Pack on `eval/heldout/repos/` (including `score --partial`) before the labels are committed.
+1. Held-out benchmark: done and scored (eval/heldout/README.md). Amendment 3 replaced the human audit with a label-support check and an AI audit (labels/SUPPORT.md). Headline 158d69f: strict P 0.886, R 0.336. 1.1.0: P 0.820, R 0.430. 1.2.0 (after tuning on held-out data): P 0.817, R 0.896. The held-out repos and the ten in eval/unseen are now tuned on; any new claim about unseen code needs a new, unseen, labelled set.
 2. Head-to-head with CBOMkit on the Java/Python/Go subset: run sonar-cryptography via its Docker setup, convert both CBOMs to (file, family) pairs, and score both against the same labels. Harness and a first unlabelled six-repo run are in `eval/cbomkit/`. Second baseline candidate: OWASP cdxgen `--include-crypto` (Java and JS/TS source crypto); see docs/HANDOFF.md, "Other baselines".
 3. Done in stage 3: format-sniffing lists (`recognition` role). Sniffers not written as startswith/in/HasPrefix are still counted.
-4. Done in stage 3 for Java/Kotlin/C# `Owner.NAME`, Go `pkg.Name` and C header macros (`cross-file` role). Not done: JavaScript imports, values passed through parameters. Integer constants now propagate from constant declarations only.
-5. Container images (walk layers, reuse existing scouts) and cloud KMS/HSM config.
-5a. Gaps from eval/fresh: names built at runtime (`'RSA-SHA' + bits`), implementations with no library call (a bcrypt class), multi-line JSON/YAML arrays in the config scout.
-6. Recall measurement on real code.
+4. Cross-file constants: done for Java/Kotlin/C# `Owner.NAME`, Go `pkg.Name`, C header macros, and (1.2.0) JavaScript/TypeScript `export const` imported by name from a relative module. Not done: values passed through parameters into another function (the flow look catches a literal passed straight into a call).
+5. Done in 1.2.0: container images (`wolfpack scan image.tar`), cloud KMS/HSM key specs, runtime-built names (`concat`), code named for its algorithm (`names`), multi-line YAML/JSON lists (`lists`).
+6. Open: a second held-out set, labelled blind, to measure 1.2.0 on code it was not tuned on. Known remaining misses: WireGuard's own C and JS key code (no name), library defaults (TOTP's SHA-1), declared-vs-used lines in class registries (nsec), BouncyCastle's DsaDigestSigner over ECDSA read as DSA.
 
 Before starting any of these, propose a short plan and confirm with the owner. Work one stage at a time.

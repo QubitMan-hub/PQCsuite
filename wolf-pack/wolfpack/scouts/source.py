@@ -4,11 +4,11 @@ from pathlib import Path
 
 from ..elders import lookup, pq_from_text, parse_transformation, parse_symmetric_name, named_hash, AMBIGUOUS, MODES
 from ..model import Sighting
-from . import iter_files, rel, is_test, read
+from . import iter_files, rel, is_test, read, names as named
 from .lexer import LANGS, split, line_of
 from .pysrc import scan_python
 from .rules import RULES
-from .suites import sig_scheme, ssh_token
+from .suites import sig_scheme, ssh_token, noise_name, jose_alg, kms_spec
 
 WORD = re.compile(r"\b(?:TLS ?v?1\.[0-3]|SSL ?v?[23]|SHA-?(?:1|224|256|384|512)|SHA3-\d+|MD[45]|[A-Z][A-Za-z0-9-]{1,20})\b")
 SSH_LIKE = re.compile(r"^(?:ssh-(?:rsa|dss|ed25519)|ecdsa-sha2-nistp\d+|ecdh-sha2-nistp\d+|rsa-sha2-(?:256|512)|hmac-(?:sha|md5)[\w-]*|diffie-hellman-[\w-]+|curve25519-sha256|sntrup761x25519-sha512|mlkem768x25519-sha256|(?:aes\d+|3des|chacha20-poly1305)[\w-]*@openssh\.com|(?:aes\d+|3des)-(?:ctr|cbc|gcm))(?:@[\w.]+)?$")
@@ -113,6 +113,27 @@ def shared_constants(root, scope=False):
     return settle(qualified), {h: settle(t) for h, t in headers.items()}
 
 
+JS_IMPORT = re.compile(r"""(?:import\s*\{([^}]*)\}\s*from|(?:const|let|var)\s*\{([^}]*)\}\s*=\s*require\()\s*['"](\.{1,2}/[^'"]+)['"]""")
+JS_EXPORT = re.compile(r"""(?m)^[ \t]*export\s+const\s+([A-Za-z_$][\w$]*)\s*(?::\s*\w+\s*)?=\s*(["'`])([^"'`\n]{1,80})\2""")
+
+
+def js_imports(root, p, code):
+    """Constants a JavaScript or TypeScript module imports by name from a relative module that exports them as `export const`."""
+    out = {}
+    for m in JS_IMPORT.finditer(code):
+        base = (p.parent / m.group(3)).resolve()
+        target = next((c for c in (base, *(base.with_name(base.name + e) for e in (".js", ".ts", ".mjs", ".cjs")), base / "index.js", base / "index.ts")
+                       if c.is_file()), None)
+        if target is None or root not in target.parents:
+            continue
+        exported = {e.group(1): f'"{e.group(3)}"' for e in JS_EXPORT.finditer(split(read(target) or "", "js")[0])}
+        for name in re.split(r"\s*,\s*", (m.group(1) or m.group(2)).strip()):
+            src, _, alias = name.partition(" as ") if " as " in name else name.partition(":")
+            if src.strip() in exported:
+                out[(alias or src).strip()] = exported[src.strip()]
+    return out
+
+
 def run_rules(path, text, lang, sink, base_ctx, comment=False):
     ctx = Ctx(path, text, lang, sink, comment)
     for rx, fn in RULES.get(lang, []):
@@ -146,6 +167,10 @@ def classify_literal(v):
         return hits, False
     if SIG_LIKE.match(v):
         return sig_scheme(v), False
+    for parse in (noise_name, jose_alg, kms_spec):
+        hits = parse(v)
+        if hits:
+            return hits, False
     if "/" in v:
         a, p = parse_transformation(v)
         return ([(a, p)] if a else []), False
@@ -161,9 +186,20 @@ def classify_literal(v):
     return [], False
 
 
-def string_scout(path, lang, strings, lines, sink, base_ctx, docs):
+def concatenated(val, text):
+    """A literal glued to a runtime value ("RSA-SHA" + bits, "PBKDF2WithHmac" + name): only its complete parts are known.
+    A fragment the value may finish ("SHA-" + bits) is ambiguous and never guessed."""
+    q = re.escape(val)
+    if not val.strip() or not re.search(rf"""['"`]{q}['"`]\s*\+|\+\s*['"`]{q}['"`]""", text):
+        return None
+    parts = [p for p in re.split(r"[-_/\s.]+|(?<=[a-z0-9])(?=[A-Z])", val) if p]
+    return [(a, {}) for a in dict.fromkeys(lookup(p) for p in parts if p.upper() not in AMBIGUOUS and len(p) > 2) if a]
+
+
+def string_scout(path, lang, strings, lines, sink, base_ctx, docs, concat=True):
     for line, val in strings:
-        hits, prose = classify_literal(val)
+        glued = concatenated(val, lines[line - 1]) if concat and 0 < line <= len(lines) else None
+        hits, prose = (glued, False) if glued is not None else classify_literal(val)
         for a, p in hits:
             c = set(base_ctx)
             if prose:
@@ -173,7 +209,7 @@ def string_scout(path, lang, strings, lines, sink, base_ctx, docs):
             _emit(sink, path, lang, line, lines, a, dict(p, literal=val), "string", "strings", c)
 
 
-def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None):
+def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, names=True, concat=True, cross_file=True):
     lang = LANGS.get(p.suffix.lower())
     if not lang:
         return False
@@ -193,19 +229,24 @@ def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None):
     else:
         qualified, headers = shared
         reach = {k: v for h in INCLUDE.findall(code) for k, v in headers.get(Path(h).name, {}).items()} if lang == "c" else dict(qualified)
+        if lang == "js" and cross_file:
+            reach.update(js_imports(Path(root).resolve(), p.resolve(), code))
         run_rules(path, propagate(code, reach) if constants else code, lang, sink, base)
         run_rules(path, comments, lang, sink, base, comment=True)
-    string_scout(path, lang, strings, lines, sink, base, docs)
+    if names and lang != "hash":
+        for ln, a in named.scan(code, lang, path):
+            _emit(sink, path, lang, ln, lines, a, {}, "identifier", "names", base | ({"doc"} if ln in docs else set()))
+    string_scout(path, lang, strings, lines, sink, base, docs, concat)
     for m in re.finditer(r"[^\n]+", comments):
         for a, p in classify_literal(m.group(0))[0] if len(m.group(0).strip()) > 3 else []:
             _emit(sink, path, lang, line_of(comments, m.start()), lines, a, p, "string", "strings", base | {"comment"})
     return True
 
 
-def scan(root, scope=False, constants=True, cross_file=True, unparsed=None):
+def scan(root, scope=False, constants=True, cross_file=True, unparsed=None, names=True, concat=True):
     """`unparsed` collects Python files this interpreter cannot parse (newer syntax); only their strings and comments are read."""
     sink, n = [], 0
     shared = shared_constants(root, scope) if constants and cross_file else ((), {})
     for p in iter_files(root, scope):
-        n += scan_file(root, p, sink, constants, shared, unparsed)
+        n += scan_file(root, p, sink, constants, shared, unparsed, names, concat, cross_file)
     return sink, n

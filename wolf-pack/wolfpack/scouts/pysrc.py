@@ -20,6 +20,7 @@ class PyScout(ast.NodeVisitor):
         self.path, self.lines, self.alias, self.consts, self.out, self.seen = path, src.splitlines(), {}, {}, [], set()
         self.constants = constants
         self.root = None
+        self.skip = set()
 
     def emit(self, node, algo, params=None, evidence="call"):
         if not algo:
@@ -103,6 +104,7 @@ class PyScout(ast.NodeVisitor):
     def visit_Call(self, node):
         if id(node) in self.seen:
             return self.generic_visit(node)
+        self.skip.add(id(node.func))
         raw = self.qual(node.func)
         q = _norm(raw)
         self.root = raw.split(".")[0] if raw.split(".")[0] in ROOTS else None
@@ -112,6 +114,20 @@ class PyScout(ast.NodeVisitor):
             pq = pq_from_text(q)
             if pq:
                 self.emit(node, pq)
+        self.generic_visit(node)
+
+    def visit_Compare(self, node):
+        self.skip.update(id(n) for n in ast.walk(node) if isinstance(n, ast.Attribute))
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node):
+        """hashlib.sha1 handed over as a value (digestmod=, a default argument, a table entry) selects that hash as surely as calling it.
+        One that is only compared against (`if digest in [hashlib.md5]`) is not used."""
+        if id(node) not in self.skip:
+            q = self.qual(node)
+            if q.startswith("hashlib.") and q.split(".")[-1] in HASHLIB and q.count(".") == 1:
+                self.root = None
+                self.emit(node, lookup(q.split(".")[-1]))
         self.generic_visit(node)
 
     def handle(self, n, q, last):
@@ -236,8 +252,16 @@ class PyScout(ast.NodeVisitor):
         if q.startswith("nacl."):
             if q.startswith("nacl.signing"):
                 return self.emit(n, "Ed25519") or True
+            if q.startswith(("nacl.public.Box", "nacl.public.SealedBox")):
+                return self.emit(n, "X25519") or self.emit(n, "Salsa20") or True
             if q.startswith("nacl.public"):
                 return self.emit(n, "X25519") or True
+            if q.startswith("nacl.secret"):
+                return self.emit(n, "ChaCha20-Poly1305" if "Aead" in q else "Salsa20") or True
+            if q.startswith("nacl.hash."):
+                return self.emit(n, lookup(last)) or True
+            if q.startswith("nacl.pwhash"):
+                return self.emit(n, "scrypt" if "scrypt" in q else "Argon2") or True
         if q in ("oqs.KeyEncapsulation", "oqs.Signature"):
             return self.emit(n, pq_from_text(str(self.val(a(0, "alg_name")) or ""))) or True
         if q.startswith("bcrypt.") and last in ("hashpw", "gensalt", "kdf"):
