@@ -10,3 +10,6 @@ __pycache__/
 !tests/**/*.pem
 .coverage
 !wolf-pack/bench/corpus/**
+node_modules/
+test-results/
+playwright-report/

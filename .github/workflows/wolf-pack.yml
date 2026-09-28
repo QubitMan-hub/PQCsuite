@@ -10,6 +10,11 @@ defaults:
   run:
     working-directory: wolf-pack
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: pipx run ruff==0.14.0 check .
   test:
     strategy:
       matrix:

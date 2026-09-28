@@ -168,7 +168,13 @@ python -m unittest discover -s tests -v
 
 With pytest installed, `python -m pytest` at the repository root runs these and Wolf Pack's tests together. The suite needs `cryptography` 49 or newer (for ML-KEM and ML-DSA); an older one stops every test at import with a message saying so.
 
+CI also lints with `ruff check .`, runs the website and console in Chromium with axe accessibility checks (`tests/browser`: `npm install`, `npx playwright install chromium`, `npx playwright test`), and scans `pqcsuite/` with Wolf Pack against the reviewed inventory in `docs/cbom.json`.
+
 The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts real applications behind the products and checks them with independent clients: nginx (OpenSSL 3.5 command line and curl), PostgreSQL, Redis and MQTT through edge tunnels, EST enrollment, a vault backup with tampering, and readiness grades; each is skipped when the application is missing. CI also runs two IPsec sites and a WireGuard gateway in network namespaces with real traffic, installs the Helm chart in a kind cluster, and runs the image's provisioning script on Debian 13.
+
+## Releases
+
+A tag `vX.Y.Z` releases the suite and `wolf-pack-vX.Y.Z` releases Wolf Pack. Before tagging, set the version in the package's `pyproject.toml` and rename its changelog's "Unreleased" section to `## X.Y.Z`; the release workflow refuses a tag that does not match both. Each GitHub release carries the wheel, signed build provenance (`gh attestation verify FILE --repo QubitMan-hub/PQCsuite`) and, for the suite, its CBOM.
 
 ## Limits
 

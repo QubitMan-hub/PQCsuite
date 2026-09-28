@@ -17,7 +17,7 @@ Acxelin PQC Suite (working name `pqcsuite`, `NAME` in `pqcsuite/__init__.py`) is
 3. Every security behaviour has a test that shows the attack being refused, not just the happy path.
 4. On Linux, run the tests with `LD_LIBRARY_PATH` set to an OpenSSL 3.5+ lib folder. CI uses Debian 13 and runs the VPN tests in network namespaces.
 5. The mentor's AcxelinPQC repo is a feature reference only. It is proprietary, so never copy its code.
-6. Wolf Pack CBOM is a separate product that lives in `wolf-pack/`, with its own `wolf-pack/CLAUDE.md` (read it before working there; its rules apply inside that folder), its own CI (`.github/workflows/wolf-pack.yml`) and its own page, `site/wolf-pack.html`. The suite still has four products: on `site/index.html` Wolf Pack appears only as the header nav link and under "Also from Acxelin" in the footer, never as a product card or in the product list.
+6. Wolf Pack CBOM is a separate product that lives in `wolf-pack/`, with its own `wolf-pack/CLAUDE.md` (read it before working there; its rules apply inside that folder), its own CI (`.github/workflows/wolf-pack.yml`) and its own page, `site/wolf-pack.html`. The suite still has four products: on `site/index.html` Wolf Pack appears only as the header nav link, under "Also from Acxelin" in the footer, and as an "Also from Acxelin" answer in the starting-point finder; never as a product card or in the product list. `tests/test_site.py` and `tests/browser` check this.
 
 ## Commands
 
@@ -25,5 +25,8 @@ Acxelin PQC Suite (working name `pqcsuite`, `NAME` in `pqcsuite/__init__.py`) is
 pip install -e ".[test]"
 python -m unittest discover -s tests -v
 python -m pytest                          # suite and wolf-pack/ tests together, from the root
+ruff check .                              # lint (config in pyproject.toml), CI runs it
+cd tests/browser; npm install; npx playwright test   # website and console in Chromium, axe accessibility
+wolfpack scan pqcsuite -o out --baseline docs/cbom.json --fail-on high   # CI self-scan; refresh docs/cbom.json when intended
 pqcsuite doctor
 ```

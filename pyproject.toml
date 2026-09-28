@@ -27,3 +27,14 @@ include = ["pqcsuite*"]
 [tool.pytest.ini_options]
 testpaths = ["tests", "wolf-pack/tests"]
 pythonpath = ["wolf-pack"]
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = ["wolf-pack/bench/corpus", "wolf-pack/site/demo", "wolf-pack/eval/heldout/repos", "examples/wolfpack-sample/payments-api"]
+
+[tool.ruff.lint]
+ignore = ["E401", "E702", "E731", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+"wolf-pack/eval/heldout/heldout.py" = ["E402"]
+"wolf-pack/tests/test_heldout.py" = ["E402"]

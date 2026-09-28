@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "Browser tests for the website and the console: npm install, npx playwright install chromium, npx playwright test",
+  "devDependencies": {
+    "@axe-core/playwright": "4.11.0",
+    "@playwright/test": "1.56.1"
+  }
+}

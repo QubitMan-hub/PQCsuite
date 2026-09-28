@@ -4,9 +4,11 @@
 
 Email info@acxelinquantum.com with "security" in the subject. Please do not open a public issue.
 
+For an independent review of the suite, start with [docs/SECURITY-REVIEW.md](docs/SECURITY-REVIEW.md): assets, trust boundaries, what to test and how to build a test setup.
+
 ## Cryptography used by this repository
 
-Checked with Wolf Pack CBOM (`wolfpack scan . --fail-on critical` passes). Every algorithm that is not post-quantum is there on purpose:
+CI scans `pqcsuite/` with Wolf Pack CBOM on every change and fails if cryptography ranked high or worse appears that is not in [docs/cbom.json](docs/cbom.json), the reviewed inventory (regenerate it with `wolfpack scan pqcsuite -o out` and copy `out/cbom.json` when a change is intended). Every algorithm that is not post-quantum is there on purpose:
 
 | Where | What | Why |
 |---|---|---|
@@ -23,7 +25,7 @@ Vault encrypts data and wraps keys with AES-256-GCM. TLS 1.3 prefers AES-256-GCM
 ## How the repository is protected
 
 - CI runs with a read-only token (`permissions: contents: read`) and every third-party action is pinned to a commit, updated through Dependabot.
-- No secrets in the repository or its history. Test keys are generated at test time.
+- No secrets in the repository or its history. The suite's test keys are generated at test time; the one committed private key, `wolf-pack/bench/corpus/certs/signing.key`, is a deliberate Wolf Pack test fixture that protects nothing.
 - Command-line tools never overwrite a private key, a CA or an encrypted archive by accident; a certificate key is replaced only by `ca renew` or `ca maintain`.
 
 ## Limits outside this repository

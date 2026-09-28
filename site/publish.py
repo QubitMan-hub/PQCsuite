@@ -25,6 +25,8 @@ def publish(base, out):
         s = s.replace("<head>\n", f'<head>\n<link rel="canonical" href="{url}">\n<meta property="og:url" content="{url}">\n', 1)
         s = re.sub(r'(<meta (?:property|name)="(?:og|twitter):image" content=")([^"]+)"', lambda m: f'{m.group(1)}{urljoin(base, m.group(2))}"', s)
         p.write_text(s, encoding="utf-8")
+    p = out / "404.html"
+    p.write_text(p.read_text(encoding="utf-8").replace("<head>\n", f'<head>\n<base href="{base}">\n', 1), encoding="utf-8")
     urls = "".join(f"  <url><loc>{urljoin(base, '' if p == 'index.html' else p)}</loc></url>\n" for p in PAGES)
     (out / "sitemap.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{urls}</urlset>\n', encoding="utf-8")
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {urljoin(base, 'sitemap.xml')}\n", encoding="utf-8")

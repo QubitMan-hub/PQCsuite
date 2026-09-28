@@ -1,0 +1,2000 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:6fafffbe-de99-49e7-9d71-acdc1f68c5e2",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-09-28T06:47:51Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "wolfpack",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "pqcsuite",
+      "bom-ref": "root"
+    }
+  },
+  "components": [
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ECC",
+      "name": "ECC",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "other",
+          "cryptoFunctions": [
+            "unknown"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.2.840.10045.2.1"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519",
+            "line": 32
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return x25519.X25519PrivateKey.generate() if self.curve is None else ec.generate_private_key(self.curve)",
+            "line": 48
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa",
+            "line": 28
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: return ec.EllipticCurvePublicNumbers(_int(jwk[\"x\"]), _int(jwk[\"y\"]), CURVES[jwk[\"crv\"]][0]).public_key(), {CURVES[jwk[\"crv\"]][2]}",
+            "line": 83
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "high"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "34.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca). Key use (signing or key agreement) not determined, so confidentiality is assumed"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "ML-DSA-65 or ML-KEM-768 depending on use"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ECDH",
+      "name": "ECDH",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "key-agree",
+          "cryptoFunctions": [
+            "keygen",
+            "keyderive"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "nistQuantumSecurityLevel": 0
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return priv.exchange(pub) if self.curve is None else priv.exchange(ec.ECDH(), pub)",
+            "line": 57
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "high"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "34.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "X25519MLKEM768 hybrid"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/RSA",
+      "name": "RSA",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "pke",
+          "cryptoFunctions": [
+            "keygen",
+            "encrypt",
+            "decrypt",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "padding": "pkcs1v15",
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.2.840.113549.1.1.1"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa",
+            "line": 28
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: key = rsa.RSAPublicNumbers(_int(jwk[\"e\"]), _int(jwk[\"n\"])).public_key()",
+            "line": 78
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: key.verify(sig, data, padding.PKCS1v15(), hashes.SHA256())",
+            "line": 100
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: if kty == \"RSA\":",
+            "line": 77
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: return key, {\"RS256\"}",
+            "line": 81
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: need = {\"RSA\": (\"e\", \"kty\", \"n\"), \"EC\": (\"crv\", \"kty\", \"x\", \"y\"), \"OKP\": (\"crv\", \"kty\", \"x\")}[jwk[\"kty\"]]",
+            "line": 93
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: if alg == \"RS256\":",
+            "line": 99
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "high"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "34.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "ML-KEM-768 for encryption, ML-DSA-65 for signatures"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/X25519",
+      "name": "X25519",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "key-agree",
+          "cryptoFunctions": [
+            "keygen",
+            "keyderive"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "classicalSecurityLevel": 128,
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.3.101.110"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519",
+            "line": 32
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return x25519.X25519PrivateKey.generate() if self.curve is None else ec.generate_private_key(self.curve)",
+            "line": 48
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return x25519.X25519PublicKey.from_public_bytes(data) if self.curve is None else ec.EllipticCurvePublicKey.from_encoded_point(self.curve, data)",
+            "line": 54
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: CLASSICAL = [\"X25519\", \"secp256r1\", \"secp384r1\", \"secp521r1\", \"X448\", \"ffdhe2048\", \"ffdhe3072\"]",
+            "line": 20
+          },
+          {
+            "location": "vpn/wireguard.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import x25519",
+            "line": 30
+          },
+          {
+            "location": "vpn/wireguard.py",
+            "additionalContext": "call: k = x25519.X25519PrivateKey.generate()",
+            "line": 51
+          },
+          {
+            "location": "vpn/wireguard.py",
+            "additionalContext": "call: return b64(raw), b64(x25519.X25519PrivateKey.from_private_bytes(raw).public_key().public_bytes(*RAW))",
+            "line": 54
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "high"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "34.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "X25519MLKEM768 hybrid"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/TLS-1.2",
+      "name": "TLS 1.2",
+      "cryptoProperties": {
+        "assetType": "protocol",
+        "protocolProperties": {
+          "type": "tls",
+          "version": "1.2"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "constant: ctx.maximum_version = ssl.TLSVersion.TLSv1_2",
+            "line": 46
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "high"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "33.85"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.85"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Classical key exchange: quantum-vulnerable; NIST IR 8547 disallows it after 2035"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "TLS 1.3 with X25519MLKEM768"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/TLS-1.0",
+      "name": "TLS 1.0",
+      "cryptoProperties": {
+        "assetType": "protocol",
+        "protocolProperties": {
+          "type": "tls",
+          "version": "1.0"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: LEGACY_TLS = (\"TLSv1\", \"TLSv1_1\")",
+            "line": 21
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "high"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "32.65"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed now (NIST SP 800-131A)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Broken or disallowed today, independent of any quantum computer"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "TLS 1.3 with X25519MLKEM768"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/TLS-1.1",
+      "name": "TLS 1.1",
+      "cryptoProperties": {
+        "assetType": "protocol",
+        "protocolProperties": {
+          "type": "tls",
+          "version": "1.1"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: LEGACY_TLS = (\"TLSv1\", \"TLSv1_1\")",
+            "line": 21
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "high"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "32.65"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed now (NIST SP 800-131A)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Broken or disallowed today, independent of any quantum computer"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "TLS 1.3 with X25519MLKEM768"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ECDSA",
+      "name": "ECDSA",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "nistQuantumSecurityLevel": 0
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: data, ec.ECDSA(CURVES[{256: \"P-256\", 384: \"P-384\", 521: \"P-521\"}[key.curve.key_size]][1]))",
+            "line": 106
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "medium"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "24.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Breakable by Shor's algorithm on a future quantum computer; no harvest-now risk for signatures, but forgery risk once a CRQC exists"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "ML-DSA-65 (or hybrid ECDSA+ML-DSA during transition)"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/Ed25519",
+      "name": "Ed25519",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "classicalSecurityLevel": 128,
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.3.101.112"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa",
+            "line": 28
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: return ed25519.Ed25519PublicKey.from_public_bytes(unb64u(jwk[\"x\"])), {\"EdDSA\"}",
+            "line": 85
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: if kty == \"OKP\" and jwk.get(\"crv\") == \"Ed25519\":",
+            "line": 84
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa",
+            "line": 10
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: return \"Ed25519\"",
+            "line": 36
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "medium"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "24.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Breakable by Shor's algorithm on a future quantum computer; no harvest-now risk for signatures, but forgery risk once a CRQC exists"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "ML-DSA-44 or ML-DSA-65"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/DH",
+      "name": "DH",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "key-agree",
+          "cryptoFunctions": [
+            "keygen",
+            "keyderive"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.2.840.113549.1.3.1"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: CLASSICAL = [\"X25519\", \"secp256r1\", \"secp384r1\", \"secp521r1\", \"X448\", \"ffdhe2048\", \"ffdhe3072\"]",
+            "line": 20
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "medium"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "22.65"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Classical fallback next to a configured hybrid PQ group; keep only while peers lack hybrid support"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "Remove once clients support X25519MLKEM768"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ECDSA-P-256",
+      "name": "ECDSA-P-256",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "curve": "P-256",
+          "classicalSecurityLevel": 128,
+          "nistQuantumSecurityLevel": 0
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: CURVES = {\"P-256\": (ec.SECP256R1(), hashes.SHA256(), \"ES256\"), \"P-384\": (ec.SECP384R1(), hashes.SHA384(), \"ES384\"),",
+            "line": 36
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "medium"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "22.65"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Breakable by Shor's algorithm on a future quantum computer; no harvest-now risk for signatures, but forgery risk once a CRQC exists"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "ML-DSA-65 (or hybrid ECDSA+ML-DSA during transition)"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ECDSA-P-521",
+      "name": "ECDSA-P-521",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "curve": "P-521",
+          "classicalSecurityLevel": 256,
+          "nistQuantumSecurityLevel": 0
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: \"P-521\": (ec.SECP521R1(), hashes.SHA512(), \"ES512\")}",
+            "line": 37
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "medium"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "22.65"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Breakable by Shor's algorithm on a future quantum computer; no harvest-now risk for signatures, but forgery risk once a CRQC exists"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "ML-DSA-65 (or hybrid ECDSA+ML-DSA during transition)"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/X448",
+      "name": "X448",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "key-agree",
+          "cryptoFunctions": [
+            "keygen",
+            "keyderive"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "classicalSecurityLevel": 224,
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.3.101.111"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: CLASSICAL = [\"X25519\", \"secp256r1\", \"secp384r1\", \"secp521r1\", \"X448\", \"ffdhe2048\", \"ffdhe3072\"]",
+            "line": 20
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "medium"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "22.65"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Classical fallback next to a configured hybrid PQ group; keep only while peers lack hybrid support"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "Remove once clients support X25519MLKEM768"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/AES-GCM",
+      "name": "AES-GCM",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "block-cipher",
+          "cryptoFunctions": [
+            "encrypt",
+            "decrypt"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "mode": "gcm"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return {\"id\": recipient.id, \"kem\": b64(ct_kem), \"dh\": b64(ct_dh), \"key\": b64(AESGCM(kek).encrypt(b\"\\0\" * 12, dek, file_id))}",
+            "line": 165
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return AESGCM(kek).decrypt(b\"\\0\" * 12, unb64(entry[\"key\"]), file_id)",
+            "line": 171
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: self.aes = self.aes or AESGCM(self.dek)",
+            "line": 228
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: aes = AESGCM(dek)",
+            "line": 283
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "low"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "14.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Acceptable, but prefer 256-bit strength for long-term data"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Key size not visible statically; AES-128 is acceptable, AES-256 preferred for long-lived data"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "AES-256"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/AES",
+      "name": "AES",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "block-cipher",
+          "cryptoFunctions": [
+            "encrypt",
+            "decrypt"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.ciphers.aead import AESGCM",
+            "line": 33
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "low"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "12.7"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.7"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Acceptable, but prefer 256-bit strength for long-term data"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Key size not visible statically; AES-128 is acceptable, AES-256 preferred for long-lived data"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "AES-256"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/AES-256-GCM",
+      "name": "AES-256-GCM",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "block-cipher",
+          "cryptoFunctions": [
+            "encrypt",
+            "decrypt"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "256",
+          "mode": "gcm",
+          "classicalSecurityLevel": 256,
+          "nistQuantumSecurityLevel": 5
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "call: self.out, self.dek, self.buf, self.i = out, AESGCM.generate_key(256), bytearray(), 0",
+            "line": 203
+          },
+          {
+            "location": "readiness/compliance.py",
+            "additionalContext": "string: cnsa = \"ML_KEM_1024\" in kex and \"ECP_384\" in kex and all(c == \"AES_GCM_16_256\" for c in ciphers)",
+            "line": 67
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "4.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Acceptable, but prefer 256-bit strength for long-term data"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "At least 96-bit security even against Grover"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/HMAC-SHA-256",
+      "name": "HMAC-SHA-256",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "cryptoFunctions": [
+            "tag"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return b64(hmac.new(hashlib.sha256(b\"pqv recipients\" + dek).digest(), json.dumps(recipients, sort_keys=True).encode(), \"sha256\").digest())",
+            "line": 186
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: mac = hmac.new(unb64u(k[\"hmac\"]), f\"{eab['protected']}.{eab['payload']}\".encode(), hashlib.sha256).digest()",
+            "line": 250
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: if not k or k.get(\"used\") or protected.get(\"alg\") != \"HS256\" or protected.get(\"url\") != self.url(\"new-account\") or inner != jwk:",
+            "line": 248
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: keys[kid] = {\"hmac\": key, \"note\": note, \"created\": _iso(now()), \"used\": None}",
+            "line": 452
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "4.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "No known quantum break at this strength"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ML-DSA-44",
+      "name": "ML-DSA-44",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "44",
+          "classicalSecurityLevel": 128,
+          "nistQuantumSecurityLevel": 2
+        },
+        "oid": "2.16.840.1.101.3.4.3.17"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/signers.py",
+            "additionalContext": "call: stand_in = mldsa.MLDSA44PrivateKey.generate()",
+            "line": 272
+          },
+          {
+            "location": "pki/signers.py",
+            "additionalContext": "string: OIDS = {\"ML-DSA-44\": NIST_SIG + \"17\", \"ML-DSA-65\": NIST_SIG + \"18\", \"ML-DSA-87\": NIST_SIG + \"19\"} | {",
+            "line": 25
+          },
+          {
+            "location": "pki/signers.py",
+            "additionalContext": "string: swap = {algorithm_identifier(OIDS[\"ML-DSA-44\"]): algorithm_identifier(signer.oid)}",
+            "line": 276
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "4.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/SHA-256",
+      "name": "SHA-256",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "cryptoFunctions": [
+            "digest"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "256",
+          "classicalSecurityLevel": 128,
+          "nistQuantumSecurityLevel": 2
+        },
+        "oid": "2.16.840.1.101.3.4.2.1"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return hashlib.sha256(self.kem.public_bytes_raw() + self.suite.dh_bytes(self.dh)).hexdigest()[:16]",
+            "line": 132
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return b64(hmac.new(hashlib.sha256(b\"pqv recipients\" + dek).digest(), json.dumps(recipients, sort_keys=True).encode(), \"sha256\").digest())",
+            "line": 186
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: self.aad = hashlib.sha256(_core(self.h)).digest()",
+            "line": 210
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: aad = hashlib.sha256(_core(h)).digest()",
+            "line": 274
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: aad = hashlib.sha256(_core(h)).digest()",
+            "line": 465
+          },
+          {
+            "location": "console/__init__.py",
+            "additionalContext": "call: digest = base64.b64encode(hashlib.sha256(script).digest()).decode()",
+            "line": 229
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: CURVES = {\"P-256\": (ec.SECP256R1(), hashes.SHA256(), \"ES256\"), \"P-384\": (ec.SECP384R1(), hashes.SHA384(), \"ES384\"),",
+            "line": 36
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: return b64u(hashlib.sha256(json.dumps({k: jwk[k] for k in need}, separators=(\",\", \":\"), sort_keys=True).encode()).digest())",
+            "line": 94
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: key.verify(sig, data, padding.PKCS1v15(), hashes.SHA256())",
+            "line": 100
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: return key, {\"RS256\"}",
+            "line": 81
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: if alg == \"RS256\":",
+            "line": 99
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: if not k or k.get(\"used\") or protected.get(\"alg\") != \"HS256\" or protected.get(\"url\") != self.url(\"new-account\") or inner != jwk:",
+            "line": 248
+          },
+          {
+            "location": "pki/est.py",
+            "additionalContext": "call: entry = {\"id\": tid, \"hash\": hashlib.sha256(secret.encode()).hexdigest(), \"common_name\": common_name, \"kind\": kind, \"names\": names,",
+            "line": 46
+          },
+          {
+            "location": "pki/est.py",
+            "additionalContext": "call: if not auth.startswith(\"Basic \") or not t or not hmac.compare_digest(t[\"hash\"], hashlib.sha256(secret.encode()).hexdigest()):",
+            "line": 108
+          },
+          {
+            "location": "pki/est.py",
+            "additionalContext": "call: match = [c for c in certs if hashlib.sha256(c.public_bytes(Encoding.DER)).hexdigest() == want]",
+            "line": 190
+          },
+          {
+            "location": "pki/est.py",
+            "additionalContext": "call: return hashlib.sha256(cert.public_bytes(Encoding.DER)).hexdigest()",
+            "line": 198
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: mac = hmac.new(unb64u(k[\"hmac\"]), f\"{eab['protected']}.{eab['payload']}\".encode(), hashlib.sha256).digest()",
+            "line": 250
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "4.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "No known quantum break at this strength"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/SHA-384",
+      "name": "SHA-384",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "cryptoFunctions": [
+            "digest"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "384",
+          "classicalSecurityLevel": 192,
+          "nistQuantumSecurityLevel": 4
+        },
+        "oid": "2.16.840.1.101.3.4.2.2"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: CURVES = {\"P-256\": (ec.SECP256R1(), hashes.SHA256(), \"ES256\"), \"P-384\": (ec.SECP384R1(), hashes.SHA384(), \"ES384\"),",
+            "line": 36
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "3.9"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.9"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "No known quantum break at this strength"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/SHA-512",
+      "name": "SHA-512",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "cryptoFunctions": [
+            "digest"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "512",
+          "classicalSecurityLevel": 256,
+          "nistQuantumSecurityLevel": 5
+        },
+        "oid": "2.16.840.1.101.3.4.2.3"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "call: self.digest = hashlib.sha512(self.aad) if signer else None",
+            "line": 215
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: prefix, digest, i = unb64(h[\"nonce\"]), hashlib.sha512(aad), 0",
+            "line": 284
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "call: \"P-521\": (ec.SECP521R1(), hashes.SHA512(), \"ES512\")}",
+            "line": 37
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "3.9"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.9"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "No known quantum break at this strength"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ML-DSA-65",
+      "name": "ML-DSA-65",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "65",
+          "classicalSecurityLevel": 192,
+          "nistQuantumSecurityLevel": 3
+        },
+        "oid": "2.16.840.1.101.3.4.3.18"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/__init__.py",
+            "additionalContext": "string: def issue(self, common_name, kind, names=(), days=397, algorithm=\"ML-DSA-65\", out=None, passphrase=None, replace=False):",
+            "line": 270
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "string: def make_csr(names, out, algorithm=\"ML-DSA-65\", passphrase=None):",
+            "line": 511
+          },
+          {
+            "location": "pki/est.py",
+            "additionalContext": "string: def enroll(url, token, common_name, names=(), out=\".\", ca=None, algorithm=\"ML-DSA-65\", passphrase=None, server_name=None):",
+            "line": 216
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "2.7"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.7"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ML-DSA-87",
+      "name": "ML-DSA-87",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "87",
+          "classicalSecurityLevel": 256,
+          "nistQuantumSecurityLevel": 5
+        },
+        "oid": "2.16.840.1.101.3.4.3.19"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/__init__.py",
+            "additionalContext": "string: def init(cls, root, name, algorithm=\"ML-DSA-87\", days=3650, passphrase=None, parent=None, signer_config=None):",
+            "line": 174
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: out[\"cnsa2\"] = bool(out[\"accepts\"]) and set(out[\"accepts\"]) <= CNSA2_GROUPS and cert_key == \"ML-DSA-87\"",
+            "line": 182
+          },
+          {
+            "location": "tls/__init__.py",
+            "additionalContext": "string: \"strict\": Policy(\"strict\", PQC_GROUPS, \"mldsa87:mldsa65:mldsa44\"),",
+            "line": 25
+          },
+          {
+            "location": "tls/__init__.py",
+            "additionalContext": "string: \"cnsa2\": Policy(\"cnsa2\", \"SecP384r1MLKEM1024:MLKEM1024\", \"mldsa87\", \"TLS_AES_256_GCM_SHA384\"),",
+            "line": 27
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "2.7"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.7"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ML-KEM",
+      "name": "ML-KEM",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "kem",
+          "cryptoFunctions": [
+            "keygen",
+            "encapsulate",
+            "decapsulate"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "console/__init__.py",
+            "additionalContext": "string: out[\"vpn\"] = {\"tunnels\": len(tun), \"quantum_safe\": sum(t[\"state\"] == \"ESTABLISHED\" and t[\"ppk\"] and \"ML_KEM\" in t[\"key_exchange\"] for t in tun),",
+            "line": 152
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "2.7"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.7"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ML-KEM-1024",
+      "name": "ML-KEM-1024",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "kem",
+          "cryptoFunctions": [
+            "keygen",
+            "encapsulate",
+            "decapsulate"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "1024",
+          "classicalSecurityLevel": 256,
+          "nistQuantumSecurityLevel": 5
+        },
+        "oid": "2.16.840.1.101.3.4.4.3"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "string: Suite(\"P-384+ML-KEM-1024/AES-256-GCM\", mlkem.MLKEM1024PrivateKey, mlkem.MLKEM1024PublicKey, ec.SECP384R1(), hashlib.sha384),",
+            "line": 68
+          },
+          {
+            "location": "readiness/compliance.py",
+            "additionalContext": "string: cnsa = \"ML_KEM_1024\" in kex and \"ECP_384\" in kex and all(c == \"AES_GCM_16_256\" for c in ciphers)",
+            "line": 67
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: PQ = [\"X25519MLKEM768\", \"SecP256r1MLKEM768\", \"SecP384r1MLKEM1024\", \"MLKEM768\", \"MLKEM1024\"]",
+            "line": 18
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: CNSA2_GROUPS = {\"SecP384r1MLKEM1024\", \"MLKEM1024\"}",
+            "line": 19
+          },
+          {
+            "location": "tls/__init__.py",
+            "additionalContext": "string: \"cnsa2\": Policy(\"cnsa2\", \"SecP384r1MLKEM1024:MLKEM1024\", \"mldsa87\", \"TLS_AES_256_GCM_SHA384\"),",
+            "line": 27
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "2.7"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.7"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ML-KEM-768",
+      "name": "ML-KEM-768",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "kem",
+          "cryptoFunctions": [
+            "keygen",
+            "encapsulate",
+            "decapsulate"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "768",
+          "classicalSecurityLevel": 192,
+          "nistQuantumSecurityLevel": 3
+        },
+        "oid": "2.16.840.1.101.3.4.4.2"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "string: Suite(\"X25519+ML-KEM-768/AES-256-GCM\", mlkem.MLKEM768PrivateKey, mlkem.MLKEM768PublicKey, None, hashlib.sha3_256),",
+            "line": 67
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: PQ = [\"X25519MLKEM768\", \"SecP256r1MLKEM768\", \"SecP384r1MLKEM1024\", \"MLKEM768\", \"MLKEM1024\"]",
+            "line": 18
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "2.7"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.7"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/SLH-DSA",
+      "name": "SLH-DSA",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/signers.py",
+            "additionalContext": "string: SLH_DSA = [f\"SLH-DSA-{h}-{b}{v}\" for h in (\"SHA2\", \"SHAKE\") for b in (128, 192, 256) for v in \"sf\"]",
+            "line": 24
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "2.7"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.7"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/SecP256r1MLKEM768",
+      "name": "SecP256r1MLKEM768",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "kem",
+          "cryptoFunctions": [
+            "keygen",
+            "encapsulate",
+            "decapsulate"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "classicalSecurityLevel": 192,
+          "nistQuantumSecurityLevel": 3
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: PQ = [\"X25519MLKEM768\", \"SecP256r1MLKEM768\", \"SecP384r1MLKEM1024\", \"MLKEM768\", \"MLKEM1024\"]",
+            "line": 18
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "2.65"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/SecP384r1MLKEM1024",
+      "name": "SecP384r1MLKEM1024",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "kem",
+          "cryptoFunctions": [
+            "keygen",
+            "encapsulate",
+            "decapsulate"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "classicalSecurityLevel": 256,
+          "nistQuantumSecurityLevel": 5
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: PQ = [\"X25519MLKEM768\", \"SecP256r1MLKEM768\", \"SecP384r1MLKEM1024\", \"MLKEM768\", \"MLKEM1024\"]",
+            "line": 18
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: CNSA2_GROUPS = {\"SecP384r1MLKEM1024\", \"MLKEM1024\"}",
+            "line": 19
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "2.65"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/X25519MLKEM768",
+      "name": "X25519MLKEM768",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "kem",
+          "cryptoFunctions": [
+            "keygen",
+            "encapsulate",
+            "decapsulate"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "classicalSecurityLevel": 192,
+          "nistQuantumSecurityLevel": 3
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "string: PQ = [\"X25519MLKEM768\", \"SecP256r1MLKEM768\", \"SecP384r1MLKEM1024\", \"MLKEM768\", \"MLKEM1024\"]",
+            "line": 18
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "2.65"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": []
+    }
+  ]
+}

@@ -44,6 +44,7 @@ for (const pre of document.querySelectorAll("main pre")) {
     }
     setTimeout(() => (b.textContent = "Copy"), 1600);
   });
+  pre.tabIndex = 0;
   pre.before(box);
   box.append(pre, b);
 }
