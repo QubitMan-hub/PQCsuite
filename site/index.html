@@ -21,13 +21,15 @@
 <header class="top">
   <div class="wrap">
     <a href="#main" aria-label="Acxelin Quantum, top of page"><img src="assets/acxelin-quantum.svg" alt="Acxelin Quantum" width="537" height="83"></a>
-    <nav aria-label="Main">
+    <nav id="nav" aria-label="Main">
       <a href="#products">Products</a>
       <a href="#plan">How we start</a>
       <a href="#grades">Readiness grades</a>
       <a href="#faq">Questions</a>
+      <a class="tool" href="wolf-pack.html">Wolf Pack CBOM</a>
       <a class="btn" href="#contact">Book a free scan</a>
     </nav>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="nav"><span></span>Menu</button>
   </div>
 </header>
 
@@ -81,8 +83,14 @@
         <h2>Four products, one certificate authority</h2>
         <p>Each one works on its own. Together they share identities, revocation and one report for your auditors.</p>
       </div>
+      <nav class="jump" aria-label="The four products">
+        <a href="#tls"><span>Traffic</span><b>TLS 1.3 + mTLS</b><code>pqcsuite tls</code></a>
+        <a href="#vpn"><span>Tunnels</span><b>IPsec VPN</b><code>pqcsuite vpn</code></a>
+        <a href="#vault"><span>Backups</span><b>Vault</b><code>pqcsuite vault</code></a>
+        <a href="#readiness"><span>Audits</span><b>Readiness assessment</b><code>pqcsuite readiness</code></a>
+      </nav>
 
-      <article class="product">
+      <article class="product" id="tls">
         <div class="name"><span>For web, API and database traffic</span><h3>TLS 1.3 + mTLS</h3><p>A post-quantum front door for any service, and certificates for every machine that talks to it.</p></div>
         <div class="detail">
           <div><h4>What you get</h4><ul>
@@ -100,7 +108,7 @@
         </div>
       </article>
 
-      <article class="product">
+      <article class="product" id="vpn">
         <div class="name"><span>For offices, data centres and remote staff</span><h3>IPsec VPN</h3><p>Site-to-site tunnels with a post-quantum key exchange, and remote access for laptops.</p></div>
         <div class="detail">
           <div><h4>What you get</h4><ul>
@@ -118,7 +126,7 @@ pqcsuite vpn status</pre></div>
         </div>
       </article>
 
-      <article class="product">
+      <article class="product" id="vault">
         <div class="name"><span>For backups and archives</span><h3>Vault</h3><p>Encryption for files, folders and backups that stays safe for their whole retention period.</p></div>
         <div class="detail">
           <div><h4>What you get</h4><ul>
@@ -135,7 +143,7 @@ pqcsuite vpn status</pre></div>
         </div>
       </article>
 
-      <article class="product">
+      <article class="product" id="readiness">
         <div class="name"><span>For planning and audits</span><h3>Readiness assessment</h3><p>A graded list of what is quantum-safe today, and evidence mapped to the deadlines.</p></div>
         <div class="detail">
           <div><h4>What you get</h4><ul>
@@ -160,7 +168,7 @@ pqcsuite vpn status</pre></div>
         <h2>How we usually start</h2>
         <p>Most teams want to see it working on one real service before anything else. This is a typical first two weeks.</p>
       </div>
-      <ol class="plan" style="padding: 0; margin: 0; list-style: none;">
+      <ol class="plan">
         <li><span class="when">Day 1</span><b>Readiness scan</b><p>We grade your public endpoints together and agree what to protect first.</p></li>
         <li><span class="when">Day 2</span><b>Your certificate authority</b><p>An ML-DSA root kept offline, and an issuing CA on your side.</p></li>
         <li><span class="when">Days 3–5</span><b>One service behind the edge</b><p>Usually an API or a database, in transition mode so nobody is locked out.</p></li>
@@ -245,9 +253,18 @@ pqcsuite vpn status</pre></div>
 
 <footer>
   <div class="wrap">
-    <img src="assets/acxelin-quantum.svg" alt="Acxelin Quantum" width="537" height="83">
-    <span>© 2026 Acxelin Quantum. ML-KEM (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205).</span>
+    <div class="brand">
+      <a href="#main" aria-label="Acxelin PQC Suite"><img src="assets/acxelin-quantum.svg" alt="Acxelin Quantum" width="537" height="83"></a>
+      <p>Post-quantum security for the traffic, tunnels and data you run today.</p>
+    </div>
+    <nav aria-label="Footer">
+      <div><b>PQC Suite</b><a href="#tls">TLS 1.3 + mTLS</a><a href="#vpn">IPsec VPN</a><a href="#vault">Vault</a><a href="#readiness">Readiness assessment</a><a href="#faq">Questions</a></div>
+      <div><b>Also from Acxelin</b><a href="wolf-pack.html">Wolf Pack CBOM</a><span>Finds the cryptography in your code</span></div>
+      <div><b>Contact</b><a href="mailto:info@acxelinquantum.com">info@acxelinquantum.com</a><a href="https://forms.office.com/Pages/ResponsePage.aspx?id=G7il0FYBPk-mQiu5eNm4__Zpyi-xUOBMtEt0p-905AxUME9LMzZFV0JLWEFDMzdJMTM1MzYxSEVORy4u" target="_blank" rel="noopener">Book a call</a></div>
+    </nav>
+    <small>© 2026 Acxelin Quantum. ML-KEM (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205).</small>
   </div>
 </footer>
+<script src="site.js" defer></script>
 </body>
 </html>
