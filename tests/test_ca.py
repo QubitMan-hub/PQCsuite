@@ -25,7 +25,7 @@ class CATest(unittest.TestCase):
         self.assertTrue(c.extensions.get_extension_for_class(x509.BasicConstraints).value.ca)
         self.assertIn(b"ENCRYPTED", (self.root / "ca.key").read_bytes())
         with self.assertRaises(CAError):
-            CA(self.root, b"wrong")
+            CA(self.root, b"wrong").signer
         with self.assertRaises(CAError):
             CA.init(self.root, "again")
 
@@ -174,6 +174,16 @@ class CATest(unittest.TestCase):
         self.ca.revoke(new.serial)
         with self.assertRaisesRegex(CAError, "is revoked"):
             self.ca.renew(new.serial, out=out)
+
+    def test_reading_needs_no_passphrase_and_signing_does(self):
+        self.ca.issue("web.example", "server")
+        reader = CA(self.root)
+        self.assertEqual([r.common_name for r in reader.records()], ["web.example"])
+        self.assertEqual(reader.algorithm, "ML-DSA-87")
+        with self.assertRaisesRegex(CAError, "cannot open the CA key"):
+            reader.issue("x", "client")
+        with self.assertRaisesRegex(CAError, "cannot open the CA key"):
+            CA(self.root, b"wrong").crl()
 
 
 if __name__ == "__main__":

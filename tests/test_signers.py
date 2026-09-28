@@ -122,7 +122,7 @@ class SLHDSARootTest(unittest.TestCase):
         self.assertFalse(signed_by(self.root.cert, tbs[:-1] + bytes([tbs[-1] ^ 1]), self.sub.cert.signature))
         self.assertEqual(CA(self.d / "root", b"pw").signer.algorithm, "SLH-DSA-SHA2-128f")
         with self.assertRaises(CAError):
-            CA(self.d / "root", b"wrong")
+            CA(self.d / "root", b"wrong").signer
         self.root.revoke(self.root.records()[0].serial)
         with self.assertRaisesRegex(CAError, "revoked"):
             check_revocation(self.sub.cert.serial_number, (self.d / "root" / "crl.pem").read_bytes(), self.root.cert)

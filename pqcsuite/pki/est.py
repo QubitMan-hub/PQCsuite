@@ -240,6 +240,7 @@ def serve(ca_dir, listen, cert, key, passphrase=None, key_passphrase=None):
     from ..tls.http import handler
     from ..tls.server import Server
     ca = CA(ca_dir, passphrase)
+    ca.signer  # a wrong passphrase fails now, not at the first enrollment
     cafile = str(ca.anchor)
     make = lambda: tls.server_context(cert, key, cafile, policy_name="strict", key_passphrase=key_passphrase,
                                          request_client_cert=True, any_purpose=True)

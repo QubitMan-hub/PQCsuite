@@ -90,9 +90,9 @@ def cmd_ca(a):
                   {"type": "command", "command": a.signer_command, "public_key": str(Path(a.signer_public_key).resolve())} if a.signer_command else None)
         ca = CA.init(a.dir, a.name, a.algorithm, a.days, ca_passphrase(a.dir, new=True) if a.encrypt and not signer else None, parent, signer)
         what = f"intermediate CA under '{parent.cert.subject.rfc4514_string()}'" if parent else "root"
-        print(f"created {ca.signer.algorithm} {what} '{a.name}' in {a.dir} (serial {ca.cert.serial_number:x}); clients trust {ca.anchor}, servers check {Path(a.dir) / 'crl.pem'}")
+        print(f"created {ca.algorithm} {what} '{a.name}' in {a.dir} (serial {ca.cert.serial_number:x}); clients trust {ca.anchor}, servers check {Path(a.dir) / 'crl.pem'}")
         return 0
-    ca = CA(a.dir, ca_passphrase(a.dir))
+    ca = CA(a.dir, None if a.ca_cmd == "list" else ca_passphrase(a.dir))
     if a.ca_cmd == "issue":
         out, r = ca.issue(a.common_name, a.kind, a.san, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
         print(f"issued {r.kind} certificate {r.serial} for {r.common_name} ({r.algorithm}), valid until {r.not_after}")
@@ -313,6 +313,7 @@ def cmd_acme(a):
               f"certbot: --eab-kid {kid} --eab-hmac-key {key}")
         return 0
     ca = CA(a.dir, ca_passphrase(a.dir))
+    ca.signer  # a wrong passphrase fails now, not at the first order
     base = a.base_url or f"{'https' if a.tls_cert else 'http'}://{a.listen}"
     httpd = acme.serve(acme.Service(ca, base, a.allow, a.require_eab, a.http_port, days=a.days), a.listen, a.tls_cert, a.tls_key)
     print(f"ACME directory: {base}/directory (issuing ML-DSA certificates from {ca.cert.subject.rfc4514_string()})")
@@ -488,7 +489,10 @@ def run_until_signal(run, stop):
 
 class JSONFormatter(logging.Formatter):
     def format(self, r):
-        return json.dumps({"time": self.formatTime(r), "level": r.levelname, "logger": r.name, "message": r.getMessage()})
+        out = {"time": self.formatTime(r), "level": r.levelname, "logger": r.name, "message": r.getMessage()}
+        if r.exc_info:
+            out["exception"] = self.formatException(r.exc_info)
+        return json.dumps(out)
 
 
 def tls_client_args(p):
@@ -740,3 +744,5 @@ def main(argv=None):
     except (CAError, CharonError, WGError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {explain(e)}", file=sys.stderr)
         sys.exit(1)
+    except KeyboardInterrupt:
+        sys.exit(130)

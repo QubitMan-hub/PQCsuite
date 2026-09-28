@@ -33,6 +33,17 @@ class CLITest(unittest.TestCase):
         self.assertNotIn("Traceback", err.getvalue())
         return err.getvalue()
 
+    def test_json_logs_keep_the_traceback(self):
+        import json
+        import logging
+        import sys
+        from pqcsuite.cli import JSONFormatter
+        try:
+            1 / 0
+        except ZeroDivisionError:
+            r = logging.LogRecord("x", logging.ERROR, __file__, 1, "handler failed", None, sys.exc_info())
+        self.assertIn("ZeroDivisionError", json.loads(JSONFormatter().format(r))["exception"])
+
     @unittest.skipIf(REASON, REASON)
     def test_edge_start_up_errors(self):
         edge = ["tls", "edge", "--listen", "127.0.0.1:0", "--target", "127.0.0.1:1"]

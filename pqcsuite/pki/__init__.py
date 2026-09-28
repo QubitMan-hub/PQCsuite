@@ -2,6 +2,7 @@
 and CRLs. The CA key can live in a file, in AWS KMS, or behind any HSM signing tool (see signers.py)."""
 import contextlib
 import datetime as dt
+import functools
 import ipaddress
 import json
 import os
@@ -134,13 +135,23 @@ class CA:
         if not (self.root / "ca.crt").exists():
             raise CAError(f"no CA at {self.root}; run 'pqcsuite ca init' first")
         self.cert = x509.load_pem_x509_certificate((self.root / "ca.crt").read_bytes())
+        self.ski = self.cert.extensions.get_extension_for_class(x509.SubjectKeyIdentifier).value
+        self.passphrase = passphrase
+
+    @functools.cached_property
+    def signer(self):
+        """Opened on first use, so listing and reporting need no passphrase."""
         try:
-            self.signer = signers.from_config(self.root, passphrase)
+            signer = signers.from_config(self.root, self.passphrase)
         except (signers.SignerError, OSError, KeyError, ValueError) as e:
             raise CAError(f"cannot open the CA key: {e}") from None
-        if self.signer.spki != _spki(self.cert):
+        if signer.spki != _spki(self.cert):
             raise CAError("the CA key does not match ca.crt")
-        self.ski = self.cert.extensions.get_extension_for_class(x509.SubjectKeyIdentifier).value
+        return signer
+
+    @property
+    def algorithm(self):
+        return signers.spki_algorithm(_spki(self.cert))
 
     @property
     def anchor(self):

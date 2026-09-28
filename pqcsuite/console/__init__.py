@@ -73,7 +73,7 @@ class App:
         now = dt.datetime.now(dt.timezone.utc)
         rows = [vars(r) | {"days_left": (dt.datetime.fromisoformat(r.not_after) - now).days} for r in ca.records()]
         return {"root": {"subject": ca.cert.subject.rfc4514_string(), "expires": ca.cert.not_valid_after_utc.date().isoformat(),
-                         "algorithm": ca.signer.algorithm}, "certificates": rows}
+                         "algorithm": ca.algorithm}, "certificates": rows}
 
     def edges(self):
         out = []
