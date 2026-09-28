@@ -78,6 +78,10 @@ class SignerTest(unittest.TestCase):
         (self.d / "hsm" / "signer.json").write_text(json.dumps(cfg | {"command": [sys.executable, "-c", "raise SystemExit(3)"]}))
         with self.assertRaisesRegex(signers.SignerError, "failed"):
             CA(self.d / "hsm").issue("x", "client")
+        (self.d / "hsm" / "signer.json").write_text(json.dumps(cfg | {"command": [sys.executable, "-c", "print('HSM ready')"]}))
+        with self.assertRaisesRegex(CAError, "does not verify"):
+            CA(self.d / "hsm").issue("y", "client")
+        self.assertEqual([r.common_name for r in CA(self.d / "hsm").records()], ["api.example.com"])
 
     def test_intermediate_ml_dsa(self):
         root = CA.init(self.d / "root", "Root")

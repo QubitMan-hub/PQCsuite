@@ -17,7 +17,12 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import mldsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-from . import signers
+
+class CAError(Exception):
+    pass
+
+
+from . import signers  # noqa: E402 (signers.SignerError is a CAError)
 
 ALGORITHMS = {"ML-DSA-44": mldsa.MLDSA44PrivateKey, "ML-DSA-65": mldsa.MLDSA65PrivateKey, "ML-DSA-87": mldsa.MLDSA87PrivateKey}
 PUBLIC = {"ML-DSA-44": mldsa.MLDSA44PublicKey, "ML-DSA-65": mldsa.MLDSA65PublicKey, "ML-DSA-87": mldsa.MLDSA87PublicKey}
@@ -25,10 +30,6 @@ USAGE = {"server": [ExtendedKeyUsageOID.SERVER_AUTH], "client": [ExtendedKeyUsag
          "site": [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]}
 CA_ALGORITHMS = list(PUBLIC) + signers.SLH_DSA
 REASONS = {r.value: r for r in x509.ReasonFlags if r not in (x509.ReasonFlags.unspecified, x509.ReasonFlags.remove_from_crl)}
-
-
-class CAError(Exception):
-    pass
 
 
 _THREAD_LOCKS = {}

@@ -17,6 +17,8 @@ from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import mldsa
 
+from . import CAError
+
 DER = serialization.Encoding.DER
 NIST_SIG = "2.16.840.1.101.3.4.3."
 SLH_DSA = [f"SLH-DSA-{h}-{b}{v}" for h in ("SHA2", "SHAKE") for b in (128, 192, 256) for v in "sf"]
@@ -24,7 +26,7 @@ OIDS = {"ML-DSA-44": NIST_SIG + "17", "ML-DSA-65": NIST_SIG + "18", "ML-DSA-87":
     a: NIST_SIG + str(20 + i) for i, a in enumerate(SLH_DSA)}
 
 
-class SignerError(Exception):
+class SignerError(CAError):
     pass
 
 
@@ -209,10 +211,23 @@ class CommandSigner(Signer):
             raise SignerError(f"{public_key}: not an ML-DSA or SLH-DSA public key")
 
     def sign(self, data):
-        r = subprocess.run(self.command, input=data, capture_output=True, timeout=120)
+        try:
+            r = subprocess.run(self.command, input=data, capture_output=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            raise SignerError(f"signing command gave no signature within 120 s: {' '.join(self.command)}") from None
         if r.returncode:
             raise SignerError(f"signing command failed ({r.returncode}): {r.stderr.decode(errors='replace').strip()}")
         return r.stdout
+
+
+def _valid(spki, data, signature):
+    try:
+        serialization.load_der_public_key(spki).verify(signature, data)
+        return True
+    except (UnsupportedAlgorithm, ValueError):
+        return verify(spki, data, signature)
+    except Exception:
+        return False
 
 
 def _pem_body(pem):
@@ -262,5 +277,9 @@ def sign(builder, signer, spki=None):
     if spki:
         swap[KeySigner(stand_in).spki] = spki
     tbs = encode(0x30, b"".join(swap.get(p, p) for p in children(children(obj.public_bytes(DER))[0])))
-    der = encode(0x30, tbs + algorithm_identifier(signer.oid) + encode(0x03, b"\x00" + signer.sign(tbs)))
+    signature = signer.sign(tbs)
+    if not _valid(signer.spki, tbs, signature):
+        raise SignerError("the CA's signer returned a signature that does not verify with the CA's public key (a different key, "
+                          "or a signing tool that printed something besides the signature); nothing was issued")
+    der = encode(0x30, tbs + algorithm_identifier(signer.oid) + encode(0x03, b"\x00" + signature))
     return x509.load_der_x509_crl(der) if isinstance(obj, x509.CertificateRevocationList) else x509.load_der_x509_certificate(der)
