@@ -86,7 +86,7 @@ def html(r):
     rows = []
     for a in r.assets:
         locs = sorted({s.file for s in a.sightings})
-        new = "<span class=new>new</span>" if a.new_files else ""
+        new = ("<span class=new>new</span>" if a.new_files else "") + ("<span class=new title='only named in an algorithm list or table, not seen in use'>declared</span>" if a.declared else "")
         rows.append(f"""<tr class="{a.tier}"><td class="m" title="{a.tier}">{MARK[a.tier]}</td><td>{e(a.tier)}</td><td><b>{e(a.variant)}</b>{new}</td>
 <td class="w">{e(a.why)}</td><td class="w">{e(a.action) or '<span class="dim">none needed</span>'}</td><td>{e(a.exposure)}</td>
 <td>{len(a.sightings)} in {_plural(len(locs), 'place')}</td><td>{a.confidence:.2f}</td></tr>""")
@@ -157,7 +157,8 @@ def terminal(r):
     out.append("")
     w = max([len(a.variant) for a in r.assets] + [10])
     for a in r.assets:
-        out.append(f"  {MARK[a.tier]}  {a.tier:<8} {a.variant:<{w}}{' new' if a.new_files else '    '}  {a.exposure:<28} {len(a.sightings):>3}x  {a.action[:60]}")
+        tag = " new" if a.new_files else " decl" if a.declared else "    "
+        out.append(f"  {MARK[a.tier]}  {a.tier:<8} {a.variant:<{w}}{tag}  {a.exposure:<28} {len(a.sightings):>3}x  {a.action[:60]}")
     if r.alerts:
         out.append("")
         for s, t, where, _ in r.alerts:

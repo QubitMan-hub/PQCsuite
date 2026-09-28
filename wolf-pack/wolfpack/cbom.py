@@ -30,7 +30,7 @@ def algorithm_component(a):
     ev = {"occurrences": [_occ(s) for s in a.sightings[:200]]}
     props = _props(tier=a.tier, risk_score=a.score, confidence=a.confidence, exposure=a.exposure, nist_status=a.nist,
                    rationale=a.why, recommendation=a.action, test_only=a.test_only or None,
-                   policy="; ".join(a.policy) or None)
+                   policy="; ".join(a.policy) or None, usage="declared" if a.declared else "used")
     if c.primitive == "protocol":
         ver = re.search(r"(\d\.\d)", a.algo)
         pp = {"type": "tls" if "TLS" in a.algo or "SSL" in a.algo else "other"}
@@ -170,6 +170,7 @@ def sarif(assets, alerts):
             if s.file.startswith("tls://"):
                 continue
             quiet = next((t for c, t in QUIET.items() if c in s.context), None) if a.tier in ("critical", "high", "medium") else None
+            quiet = quiet or ("declared as supported here (an algorithm list or table), not seen in use" if a.declared else None)
             text = f"{a.variant}, {quiet}" if quiet else f"{a.variant} [{a.tier}]: {a.why}. Fix: {a.action}"
             results.append({"ruleId": rid, "level": LEVEL["low" if quiet else a.tier], "message": {"text": text},
                             "locations": [{"physicalLocation": {"artifactLocation": {"uri": s.file}, "region": {"startLine": max(1, s.line)}}}],

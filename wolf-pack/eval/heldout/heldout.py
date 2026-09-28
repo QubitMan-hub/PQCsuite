@@ -118,9 +118,10 @@ def label_family(family):
     return family if family in VOCABULARY else "OTHER:" + family.upper()
 
 
-def wolfpack_pairs(root, files, roles=pack.Roles()):
+def wolfpack_pairs(root, files, roles=pack.Roles(), used_only=False):
     r = pack.run(root, root.name, roles=roles)
-    return {(s.file, label_family(CATALOG[s.algo].family)) for s in r.sightings if s.verdict == "accepted" and s.algo in CATALOG and s.file in files}
+    return {(s.file, label_family(CATALOG[s.algo].family)) for s in r.sightings if s.verdict == "accepted" and s.algo in CATALOG and s.file in files
+            and not (used_only and "declared" in s.context)}
 
 
 def cmd_fetch(a):
@@ -331,7 +332,7 @@ def cmd_score(a):
             rows = []
             for repo, labels in labelled.items():
                 files = set(labels)
-                found = wolfpack_pairs(REPOS / repo, files, pack.Roles.without(*off))
+                found = wolfpack_pairs(REPOS / repo, files, pack.Roles.without(*off), getattr(a, "used_only", False))
                 rows.append(prf(found, gold(labels, policy)))
                 if name == "full pack" and a.per_repo:
                     print(f"  {repo:<20} P {rows[-1][3]:.3f}  R {rows[-1][4]:.3f}  ({rows[-1][0]} tp, {rows[-1][1]} found, {rows[-1][2]} gold)")
@@ -389,6 +390,7 @@ def main(argv=None):
     sc.add_argument("--per-repo", action="store_true")
     sc.add_argument("--partial", action="store_true", help="score even if sheets are incomplete (never for reported results)")
     sc.add_argument("--json", metavar="FILE")
+    sc.add_argument("--used-only", action="store_true", help="exploratory, not pre-registered: leave out findings Wolf Pack marks as declared")
     a = ap.parse_args(argv)
     return {"fetch": cmd_fetch, "sheets": cmd_sheets, "check": cmd_check, "agree": cmd_agree, "merge": cmd_merge, "sample": cmd_sample, "support": cmd_support, "score": cmd_score}[a.cmd](a)
 

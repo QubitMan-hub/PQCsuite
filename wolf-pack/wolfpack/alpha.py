@@ -26,11 +26,16 @@ NOISE = re.compile(r"\b(print\w*|log\w*|debug|info|warn\w*|error|trace|format|pr
 def siblings(sightings):
     """A literal like "RS256" yields RSA and SHA-256; if one half is accepted, so is the other."""
     key = lambda s: (s.file, s.line, s.params.get("literal"))
-    ok = {key(s) for s in sightings if s.verdict == "accepted" and s.evidence == "string"}
+    ok = {}
+    for s in sightings:
+        if s.verdict == "accepted" and s.evidence == "string":
+            ok[key(s)] = ok.get(key(s), True) and "declared" in s.context
     n = 0
     for s in sightings:
         if s.verdict == "quarantined" and s.evidence == "string" and key(s) in ok:
             s.verdict, s.confidence, s.reason = "accepted", 0.7, "same literal as an accepted sighting"
+            if ok[key(s)]:
+                s.context.add("declared")
             n += 1
     return n
 
@@ -91,6 +96,8 @@ def registries(sightings, lines, recognition=True):
             if c.verdict == "quarantined":
                 c.verdict, c.confidence, c.reason = "accepted", 0.65, f"part of an algorithm list of {len(cluster)} entries (lines {cluster[0].line}-{cluster[-1].line})"
                 n += 1
+            if c.verdict == "accepted" and not c.reason.startswith("second look"):
+                c.context.add("declared")
     return n
 
 

@@ -37,6 +37,8 @@ Files: `results-headline-158d69f.json`, `results-later-1.1.0.json` and `results-
 
 The later version lifts nsec to 0.67 and crypto-algorithms to 0.28 through its implementation scout. The one precision failure is otp-java, where 5 found pairs match 0 used pairs (all 5 are `declared`).
 
+**Exploratory, not pre-registered:** 1.2.0 marks findings that are only named in an algorithm list or table as `declared`. `score --used-only` leaves those out, and under the strict policy (after tuning) it scores P 0.834, R 0.906, F1 0.868. The gain is small because most remaining strict false positives are classes that declare algorithms (nsec), not lists.
+
 **Expectations** (pre-registration):
 
 - **H2 holds.** Precision is higher under the inclusive policy: 0.987 against 0.886.

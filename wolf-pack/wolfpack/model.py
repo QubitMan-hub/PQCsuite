@@ -58,3 +58,4 @@ class Asset:
     test_only: bool = False
     new_files: list = field(default_factory=list)
     policy: list = field(default_factory=list)
+    declared: bool = False

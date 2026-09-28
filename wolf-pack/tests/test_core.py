@@ -345,6 +345,13 @@ class Roles(unittest.TestCase):
         self.assertEqual(self.accepted((), "cs/AlgFactory.cs"), {"HMAC", "SHA-256"})
         self.assertEqual(self.accepted(("symbols",), "c/kex_table.c"), set())
 
+    def test_lists_are_declared_support_calls_are_used(self):
+        r = pack.run(CORPUS, "corpus")
+        declared = {a.variant for a in r.assets if a.declared}
+        self.assertIn("AES-128-CTR", declared)
+        self.assertNotIn("MD5", declared)
+        self.assertTrue(all("declared" in s.context for a in r.assets if a.declared for s in a.sightings))
+
     def test_concat_keeps_only_complete_parts(self):
         self.assertEqual(self.accepted((), "js/runtime_names.js"), {"RSA"})
         self.assertEqual(self.accepted(("concat",), "js/runtime_names.js"), set())

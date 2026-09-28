@@ -114,5 +114,6 @@ def assets(sightings):
                 params.setdefault(k, val)
         sl = [s for s, _ in items]
         out.append(Asset(ref=f"crypto/{re.sub(r'[^A-Za-z0-9.-]+', '-', v)}", algo=algo, variant=v, params=params, sightings=sl,
-                         confidence=max(s.confidence for s in sl), test_only=all("test" in s.context for s in sl)))
+                         confidence=max(s.confidence for s in sl), test_only=all("test" in s.context for s in sl),
+                         declared=all("declared" in s.context for s in sl)))
     return out
