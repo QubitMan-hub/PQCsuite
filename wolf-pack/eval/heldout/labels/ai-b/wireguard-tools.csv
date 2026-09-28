@@ -1,0 +1,84 @@
+file,used,declared,notes
+contrib/dns-hatchet/apply.sh,-,-,"patches wg-quick script, no crypto itself"
+contrib/embeddable-wg-library/test.c,X25519,-,calls wg_generate_private_key/public_key
+contrib/embeddable-wg-library/wireguard.c,X25519,-,"implements Curve25519 key generation (clamp_key, ladder)"
+contrib/embeddable-wg-library/wireguard.h,X25519,-,API for wireguard.c key generation
+contrib/external-tests/go/main.go,X25519; ChaCha20; BLAKE2,-,"Noise handshake: DH25519, CipherChaChaPoly, HashBLAKE2s; also calls blake2s directly"
+contrib/external-tests/haskell/package.yaml,-,OTHER:BLAKE2,?dependency manifest lists blake2 package; no code here calls it
+contrib/external-tests/haskell/stack.yaml,-,-,resolver/build config only
+contrib/external-tests/python/main.py,X25519; ChaCha20; BLAKE2,-,"Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s, also calls hashlib.blake2s directly"
+contrib/external-tests/rust/Cargo.toml,-,-,"?dependency list (snow, rust-crypto, base64) names no specific algorithm"
+contrib/external-tests/rust/src/main.rs,X25519; ChaCha20; BLAKE2,-,"Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s via snow, plus direct Blake2s::blake2s calls"
+contrib/extract-handshakes/extract-handshakes.sh,-,-,"reads raw session key bytes via kprobe, no algorithm called"
+contrib/extract-handshakes/offset-finder.c,-,-,?file not read directly; not on repo listing under this path
+contrib/extract-keys/config.c,-,-,struct offsets only
+contrib/extract-keys/extract-keys.c,-,-,"reads raw session key bytes from kernel memory, base64-prints them; no algorithm called"
+contrib/highlighter/fuzz.c,-,-,"fuzzes config syntax highlighter, no crypto"
+contrib/highlighter/gui/highlight.cpp,-,-,"Qt GUI wrapper around highlighter, no crypto"
+contrib/highlighter/highlight.c,-,-,"terminal wrapper around highlighter, no crypto"
+contrib/highlighter/highlighter.c,-,-,"validates key-looking strings only by base64 shape (format recognition), does not use the algorithm"
+contrib/highlighter/highlighter.h,-,-,API for highlighter.c
+contrib/keygen-html/wireguard.js,X25519,-,implements Curve25519 key generation in JS
+contrib/nat-hole-punching/nat-punch-client.c,-,-,"shuttles opaque base64 public keys, calls external wg CLI, no algorithm called"
+contrib/nat-hole-punching/nat-punch-server.c,-,-,"shuttles opaque public keys, no algorithm called"
+contrib/ncat-client-server/client-quick.sh,-,-,"calls external wg CLI (genkey/pubkey), does not implement crypto itself"
+contrib/ncat-client-server/client.sh,-,-,calls external wg CLI
+contrib/ncat-client-server/server.sh,-,-,calls external wg CLI
+contrib/reresolve-dns/reresolve-dns.sh,-,-,"parses config text and calls wg CLI, no algorithm called"
+contrib/sticky-sockets/sticky-sockets.c,-,-,"socket handling only, no crypto"
+contrib/synergy/synergy-client.sh,-,-,calls external wg CLI with hardcoded demo keys
+contrib/synergy/synergy-server.sh,-,-,calls external wg CLI with hardcoded demo keys
+src/config.c,X25519,-,?parses PrivateKey/PublicKey/PresharedKey config fields via key_from_base64 into the device
+src/config.h,-,-,"API declarations only, no algorithm named"
+src/containers.h,-,-,"struct fields named private_key/public_key/preshared_key as opaque byte arrays, no algorithm named or called"
+src/ctype.h,-,-,"constant-time char classification helpers, not crypto"
+src/curve25519-fiat32.h,X25519,-,Curve25519 field-arithmetic implementation (32-bit)
+src/curve25519-hacl64.h,X25519,-,"Curve25519 field-arithmetic implementation (64-bit, HACL)"
+src/curve25519.c,X25519,-,Curve25519 scalar multiplication implementation
+src/curve25519.h,X25519,-,API for curve25519.c
+src/encoding.c,-,-,"base64/hex codec for key bytes; encoding, not a crypto operation"
+src/encoding.h,-,-,API for encoding.c
+src/fuzz/cmd.c,X25519,-,vendored fuzz harness driving wg_main across all subcommands including genkey/pubkey
+src/fuzz/config.c,X25519,-,"vendored fuzz harness, includes config.c directly and exercises PrivateKey parsing"
+src/fuzz/set.c,X25519,-,"vendored fuzz harness, includes curve25519.c/config.c/set.c directly"
+src/fuzz/setconf.c,X25519,-,"vendored fuzz harness, includes curve25519.c/config.c/setconf.c directly"
+src/fuzz/stringlist.c,-,-,?vendored fuzz harness; links curve25519.c/ipc.c for build but only exercises string_list_add
+src/fuzz/uapi.c,X25519,-,"vendored fuzz harness exercising userspace_get_device, which calls curve25519_generate_public"
+src/genkey.c,X25519,-,calls curve25519_clamp_secret to generate a private key
+src/ipc-freebsd.h,-,-,"moves opaque key bytes over FreeBSD ioctl; only key_is_zero (a null check), no algorithm called"
+src/ipc-linux.h,-,-,"moves opaque key bytes over netlink; only key_is_zero, no algorithm called"
+src/ipc-openbsd.h,-,-,"moves opaque key bytes over OpenBSD ioctl; only key_is_zero, no algorithm called"
+src/ipc-uapi-unix.h,-,-,"userspace socket transport plumbing, no key encode/decode here"
+src/ipc-uapi-windows.h,-,-,"userspace named-pipe transport plumbing, no key encode/decode here"
+src/ipc-uapi.h,X25519,-,userspace config protocol: calls curve25519_generate_public and key_from_hex/key_to_hex
+src/ipc-windows.h,-,-,"moves opaque key bytes over Windows IOCTL; only key_is_zero, no algorithm called"
+src/ipc.c,-,-,"dispatches to per-OS ipc backends, no direct key handling"
+src/ipc.h,-,-,API for ipc.c
+src/netlink.h,-,-,"generic netlink protocol constants, no crypto"
+src/pubkey.c,X25519,-,calls curve25519_generate_public to derive a public key
+src/set.c,-,-,"delegates to config_read_cmd and ipc_set_device, no direct key handling"
+src/setconf.c,-,-,"delegates to config.c/ipc.c, compares public keys by memcmp only"
+src/show.c,X25519,-,?displays device/peer private and public keys via key_to_base64
+src/showconf.c,X25519,-,?displays PrivateKey/PublicKey/PresharedKey config via key_to_base64
+src/subcommands.h,-,-,API declarations only
+src/terminal.c,-,-,"terminal color/width helpers, no crypto"
+src/terminal.h,-,-,API for terminal.c
+src/uapi/freebsd/dev/wg/if_wg.h,-,-,"ioctl struct definitions, no key fields"
+src/uapi/linux/linux/wireguard.h,-,-,netlink attribute definitions naming key fields but no algorithm
+src/uapi/openbsd/net/if_wg.h,-,-,"ioctl struct definitions with opaque key byte arrays, no algorithm named"
+src/uapi/windows/wireguard.h,-,-,"ioctl struct definitions with opaque key byte arrays, no algorithm named"
+src/version.h,-,-,version string only
+src/wg-quick/android.c,-,-,"Android VPNService plumbing, no crypto"
+src/wg.c,-,-,subcommand dispatch table only
+src/wincompat/compat.h,-,-,"Windows POSIX shims, no crypto"
+src/wincompat/include/arpa/inet.h,-,-,"header shim, no crypto"
+src/wincompat/include/hashtable.h,-,-,non-cryptographic string hashtable (djb2-style hash)
+src/wincompat/include/net/if.h,-,-,"header shim, no crypto"
+src/wincompat/include/netdb.h,-,-,"header shim, no crypto"
+src/wincompat/include/netinet/in.h,-,-,"header shim, no crypto"
+src/wincompat/include/sys/socket.h,-,-,"header shim, no crypto"
+src/wincompat/init.c,-,-,"Windows process init glue, no crypto"
+src/wincompat/libc.c,-,-,"libc shims, no crypto"
+src/wincompat/load_config.c,-,-,"loads config resource, no crypto"
+src/wincompat/loader.c,-,-,"DLL loader shim, no crypto"
+src/wincompat/manifest.xml,-,-,"Windows app manifest, no crypto"

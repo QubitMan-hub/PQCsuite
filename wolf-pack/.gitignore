@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+/build/
+/dist/
+wolfpack-out/
+.cache/
+.pytest_cache/
+.idea/
+.vscode/
+eval/heldout/repos/

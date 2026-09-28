@@ -1,0 +1,6 @@
+file,used,declared,notes
+encrypt.go,AES,-,AES-GCM encrypt/decrypt
+hash.go,HMAC; SHA-512; bcrypt,-,HMAC-SHA512/256 truncated to SHA-512 per guide; bcrypt work factor 14
+marshal.go,ECDSA,-,"PEM encode/decode of ecdsa.PublicKey/PrivateKey; also base64 of raw sig bytes, not a crypto op"
+sign.go,HMAC; SHA-512; ECDSA; SHA-256,-,HMAC-SHA512/256 for MAC; ECDSA P-256 sign/verify hashing with SHA-256
+tls.go,TLS 1.2; ECDH,-,?MinVersion pinned to TLS1.2; CurvePreferences restricts to P256 for ECDHE key exchange

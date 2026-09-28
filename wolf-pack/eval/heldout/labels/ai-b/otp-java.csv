@@ -1,0 +1,9 @@
+file,used,declared,notes
+pom.xml,-,-,description mentions HOTP/TOTP RFCs in prose only
+src/main/java/com/bastiaanjansen/otp/CounterStorage.java,-,-,"interface only, no algorithm named"
+src/main/java/com/bastiaanjansen/otp/HMACAlgorithm.java,-,HMAC; SHA-1; SHA-224; SHA-256; SHA-384; SHA-512,"enum mapping to HmacSHA1/224/256/384/512, consumed by HOTPGenerator/TOTPGenerator elsewhere"
+src/main/java/com/bastiaanjansen/otp/HOTPGenerator.java,HMAC; SHA-1,-,Mac.getInstance(algorithm.getHMACName()) implements HOTP; default algorithm is HMACAlgorithm.SHA1 when caller passes none
+src/main/java/com/bastiaanjansen/otp/InMemoryCounterStorage.java,-,-,"replay-protection bookkeeping only, no algorithm named"
+src/main/java/com/bastiaanjansen/otp/SecretGenerator.java,-,-,SecureRandom + Base32 encoding; SHA1/256/512 named only in a comment about recommended secret length
+src/main/java/com/bastiaanjansen/otp/TOTPGenerator.java,HMAC; SHA-1,-,"wraps HOTPGenerator, inheriting its default HMAC-SHA1 unless overridden"
+src/main/java/com/bastiaanjansen/otp/helpers/URIHelper.java,-,-,"URI/query string helper, no algorithm named"

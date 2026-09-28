@@ -1,0 +1,81 @@
+file,used,declared,notes
+.pipelines/build.yml,-,-,"CI pipeline config, no crypto"
+src/JWT.Extensions.AspNetCore/AuthenticationBuilderExtensions.cs,-,-,DI wiring only
+src/JWT.Extensions.AspNetCore/Factories/ClaimsIdentityFactory.cs,-,-,"claims mapping, no crypto"
+src/JWT.Extensions.AspNetCore/Factories/DefaultTicketFactory.cs,-,-,"auth ticket wrapper, no crypto"
+src/JWT.Extensions.AspNetCore/Factories/IIdentityFactory.cs,-,-,interface only
+src/JWT.Extensions.AspNetCore/Factories/ITicketFactory.cs,-,-,interface only
+src/JWT.Extensions.AspNetCore/FailedTicketContext.cs,-,-,"context object, no crypto"
+src/JWT.Extensions.AspNetCore/Internal/SystemClockDatetimeProvider.cs,-,-,"clock wrapper, no crypto"
+src/JWT.Extensions.AspNetCore/JwtAuthenticationDefaults.cs,-,-,scheme name constant
+src/JWT.Extensions.AspNetCore/JwtAuthenticationEvents.cs,-,-,"logging/event hooks, no crypto"
+src/JWT.Extensions.AspNetCore/JwtAuthenticationHandler.cs,-,-,"delegates signature check to injected IJwtDecoder, no algorithm named here"
+src/JWT.Extensions.AspNetCore/JwtAuthenticationOptions.cs,-,-,"options bag, no algorithm named"
+src/JWT.Extensions.AspNetCore/SuccessfulTicketContext.cs,-,-,"context object, no crypto"
+src/JWT.Extensions.DependencyInjection/Internal/SystemClockDatetimeProvider.cs,-,-,"clock wrapper, no crypto"
+src/JWT.Extensions.DependencyInjection/ServiceCollectionExtensions.cs,-,-,"DI wiring, no concrete algorithm"
+src/JWT/Algorithms/CertificateAlgorithm.cs,-,-,"generic abstract base over T, no concrete family named"
+src/JWT/Algorithms/DelegateAlgorithmFactory.cs,-,-,"generic delegate wrapper, no crypto"
+src/JWT/Algorithms/ECDSAAlgorithm.cs,ECC; ECDSA,-,abstract base signs/verifies via System.Security.Cryptography.ECDsa; hash is abstract so not fixed here
+src/JWT/Algorithms/ECDSAAlgorithmFactory.cs,ECDSA; SHA-256; SHA-384; SHA-512,-,branches on ES256/384/512 to construct concrete algorithm instances
+src/JWT/Algorithms/ES256Algorithm.cs,ECDSA; SHA-256,-,concrete ECDSA+SHA-256 signer
+src/JWT/Algorithms/ES384Algorithm.cs,ECDSA; SHA-384,-,concrete ECDSA+SHA-384 signer
+src/JWT/Algorithms/ES512Algorithm.cs,ECDSA; SHA-512,-,concrete ECDSA+SHA-512 signer
+src/JWT/Algorithms/GenericAlgorithmFactory.cs,-,-,"generic factory, no concrete branch"
+src/JWT/Algorithms/HMACSHA256Algorithm.cs,HMAC; SHA-256,-,instantiates HMACSHA256 to sign
+src/JWT/Algorithms/HMACSHA384Algorithm.cs,HMAC; SHA-384,-,instantiates HMACSHA384 to sign
+src/JWT/Algorithms/HMACSHA512Algorithm.cs,HMAC; SHA-512,-,instantiates HMACSHA512 to sign
+src/JWT/Algorithms/HMACSHAAlgorithm.cs,HMAC,-,"abstract base computes HMAC hash via abstract CreateAlgorithm, hash not fixed here"
+src/JWT/Algorithms/HMACSHAAlgorithmFactory.cs,HMAC; SHA-256; SHA-384; SHA-512,-,branches on HS256/384/512 to construct concrete algorithm instances; RS/ES names only appear in exception text
+src/JWT/Algorithms/IAlgorithmFactory.cs,-,-,interface only
+src/JWT/Algorithms/IAsymmetricAlgorithm.cs,-,-,interface only
+src/JWT/Algorithms/IJwtAlgorithm.cs,-,-,"interface only, hash names only in doc comment"
+src/JWT/Algorithms/JwtAlgorithmFactory.cs,-,-,"abstract factory parses enum name generically, no concrete branch"
+src/JWT/Algorithms/JwtAlgorithmName.cs,-,RSA; ECDSA; HMAC; SHA-256; SHA-384; SHA-512,"enum of supported JWT alg names (HS/RS/ES/None); RS1024/2048/4096 doc comments claim SHA-1024/2048/4096 which are not real hashes, actual impl uses SHA-512 (see RS1024/2048/4096Algorithm.cs)"
+src/JWT/Algorithms/NoneAlgorithm.cs,-,-,"explicitly unsigned 'none' algorithm, not a crypto family"
+src/JWT/Algorithms/RS1024Algorithm.cs,RSA; SHA-512,-,?docstring says 'SHA-1024' but HashAlgorithmName is SHA512; labelled by actual code
+src/JWT/Algorithms/RS2048Algorithm.cs,RSA; SHA-512,-,?docstring says 'SHA-2048' but HashAlgorithmName is SHA512; labelled by actual code
+src/JWT/Algorithms/RS256Algorithm.cs,RSA; SHA-256,-,concrete RSA+SHA-256 signer
+src/JWT/Algorithms/RS384Algorithm.cs,RSA; SHA-384,-,concrete RSA+SHA-384 signer
+src/JWT/Algorithms/RS4096Algorithm.cs,RSA; SHA-512,-,?docstring says 'SHA-4096' but HashAlgorithmName is SHA512; labelled by actual code
+src/JWT/Algorithms/RS512Algorithm.cs,RSA; SHA-512,-,concrete RSA+SHA-512 signer
+src/JWT/Algorithms/RSAlgorithm.cs,RSA,-,"abstract base signs/verifies via System.Security.Cryptography.RSA with PKCS1 padding, hash is abstract so not fixed here"
+src/JWT/Algorithms/RSAlgorithmFactory.cs,RSA; SHA-256; SHA-384; SHA-512,-,branches on RS256/384/512/1024/2048/4096 to construct concrete algorithm instances; HS/ES names only in exception text
+src/JWT/Builder/ClaimName.cs,-,-,"JWT claim name enum, no crypto"
+src/JWT/Builder/EnumExtensions.cs,-,-,reflection helper for enum descriptions
+src/JWT/Builder/HeaderName.cs,-,-,"JWT header field name enum, no crypto"
+src/JWT/Builder/JwtBuilder.cs,-,-,fluent builder dispatches through IJwtAlgorithm interface; concrete algorithm names only in doc comments
+src/JWT/Builder/JwtBuilderExtensions.cs,-,-,"fluent extension methods, no crypto references"
+src/JWT/Builder/JwtData.cs,-,-,"header/payload dictionary container, no crypto"
+src/JWT/Builder/JwtHeader.cs,-,-,"JSON header model (typ/alg/kid/x5u/x5c/x5t fields), no crypto"
+src/JWT/Compatibility/String.cs,-,-,"net35 string polyfill, no crypto"
+src/JWT/Compatibility/System.Reflection/CustomAttributeExtensions.cs,-,-,"reflection polyfill, no crypto"
+src/JWT/Compatibility/System.Security.Cryptography/HashAlgorithmName.cs,-,MD5; SHA-1; SHA-256; SHA-384; SHA-512,"net35/40 polyfill struct of named hash identifiers consumed elsewhere, not computed here"
+src/JWT/Exceptions/InvalidTokenPartsException.cs,-,-,"exception type, no crypto"
+src/JWT/Exceptions/SignatureVerificationException.cs,-,-,"exception type carrying strings, no crypto"
+src/JWT/Exceptions/TokenExpiredException.cs,-,-,"exception type, no crypto"
+src/JWT/Exceptions/TokenNotYetValidException.cs,-,-,"exception type, no crypto"
+src/JWT/IBase64UrlEncoder.cs,-,-,"interface for base64 encoding, encodings are not crypto"
+src/JWT/IDateTimeProvider.cs,-,-,interface only
+src/JWT/IJsonSerializer.cs,-,-,interface only
+src/JWT/IJwtDecoder.cs,-,-,"interface + extension overloads, no concrete algorithm"
+src/JWT/IJwtEncoder.cs,-,-,"interface + extension overloads, no concrete algorithm"
+src/JWT/IJwtValidator.cs,-,-,"interface only, dispatches via IAsymmetricAlgorithm abstraction"
+src/JWT/Internal/EncodingHelper.cs,-,-,"UTF8 byte conversion helpers, no crypto"
+src/JWT/Internal/StringHelper.cs,-,-,"string helper extensions, no crypto"
+src/JWT/JwtBase64UrlEncoder.cs,-,-,"base64url encode/decode, encodings are not crypto"
+src/JWT/JwtDecoder.cs,-,-,"decodes/validates via injected IAlgorithmFactory/IJwtAlgorithm generically, no concrete family named in this file"
+src/JWT/JwtDecoderContext.cs,-,-,"plain data holder, no crypto"
+src/JWT/JwtEncoder.cs,-,-,"encodes via injected IAlgorithmFactory/IJwtAlgorithm generically, no concrete family named in this file"
+src/JWT/JwtParts.cs,-,-,"splits token into header/payload/signature strings, no crypto"
+src/JWT/JwtValidator.cs,-,-,"validates exp/nbf and delegates signature check to injected IAsymmetricAlgorithm, no concrete family named here; constant-time compare is not itself an algorithm"
+src/JWT/Properties/AssemblyInfo.cs,-,-,"strong-name public key and InternalsVisibleTo, not a crypto operation"
+src/JWT/Serializers/Converters/DictionaryStringObjectJsonConverter.cs,-,-,"JSON converter, no crypto"
+src/JWT/Serializers/DefaultJsonSerializerFactory.cs,-,-,"picks JSON serializer implementation, no crypto"
+src/JWT/Serializers/DelegateJsonSerializerFactory.cs,-,-,"generic delegate wrapper, no crypto"
+src/JWT/Serializers/IJsonSerializerFactory.cs,-,-,interface only
+src/JWT/Serializers/JsonNetSerializer.cs,-,-,"Newtonsoft.Json wrapper, no crypto"
+src/JWT/Serializers/SystemTextSerializer.cs,-,-,"System.Text.Json wrapper, no crypto"
+src/JWT/UnixEpoch.cs,-,-,"unix time helper, no crypto"
+src/JWT/UtcDateTimeProvider.cs,-,-,"clock wrapper, no crypto"
+src/JWT/ValidationParameters.cs,-,-,"validation toggle flags, no crypto"

@@ -1,0 +1,146 @@
+[
+ {
+  "name": "armadillo",
+  "repo": "patrickfav/armadillo",
+  "commit": "382a38b179e2f02354846fcb1aa83829f0980611",
+  "language": "java",
+  "kind": "app library",
+  "why": "Encrypted SharedPreferences for Android: AES-GCM, HKDF, bcrypt key stretching"
+ },
+ {
+  "name": "password4j",
+  "repo": "Password4j/password4j",
+  "commit": "fe0f0ba3298fa156aa2d77e1edb97218ae11e92f",
+  "language": "java",
+  "kind": "library",
+  "why": "Password hashing: PBKDF2, bcrypt, scrypt, Argon2, plus HMAC and message digests"
+ },
+ {
+  "name": "otp-java",
+  "repo": "BastiaanJansen/otp-java",
+  "commit": "2397b0f31e75b3b97fe9fe7895b6d3f12da2c98e",
+  "language": "java",
+  "kind": "library",
+  "why": "HOTP and TOTP over HMAC with SHA-1, SHA-256 and SHA-512"
+ },
+ {
+  "name": "jwcrypto",
+  "repo": "latchset/jwcrypto",
+  "commit": "14b32e7cbea50d32551a9490009bf946cec61d38",
+  "language": "python",
+  "kind": "library",
+  "why": "Full JOSE (JWS, JWE, JWK) on pyca/cryptography"
+ },
+ {
+  "name": "magic-wormhole",
+  "repo": "magic-wormhole/magic-wormhole",
+  "commit": "cc6160670bf7faaab52ba307e3f8ba95e80529fe",
+  "language": "python",
+  "kind": "application",
+  "why": "File transfer with SPAKE2, NaCl secretbox and HKDF"
+ },
+ {
+  "name": "pyotp",
+  "repo": "pyauth/pyotp",
+  "commit": "cc156832fa9f3d5af7fb9e4e6b86b29dfc5b69f1",
+  "language": "python",
+  "kind": "library",
+  "why": "HOTP and TOTP via hmac and hashlib"
+ },
+ {
+  "name": "cryptopasta",
+  "repo": "gtank/cryptopasta",
+  "commit": "1f550f6f2f69009f6ae57347c188e0a67cd4e500",
+  "language": "go",
+  "kind": "library",
+  "why": "Small Go crypto recipes: AES-GCM, HMAC, ECDSA, bcrypt, SHA-512/256"
+ },
+ {
+  "name": "sio",
+  "repo": "minio/sio",
+  "commit": "e1fddaac73108d378e89df17f4c3e2b53e5122c8",
+  "language": "go",
+  "kind": "library",
+  "why": "DARE streaming encryption with AES-GCM and ChaCha20-Poly1305"
+ },
+ {
+  "name": "golang-jwt",
+  "repo": "golang-jwt/jwt",
+  "commit": "73c870b18e68b6e654b2b03f485aa3c9fab32cea",
+  "language": "go",
+  "kind": "library",
+  "why": "JWT for Go: RSA, RSA-PSS, ECDSA, Ed25519, HMAC"
+ },
+ {
+  "name": "iron",
+  "repo": "hapijs/iron",
+  "commit": "f4561238446e4ab487f691eb718fec00dee7dcae",
+  "language": "js",
+  "kind": "library",
+  "why": "Sealed tokens: AES-256-CBC, AES-128-CTR, HMAC-SHA256, PBKDF2"
+ },
+ {
+  "name": "speakeasy",
+  "repo": "speakeasyjs/speakeasy",
+  "commit": "cff2bb42cde5e74c43493a8f26b20e52960df531",
+  "language": "js",
+  "kind": "library",
+  "why": "HOTP and TOTP in Node"
+ },
+ {
+  "name": "node-bcrypt",
+  "repo": "kelektiv/node.bcrypt.js",
+  "commit": "24aa3c50a990db8cea4f545cd21b8740ea0364ea",
+  "language": "js",
+  "kind": "library",
+  "why": "bcrypt for Node with a C++ core"
+ },
+ {
+  "name": "crypto-algorithms",
+  "repo": "B-Con/crypto-algorithms",
+  "commit": "cfbde48414baacf51fc7c74f275190881f037d32",
+  "language": "c",
+  "kind": "implementations",
+  "why": "Reference implementations: AES, DES, 3DES, RC4, MD2, MD5, SHA-1, SHA-256, Blowfish and more"
+ },
+ {
+  "name": "tiny-aes-c",
+  "repo": "kokke/tiny-AES-c",
+  "commit": "23856752fbd139da0b8ca6e471a13d5bcc99a08d",
+  "language": "c",
+  "kind": "implementations",
+  "why": "Small AES in ECB, CBC and CTR modes"
+ },
+ {
+  "name": "wireguard-tools",
+  "repo": "WireGuard/wireguard-tools",
+  "commit": "a998407747005ea7e4e0258d96f105c97241e1d3",
+  "language": "c",
+  "kind": "application",
+  "why": "wg userspace tools: Curve25519 keys, config files"
+ },
+ {
+  "name": "bcrypt-net",
+  "repo": "BcryptNet/bcrypt.net",
+  "commit": "a614956ceb182d99af03aa03fd4c141eaa51bfd5",
+  "language": "csharp",
+  "kind": "library",
+  "why": "bcrypt for .NET, with optional SHA pre-hashing"
+ },
+ {
+  "name": "jwt-dotnet",
+  "repo": "jwt-dotnet/jwt",
+  "commit": "ebb6f7aa6583f8f3d446a2f50b5060f844ea3a81",
+  "language": "csharp",
+  "kind": "library",
+  "why": "JWT for .NET: HMAC, RSA, ECDSA"
+ },
+ {
+  "name": "nsec",
+  "repo": "ektrah/nsec",
+  "commit": "02c51bb20a7b6accc96e74ecab6e2659cc1f5c63",
+  "language": "csharp",
+  "kind": "library",
+  "why": "Modern crypto for .NET over libsodium: Ed25519, X25519, AEADs, hashes, KDFs"
+ }
+]

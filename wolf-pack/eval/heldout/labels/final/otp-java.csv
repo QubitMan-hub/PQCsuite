@@ -1,0 +1,9 @@
+file,used,declared,notes
+pom.xml,-,-,
+src/main/java/com/bastiaanjansen/otp/CounterStorage.java,-,-,
+src/main/java/com/bastiaanjansen/otp/HMACAlgorithm.java,-,HMAC; SHA-1; SHA-224; SHA-256; SHA-384; SHA-512,
+src/main/java/com/bastiaanjansen/otp/HOTPGenerator.java,HMAC; SHA-1,-,
+src/main/java/com/bastiaanjansen/otp/InMemoryCounterStorage.java,-,-,
+src/main/java/com/bastiaanjansen/otp/SecretGenerator.java,-,-,
+src/main/java/com/bastiaanjansen/otp/TOTPGenerator.java,HMAC; SHA-1,-,
+src/main/java/com/bastiaanjansen/otp/helpers/URIHelper.java,-,-,

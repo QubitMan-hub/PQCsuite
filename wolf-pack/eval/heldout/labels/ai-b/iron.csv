@@ -1,0 +1,4 @@
+file,used,declared,notes
+lib/index.d.ts,-,AES; SHA-256,"TypeScript type declarations mirroring index.js defaults ('aes-256-cbc','sha256'); no implementation in this file"
+lib/index.js,AES; HMAC; PBKDF2; SHA-1; SHA-256,-,createCipheriv/createDecipheriv/createHmac default to aes-256-cbc/sha256 from exports.defaults; internals.pbkdf2 hardcodes 'sha1' as the digest
+package.json,-,-,manifest; keywords list 'encryption' but no concrete algorithm name

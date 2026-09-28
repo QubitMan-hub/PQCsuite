@@ -1,0 +1,4 @@
+file,used,declared,notes
+lib/index.d.ts,-,AES; SHA-256,"? type interface Algorithms lists aes-128-ctr, aes-256-cbc, sha256 (sha256 is the HMAC integrity algorithm); declarations only"
+lib/index.js,AES; HMAC; SHA-256; PBKDF2; SHA-1,-,defaults aes-256-cbc and sha256 HMAC; aes-128-ctr in registry; PBKDF2 with sha1 key derivation
+package.json,-,-,"manifest, no crypto deps named as algorithms"

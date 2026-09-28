@@ -1,0 +1,6 @@
+file,used,declared,notes
+encrypt.go,AES,-,
+hash.go,HMAC; SHA-512; bcrypt,-,
+marshal.go,ECC,-,"used: A=ECC B=ECDSA || decided: A: EC keys parsed/encoded only, no signing in this file"
+sign.go,ECDSA; HMAC; SHA-256; SHA-512,-,
+tls.go,ECDH; TLS 1.2,-,

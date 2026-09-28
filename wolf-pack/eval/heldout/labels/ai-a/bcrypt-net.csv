@@ -1,0 +1,59 @@
+file,used,declared,notes
+.codacy.yml,-,-,tool config
+.config/dotnet-tools.json,-,-,tool manifest
+Dockerfile,-,-,build/run only
+assets/PfxToSnk.cs,RSA,-,"? loads PFX cert, exports RSA private key to CSP blob; cert signature/hash not visible in code"
+assets/jBCrypt-0.4/build.xml,-,-,ant build file
+assets/jBCrypt-0.4/src/org/mindrot/jbcrypt/3BCrypt.java,bcrypt,-,"vendored jBCrypt; Blowfish rounds are part of bcrypt, not a separate cipher"
+assets/jBCrypt-0.4/src/org/mindrot/jbcrypt/BCrypt.java,bcrypt,-,"vendored jBCrypt; Blowfish rounds are part of bcrypt, not a separate cipher"
+benchmarks/Diagnostic-Benchmarks/BenchmarkCurrent.cs,bcrypt,-,calls BCryptCore.CreatePasswordHash
+benchmarks/Diagnostic-Benchmarks/Program.cs,-,-,benchmark runner
+benchmarks/Method-Benchmarks/3.2.1/BaseLine.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,old library copy: bcrypt impl plus SHA pre-hash (enhanced entropy)
+benchmarks/Method-Benchmarks/3.5.perfmerge_1/PerfMerge1.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,old library copy: bcrypt impl plus SHA pre-hash
+benchmarks/Method-Benchmarks/4.0.0/version4.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,old library copy: bcrypt impl plus SHA pre-hash
+benchmarks/Method-Benchmarks/4.0.3/BCrypt403.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,old library copy: bcrypt impl plus SHA pre-hash
+benchmarks/Method-Benchmarks/B64DecoderBenchmark.cs,-,-,base64 only
+benchmarks/Method-Benchmarks/B64EncoderBenchmark.cs,-,-,base64 only
+benchmarks/Method-Benchmarks/DecodeB64/Decoder.cs,-,-,base64 only
+benchmarks/Method-Benchmarks/EncodeB64/Encoder.cs,-,-,base64 only
+benchmarks/Method-Benchmarks/EnhancedHashingBenchmark.cs,bcrypt,-,? calls enhanced HashPassword variants; pre-hash algorithm comes from callee defaults (SHA-384 / HMAC-SHA3-384) in other files
+benchmarks/Method-Benchmarks/EnhancedHashingV3Benchmark.cs,HMAC; SHA3-256; SHA3-384; SHA3-512,-,"HMACSHA3_256/384/512; local enum names SHA256.. map to SHA3 HMACs, SHA-2 not used"
+benchmarks/Method-Benchmarks/EnhancedHashingValidation.cs,bcrypt; SHA-384; HMAC; SHA3-384,-,"? passes HashType.SHA384 explicitly: SHA-384 pre-hash for V2/old versions, HMAC-SHA3-384 for ExtendedV3"
+benchmarks/Method-Benchmarks/EnhancedValidationBenchmark.cs,bcrypt,-,Verify across versions
+benchmarks/Method-Benchmarks/HashInterrogationBenchmark.cs,-,-,"? only parses bcrypt hash strings (format interrogation), no hashing"
+benchmarks/Method-Benchmarks/HashParser/HashParser.cs,-,-,? bcrypt hash-string format parser; recognition only
+benchmarks/Method-Benchmarks/HashingBenchmark.cs,bcrypt,-,"HashPassword across versions, enhancedEntropy false"
+benchmarks/Method-Benchmarks/Program.cs,-,-,benchmark runner
+benchmarks/Method-Benchmarks/StringBuildingVariantsBenchmark.cs,-,-,string formatting and base64 only
+benchmarks/Release-Benchmarks/BCryptBasics.cs,-,-,job config
+benchmarks/Release-Benchmarks/Benchmark.cs,bcrypt,-,BCrypt.HashPassword
+benchmarks/Release-Benchmarks/Program.cs,-,-,benchmark runner
+docs/api/toc.yml,-,-,docs
+docs/docfx.json,-,-,docs config
+docs/docs/toc.yml,-,-,docs
+docs/template/public/main.js,-,-,docs template
+docs/toc.yml,-,-,docs
+global.json,-,-,sdk config
+src/BCrypt.Net.IdentityExtensions/BCryptConfig.cs,bcrypt,-,? DI registration that configures BCrypt as the password hasher
+src/BCrypt.Net.IdentityExtensions/BCryptHasherOptions.cs,-,-,? work factor options record; no algorithm named
+src/BCrypt.Net.IdentityExtensions/BCryptPasswordHasher.cs,bcrypt,-,"? also falls back to ASP.NET Identity PasswordHasher (PBKDF2 inside the framework, not visible here, not labelled)"
+src/BCrypt.Net.IdentityExtensions/Properties/AssemblyInfo.cs,-,-,"? InternalsVisibleTo with strong-name RSA public key blobs; identity metadata, not crypto use"
+src/BCrypt.Net.IdentityExtensions/StringUtils.cs,-,-,base64/hex only
+src/BCrypt.Net/BCrypt.cs,bcrypt,-,HashPassword/Verify wrappers
+src/BCrypt.Net/BCryptBase.Core.cs,bcrypt,-,bcrypt EksBlowfish implementation
+src/BCrypt.Net/BCryptBase.Std.cs,bcrypt,-,bcrypt EksBlowfish implementation (netstandard)
+src/BCrypt.Net/BCryptBase.cs,bcrypt,-,"bcrypt constants, P/S boxes, salt RNG, constant-time compare"
+src/BCrypt.Net/BCryptExtendedV2.Std.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,SHA pre-hash then bcrypt; default SHA-384
+src/BCrypt.Net/BCryptExtendedV2.cs,bcrypt; SHA-256; SHA-384; SHA-512,-,SHA pre-hash then bcrypt; default SHA-384
+src/BCrypt.Net/BCryptExtendedV3.cs,bcrypt; HMAC; SHA3-256; SHA3-384; SHA3-512,-,? HashType.SHA256/384/512 actually select HMACSHA3_*; SHA-2 not used
+src/BCrypt.Net/BcryptAuthenticationException.cs,-,-,exception class
+src/BCrypt.Net/HashInformation.cs,-,-,data class
+src/BCrypt.Net/HashInformationException.cs,-,-,exception class
+src/BCrypt.Net/HashParser.cs,-,-,? bcrypt hash-string format parser; recognition only
+src/BCrypt.Net/HashType.cs,-,SHA-256; SHA-384; SHA-512,? enum of supported pre-hash types; in V3 these names select SHA3 HMACs
+src/BCrypt.Net/Properties/AssemblyInfo.cs,-,-,"? InternalsVisibleTo with strong-name RSA public key blobs; identity metadata, not crypto use"
+src/BCrypt.Net/SafeStringExtension.Fwk.cs,bcrypt,-,SecureString wrapper over bcrypt hash/verify
+src/BCrypt.Net/SafeStringExtension.cs,bcrypt,-,SecureString wrapper over bcrypt hash/verify
+src/BCrypt.Net/SaltParseException.cs,-,-,exception class
+stryker-config.json,-,-,mutation test config
+version.json,-,-,versioning config

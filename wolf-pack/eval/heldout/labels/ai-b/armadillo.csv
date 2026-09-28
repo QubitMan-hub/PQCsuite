@@ -1,0 +1,57 @@
+file,used,declared,notes
+.travis.yml,AES,-,CI decrypts credentials.tar.enc with openssl aes-256-cbc
+app/src/main/AndroidManifest.xml,-,-,
+app/src/main/java/at/favre/lib/securesharedpreferences/ChangePasswordActivity.java,-,-,calls Armadillo API but no algorithm named here
+app/src/main/java/at/favre/lib/securesharedpreferences/MainActivity.java,-,-,calls Armadillo API but no algorithm named here
+app/src/main/java/at/favre/lib/securesharedpreferences/MyApplication.java,-,-,
+app/src/main/java/at/favre/lib/securesharedpreferences/Utils.java,-,-,
+app/src/main/res/drawable/armadillo_logo.xml,-,-,
+app/src/main/res/drawable/ic_launcher_foreground.xml,-,-,
+app/src/main/res/layout/activity_change_password.xml,-,-,
+app/src/main/res/layout/activity_main.xml,-,-,
+app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml,-,-,
+app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml,-,-,
+app/src/main/res/values/colors.xml,-,-,
+app/src/main/res/values/ic_launcher_background.xml,-,-,
+app/src/main/res/values/strings.xml,-,-,
+app/src/main/res/values/styles.xml,-,-,
+armadillo/src/androidTest/java/at/favre/lib/armadillo/BcryptMicroBenchmark.java,bcrypt,-,"benchmark comparing bcrypt implementations (favre, jbcrypt, bouncycastle)"
+armadillo/src/main/AndroidManifest.xml,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/AesCbcEncryption.java,AES; HMAC; SHA-256; HKDF,-,"AES/CBC/PKCS5Padding cipher, HmacSHA256 mac, HKDF-SHA256 key derivation for enc/mac keys"
+armadillo/src/main/java/at/favre/lib/armadillo/AesGcmEncryption.java,AES,-,AES/GCM/NoPadding cipher
+armadillo/src/main/java/at/favre/lib/armadillo/Armadillo.java,AES,-,builder wires AesCbcEncryption/AesGcmEncryption as default authenticated encryption
+armadillo/src/main/java/at/favre/lib/armadillo/ArmadilloBcryptKeyStretcher.java,bcrypt; HKDF; SHA-256,-,"BCrypt.with(...).hashRaw, HKDF.fromHmacSha256 to derive salt/pw/output"
+armadillo/src/main/java/at/favre/lib/armadillo/ArmadilloSharedPreferences.java,-,-,"interface only, no algorithm named"
+armadillo/src/main/java/at/favre/lib/armadillo/AuthenticatedEncryption.java,-,-,interface; AES mentioned only as a comparison of key strength in comments
+armadillo/src/main/java/at/favre/lib/armadillo/AuthenticatedEncryptionException.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/BrokenBcryptKeyStretcher.java,bcrypt; HKDF; SHA-256,-,"deprecated but still-active legacy stretcher, BCrypt.with + HKDF.fromHmacSha256"
+armadillo/src/main/java/at/favre/lib/armadillo/ByteArrayRuntimeObfuscator.java,-,-,"xor-based in-memory obfuscation, not a named cryptographic algorithm"
+armadillo/src/main/java/at/favre/lib/armadillo/Compressor.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/DataObfuscator.java,-,-,interface; docstring explicitly says this is not encryption
+armadillo/src/main/java/at/favre/lib/armadillo/DefaultEncryptionProtocol.java,HKDF; SHA-512,-,HKDF.fromHmacSha512().extractAndExpand for the master key derivation
+armadillo/src/main/java/at/favre/lib/armadillo/DerivedPasswordCache.java,SHA-256,-,Bytes.hashSha256() used to build cache keys
+armadillo/src/main/java/at/favre/lib/armadillo/DisabledCompressor.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/EncryptionFingerprint.java,-,-,"interface, delegates to ByteArrayRuntimeObfuscator"
+armadillo/src/main/java/at/favre/lib/armadillo/EncryptionFingerprintFactory.java,SHA-256,-,hashSha256() of the APK signature bytes
+armadillo/src/main/java/at/favre/lib/armadillo/EncryptionProtocol.java,-,-,interface only
+armadillo/src/main/java/at/favre/lib/armadillo/EncryptionProtocolConfig.java,bcrypt,-,newDefaultConfig() instantiates ArmadilloBcryptKeyStretcher as default keyStretchingFunction
+armadillo/src/main/java/at/favre/lib/armadillo/EncryptionProtocolException.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/FastKeyStretcher.java,HKDF; SHA-256,-,HKDF.fromHmacSha256().extractAndExpand
+armadillo/src/main/java/at/favre/lib/armadillo/GzipCompressor.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/HkdfMessageDigest.java,HKDF; SHA-512,-,HKDF.fromHmacSha512().extractAndExpand
+armadillo/src/main/java/at/favre/lib/armadillo/HkdfXorObfuscator.java,HKDF; SHA-512,-,HKDF.fromHmacSha512 extract/expand to derive per-block xor keys
+armadillo/src/main/java/at/favre/lib/armadillo/KeyStretchingFunction.java,-,-,"docstring lists PBKDF2/Bcrypt/Scrypt/Argon2 as examples only, not used or declared here"
+armadillo/src/main/java/at/favre/lib/armadillo/NoObfuscator.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/OnSecurePreferenceChangeListener.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/PBKDF2KeyStretcher.java,PBKDF2; SHA-1,-,"SecretKeyFactory.getInstance(""PBKDF2WithHmacSHA1"")"
+armadillo/src/main/java/at/favre/lib/armadillo/RecoveryPolicy.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/SecureSharedPreferenceCryptoException.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/SecureSharedPreferences.java,-,-,orchestrates encrypt/decrypt calls but names no algorithm itself
+armadillo/src/main/java/at/favre/lib/armadillo/SharedPreferenceChangeListenerWrapper.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/SimpleRecoveryPolicy.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/StringMessageDigest.java,-,-,interface only
+armadillo/src/sharedTest/java/at/favre/lib/armadillo/TestEncryptionFingerprint.java,-,-,
+config/checkstyle/checkstyle.xml,-,-,
+config/checkstyle/suppressions.xml,-,-,
+gradle.properties,-,-,
+gradle/wrapper/gradle-wrapper.properties,-,-,

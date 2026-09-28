@@ -1,0 +1,4 @@
+file,used,declared,notes
+lib/index.d.ts,-,AES; SHA-256,
+lib/index.js,AES; HMAC; PBKDF2; SHA-1; SHA-256,-,
+package.json,-,-,

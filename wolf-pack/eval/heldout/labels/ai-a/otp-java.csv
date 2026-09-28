@@ -1,0 +1,9 @@
+file,used,declared,notes
+pom.xml,-,-,HOTP/TOTP only in description
+src/main/java/com/bastiaanjansen/otp/CounterStorage.java,-,-,no cryptography
+src/main/java/com/bastiaanjansen/otp/HMACAlgorithm.java,-,HMAC; SHA-1; SHA-224; SHA-256; SHA-384; SHA-512,enum of HmacSHA* names used in HOTPGenerator
+src/main/java/com/bastiaanjansen/otp/HOTPGenerator.java,HMAC; SHA-1,-,Mac.getInstance(algorithm.getHMACName()); default HMACAlgorithm.SHA1
+src/main/java/com/bastiaanjansen/otp/InMemoryCounterStorage.java,-,-,no cryptography
+src/main/java/com/bastiaanjansen/otp/SecretGenerator.java,-,-,SecureRandom + Base32; SHA names only in javadoc
+src/main/java/com/bastiaanjansen/otp/TOTPGenerator.java,HMAC; SHA-1,-,? TOTP delegating to HOTPGenerator whose default is SHA-1; no algorithm named here
+src/main/java/com/bastiaanjansen/otp/helpers/URIHelper.java,-,-,no cryptography

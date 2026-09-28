@@ -1,0 +1,104 @@
+file,used,declared,notes
+src/Cryptography/AeadAlgorithm.cs,-,AES; ChaCha20; OTHER:AEGIS-128L; OTHER:AEGIS-256,registry of AEAD singletons implemented in other files; AES-CCM/OCB only in comments
+src/Cryptography/Aegis128L.cs,OTHER:AEGIS-128L,-,libsodium crypto_aead_aegis128l wrapper
+src/Cryptography/Aegis256.cs,OTHER:AEGIS-256,-,libsodium crypto_aead_aegis256 wrapper
+src/Cryptography/Aes256Gcm.cs,AES,-,libsodium AES-256-GCM wrapper
+src/Cryptography/Algorithm.cs,-,-,abstract base class
+src/Cryptography/Argon2Parameters.cs,-,Argon2,"? parameter struct only; named type, no call"
+src/Cryptography/Argon2id.cs,Argon2,-,crypto_pwhash_argon2id wrapper
+src/Cryptography/Blake2b.cs,BLAKE2,-,unkeyed BLAKE2b wrapper
+src/Cryptography/Blake2bMac.cs,BLAKE2,-,keyed BLAKE2b MAC (not HMAC)
+src/Cryptography/ChaCha20Poly1305.cs,ChaCha20,-,libsodium ChaCha20-Poly1305 IETF wrapper
+src/Cryptography/Ed25519.cs,Ed25519,-,sign/verify via libsodium; PKIX OID 1.3.101.112
+src/Cryptography/Ed25519ph.cs,Ed25519; SHA-512,-,? Ed25519ph = HashEdDSA with SHA-512 prehash inside libsodium; SHA-512 not named in code
+src/Cryptography/Error.cs,-,-,exception factories only
+src/Cryptography/Formatting/Armor.cs,-,-,PEM/Base64 encoding
+src/Cryptography/Formatting/Ed25519PrivateKeyFormatter.cs,Ed25519,-,derives Ed25519 keypair from seed on import
+src/Cryptography/Formatting/Ed25519PublicKeyFormatter.cs,Ed25519,-,? only copies Ed25519 public key bytes; part of the Ed25519 implementation
+src/Cryptography/Formatting/NSecKeyFormatter.cs,-,-,generic key blob format
+src/Cryptography/Formatting/PrivateKeyFormatter.cs,-,-,generic PKCS8 PEM labels
+src/Cryptography/Formatting/PublicKeyFormatter.cs,-,-,generic SPKI PEM labels
+src/Cryptography/Formatting/RawKeyFormatter.cs,-,-,raw key copy
+src/Cryptography/Formatting/X25519PrivateKeyFormatter.cs,X25519,-,computes public key via crypto_scalarmult_curve25519_base
+src/Cryptography/Formatting/X25519PublicKeyFormatter.cs,X25519,-,? only copies/masks X25519 public key bytes; part of the X25519 implementation
+src/Cryptography/HashAlgorithm.cs,-,BLAKE2; SHA-256; SHA-512; SHA3-256; SHA3-512,registry of hash singletons; SHAKE/cSHAKE only in comments; SHA-512/256 maps to SHA-512
+src/Cryptography/HkdfSha256.cs,HKDF; SHA-256,-,.NET HKDF with HashAlgorithmName.SHA256
+src/Cryptography/HkdfSha512.cs,HKDF; SHA-512,-,.NET HKDF with HashAlgorithmName.SHA512
+src/Cryptography/HmacSha256.cs,HMAC; SHA-256,-,crypto_auth_hmacsha256 wrapper
+src/Cryptography/HmacSha512.cs,HMAC; SHA-512,-,crypto_auth_hmacsha512 wrapper
+src/Cryptography/IncrementalHash.cs,-,BLAKE2; SHA-256; SHA-512; SHA3-256; SHA3-512,? generic dispatcher; state union names per-algorithm libsodium state types
+src/Cryptography/IncrementalMac.cs,-,BLAKE2; HMAC; SHA-256; SHA-512,? generic dispatcher; state union names BLAKE2b and HMAC-SHA-256/512 state types
+src/Cryptography/IncrementalSignature.cs,-,-,generic over SignatureAlgorithm2
+src/Cryptography/IncrementalSignatureState.cs,-,Ed25519,? only holds crypto_sign_ed25519ph_state
+src/Cryptography/IncrementalSignatureVerification.cs,-,-,generic over SignatureAlgorithm2
+src/Cryptography/Key.cs,-,-,generic key; RandomNumberGenerator only
+src/Cryptography/KeyAgreementAlgorithm.cs,-,X25519,registry exposing X25519 singleton; ECDH/X448 only in comments
+src/Cryptography/KeyBlobFormat.cs,-,-,enum of blob formats
+src/Cryptography/KeyCreationParameters.cs,-,-,export policy struct
+src/Cryptography/KeyDerivationAlgorithm.cs,-,HKDF; SHA-256; SHA-512,registry of HkdfSha256/HkdfSha512 singletons; other KDFs only in comments
+src/Cryptography/KeyDerivationAlgorithm2.cs,-,-,generic extract/expand base; HKDF only in comments
+src/Cryptography/KeyExportPolicies.cs,-,-,enum
+src/Cryptography/MacAlgorithm.cs,-,BLAKE2; HMAC; SHA-256; SHA-512,registry of MAC singletons; AES-CMAC only in comment
+src/Cryptography/PasswordBasedKeyDerivationAlgorithm.cs,-,Argon2; scrypt,factory methods for Argon2id and Scrypt defined elsewhere
+src/Cryptography/PublicKey.cs,-,-,generic public key container
+src/Cryptography/Scrypt.cs,scrypt,-,crypto_pwhash_scryptsalsa208sha256_ll; Salsa20/8 and SHA-256 are internal to scrypt
+src/Cryptography/ScryptParameters.cs,-,scrypt,? parameter struct only
+src/Cryptography/Sha256.cs,SHA-256,-,libsodium wrapper
+src/Cryptography/Sha3_256.cs,SHA3-256,-,libsodium wrapper
+src/Cryptography/Sha3_512.cs,SHA3-512,-,libsodium wrapper
+src/Cryptography/Sha512.cs,SHA-512,-,libsodium wrapper
+src/Cryptography/SharedSecret.cs,-,-,shared secret container
+src/Cryptography/SharedSecretBlobFormat.cs,-,-,enum
+src/Cryptography/SharedSecretCreationParameters.cs,-,-,struct
+src/Cryptography/SignatureAlgorithm.cs,-,Ed25519,registry of Ed25519/Ed25519ph singletons
+src/Cryptography/SignatureAlgorithm2.cs,-,-,abstract base; Ed25519ph only in comment
+src/Cryptography/Sodium.cs,-,-,libsodium init/version check
+src/Cryptography/X25519.cs,X25519,-,crypto_scalarmult_curve25519; PKIX OID 1.3.101.110
+src/Cryptography/XChaCha20Poly1305.cs,ChaCha20,-,libsodium XChaCha20-Poly1305 wrapper
+src/Experimental/AnsiX963KdfSha256.cs,OTHER:ANSI-X9.63-KDF; SHA-256,-,KDF implemented here over crypto_hash_sha256
+src/Experimental/Asn1/Asn1Oid.cs,-,-,DER OID encoding
+src/Experimental/Asn1/Asn1Reader.cs,-,-,DER reader
+src/Experimental/Asn1/Asn1Writer.cs,-,-,DER writer
+src/Experimental/ChaCha20.cs,ChaCha20,-,crypto_stream_chacha20_ietf wrapper
+src/Experimental/ConcatKdfHmacSha256.cs,OTHER:ConcatKDF; HMAC; SHA-256,-,"? ConcatKDF implemented here with explicit HMAC-SHA-256 calls (HMAC is the named aux function, not hidden)"
+src/Experimental/ConcatKdfSha256.cs,OTHER:ConcatKDF; SHA-256,-,KDF implemented here over crypto_hash_sha256
+src/Experimental/CryptographicUtilities.cs,-,-,"Base64/hex, RNG, fixed-time compare"
+src/Experimental/Iso78164Padding.cs,-,-,padding only
+src/Experimental/KeyConverter.cs,Ed25519; X25519,-,? converts Ed25519 keys to X25519 via crypto_sign_ed25519_*_to_curve25519
+src/Experimental/Nonce.cs,-,-,nonce struct
+src/Experimental/PasswordBased/Argon2i.cs,Argon2,-,crypto_pwhash_argon2i wrapper
+src/Experimental/PasswordBased/PasswordBasedEncryptionScheme.cs,-,-,generic PBES2 over abstract KDF and AEAD
+src/Experimental/PasswordBased/PasswordBasedKeyExporter.cs,-,AES; ChaCha20; OTHER:AEGIS-128L; OTHER:AEGIS-256; Argon2; PBKDF2; SHA-256; scrypt,? switch on concrete types only picks serialization IDs; crypto goes through generic scheme
+src/Experimental/PasswordBased/PasswordBasedMacScheme.cs,-,-,generic PBMAC1 over abstract KDF and MAC
+src/Experimental/PasswordBased/Pbkdf2HmacSha256.cs,PBKDF2; SHA-256,-,Rfc2898DeriveBytes.Pbkdf2 with SHA256
+src/Experimental/PasswordBased/Pbkdf2Parameters.cs,-,PBKDF2,? parameter struct only
+src/Experimental/RandomGenerator.cs,-,-,RNG only
+src/Experimental/StreamCipherAlgorithm.cs,-,ChaCha20,registry exposing ChaCha20 singleton
+src/Experimental/Text/Base16.cs,-,-,encoding
+src/Experimental/Text/Base32.cs,-,-,encoding
+src/Experimental/Text/Base64.cs,-,-,encoding
+src/Interop/Interop.Aead.Aegis128L.cs,-,OTHER:AEGIS-128L,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Aead.Aegis256.cs,-,OTHER:AEGIS-256,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Aead.Aes256Gcm.cs,-,AES,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Aead.ChaCha20Poly1305.cs,-,ChaCha20,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Aead.XChaCha20Poly1305.cs,-,ChaCha20,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Auth.HmacSha256.cs,-,HMAC; SHA-256,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Auth.HmacSha512.cs,-,HMAC; SHA-512,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Core.cs,-,-,"libsodium plumbing (init, malloc, version, byte buffers)"
+src/Interop/Interop.GenericHash.Blake2b.cs,-,BLAKE2,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Hash.Sha256.cs,-,SHA-256,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Hash.Sha3.cs,-,SHA3-256; SHA3-512,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Hash.Sha512.cs,-,SHA-512,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Libraries.cs,-,-,"libsodium plumbing (init, malloc, version, byte buffers)"
+src/Interop/Interop.PublicKeyBytes.cs,-,-,"libsodium plumbing (init, malloc, version, byte buffers)"
+src/Interop/Interop.Pwhash.Argon2i.cs,-,Argon2,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Pwhash.Argon2id.cs,-,Argon2,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Pwhash.Scrypt.cs,-,scrypt,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Scalarmult.X25519.cs,-,X25519,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.SecretBox.XSalsa20Poly1305.cs,-,OTHER:Salsa20,P/Invoke for crypto_secretbox (XSalsa20-Poly1305); not called anywhere in src
+src/Interop/Interop.SecureMemoryHandle.cs,-,-,"libsodium plumbing (init, malloc, version, byte buffers)"
+src/Interop/Interop.Sign.Ed25519.cs,-,Ed25519,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Stream.ChaCha20.cs,-,ChaCha20,? P/Invoke extern declarations only; called from the wrapper class in another file
+src/Interop/Interop.Utils.cs,-,-,"libsodium plumbing (init, malloc, version, byte buffers)"
+src/Interop/Interop.Version.cs,-,-,"libsodium plumbing (init, malloc, version, byte buffers)"
+src/Interop/Interop.yaml,-,AES; ChaCha20; OTHER:AEGIS-128L; OTHER:AEGIS-256; HMAC; SHA-256; SHA-512; SHA3-256; SHA3-512; BLAKE2; Argon2; scrypt; X25519; Ed25519; OTHER:Salsa20; OTHER:Poly1305; OTHER:SipHash; OTHER:Ristretto255,? interop code-generation config listing libsodium headers/functions; commented-out entries ignored

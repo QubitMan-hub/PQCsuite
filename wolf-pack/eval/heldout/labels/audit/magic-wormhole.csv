@@ -1,0 +1,7 @@
+file,used,declared,notes
+snapcraft.yaml,,,
+src/wormhole/_dilation/connection.py,,,
+src/wormhole/_dilation/subchannel.py,,,
+src/wormhole/_send.py,,,
+src/wormhole/_status.py,,,
+src/wormhole/cli/cli.py,,,

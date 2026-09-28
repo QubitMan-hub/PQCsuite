@@ -1,0 +1,10 @@
+file,used,declared,notes
+aes.c,AES,-,"implements AES-128/192/256 with ECB, CBC, CTR"
+aes.h,AES,-,"? configures the build (AES128 on, ECB/CBC/CTR on) and declares the API; counted as configuring AES"
+aes.hpp,-,-,? only includes aes.h for C++
+conanfile.py,AES,-,? build options AES128/192/256 and modes passed as compile definitions; default enables AES128
+library.json,-,-,package metadata; AES only in description/keywords
+library.properties,-,-,package metadata; AES only in description
+test.c,AES,-,tests calling AES ECB/CBC/CTR
+test.cpp,-,-,? only #includes aes.hpp and test.c; no crypto of its own
+test_package/conanfile.py,-,-,Conan test package runner

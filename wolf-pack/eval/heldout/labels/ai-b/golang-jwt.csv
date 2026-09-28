@@ -1,0 +1,28 @@
+file,used,declared,notes
+claims.go,-,-,"Claims interface, no crypto"
+cmd/jwt/main.go,ECDSA; RSA; Ed25519,-,isEs/isRs/isEd branch on alg prefix and call ParseECPublicKeyFromPEM/ParseRSAPublicKeyFromPEM/ParseEdPublicKeyFromPEM accordingly
+doc.go,-,-,package doc comment only
+ecdsa.go,ECDSA; SHA-256; SHA-384; SHA-512,-,"SigningMethodECDSA for ES256/384/512, ecdsa.Sign/Verify with the named hash"
+ecdsa_utils.go,ECDSA,-,PEM/DER parse of ecdsa.PrivateKey/PublicKey
+ed25519.go,Ed25519,-,SigningMethodEd25519 Sign/Verify via ed25519 package
+ed25519_utils.go,Ed25519,-,PEM/PKCS8 parse of ed25519 keys
+errors.go,-,-,error type helpers only
+hmac.go,HMAC; SHA-256; SHA-384; SHA-512,-,SigningMethodHMAC for HS256/384/512
+map_claims.go,-,-,"claim field accessors, no crypto"
+none.go,-,-,'none' alg explicitly rejects unless unsafe flag set; no algorithm
+parser.go,-,-,"dispatches to token.Method.Verify generically via registry lookup by name, no concrete algorithm branch"
+parser_option.go,-,-,"functional options for parser/validator behavior, no crypto"
+registered_claims.go,-,-,"RFC7519 claim struct, no crypto"
+request/doc.go,-,-,package doc comment
+request/extractor.go,-,-,"extracts token string from HTTP request, no crypto"
+request/oauth2.go,-,-,"strips 'Bearer ' prefix, no crypto"
+request/request.go,-,-,"calls jwt.Parser.ParseWithClaims generically, no concrete algorithm"
+rsa.go,RSA; SHA-256; SHA-384; SHA-512,-,"SigningMethodRSA for RS256/384/512, PKCS1v15 sign/verify"
+rsa_pss.go,RSA; SHA-256; SHA-384; SHA-512,-,SigningMethodRSAPSS for PS256/384/512
+rsa_utils.go,RSA,-,"PEM/PKCS1/PKCS8 parse of rsa keys; deprecated password-protected PEM decrypt uses whatever cipher is in the PEM header, not named here"
+signing_method.go,-,-,"generic name-to-factory registry, no algorithm name literals in this file itself"
+staticcheck.conf,-,-,linter config
+token.go,-,-,Token struct and generic Sign dispatch via SigningMethod interface
+token_option.go,-,-,reserved empty option type
+types.go,-,-,"NumericDate/ClaimStrings JSON (de)serialization, no crypto"
+validator.go,-,-,"claims time/audience/issuer checks, no crypto"

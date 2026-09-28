@@ -1,0 +1,6 @@
+{
+  "name": "corpus",
+  "dependencies": {
+    "node-rsa": "^1.1.1"
+  }
+}

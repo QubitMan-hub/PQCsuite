@@ -1,0 +1,10 @@
+file,used,declared,notes
+.golangci.yml,-,-,linter config only
+cmd/ncrypt/main.go,scrypt; AES; ChaCha20,-,scrypt KDF; -cipher flag selects sio.AES_GCM or CHACHA20_POLY1305 which flow into sio.Encrypt
+dare.go,-,-,? generic cipher.AEAD Seal/Open; ciphers chosen via supportedCiphers defined in sio.go; CHACHA20_POLY1305 only used as bound check
+generic.go,-,-,version dispatch only
+reader-v1.go,-,-,stream plumbing over generic AEAD
+reader-v2.go,-,-,stream plumbing over generic AEAD
+sio.go,AES; ChaCha20,-,AES-GCM and ChaCha20-Poly1305 (incl. HChaCha20 key expansion) constructed here
+writer-v1.go,-,-,stream plumbing over generic AEAD
+writer-v2.go,-,-,stream plumbing over generic AEAD

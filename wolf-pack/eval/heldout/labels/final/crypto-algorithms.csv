@@ -1,0 +1,31 @@
+file,used,declared,notes
+aes.c,AES,-,
+aes.h,-,AES,"used: A=- B=AES | declared: A=AES B=- || decided: header only lists prototypes/types; declares, does not implement"
+aes_test.c,AES,-,
+arcfour.c,RC4,-,
+arcfour.h,-,RC4,"used: A=- B=RC4 | declared: A=RC4 B=- || decided: header only lists prototypes/types; declares, does not implement"
+arcfour_test.c,RC4,-,
+base64.c,-,-,
+base64.h,-,-,
+base64_test.c,-,-,
+blowfish.c,Blowfish,-,
+blowfish.h,-,Blowfish,"used: A=- B=Blowfish | declared: A=Blowfish B=- || decided: header only lists prototypes/types; declares, does not implement"
+blowfish_test.c,Blowfish,-,
+des.c,3DES; DES,-,
+des.h,-,3DES; DES,"used: A=- B=3DES; DES | declared: A=3DES; DES B=- || decided: header only lists prototypes/types; declares, does not implement"
+des_test.c,3DES; DES,-,
+md2.c,OTHER:MD2,-,
+md2.h,-,OTHER:MD2,"used: A=- B=OTHER:MD2 | declared: A=OTHER:MD2 B=- || decided: header only lists prototypes/types; declares, does not implement"
+md2_test.c,OTHER:MD2,-,
+md5.c,MD5,-,
+md5.h,-,MD5,"used: A=- B=MD5 | declared: A=MD5 B=- || decided: header only lists prototypes/types; declares, does not implement"
+md5_test.c,MD5,-,
+rot-13.c,-,-,"used: A=- B=OTHER:ROT-13 || decided: ? keyless letter rotation, effectively an encoding, not cryptography"
+rot-13.h,-,-,"used: A=- B=OTHER:ROT-13 || decided: ? keyless letter rotation, effectively an encoding, not cryptography"
+rot-13_test.c,-,-,"used: A=- B=OTHER:ROT-13 || decided: ? keyless letter rotation, effectively an encoding, not cryptography"
+sha1.c,SHA-1,-,
+sha1.h,-,SHA-1,"used: A=- B=SHA-1 | declared: A=SHA-1 B=- || decided: header only lists prototypes/types; declares, does not implement"
+sha1_test.c,SHA-1,-,
+sha256.c,SHA-256,-,
+sha256.h,-,SHA-256,"used: A=- B=SHA-256 | declared: A=SHA-256 B=- || decided: header only lists prototypes/types; declares, does not implement"
+sha256_test.c,SHA-256,-,

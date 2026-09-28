@@ -1,0 +1,10 @@
+file,used,declared,notes
+Dockerfile,-,-,"build container definition, no crypto"
+bcrypt.js,bcrypt,-,JS wrapper calling native bindings.encrypt/compare/gen_salt (bcrypt)
+build-all.sh,-,-,cross-platform docker build script
+package.json,-,-,manifest; keywords 'encryption'/'crypto' only
+promises.js,-,-,"generic callback-to-Promise helper, no crypto"
+src/bcrypt.cc,bcrypt; Blowfish,-,OpenBSD bcrypt() implementing EKS-Blowfish via Blowfish_expandstate/blf_enc
+src/bcrypt_node.cc,bcrypt,-,N-API bindings calling bcrypt()/bcrypt_gensalt()/bcrypt_get_rounds()
+src/blowfish.cc,Blowfish,-,"Blowfish block cipher core (encipher/decipher, key schedule, ECB/CBC)"
+src/node_blf.h,Blowfish; bcrypt,-,declares the Blowfish and bcrypt functions implemented in the .cc files

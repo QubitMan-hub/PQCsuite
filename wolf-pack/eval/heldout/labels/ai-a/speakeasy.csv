@@ -1,0 +1,5 @@
+file,used,declared,notes
+.travis.yml,-,-,CI config
+index.js,HMAC; SHA-1; SHA-256; SHA-512,-,"HOTP/TOTP via createHmac; default sha1, branches on sha256/sha512"
+jsdoc.json,-,-,doc config; HOTP/TOTP only in description text
+package.json,-,-,keywords only (hmac/hotp/totp)

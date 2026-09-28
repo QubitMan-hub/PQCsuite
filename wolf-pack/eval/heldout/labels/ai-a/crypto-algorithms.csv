@@ -1,0 +1,31 @@
+file,used,declared,notes
+aes.c,AES,-,"implements AES block cipher with CBC, CTR, CCM modes"
+aes.h,-,AES,prototypes for the AES implementation
+aes_test.c,AES,-,known-answer tests calling AES ECB/CBC/CTR/CCM
+arcfour.c,RC4,-,implements ARCFOUR (RC4)
+arcfour.h,-,RC4,prototypes for ARCFOUR
+arcfour_test.c,RC4,-,calls ARCFOUR key setup and keystream
+base64.c,-,-,Base64 encoding only
+base64.h,-,-,Base64 encoding only
+base64_test.c,-,-,Base64 encoding only
+blowfish.c,Blowfish,-,implements Blowfish
+blowfish.h,-,Blowfish,prototypes for Blowfish
+blowfish_test.c,Blowfish,-,calls Blowfish encrypt/decrypt
+des.c,DES; 3DES,-,implements DES and three-key 3DES (EDE)
+des.h,-,DES; 3DES,prototypes for DES and 3DES
+des_test.c,DES; 3DES,-,calls DES and 3DES
+md2.c,OTHER:MD2,-,implements MD2
+md2.h,-,OTHER:MD2,prototypes for MD2
+md2_test.c,OTHER:MD2,-,calls MD2
+md5.c,MD5,-,implements MD5
+md5.h,-,MD5,prototypes for MD5
+md5_test.c,MD5,-,calls MD5
+rot-13.c,-,-,"? ROT13 is a trivial letter rotation with no security; treated like an encoding, not crypto"
+rot-13.h,-,-,? ROT13 prototype; not treated as crypto
+rot-13_test.c,-,-,? ROT13 test; not treated as crypto
+sha1.c,SHA-1,-,implements SHA-1
+sha1.h,-,SHA-1,prototypes for SHA-1
+sha1_test.c,SHA-1,-,calls SHA-1
+sha256.c,SHA-256,-,implements SHA-256
+sha256.h,-,SHA-256,prototypes for SHA-256
+sha256_test.c,SHA-256,-,calls SHA-256

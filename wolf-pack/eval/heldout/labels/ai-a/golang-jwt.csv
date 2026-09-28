@@ -1,0 +1,28 @@
+file,used,declared,notes
+claims.go,-,-,claims interface
+cmd/jwt/main.go,ECDSA; RSA; Ed25519,-,"? branches on alg prefixes ES / RS,PS / EdDSA to load keys and sign; no concrete hash named"
+doc.go,-,-,package doc
+ecdsa.go,ECDSA; SHA-256; SHA-384; SHA-512,-,ES256/384/512 defined and implemented with ecdsa.Sign/Verify
+ecdsa_utils.go,ECC,-,"? EC keys parsed from PEM, no use here; ECC per EC-key-loaded rule"
+ed25519.go,Ed25519,-,EdDSA signing method implemented with crypto/ed25519
+ed25519_utils.go,Ed25519,-,"? Ed25519 keys parsed from PEM, no sign here"
+errors.go,-,-,error definitions
+hmac.go,HMAC; SHA-256; SHA-384; SHA-512,-,HS256/384/512 implemented with crypto/hmac
+map_claims.go,-,-,claims
+none.go,-,-,"none signing method, no crypto"
+parser.go,-,-,"generic alg lookup, no concrete names"
+parser_option.go,-,-,options
+registered_claims.go,-,-,claims
+request/doc.go,-,-,package doc
+request/extractor.go,-,-,token extraction
+request/oauth2.go,-,-,bearer token extraction
+request/request.go,-,-,parse wrapper
+rsa.go,RSA; SHA-256; SHA-384; SHA-512,-,RS256/384/512 PKCS1v15 implemented
+rsa_pss.go,RSA; SHA-256; SHA-384; SHA-512,-,PS256/384/512 RSA-PSS implemented
+rsa_utils.go,RSA,-,"? RSA keys parsed from PEM; x509.DecryptPEMBlock legacy PEM decryption (cipher chosen by PEM header, not named) not labelled"
+signing_method.go,-,-,"generic registry, no concrete names"
+staticcheck.conf,-,-,linter config
+token.go,-,-,generic Method.Sign call
+token_option.go,-,-,type only
+types.go,-,-,JSON types
+validator.go,-,-,claims validation

@@ -1,0 +1,11 @@
+file,used,declared,notes
+src/Cryptography/Aegis128L.cs,,,
+src/Cryptography/Blake2b.cs,,,
+src/Cryptography/Ed25519ph.cs,,,
+src/Cryptography/KeyAgreementAlgorithm.cs,,,
+src/Cryptography/SignatureAlgorithm.cs,,,
+src/Experimental/AnsiX963KdfSha256.cs,,,
+src/Experimental/ConcatKdfHmacSha256.cs,,,
+src/Experimental/Nonce.cs,,,
+src/Experimental/PasswordBased/PasswordBasedMacScheme.cs,,,
+src/Interop/Interop.Pwhash.Argon2i.cs,,,

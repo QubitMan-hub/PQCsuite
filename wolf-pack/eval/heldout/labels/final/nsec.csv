@@ -1,0 +1,104 @@
+file,used,declared,notes
+src/Cryptography/AeadAlgorithm.cs,-,AES; ChaCha20; OTHER:AEGIS-128L; OTHER:AEGIS-256,declared: A=AES; ChaCha20; OTHER:AEGIS-128L; OTHER:AEGIS-256 B=AES; ChaCha20; OTHER:AEGIS || decided: registry of AEAD singletons; AEGIS-128L and AEGIS-256 are distinct algorithms
+src/Cryptography/Aegis128L.cs,OTHER:AEGIS-128L,-,used: A=OTHER:AEGIS-128L B=OTHER:AEGIS || decided: calls crypto_aead_aegis128l; variant-specific name
+src/Cryptography/Aegis256.cs,OTHER:AEGIS-256,-,used: A=OTHER:AEGIS-256 B=OTHER:AEGIS || decided: calls crypto_aead_aegis256; variant-specific name
+src/Cryptography/Aes256Gcm.cs,AES,-,
+src/Cryptography/Algorithm.cs,-,-,
+src/Cryptography/Argon2Parameters.cs,-,-,"declared: A=Argon2 B=- || decided: plain parameter struct, no algorithm named as supported"
+src/Cryptography/Argon2id.cs,Argon2,-,
+src/Cryptography/Blake2b.cs,BLAKE2,-,
+src/Cryptography/Blake2bMac.cs,BLAKE2,-,
+src/Cryptography/ChaCha20Poly1305.cs,ChaCha20,-,
+src/Cryptography/Ed25519.cs,Ed25519,-,
+src/Cryptography/Ed25519ph.cs,Ed25519; SHA-512,-,used: A=Ed25519; SHA-512 B=Ed25519 || decided: HashEdDSA Ed25519ph prehashes the message with SHA-512 per RFC 8032
+src/Cryptography/Error.cs,-,-,
+src/Cryptography/Formatting/Armor.cs,-,-,
+src/Cryptography/Formatting/Ed25519PrivateKeyFormatter.cs,Ed25519,-,
+src/Cryptography/Formatting/Ed25519PublicKeyFormatter.cs,Ed25519,-,used: A=Ed25519 B=- || decided: imports/exports Ed25519 public keys
+src/Cryptography/Formatting/NSecKeyFormatter.cs,-,-,
+src/Cryptography/Formatting/PrivateKeyFormatter.cs,-,-,
+src/Cryptography/Formatting/PublicKeyFormatter.cs,-,-,
+src/Cryptography/Formatting/RawKeyFormatter.cs,-,-,
+src/Cryptography/Formatting/X25519PrivateKeyFormatter.cs,X25519,-,
+src/Cryptography/Formatting/X25519PublicKeyFormatter.cs,X25519,-,used: A=X25519 B=- || decided: imports/exports X25519 public keys incl. curve25519 bit masking
+src/Cryptography/HashAlgorithm.cs,-,BLAKE2; SHA-256; SHA-512; SHA3-256; SHA3-512,
+src/Cryptography/HkdfSha256.cs,HKDF; SHA-256,-,
+src/Cryptography/HkdfSha512.cs,HKDF; SHA-512,-,
+src/Cryptography/HmacSha256.cs,HMAC; SHA-256,-,
+src/Cryptography/HmacSha512.cs,HMAC; SHA-512,-,
+src/Cryptography/IncrementalHash.cs,-,BLAKE2; SHA-256; SHA-512; SHA3-256; SHA3-512,
+src/Cryptography/IncrementalMac.cs,-,BLAKE2; HMAC; SHA-256; SHA-512,
+src/Cryptography/IncrementalSignature.cs,-,-,
+src/Cryptography/IncrementalSignatureState.cs,-,Ed25519,
+src/Cryptography/IncrementalSignatureVerification.cs,-,-,
+src/Cryptography/Key.cs,-,-,
+src/Cryptography/KeyAgreementAlgorithm.cs,-,X25519,
+src/Cryptography/KeyBlobFormat.cs,-,-,
+src/Cryptography/KeyCreationParameters.cs,-,-,
+src/Cryptography/KeyDerivationAlgorithm.cs,-,HKDF; SHA-256; SHA-512,
+src/Cryptography/KeyDerivationAlgorithm2.cs,-,-,
+src/Cryptography/KeyExportPolicies.cs,-,-,
+src/Cryptography/MacAlgorithm.cs,-,BLAKE2; HMAC; SHA-256; SHA-512,
+src/Cryptography/PasswordBasedKeyDerivationAlgorithm.cs,-,Argon2; scrypt,
+src/Cryptography/PublicKey.cs,-,-,
+src/Cryptography/Scrypt.cs,scrypt,-,
+src/Cryptography/ScryptParameters.cs,-,-,"declared: A=scrypt B=- || decided: plain parameter struct, no algorithm named as supported"
+src/Cryptography/Sha256.cs,SHA-256,-,
+src/Cryptography/Sha3_256.cs,SHA3-256,-,
+src/Cryptography/Sha3_512.cs,SHA3-512,-,
+src/Cryptography/Sha512.cs,SHA-512,-,
+src/Cryptography/SharedSecret.cs,-,-,
+src/Cryptography/SharedSecretBlobFormat.cs,-,-,
+src/Cryptography/SharedSecretCreationParameters.cs,-,-,
+src/Cryptography/SignatureAlgorithm.cs,-,Ed25519,
+src/Cryptography/SignatureAlgorithm2.cs,-,-,
+src/Cryptography/Sodium.cs,-,-,
+src/Cryptography/X25519.cs,X25519,-,
+src/Cryptography/XChaCha20Poly1305.cs,ChaCha20,-,
+src/Experimental/AnsiX963KdfSha256.cs,OTHER:ANSI-X9.63-KDF; SHA-256,-,
+src/Experimental/Asn1/Asn1Oid.cs,-,-,
+src/Experimental/Asn1/Asn1Reader.cs,-,-,
+src/Experimental/Asn1/Asn1Writer.cs,-,-,
+src/Experimental/ChaCha20.cs,ChaCha20,-,
+src/Experimental/ConcatKdfHmacSha256.cs,HMAC; OTHER:CONCATKDF; SHA-256,-,
+src/Experimental/ConcatKdfSha256.cs,OTHER:CONCATKDF; SHA-256,-,
+src/Experimental/CryptographicUtilities.cs,-,-,
+src/Experimental/Iso78164Padding.cs,-,-,
+src/Experimental/KeyConverter.cs,Ed25519; X25519,-,
+src/Experimental/Nonce.cs,-,-,
+src/Experimental/PasswordBased/Argon2i.cs,Argon2,-,
+src/Experimental/PasswordBased/PasswordBasedEncryptionScheme.cs,-,-,
+src/Experimental/PasswordBased/PasswordBasedKeyExporter.cs,-,AES; Argon2; ChaCha20; OTHER:AEGIS-128L; OTHER:AEGIS-256; PBKDF2; SHA-256; scrypt,used: A=- B=AES; Argon2; ChaCha20; OTHER:AEGIS; PBKDF2; SHA-256; scrypt | declared: A=AES; Argon2; ChaCha20; OTHER:AEGIS-128L; OTHER:AEGIS-256; PBKDF2; SHA-256; scrypt B=- || decided: type switch only maps algorithms to format IDs; crypto is done by scheme elsewhere
+src/Experimental/PasswordBased/PasswordBasedMacScheme.cs,-,-,
+src/Experimental/PasswordBased/Pbkdf2HmacSha256.cs,PBKDF2; SHA-256,-,
+src/Experimental/PasswordBased/Pbkdf2Parameters.cs,-,-,"declared: A=PBKDF2 B=- || decided: plain parameter struct, no algorithm named as supported"
+src/Experimental/RandomGenerator.cs,-,-,
+src/Experimental/StreamCipherAlgorithm.cs,-,ChaCha20,
+src/Experimental/Text/Base16.cs,-,-,
+src/Experimental/Text/Base32.cs,-,-,
+src/Experimental/Text/Base64.cs,-,-,
+src/Interop/Interop.Aead.Aegis128L.cs,-,OTHER:AEGIS-128L,used: A=- B=OTHER:AEGIS | declared: A=OTHER:AEGIS-128L B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Aead.Aegis256.cs,-,OTHER:AEGIS-256,used: A=- B=OTHER:AEGIS | declared: A=OTHER:AEGIS-256 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Aead.Aes256Gcm.cs,-,AES,used: A=- B=AES | declared: A=AES B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Aead.ChaCha20Poly1305.cs,-,ChaCha20,used: A=- B=ChaCha20 | declared: A=ChaCha20 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Aead.XChaCha20Poly1305.cs,-,ChaCha20,used: A=- B=ChaCha20 | declared: A=ChaCha20 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Auth.HmacSha256.cs,-,HMAC; SHA-256,used: A=- B=HMAC; SHA-256 | declared: A=HMAC; SHA-256 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Auth.HmacSha512.cs,-,HMAC; SHA-512,used: A=- B=HMAC; SHA-512 | declared: A=HMAC; SHA-512 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Core.cs,-,-,
+src/Interop/Interop.GenericHash.Blake2b.cs,-,BLAKE2,used: A=- B=BLAKE2 | declared: A=BLAKE2 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Hash.Sha256.cs,-,SHA-256,used: A=- B=SHA-256 | declared: A=SHA-256 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Hash.Sha3.cs,-,SHA3-256; SHA3-512,used: A=- B=SHA3-256; SHA3-512 | declared: A=SHA3-256; SHA3-512 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Hash.Sha512.cs,-,SHA-512,used: A=- B=SHA-512 | declared: A=SHA-512 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Libraries.cs,-,-,
+src/Interop/Interop.PublicKeyBytes.cs,-,-,
+src/Interop/Interop.Pwhash.Argon2i.cs,-,Argon2,used: A=- B=Argon2 | declared: A=Argon2 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Pwhash.Argon2id.cs,-,Argon2,used: A=- B=Argon2 | declared: A=Argon2 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Pwhash.Scrypt.cs,-,scrypt,used: A=- B=scrypt | declared: A=scrypt B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Scalarmult.X25519.cs,-,X25519,used: A=- B=X25519 | declared: A=X25519 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.SecretBox.XSalsa20Poly1305.cs,-,OTHER:SALSA20,
+src/Interop/Interop.SecureMemoryHandle.cs,-,-,
+src/Interop/Interop.Sign.Ed25519.cs,-,Ed25519,used: A=- B=Ed25519 | declared: A=Ed25519 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Stream.ChaCha20.cs,-,ChaCha20,used: A=- B=ChaCha20 | declared: A=ChaCha20 B=- || decided: Interop P/Invoke declarations only; calls happen in the wrapper classes (consistent with agreed XSalsa20Poly1305 interop row)
+src/Interop/Interop.Utils.cs,-,-,
+src/Interop/Interop.Version.cs,-,-,
+src/Interop/Interop.yaml,-,AES; Argon2; BLAKE2; ChaCha20; Ed25519; HMAC; OTHER:AEGIS-128L; OTHER:AEGIS-256; OTHER:POLY1305; OTHER:RISTRETTO255; OTHER:SALSA20; OTHER:SIPHASH; SHA-256; SHA-512; SHA3-256; SHA3-512; X25519; scrypt,declared: A=AES; Argon2; BLAKE2; ChaCha20; Ed25519; HMAC; OTHER:AEGIS-128L; OTHER:AEGIS-256; OTHER:POLY1305; OTHER:RISTRETTO255; OTHER:SALSA20; OTHER:SIPHASH; SHA-256; SHA-512; SHA3-256; SHA3-512; X25519; scrypt B=AES; Argon2; BLAKE2; ChaCha20; Ed25519; HMAC; OTHER:AEGIS; OTHER:POLY1305; OTHER:RISTRETTO255; OTHER:SALSA20; OTHER:SIPHASH; SHA-256; SHA-512; SHA3-256; SHA3-512; X25519; scrypt || decided: binding manifest; AEGIS-128L and AEGIS-256 kept distinct

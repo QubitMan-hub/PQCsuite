@@ -1,0 +1,84 @@
+file,used,declared,notes
+contrib/dns-hatchet/apply.sh,-,-,no cryptography
+contrib/embeddable-wg-library/test.c,X25519,-,"? calls wg_generate_private_key / wg_generate_public_key wrappers, which are Curve25519"
+contrib/embeddable-wg-library/wireguard.c,X25519,-,implements Curve25519 public key derivation and clamped private key generation; also netlink plumbing and base64
+contrib/embeddable-wg-library/wireguard.h,-,-,? API prototypes for key generation but no algorithm named
+contrib/external-tests/go/main.go,X25519; ChaCha20; BLAKE2,-,"Noise IK handshake with DH25519, ChaChaPoly, BLAKE2s; keyed BLAKE2s mac1"
+contrib/external-tests/haskell/package.yaml,-,BLAKE2,"? manifest depends on blake2, cacophony, cryptonite; counted as declared"
+contrib/external-tests/haskell/stack.yaml,-,-,stack resolver config
+contrib/external-tests/python/main.py,X25519; ChaCha20; BLAKE2,-,Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s plus keyed blake2s mac
+contrib/external-tests/rust/Cargo.toml,-,-,"? deps snow, rust-crypto; no algorithm named"
+contrib/external-tests/rust/src/main.rs,X25519; ChaCha20; BLAKE2,-,Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s plus Blake2s mac
+contrib/extract-handshakes/extract-handshakes.sh,-,-,kprobe script dumping key material; no algorithm
+contrib/extract-handshakes/offset-finder.c,-,-,struct offsets only
+contrib/extract-keys/config.c,-,-,struct offsets only
+contrib/extract-keys/extract-keys.c,-,-,reads kernel memory for keys; no algorithm
+contrib/highlighter/fuzz.c,-,-,no cryptography
+contrib/highlighter/gui/highlight.cpp,-,-,no cryptography
+contrib/highlighter/highlight.c,-,-,no cryptography
+contrib/highlighter/highlighter.c,-,-,no cryptography
+contrib/highlighter/highlighter.h,-,-,no cryptography
+contrib/keygen-html/wireguard.js,X25519,-,implements Curve25519 scalar mult for public key and clamped key generation
+contrib/nat-hole-punching/nat-punch-client.c,-,-,base64 public keys only
+contrib/nat-hole-punching/nat-punch-server.c,-,-,no cryptography
+contrib/ncat-client-server/client-quick.sh,X25519,-,? generates a private key with `wg genkey` and derives the public key with `wg pubkey` (Curve25519 via the wg CLI)
+contrib/ncat-client-server/client.sh,X25519,-,? generates a private key with `wg genkey` and derives the public key with `wg pubkey` (Curve25519 via the wg CLI)
+contrib/ncat-client-server/server.sh,X25519,-,? `wg genkey` for the server key and `wg pubkey` to derive its public key (Curve25519 via the wg CLI)
+contrib/reresolve-dns/reresolve-dns.sh,-,-,no cryptography
+contrib/sticky-sockets/sticky-sockets.c,-,-,no cryptography
+contrib/synergy/synergy-client.sh,X25519,-,? configures a WireGuard interface with a hardcoded Curve25519 private key and peer public key
+contrib/synergy/synergy-server.sh,X25519,-,? configures a WireGuard interface with a hardcoded Curve25519 private key and peer public key
+src/config.c,-,-,? parses base64 keys into structs; no crypto operation
+src/config.h,-,-,no cryptography
+src/containers.h,-,-,no cryptography
+src/ctype.h,-,-,no cryptography
+src/curve25519-fiat32.h,X25519,-,vendored fiat-crypto Curve25519 implementation
+src/curve25519-hacl64.h,X25519,-,vendored HACL* Curve25519 implementation
+src/curve25519.c,X25519,-,Curve25519 scalar mult and public key derivation
+src/curve25519.h,X25519,-,? prototypes plus inline Curve25519 secret clamping
+src/encoding.c,-,-,constant-time base64/hex encoding
+src/encoding.h,-,-,encoding prototypes
+src/fuzz/cmd.c,-,-,fuzz harness
+src/fuzz/config.c,-,-,fuzz harness
+src/fuzz/set.c,-,-,? fuzz harness that #includes ../curve25519.c; no crypto call of its own
+src/fuzz/setconf.c,-,-,? fuzz harness that #includes ../curve25519.c; no crypto call of its own
+src/fuzz/stringlist.c,-,-,? fuzz harness that #includes ../curve25519.c; no crypto call of its own
+src/fuzz/uapi.c,-,-,? fuzz harness that #includes ../curve25519.c and ipc code; no crypto call of its own
+src/genkey.c,X25519,-,? random key plus Curve25519 clamping for genkey; genpsk is raw random
+src/ipc-freebsd.h,-,-,no cryptography
+src/ipc-linux.h,-,-,no cryptography
+src/ipc-openbsd.h,-,-,no cryptography
+src/ipc-uapi-unix.h,-,-,no cryptography
+src/ipc-uapi-windows.h,-,-,no cryptography
+src/ipc-uapi.h,X25519,-,derives public key via curve25519_generate_public
+src/ipc-windows.h,-,-,no cryptography
+src/ipc.c,-,-,no cryptography
+src/ipc.h,-,-,no cryptography
+src/netlink.h,-,-,no cryptography
+src/pubkey.c,X25519,-,curve25519_generate_public
+src/set.c,-,-,no cryptography
+src/setconf.c,-,-,no cryptography
+src/show.c,-,-,no cryptography
+src/showconf.c,-,-,no cryptography
+src/subcommands.h,-,-,no cryptography
+src/terminal.c,-,-,no cryptography
+src/terminal.h,-,-,no cryptography
+src/uapi/freebsd/dev/wg/if_wg.h,-,-,no cryptography
+src/uapi/linux/linux/wireguard.h,-,-,no cryptography
+src/uapi/openbsd/net/if_wg.h,-,-,no cryptography
+src/uapi/windows/wireguard.h,-,-,no cryptography
+src/version.h,-,-,no cryptography
+src/wg-quick/android.c,-,-,"tls_* fields are private-DNS settings, no version pinned"
+src/wg.c,-,-,no cryptography
+src/wincompat/compat.h,-,-,no cryptography
+src/wincompat/include/arpa/inet.h,-,-,no cryptography
+src/wincompat/include/hashtable.h,-,-,no cryptography
+src/wincompat/include/net/if.h,-,-,no cryptography
+src/wincompat/include/netdb.h,-,-,no cryptography
+src/wincompat/include/netinet/in.h,-,-,no cryptography
+src/wincompat/include/sys/socket.h,-,-,no cryptography
+src/wincompat/init.c,-,-,no cryptography
+src/wincompat/libc.c,-,-,no cryptography
+src/wincompat/load_config.c,-,-,no cryptography
+src/wincompat/loader.c,-,-,no cryptography
+src/wincompat/manifest.xml,-,-,no cryptography

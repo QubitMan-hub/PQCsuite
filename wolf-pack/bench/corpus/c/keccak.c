@@ -1,0 +1,12 @@
+#include <stdint.h>
+
+static const uint64_t round_constants[24] = {
+    0x0000000000000001ULL, 0x0000000000008082ULL, 0x800000000000808aULL,
+    0x8000000080008000ULL, 0x000000000000808bULL, 0x0000000080000001ULL,
+    0x8000000080008081ULL, 0x8000000000008009ULL, 0x000000000000008aULL,
+};
+
+void keccak_round(uint64_t st[25], int r)
+{
+    st[0] ^= round_constants[r];
+}
