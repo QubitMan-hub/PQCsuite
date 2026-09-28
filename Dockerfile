@@ -5,7 +5,8 @@ RUN useradd --system --uid 10001 --home /srv pqc
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY pqcsuite ./pqcsuite
-RUN pip install --no-cache-dir . && pqcsuite doctor
+# pip is not needed at run time and carries its own vendored packages, so it leaves the image.
+RUN pip install --no-cache-dir . && pip uninstall -y pip && pqcsuite doctor
 USER pqc
 WORKDIR /srv
 EXPOSE 8443 9100

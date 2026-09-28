@@ -140,7 +140,7 @@ class ConfigWatchTest(unittest.TestCase):
             with self.assertLogs("pqcsuite", "ERROR") as logs:
                 path.write_text("n = -1\n")
                 os.utime(path, (time.time() + 10, time.time() + 10))
-                time.sleep(0.4)
+                self.assertTrue(wait(lambda: logs.output))
             self.assertEqual(seen, [2])
             self.assertIn("keeping the running configuration", logs.output[0])
             path.write_text("n = 3\n")

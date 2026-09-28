@@ -18,7 +18,7 @@ COPY --from=build /opt/strongswan /opt/strongswan
 COPY --from=build /etc/strongswan.conf /etc/strongswan.conf
 COPY pyproject.toml README.md /app/
 COPY pqcsuite /app/pqcsuite
-RUN pip install --no-cache-dir "/app[vpn]"
+RUN pip install --no-cache-dir "/app[vpn]" && pip uninstall -y pip
 COPY docker/vpn-entrypoint.sh /usr/local/bin/vpn-entrypoint
 ENTRYPOINT ["vpn-entrypoint"]
 CMD ["/etc/pqcsuite/site.toml"]
