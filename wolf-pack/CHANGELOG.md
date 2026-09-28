@@ -8,6 +8,7 @@ Much higher recall on real code. The changes were made after reading the held-ou
 
 - **Used or declared:** a finding that is only named in an algorithm list or table (supported-algorithm arrays, OID tables, TypeScript unions) is marked `declared`. It shows in the CBOM (`wolfpack:usage`), the report and the terminal, and becomes a SARIF note, so what actually runs stands out.
 - **Values through parameters (`--without parameters`):** a crypto API called with a parameter, such as `MessageDigest.getInstance(algorithm)` inside a helper, is resolved from the literals its callers pass (Java, JavaScript/TypeScript, Python).
+- **How to fix:** every finding gets concrete fixes for where it was found. That means the replacement API in its language (JDK 24 ML-KEM/ML-DSA, Go 1.24 `crypto/mlkem`, OpenSSL 3.5, .NET 10, liboqs-python, @noble/post-quantum, RustCrypto), the configuration line for nginx, Apache, HAProxy, sshd or a cloud load balancer, a reissue for certificates, and the PQC Suite product that does the job. Fixes appear in the report, the CBOM (`wolfpack:remediation`) and SARIF rule help.
 - **Traffic captures:** `wolfpack scan --pcap traffic.pcap` reads the TLS and SSH handshakes in a packet capture (pcap or pcapng) and reports what was actually negotiated per server: version, cipher suite and key-exchange group, and how many clients offered a PQ group. Pure Python; nothing is decrypted or sent.
 - **Kubernetes and cloud TLS:**
   - certificates in Kubernetes TLS Secrets (base64 `tls.crt`);

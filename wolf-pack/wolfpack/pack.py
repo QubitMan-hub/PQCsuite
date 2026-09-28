@@ -6,7 +6,7 @@ from collections import Counter
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 
-from . import den, alpha
+from . import den, alpha, remedy
 from .scouts import MAX_BYTES, source, config, artifacts, deps, tls, binary, implementations, params, capture, carried_hashes, oversized
 
 SCOUTS = ("source", "implementations", "config", "artifacts", "binary")
@@ -165,6 +165,8 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
         if s.file in stores:
             s.context.add("trust-store")
     assets = alpha.lead(den.assets(sightings), horizon, roles.purpose)
+    for a in assets:
+        a.remedies = remedy.remedies(a)
     if baseline:
         seen = load_baseline(baseline)
         for a in assets:

@@ -59,3 +59,4 @@ class Asset:
     new_files: list = field(default_factory=list)
     policy: list = field(default_factory=list)
     declared: bool = False
+    remedies: list = field(default_factory=list)

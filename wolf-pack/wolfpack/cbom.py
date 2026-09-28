@@ -30,7 +30,8 @@ def algorithm_component(a):
     ev = {"occurrences": [_occ(s) for s in a.sightings[:200]]}
     props = _props(tier=a.tier, risk_score=a.score, confidence=a.confidence, exposure=a.exposure, nist_status=a.nist,
                    rationale=a.why, recommendation=a.action, test_only=a.test_only or None,
-                   policy="; ".join(a.policy) or None, usage="declared" if a.declared else "used")
+                   policy="; ".join(a.policy) or None, usage="declared" if a.declared else "used",
+                   remediation=" | ".join(f"{w}: {f}" for w, f in a.remedies)[:1500] or None)
     if c.primitive == "protocol":
         ver = re.search(r"(\d\.\d)", a.algo)
         pp = {"type": "tls" if "TLS" in a.algo or "SSL" in a.algo else "other"}
@@ -164,8 +165,9 @@ def sarif(assets, alerts):
         if a.tier not in LEVEL:
             continue
         rid = f"WP-{a.algo.replace(' ', '')}"
+        fixes = "".join(f"\n- {w}: {f}" for w, f in a.remedies)
         rules.setdefault(rid, {"id": rid, "name": a.algo, "shortDescription": {"text": f"{a.algo} usage"},
-                               "help": {"text": a.action or a.why}})
+                               "help": {"text": (a.action or a.why) + fixes, "markdown": f"**{a.action or a.why}**{fixes}"}})
         for s in a.sightings:
             if s.file.startswith("tls://"):
                 continue

@@ -15,7 +15,7 @@ Current version: 1.2.0. 1.0.0 was the first production release (Docker image, Gi
 ```powershell
 cd wolf-pack; py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 83 tests, must stay green
+python -m unittest discover -s tests -v          # 84 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -66,6 +66,7 @@ wolfpack/
   cbom.py        CycloneDX 1.6 builder (provides, services), SARIF 2.1.0, audit trail
   report.py      self-contained monochrome HTML report and terminal summary
   image.py       container images (docker save / OCI archive): layers unpacked in order, whiteouts applied
+  remedy.py      how to fix each asset where it was found: per-language API, config line, certificate reissue, PQC Suite product
   inventory.py   merge: many systems' CBOMs (any tool) into one organisation inventory, dashboard and merged CBOM
   compliance.py  policy: NIST IR 8547 and CNSA 2.0 profiles plus [policy] rules (forbid, min_bits, require_hybrid);
                  overdue vs due later; tests, declared non-security hashes and trust stores are exempt

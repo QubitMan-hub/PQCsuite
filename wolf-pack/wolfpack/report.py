@@ -34,6 +34,7 @@ summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .tag{font-size:11px;border:1px solid var(--ink);padding:1px 6px;display:inline-block}
 .tag.critical{background:var(--ink);color:var(--paper)}
 .yes{font-weight:700}
+.fix{margin:10px 0 6px 18px;font-size:12px}.fix div{padding:3px 0}.fix code{border:1px solid var(--rule);padding:0 4px}
 footer{margin-top:56px;color:var(--mid);font-size:12px}
 @media (max-width:720px){.pack{grid-template-columns:1fr 1fr}.pack div:nth-child(2){border-right:0}.pack div:nth-child(-n+2){border-bottom:1px solid var(--ink)}}
 """
@@ -42,6 +43,12 @@ footer{margin-top:56px;color:var(--mid);font-size:12px}
 def _ablation(st):
     off = st.get("roles_off")
     return f" Ablation run without: {', '.join(off)}." if off else ""
+
+
+def _code(text):
+    """Escapes text and renders `backticked` parts as code."""
+    parts = e(text).split("`")
+    return "".join(f"<code>{p}</code>" if i % 2 else p for i, p in enumerate(parts))
 
 
 def _plural(n, word):
@@ -95,7 +102,9 @@ def html(r):
     detail = []
     for a in r.assets:
         occ = "".join(f"<div><code>{e(s.file)}{':' + str(s.line) if s.line else ''}</code> {e(s.evidence)}, {e(s.reason)}<br>{e(s.snippet)}</div>" for s in a.sightings[:60])
-        detail.append(f"<details><summary><b>{e(a.variant)}</b> <span class='dim'>{e(a.nist)}</span></summary><div class='occ'>{occ}</div></details>")
+        fixes = "".join(f"<div><b>{e(w)}</b>: {_code(f)}</div>" for w, f in a.remedies)
+        fixes = f"<div class='fix'><span class=tag>How to fix</span>{fixes}</div>" if fixes else ""
+        detail.append(f"<details><summary><b>{e(a.variant)}</b> <span class='dim'>{e(a.nist)}</span></summary>{fixes}<div class='occ'>{occ}</div></details>")
     alerts = "".join(f"<div class='alert'><span><span class='tag {e(s)}'>{e(s)}</span></span><div>{e(t)}<br><span class='dim'>{e(w)}{'; ' + e(f) if f else ''}</span></div></div>"
                      for s, t, w, f in r.alerts) or "<p class='dim'>No hygiene alerts.</p>"
     libs = "".join(f"<tr><td>{e(l.name)}</td><td>{e(l.ecosystem)}</td><td>{e(l.version) or '<span class=dim>unpinned</span>'}</td>"
