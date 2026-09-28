@@ -19,6 +19,10 @@ Acxelin PQC Suite (working name `pqcsuite`, `NAME` in `pqcsuite/__init__.py`) is
 5. The mentor's AcxelinPQC repo is a feature reference only. It is proprietary, so never copy its code.
 6. Wolf Pack CBOM is a separate product that lives in `wolf-pack/`, with its own `wolf-pack/CLAUDE.md` (read it before working there; its rules apply inside that folder), its own CI (`.github/workflows/wolf-pack.yml`) and its own page, `site/wolf-pack.html`. The suite still has four products: on `site/index.html` Wolf Pack appears only as the header nav link, the "Also from Acxelin" band (`#also`, after the products section), under "Also from Acxelin" in the footer, and as an "Also from Acxelin" answer in the starting-point finder; never as a product card or in the product list. The console shows it the same way: its own nav group and a band under the overview tiles. `tests/test_site.py` and `tests/browser` check this.
 
+## Current mode
+
+Prove, simplify, benchmark and validate; don't add features unless the owner asks for one. Releases go through the gates in `docs/RELEASE-READINESS.md` (`scripts/release_readiness.py`); when an item on its "Not yet validated" list is done, update that list.
+
 ## Commands
 
 ```

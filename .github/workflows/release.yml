@@ -10,12 +10,36 @@ on:
 permissions:
   contents: read
 jobs:
+  evidence:
+    if: startsWith(inputs.tag || github.ref_name, 'v')
+    runs-on: ubuntu-latest
+    container: python:3.13-slim-trixie
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The suite, the benchmark and an SBOM, on Debian 13 with OpenSSL 3.5 and real applications
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends openssl curl nginx postgresql redis-server redis-tools \
+            mosquitto mosquitto-clients openssh-server
+          pip install -e ".[test]" cyclonedx-bom==7.4.0
+          python -m venv /tmp/runtime && /tmp/runtime/bin/pip install --no-cache-dir .
+          cyclonedx-py environment /tmp/runtime/bin/python -o sbom.json
+          python scripts/release_readiness.py evidence evidence.json sbom.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: evidence
+          path: |
+            evidence.json
+            sbom.json
   release:
+    needs: evidence
+    if: always() && contains(fromJSON('["success", "skipped"]'), needs.evidence.result)
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
       attestations: write
+      checks: read
+      actions: read
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
@@ -37,6 +61,18 @@ jobs:
             wolfpack scan pqcsuite -o cbom -q
             cp cbom/cbom.json "dist/pqcsuite-$version-cbom.json"
           fi
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: needs.evidence.result == 'success'
+        with:
+          name: evidence
+      - name: Release gate (every CI and CodeQL job on this commit must have passed) and RELEASE_READINESS.md
+        if: needs.evidence.result == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/release_readiness.py report "$TAG" "$GITHUB_SHA" evidence.json dist/RELEASE_READINESS.md
+          cp sbom.json "dist/pqcsuite-${TAG#v}-sbom.json"
+          printf '\n\nThis release passed the gates in RELEASE_READINESS.md, which also lists what is not validated yet.\n' >> notes.md
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/*

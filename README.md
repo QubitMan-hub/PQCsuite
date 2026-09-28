@@ -186,9 +186,11 @@ A tag `vX.Y.Z` releases the suite and `wolf-pack-vX.Y.Z` releases Wolf Pack: pus
 - Algorithms come from OpenSSL and pyca/cryptography. Nothing here is FIPS 140-3 validated, and no independent security review has been done yet.
 - The console has one administrator token and no roles: whoever holds it can issue and revoke certificates.
 
-Which attackers the suite stops and which it does not, how revocation behaves when the CA or its address is down, and runbooks for a compromised key: [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).
+Which attackers the suite stops and which it does not, how revocation behaves when the CA or its address is down, and runbooks for a compromised key: [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md). What each release must pass, and what has not been validated yet: [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md).
 
 ## Roadmap
+
+First, proving what exists rather than adding to it: an independent security review, deployments in real cloud accounts and on EKS, AKS and GKE, soak tests, and benchmarks on production hardware (the open list is in [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)). After that:
 
 1. VPN: Windows and macOS clients, and full-tunnel routing, for remote access.
 2. mTLS: a cert-manager issuer and in-cluster renewal of edge certificates (CRLs already reach edges through `crl_url`); dns-01 for ACME.
