@@ -1,2 +1,2 @@
 file,used,declared,notes
-generic.go,,,
+generic.go,-,-,dispatches on DARE version; no primitive named

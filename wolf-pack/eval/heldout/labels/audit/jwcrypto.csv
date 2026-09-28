@@ -1,3 +1,3 @@
 file,used,declared,notes
-jwcrypto/common.py,,,
-jwcrypto/jwt.py,,,
+jwcrypto/common.py,-,-,
+jwcrypto/jwt.py,-,-,? 'RSA1_5' only used to guess JWE vs JWS

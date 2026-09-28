@@ -1,7 +1,7 @@
 file,used,declared,notes
-benchmarks/Method-Benchmarks/EnhancedHashingValidation.cs,,,
-benchmarks/Method-Benchmarks/StringBuildingVariantsBenchmark.cs,,,
-docs/docs/toc.yml,,,
-docs/template/public/main.js,,,
-src/BCrypt.Net/HashParser.cs,,,
-src/BCrypt.Net/SafeStringExtension.Fwk.cs,,,
+benchmarks/Method-Benchmarks/EnhancedHashingValidation.cs,bcrypt; SHA-384; HMAC,-,? EnhancedHashPassword with HashType.SHA384; V3 takes an HMAC key
+benchmarks/Method-Benchmarks/StringBuildingVariantsBenchmark.cs,-,-,? only builds bcrypt hash strings; no hashing
+docs/docs/toc.yml,-,-,
+docs/template/public/main.js,-,-,
+src/BCrypt.Net/HashParser.cs,-,-,? parses the bcrypt hash format (recognition)
+src/BCrypt.Net/SafeStringExtension.Fwk.cs,bcrypt,-,wrapper that hashes with bcrypt

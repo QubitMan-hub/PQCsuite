@@ -1,2 +1,2 @@
 file,used,declared,notes
-lib/index.d.ts,,,
+lib/index.d.ts,-,AES; SHA-256; HMAC,type declarations of supported algorithms

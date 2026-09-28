@@ -1,9 +1,9 @@
 file,used,declared,notes
-contrib/extract-handshakes/offset-finder.c,,,
-contrib/highlighter/highlighter.h,,,
-contrib/ncat-client-server/server.sh,,,
-contrib/synergy/synergy-server.sh,,,
-src/config.h,,,
-src/set.c,,,
-src/wg-quick/android.c,,,
-src/wincompat/include/arpa/inet.h,,,
+contrib/extract-handshakes/offset-finder.c,-,-,
+contrib/highlighter/highlighter.h,-,-,
+contrib/ncat-client-server/server.sh,X25519,-,? wg genkey / wg pubkey (Curve25519 keys)
+contrib/synergy/synergy-server.sh,X25519,-,? configures WireGuard with a fixed Curve25519 key pair
+src/config.h,-,-,
+src/set.c,-,-,
+src/wg-quick/android.c,-,-,
+src/wincompat/include/arpa/inet.h,-,-,empty file

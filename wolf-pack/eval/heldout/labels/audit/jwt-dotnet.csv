@@ -1,9 +1,9 @@
 file,used,declared,notes
-src/JWT.Extensions.AspNetCore/JwtAuthenticationEvents.cs,,,
-src/JWT.Extensions.AspNetCore/SuccessfulTicketContext.cs,,,
-src/JWT/Algorithms/ECDSAAlgorithmFactory.cs,,,
-src/JWT/Algorithms/RS512Algorithm.cs,,,
-src/JWT/Builder/ClaimName.cs,,,
-src/JWT/IJwtEncoder.cs,,,
-src/JWT/JwtParts.cs,,,
-src/JWT/UnixEpoch.cs,,,
+src/JWT.Extensions.AspNetCore/JwtAuthenticationEvents.cs,-,-,
+src/JWT.Extensions.AspNetCore/SuccessfulTicketContext.cs,-,-,
+src/JWT/Algorithms/ECDSAAlgorithmFactory.cs,ECDSA; SHA-256; SHA-384; SHA-512,-,branches on ES256/384/512; HS/RS branches only refuse
+src/JWT/Algorithms/RS512Algorithm.cs,RSA; SHA-512,-,
+src/JWT/Builder/ClaimName.cs,-,-,
+src/JWT/IJwtEncoder.cs,-,-,
+src/JWT/JwtParts.cs,-,-,
+src/JWT/UnixEpoch.cs,-,-,

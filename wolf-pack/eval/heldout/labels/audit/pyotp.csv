@@ -1,2 +1,2 @@
 file,used,declared,notes
-src/pyotp/contrib/steam.py,,,
+src/pyotp/contrib/steam.py,HMAC; SHA-1,-,TOTP with hashlib.sha1

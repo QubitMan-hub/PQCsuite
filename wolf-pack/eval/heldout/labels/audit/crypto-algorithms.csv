@@ -1,4 +1,4 @@
 file,used,declared,notes
-blowfish_test.c,,,
-md2.c,,,
-md5.c,,,
+blowfish_test.c,Blowfish,-,
+md2.c,OTHER:MD2,-,
+md5.c,MD5,-,

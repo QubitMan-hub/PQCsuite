@@ -1,4 +1,4 @@
 file,used,declared,notes
-ecdsa_utils.go,,,
-map_claims.go,,,
-request/oauth2.go,,,
+ecdsa_utils.go,ECC,-,"? parses EC keys (ecdsa types), no signing here"
+map_claims.go,-,-,
+request/oauth2.go,-,-,

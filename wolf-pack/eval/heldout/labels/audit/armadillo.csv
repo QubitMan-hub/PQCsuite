@@ -1,7 +1,7 @@
 file,used,declared,notes
-app/src/main/java/at/favre/lib/securesharedpreferences/ChangePasswordActivity.java,,,
-armadillo/src/androidTest/java/at/favre/lib/armadillo/BcryptMicroBenchmark.java,,,
-armadillo/src/main/java/at/favre/lib/armadillo/AuthenticatedEncryptionException.java,,,
-armadillo/src/main/java/at/favre/lib/armadillo/ByteArrayRuntimeObfuscator.java,,,
-armadillo/src/main/java/at/favre/lib/armadillo/SharedPreferenceChangeListenerWrapper.java,,,
-gradle.properties,,,
+app/src/main/java/at/favre/lib/securesharedpreferences/ChangePasswordActivity.java,-,-,
+armadillo/src/androidTest/java/at/favre/lib/armadillo/BcryptMicroBenchmark.java,bcrypt,-,three bcrypt implementations hashed in a benchmark
+armadillo/src/main/java/at/favre/lib/armadillo/AuthenticatedEncryptionException.java,-,-,
+armadillo/src/main/java/at/favre/lib/armadillo/ByteArrayRuntimeObfuscator.java,-,-,? XOR with random keys for in-memory obfuscation; not a named cipher
+armadillo/src/main/java/at/favre/lib/armadillo/SharedPreferenceChangeListenerWrapper.java,-,-,
+gradle.properties,-,-,

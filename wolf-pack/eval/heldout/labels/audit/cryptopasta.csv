@@ -1,2 +1,2 @@
 file,used,declared,notes
-hash.go,,,
+hash.go,HMAC; SHA-512; bcrypt,-,HMAC-SHA-512/256

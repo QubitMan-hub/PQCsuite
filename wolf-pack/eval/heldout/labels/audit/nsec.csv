@@ -1,11 +1,11 @@
 file,used,declared,notes
-src/Cryptography/Aegis128L.cs,,,
-src/Cryptography/Blake2b.cs,,,
-src/Cryptography/Ed25519ph.cs,,,
-src/Cryptography/KeyAgreementAlgorithm.cs,,,
-src/Cryptography/SignatureAlgorithm.cs,,,
-src/Experimental/AnsiX963KdfSha256.cs,,,
-src/Experimental/ConcatKdfHmacSha256.cs,,,
-src/Experimental/Nonce.cs,,,
-src/Experimental/PasswordBased/PasswordBasedMacScheme.cs,,,
-src/Interop/Interop.Pwhash.Argon2i.cs,,,
+src/Cryptography/Aegis128L.cs,OTHER:AEGIS-128L,-,
+src/Cryptography/Blake2b.cs,BLAKE2,-,
+src/Cryptography/Ed25519ph.cs,Ed25519,-,? Ed25519ph pre-hashes with SHA-512 inside libsodium
+src/Cryptography/KeyAgreementAlgorithm.cs,X25519,-,? instantiates X25519; ECDH and X448 only in a comment
+src/Cryptography/SignatureAlgorithm.cs,Ed25519,-,? instantiates Ed25519 and Ed25519ph; ECDSA and Ed448 only in a comment
+src/Experimental/AnsiX963KdfSha256.cs,SHA-256; OTHER:ANSI-X9.63-KDF,-,
+src/Experimental/ConcatKdfHmacSha256.cs,HMAC; SHA-256; OTHER:ConcatKDF,-,
+src/Experimental/Nonce.cs,-,-,
+src/Experimental/PasswordBased/PasswordBasedMacScheme.cs,-,-,? generic PBMAC1; algorithms passed in
+src/Interop/Interop.Pwhash.Argon2i.cs,-,Argon2,? P/Invoke bindings only; callers elsewhere
