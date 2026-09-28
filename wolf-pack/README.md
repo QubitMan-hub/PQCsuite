@@ -22,8 +22,12 @@ py -m wolfpack scan . --fail-on critical                       # CI: exit 2 if a
 py -m wolfpack scan . --baseline main-cbom.json --fail-on high # CI: fail only on crypto added since main
 py -m wolfpack hunt . --without den                          # ablation: leave a member of the pack out
 py -m wolfpack scan --pcap traffic.pcapng                     # what clients and servers really negotiated, from a capture
+py -m wolfpack scan . --changed-since origin/main            # CI on a pull request: only the files it changed
+py -m wolfpack keygen; py -m wolfpack scan . --sign wolfpack-keys\signing-key.pem   # ML-DSA-65 signed cbom.json
+py -m wolfpack verify wolfpack-out\cbom.json --pub signing-key.pub.pem
 py -m wolfpack scan image.tar                                 # a container image saved with `docker save` or as an OCI archive
 py -m wolfpack merge scans\ --name "Acme Bank"              # every system's cbom.json into one inventory and dashboard
+py -m wolfpack merge scans\ --history readiness.jsonl        # add this run to a history; the dashboard charts readiness over time
 py -m wolfpack bench bench\corpus                            # full pack plus one ablation per role
 py -m unittest discover -s tests
 ```
@@ -149,7 +153,7 @@ CBOMkit's scanner (sonar-cryptography) does deep semantic analysis of Java (JCA,
 
 ## Evaluation so far
 
-Development corpus: `bench/corpus` has 70 files across 7 languages plus configs, certificates, a compiled binary and manifests. It is full of traps:
+Development corpus: `bench/corpus` has 76 files across 9 languages plus configs, certificates, a compiled binary and manifests. It is full of traps:
 - algorithms in comments, docstrings and log messages;
 - a Java `disabledAlgorithms` list, OpenSSL `!MD5` exclusions and a `WEAK_ALGORITHMS` deny-list;
 - an unused import and a suppressed line;
@@ -165,24 +169,25 @@ Ground truth is 163 (file, algorithm family) pairs.
 | configuration | precision | recall | F1 |
 |---|---|---|---|
 | full pack | 1.000 | 1.000 | 1.000 |
-| without den | 0.824 | 1.000 | 0.904 |
-| without corroboration | 1.000 | 0.993 | 0.996 |
-| without second look | 1.000 | 0.919 | 0.958 |
-| &nbsp;&nbsp;without flow | 1.000 | 0.941 | 0.970 |
-| &nbsp;&nbsp;without registries | 1.000 | 0.985 | 0.993 |
-| &nbsp;&nbsp;without siblings | 1.000 | 0.993 | 0.996 |
-| without recognition | 0.978 | 1.000 | 0.989 |
-| without propagation | 1.000 | 0.985 | 0.993 |
-| without cross-file | 1.000 | 0.985 | 0.993 |
-| without source scouts | 1.000 | 0.353 | 0.522 |
-| without names | 1.000 | 0.985 | 0.993 |
-| without concat | 1.000 | 0.993 | 0.996 |
-| without symbols | 1.000 | 0.963 | 0.981 |
-| without implementation scouts | 1.000 | 0.978 | 0.989 |
-| without config scouts | 1.000 | 0.757 | 0.862 |
-| without lists | 1.000 | 0.963 | 0.981 |
-| without artifact scouts | 1.000 | 0.934 | 0.966 |
-| without binary scouts | 1.000 | 0.985 | 0.993 |
+| without den | 0.845 | 1.000 | 0.916 |
+| without corroboration | 1.000 | 0.994 | 0.997 |
+| without second look | 1.000 | 0.914 | 0.955 |
+| &nbsp;&nbsp;without flow | 1.000 | 0.933 | 0.965 |
+| &nbsp;&nbsp;without registries | 1.000 | 0.988 | 0.994 |
+| &nbsp;&nbsp;without siblings | 1.000 | 0.994 | 0.997 |
+| without recognition | 0.982 | 1.000 | 0.991 |
+| without propagation | 1.000 | 0.988 | 0.994 |
+| without cross-file | 1.000 | 0.988 | 0.994 |
+| without source scouts | 1.000 | 0.356 | 0.525 |
+| without names | 1.000 | 0.963 | 0.981 |
+| without concat | 1.000 | 0.994 | 0.997 |
+| without symbols | 1.000 | 0.957 | 0.978 |
+| without parameters | 1.000 | 0.994 | 0.997 |
+| without implementation scouts | 1.000 | 0.982 | 0.991 |
+| without config scouts | 1.000 | 0.748 | 0.856 |
+| without lists | 1.000 | 0.969 | 0.984 |
+| without artifact scouts | 1.000 | 0.933 | 0.965 |
+| without binary scouts | 1.000 | 0.988 | 0.994 |
 
 This corpus was written alongside the scanner, so treat it as a regression test and ablation demo, not a result. Propagation also recovers parameters (RSA-1024 rather than RSA), which family-level scoring does not see.
 

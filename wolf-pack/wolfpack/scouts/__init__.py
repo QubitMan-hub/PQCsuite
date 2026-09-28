@@ -22,6 +22,7 @@ class Scope:
     """Which files the scouts walk. A pattern without "/" matches any file or folder name; one with "/" matches the path from the root."""
     vendor: bool = False
     exclude: tuple = ()
+    only: frozenset | None = None
 
     def excluded(self, relpath):
         name = relpath.rsplit("/", 1)[-1]
@@ -40,7 +41,7 @@ def iter_files(root, scope=Scope(), max_bytes=MAX_BYTES, skip=None):
         at = "" if here == "." else here + "/"
         dirs[:] = sorted(x for x in dirs if (scope.vendor or x not in skip) and not scope.excluded(at + x))
         for f in sorted(files):
-            if scope.excluded(at + f):
+            if scope.excluded(at + f) or scope.only is not None and at + f not in scope.only:
                 continue
             p = Path(d) / f
             try:

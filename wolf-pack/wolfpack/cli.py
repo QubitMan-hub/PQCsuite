@@ -9,7 +9,7 @@ from pathlib import Path
 
 from cryptography.utils import CryptographyDeprecationWarning
 
-from . import __version__, pack, cbom, report, image, inventory, compliance
+from . import __version__, pack, cbom, report, image, inventory, compliance, signing
 from .alpha import Horizon, TIERS
 from .pack import ROLES
 from .scouts import Scope
@@ -29,6 +29,8 @@ def main(argv=None):
     s.add_argument("--ssh", action="append", default=[], metavar="HOST[:PORT]", help="read a live SSH server's algorithm lists (repeatable)")
     s.add_argument("--pcap", action="append", default=[], metavar="FILE",
                    help="read TLS and SSH handshakes from a packet capture (.pcap or .pcapng): what clients and servers actually negotiated (repeatable)")
+    s.add_argument("--changed-since", metavar="GIT_REF", help="scan only files changed since this git ref (and uncommitted ones): fast CI checks on a pull request")
+    s.add_argument("--sign", metavar="KEY", help="sign cbom.json with this key (from `wolfpack keygen`), writing cbom.json.sig")
     s.add_argument("--baseline", metavar="CBOM", help="previous cbom.json; report what is new and gate CI only on new findings")
     s.add_argument("-o", "--out", default="wolfpack-out")
     s.add_argument("--name", help="project name for the CBOM")
@@ -48,11 +50,21 @@ def main(argv=None):
     s.add_argument("--as-of", type=int, metavar="YEAR", help="judge policy deadlines as of this year (default: this year)")
     s.add_argument("--fail-on-policy", action="store_true", help="exit 2 if any policy rule is already broken (deadline passed or none)")
     s.add_argument("-q", "--quiet", action="store_true")
+    k = sub.add_parser("keygen", help="make a signing key pair for CBOMs (ML-DSA-65, or Ed25519 on older cryptography)")
+    k.add_argument("-o", "--out", default="wolfpack-keys")
+    g = sub.add_parser("sign", help="sign a CBOM (or any file): writes FILE.sig")
+    g.add_argument("file")
+    g.add_argument("--key", required=True)
+    v = sub.add_parser("verify", help="check a signed CBOM; exit 2 if it changed or the signature does not match")
+    v.add_argument("file")
+    v.add_argument("--pub", help="the public key you trust (without it, only integrity is checked)")
+    v.add_argument("--sig", help="signature file (default: FILE.sig)")
     m = sub.add_parser("merge", help="merge the CBOMs of many systems into one organisation inventory and dashboard")
     m.add_argument("cboms", nargs="+", metavar="CBOM", help="cbom.json files, or folders searched for them (other tools' CBOMs work too)")
     m.add_argument("--name", default="Organisation", help="organisation name for the inventory")
     m.add_argument("-o", "--out", default="wolfpack-inventory")
     m.add_argument("--fail-on", choices=TIERS[:-1], help="exit 2 if any system has an asset at this tier or worse")
+    m.add_argument("--history", metavar="FILE", help="JSON-lines file of earlier runs: this run is added and the dashboard charts readiness over time")
     m.add_argument("-q", "--quiet", action="store_true")
     b = sub.add_parser("bench", help="score the full pack and each ablation against a labelled corpus")
     b.add_argument("corpus")
@@ -66,6 +78,11 @@ def main(argv=None):
 
     if a.cmd == "merge":
         return merge(a)
+    if a.cmd in ("keygen", "sign", "verify"):
+        try:
+            return keys(a)
+        except (OSError, ValueError, KeyError) as err:
+            sys.exit(f"wolfpack: {a.cmd}: {err}")
     if a.cmd == "bench":
         from .bench import main as bench
         return bench(a.corpus, a.truth, a.detail, a.json)
@@ -103,6 +120,7 @@ def main(argv=None):
         out.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         sys.exit(f"wolfpack: cannot write to {out}: {e}")
+    only = changed_files(root, a.changed_since) if a.changed_since else None
     h = Horizon(a.shelf_life, a.migration, a.crqc_year)
     unpacked, notes = None, []
     if image.is_image(root):
@@ -110,17 +128,24 @@ def main(argv=None):
         notes = image.unpack(root, unpacked)
         name = a.name or root.name.split(".")[0]
     try:
-        r = pack.run(unpacked or root, name, a.tls, h, a.threshold, pack.Roles.without(*a.without), Scope(a.include_vendor, tuple(a.exclude)), a.ssh, a.baseline, a.pcap)
+        r = pack.run(unpacked or root, name, a.tls, h, a.threshold, pack.Roles.without(*a.without), Scope(a.include_vendor, tuple(a.exclude), only), a.ssh, a.baseline, a.pcap)
     finally:
         if unpacked:
             shutil.rmtree(unpacked, ignore_errors=True)
     r.notes[:0] = notes
+    if only is not None:
+        r.notes.insert(0, f"incremental scan: {len(only)} file(s) changed since {a.changed_since}; the rest of the repository was not read")
     if any(policy.get(k) for k in ("profiles", "forbid", "min_bits", "require_hybrid")):
         r.compliance = compliance.evaluate(r.assets, r.endpoints, policy)
     try:
         _write(out, name, r)
     except OSError as e:
         sys.exit(f"wolfpack: cannot write to {out}: {e}")
+    if a.sign:
+        try:
+            signing.sign(out / "cbom.json", a.sign)
+        except (OSError, ValueError) as err:
+            sys.exit(f"wolfpack: cannot sign: {err}")
     if not a.quiet:
         print(report.terminal(r))
         print(f"\nwrote {out / 'cbom.json'}, {out / 'report.html'}, {out / 'wolfpack.sarif'}, {out / 'findings.json'}")
@@ -138,12 +163,45 @@ def main(argv=None):
     return 0
 
 
+def changed_files(root, ref):
+    """Paths changed since `ref` plus uncommitted and untracked ones, relative to `root`, from git."""
+    import subprocess
+    run = lambda *args: subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, check=True).stdout.splitlines()
+    try:
+        top = Path(run("rev-parse", "--show-toplevel")[0])
+        names = run("diff", "--name-only", ref) + run("ls-files", "--others", "--exclude-standard", "--full-name")
+    except (OSError, subprocess.CalledProcessError, IndexError) as err:
+        sys.exit(f"wolfpack: --changed-since needs a git repository and a valid ref ({err})")
+    out = set()
+    for n in names:
+        try:
+            out.add((top / n).resolve().relative_to(Path(root).resolve()).as_posix())
+        except ValueError:
+            continue
+    return frozenset(out)
+
+
+def keys(a):
+    if a.cmd == "keygen":
+        priv, pub, algo = signing.keygen(a.out)
+        print(f"{algo} signing key: {priv} (keep it secret)\npublic key: {pub} (give it to whoever verifies)")
+        return 0
+    if a.cmd == "sign":
+        print(f"wrote {signing.sign(a.file, a.key)}")
+        return 0
+    ok, msg = signing.verify(a.file, a.pub, a.sig)
+    print(msg)
+    if not ok:
+        sys.exit(2)
+    return 0
+
+
 def merge(a):
     files = inventory.cbom_files(a.cboms)
     if not files:
         sys.exit("wolfpack: no cbom.json found in " + ", ".join(a.cboms))
     try:
-        systems = inventory.run(files, a.name, a.out)
+        systems = inventory.run(files, a.name, a.out, a.history)
     except (OSError, ValueError) as err:
         sys.exit(f"wolfpack: cannot merge: {err}")
     if not a.quiet:

@@ -219,6 +219,53 @@ class Capture(unittest.TestCase):
             list(capture.packets(b"hello world, not a pcap"))
 
 
+class Operations(unittest.TestCase):
+    def test_signed_cbom_verifies_and_detects_tampering(self):
+        import tempfile
+        from wolfpack import signing
+        with tempfile.TemporaryDirectory() as d:
+            priv, pub, algo = signing.keygen(Path(d) / "k")
+            f = Path(d) / "cbom.json"
+            f.write_text('{"bomFormat": "CycloneDX"}')
+            signing.sign(f, priv)
+            self.assertTrue(signing.verify(f, pub)[0])
+            other = signing.keygen(Path(d) / "other")[1]
+            self.assertFalse(signing.verify(f, other)[0])
+            f.write_text('{"bomFormat": "CycloneDX", "x": 1}')
+            self.assertEqual(signing.verify(f, pub), (False, "the file changed after it was signed"))
+
+    def test_history_keeps_one_row_per_day(self):
+        import json
+        import tempfile
+        from wolfpack import inventory
+        from wolfpack.cli import main
+        with tempfile.TemporaryDirectory() as d:
+            main(["scan", str(CORPUS / "config"), "-o", str(Path(d) / "s"), "-q"])
+            h = Path(d) / "h.jsonl"
+            h.write_text(json.dumps({"date": "2026-01-01", "systems": 1, "pq_ready_percent": 0, "critical": 1, "high": 0, "breaches": 0}) + "\n")
+            inventory.run([Path(d) / "s"], "Acme", Path(d) / "inv", h)
+            inventory.run([Path(d) / "s"], "Acme", Path(d) / "inv", h)
+            self.assertEqual(len(h.read_text().splitlines()), 2)
+            self.assertIn("Readiness over time", (Path(d) / "inv" / "inventory.html").read_text())
+
+    def test_changed_since_reads_only_changed_files(self):
+        import subprocess
+        import tempfile
+        from wolfpack.cli import changed_files
+        with tempfile.TemporaryDirectory() as d:
+            git = lambda *a: subprocess.run(["git", "-C", d, *a], check=True, capture_output=True)
+            git("init", "-q")
+            (Path(d) / "old.py").write_text("import hashlib\nhashlib.md5(b'x')\n")
+            git("add", ".")
+            git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "one")
+            (Path(d) / "new.py").write_text("import hashlib\nhashlib.sha1(b'x')\n")
+            only = changed_files(Path(d), "HEAD")
+            self.assertEqual(only, {"new.py"})
+            from wolfpack.scouts import Scope
+            r = pack.run(d, "t", scope=Scope(only=only))
+            self.assertEqual({a.algo for a in r.assets}, {"SHA-1"})
+
+
 class Formats(unittest.TestCase):
     def test_noise_and_jose(self):
         from wolfpack.scouts.suites import noise_name, jose_alg

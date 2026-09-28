@@ -8,6 +8,10 @@ Much higher recall on real code. The changes were made after reading the held-ou
 
 - **Used or declared:** a finding that is only named in an algorithm list or table (supported-algorithm arrays, OID tables, TypeScript unions) is marked `declared`. It shows in the CBOM (`wolfpack:usage`), the report and the terminal, and becomes a SARIF note, so what actually runs stands out.
 - **Values through parameters (`--without parameters`):** a crypto API called with a parameter, such as `MessageDigest.getInstance(algorithm)` inside a helper, is resolved from the literals its callers pass (Java, JavaScript/TypeScript, Python).
+- **Incremental scans:** `--changed-since REF` reads only the files changed since a git ref (and uncommitted ones), for fast pull-request checks.
+- **Signed CBOMs:** `wolfpack keygen`, then `scan --sign KEY` or `wolfpack sign`, writes a detached ML-DSA-65 signature (Ed25519 with cryptography older than 46) over the exact bytes of `cbom.json`. `wolfpack verify --pub` checks who signed it and that nothing changed.
+- **Readiness over time:** `merge --history FILE` keeps one line per day and charts the quantum-safe share, systems at critical or high, and policy breaches.
+- **PyPI:** the release workflow can publish `wolfpack-cbom` to PyPI with trusted publishing, once the `PYPI_PUBLISH` repository variable is set.
 - **How to fix:** every finding gets concrete fixes for where it was found. That means the replacement API in its language (JDK 24 ML-KEM/ML-DSA, Go 1.24 `crypto/mlkem`, OpenSSL 3.5, .NET 10, liboqs-python, @noble/post-quantum, RustCrypto), the configuration line for nginx, Apache, HAProxy, sshd or a cloud load balancer, a reissue for certificates, and the PQC Suite product that does the job. Fixes appear in the report, the CBOM (`wolfpack:remediation`) and SARIF rule help.
 - **Traffic captures:** `wolfpack scan --pcap traffic.pcap` reads the TLS and SSH handshakes in a packet capture (pcap or pcapng) and reports what was actually negotiated per server: version, cipher suite and key-exchange group, and how many clients offered a PQ group. Pure Python; nothing is decrypted or sent.
 - **Kubernetes and cloud TLS:**
