@@ -132,6 +132,6 @@ New scout: return a list of `Sighting`s with the right evidence type, add a swit
 3. Done in stage 3: format-sniffing lists (`recognition` role). Sniffers not written as startswith/in/HasPrefix are still counted.
 4. Cross-file constants: done for Java/Kotlin/C# `Owner.NAME`, Go `pkg.Name`, C header macros, and (1.2.0) JavaScript/TypeScript `export const` imported by name from a relative module. 1.2.0 also resolves a crypto API called with a parameter from the literals at its call sites (`parameters` role, scouts/params.py; Java, JS/TS, Python).
 5. Done in 1.2.0: container images (`wolfpack scan image.tar`), cloud KMS/HSM key specs, runtime-built names (`concat`), code named for its algorithm (`names`), multi-line YAML/JSON lists (`lists`).
-6. Open: a second held-out set, labelled blind, to measure 1.2.0 on code it was not tuned on. Known remaining misses: WireGuard's own C and JS key code (no name), library defaults (TOTP's SHA-1), declared-vs-used lines in class registries (nsec), BouncyCastle's DsaDigestSigner over ECDSA read as DSA.
+6. Dropped by the owner (2026-09-28): a second held-out set to measure 1.2.0 on untuned code; its kit (eval/heldout2) was removed and is in git history. Known remaining misses: WireGuard's own C and JS key code (no name), library defaults (TOTP's SHA-1), declared-vs-used lines in class registries (nsec), BouncyCastle's DsaDigestSigner over ECDSA read as DSA.
 
 Before starting any of these, propose a short plan and confirm with the owner. Work one stage at a time.
