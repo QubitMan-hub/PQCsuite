@@ -2,6 +2,7 @@
 import datetime as dt
 import html
 import json
+import logging
 import socket
 import warnings
 from concurrent.futures import ThreadPoolExecutor
@@ -13,6 +14,7 @@ from ..pki import algorithm_of
 from ..tls import hostport
 from ..tls.openssl import Context
 
+log = logging.getLogger("pqcsuite.readiness")
 PQ = ["X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "MLKEM768", "MLKEM1024"]
 CNSA2_GROUPS = {"SecP384r1MLKEM1024", "MLKEM1024"}
 CLASSICAL = ["X25519", "secp256r1", "secp384r1", "secp521r1", "X448", "ffdhe2048", "ffdhe3072"]
@@ -95,17 +97,20 @@ def ssh_kexinit(host, port, timeout):
         if not banner.startswith(b"SSH-"):
             raise OSError("not an SSH server")
         s.sendall(b"SSH-2.0-pqcsuite_scan\r\n")
-        n, pad = struct.unpack(">IB", f.read(5))
-        if n > 35000:
-            raise OSError("oversized SSH packet")
-        payload = f.read(n - 1)[:n - 1 - pad]
-    if not payload or payload[0] != 20:
-        raise OSError("the server did not send KEXINIT")
-    lists, i = [], 17
-    for _ in range(2):
-        (m,) = struct.unpack(">I", payload[i:i + 4])
-        lists.append(payload[i + 4:i + 4 + m].decode("ascii", "replace").split(","))
-        i += 4 + m
+        try:
+            n, pad = struct.unpack(">IB", f.read(5))
+            if n > 35000:
+                raise OSError("oversized SSH packet")
+            payload = f.read(n - 1)[:n - 1 - pad]
+            if not payload or payload[0] != 20:
+                raise OSError("the server did not send KEXINIT")
+            lists, i = [], 17
+            for _ in range(2):
+                (m,) = struct.unpack(">I", payload[i:i + 4])
+                lists.append(payload[i + 4:i + 4 + m].decode("ascii", "replace").split(","))
+                i += 4 + m
+        except struct.error:
+            raise OSError("the server sent a truncated SSH packet") from None
     return banner.decode("ascii", "replace").strip(), lists[0], lists[1]
 
 
@@ -180,8 +185,16 @@ def probe(target, server_name=None, timeout=8.0):
 
 
 def scan(targets, workers=16, timeout=8.0):
+    """Every target gets a result: one server answering in a way nobody planned for is graded F, not the end of the scan."""
+    def one(t):
+        try:
+            return probe(t, timeout=timeout)
+        except Exception as e:
+            log.exception("readiness: probing %s failed", t)
+            return {"target": t, "protocol": "ssh" if t.startswith("ssh://") else "tls", "accepts": [], "negotiated": None,
+                    "certificate": None, "error": f"unexpected answer: {e}", "cnsa2": False, "grade": "F"}
     with ThreadPoolExecutor(workers) as pool:
-        return list(pool.map(lambda t: probe(t, timeout=timeout), targets))
+        return list(pool.map(one, targets))
 
 
 def summary(results):

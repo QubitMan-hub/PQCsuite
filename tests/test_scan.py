@@ -162,6 +162,29 @@ class SSHTest(unittest.TestCase):
             self.assertNotIn("ext-info-s", r["accepts"])
         self.assertEqual(scan.probe("ssh://127.0.0.1:1", timeout=2)["grade"], "F")
 
+    def test_odd_servers_are_graded_f_and_never_end_the_scan(self):
+        import threading
+        from unittest import mock
+        srv = socket.create_server(("127.0.0.1", 0))
+        self.addCleanup(srv.close)
+
+        def answer():
+            while True:
+                try:
+                    c, _ = srv.accept()
+                except OSError:
+                    return
+                with c:
+                    c.sendall(b"SSH-2.0-odd\r\n\x00\x00\x00\x10\x04\x14ab")
+        threading.Thread(target=answer, daemon=True).start()
+        target = f"ssh://127.0.0.1:{srv.getsockname()[1]}"
+        self.assertIn("truncated", scan.probe(target, timeout=3)["error"])
+        real = scan.probe
+        with mock.patch.object(scan, "probe", side_effect=lambda t, **k: 1 / 0 if "boom" in t else real(t, **k)), self.assertLogs("pqcsuite", "ERROR"):
+            results = scan.scan(["boom.example", target], timeout=3)
+        self.assertEqual([r["grade"] for r in results], ["F", "F"])
+        self.assertIn("unexpected answer", results[0]["error"])
+
     @unittest.skipUnless(Path("/usr/sbin/sshd").exists() and hasattr(os, "geteuid") and os.geteuid() == 0, "needs root and OpenSSH")
     def test_real_openssh(self):
         import subprocess
