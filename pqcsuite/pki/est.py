@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, pkcs7
 from cryptography.x509.oid import NameOID
 
 from .. import tls
-from . import CA, CAError, USAGE, algorithm_of, cert_pem, check_revocation, generate, key_pem, locked, now, write
+from . import CA, CAError, USAGE, algorithm_of, cert_pem, check_revocation, general_names, generate, key_pem, locked, now, write
 from ..tls.http import HTTPError, request
 
 PREFIX = "/.well-known/est"
@@ -38,8 +38,11 @@ def create_token(ca, common_name, kind, names=(), hours=24):
     """A one-time enrollment token for exactly this name. Returns the only copy of the secret."""
     if kind not in USAGE:
         raise CAError(f"kind must be one of {', '.join(USAGE)}")
+    if not 1 <= len(common_name) <= 64:
+        raise CAError("the common name must be 1 to 64 characters")
     tid, secret = secrets.token_hex(8), secrets.token_urlsafe(24)
     names = list(dict.fromkeys(([common_name] if kind != "client" else []) + list(names)))
+    general_names(names)
     entry = {"id": tid, "hash": hashlib.sha256(secret.encode()).hexdigest(), "common_name": common_name, "kind": kind, "names": names,
              "expires": (now() + dt.timedelta(hours=hours)).isoformat(), "used": ""}
     with locked(ca.root):
@@ -113,9 +116,9 @@ class Service:
                 raise CAError(f"this token is for {t['common_name']} {t['names']}, not {cn} {names}")
             if not algorithm_of(csr.public_key()):
                 raise CAError("the request must carry an ML-DSA key; the token was not used")
+            cert, rec = self.ca.sign(csr.public_key(), cn, t["kind"], names or t["names"])
             t["used"] = now().isoformat()
             write(_tokens_path(self.ca.root), json.dumps(tokens, indent=1).encode(), secret=True)
-        cert, rec = self.ca.sign(csr.public_key(), cn, t["kind"], names or t["names"])
         self.audit("enrolled", serial=rec.serial, common_name=cn, kind=t["kind"], token=tid)
         return cert
 
@@ -196,7 +199,6 @@ def fingerprint(cert):
 
 
 def _csr(key, common_name, names):
-    from . import general_names
     b = x509.CertificateSigningRequestBuilder().subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)]))
     if names:
         b = b.add_extension(x509.SubjectAlternativeName(general_names(names)), critical=False)

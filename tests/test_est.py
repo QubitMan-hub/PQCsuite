@@ -1,6 +1,8 @@
+import base64
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from cryptography import x509
@@ -87,6 +89,19 @@ class ESTTest(unittest.TestCase):
         time.sleep(0.05)
         with self.assertRaisesRegex(CAError, "403.*revoked"):
             est.renew(self.url, self.d / "db")
+
+    def test_a_token_names_a_valid_host_and_survives_a_failed_signing(self):
+        with self.assertRaisesRegex(CAError, "not a valid host name"):
+            est.create_token(self.ca, "bad name!", "server")
+        token = est.create_token(self.ca, "db.acme", "server")
+        tid, _, secret = token.partition(".")
+        headers = {"authorization": "Basic " + base64.b64encode(f"{tid}:{secret}".encode()).decode()}
+        csr = x509.load_der_x509_csr(base64.b64decode(est._csr(generate("ML-DSA-65"), "db.acme", [])))
+        svc = est.Service(self.ca)
+        with mock.patch.object(self.ca, "sign", side_effect=CAError("the CA key is not available")):
+            with self.assertRaisesRegex(CAError, "not available"):
+                svc.enroll(csr, headers)
+        self.assertEqual(svc.enroll(csr, headers).subject.rfc4514_string(), "CN=db.acme")
 
     def test_renewal_cannot_become_someone_else(self):
         token = est.create_token(self.ca, "app.acme", "server")
