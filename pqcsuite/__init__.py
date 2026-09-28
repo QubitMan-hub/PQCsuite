@@ -1,3 +1,4 @@
+import os
 import socket
 from dataclasses import MISSING
 
@@ -30,6 +31,15 @@ def build(cls, d, where, **extra):
             kind = {str: "text in quotes", int: "a whole number", float: "a number", bool: "true or false", list: "a list", dict: "a table"}
             raise ValueError(f"{where}: {k} must be {kind.get(t, t.__name__)}, not {v!r}")
     return cls(**d, **extra)
+
+
+def env_passphrase(var):
+    """The passphrase in environment variable `var`, None when no variable is named."""
+    if not var:
+        return None
+    if var not in os.environ:
+        raise ValueError(f"environment variable {var} is not set")
+    return os.environ[var].encode()
 
 
 def explain(e):

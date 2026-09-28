@@ -30,7 +30,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
-from .. import build, explain, tls
+from .. import build, env_passphrase, explain, tls
 from ..pki import CAError, write
 from ..tls import hostport
 from ..tls.server import Server
@@ -87,6 +87,10 @@ class WG:
                 with os.fdopen(fd, "w") as f:
                     f.write(secret + "\n")
             r = subprocess.run([self.tool, *(name if a is SECRET else a for a in args)], capture_output=True, text=True, timeout=15)
+        except FileNotFoundError:
+            raise WGError(f"the {self.tool} tool is not installed (wireguard-tools)") from None
+        except subprocess.TimeoutExpired:
+            raise WGError(f"wg {args[0]} gave no answer within 15 s") from None
         finally:
             if name:
                 os.unlink(name)
@@ -257,6 +261,8 @@ class Gateway:
                 reason, key = "stopped renewing its key", "expired"
             if reason:
                 with self.lock:
+                    if self.clients.get(cn) is not c:
+                        continue
                     self.wg.remove_peer(c["public"])
                     self.clients.pop(cn)
                 self.counts[key] += 1
@@ -269,7 +275,7 @@ class Gateway:
         self.wg.set_private_key(self.private, c.listen_port)
         for stale in self.wg.peers():
             self.wg.remove_peer(stale)
-        make = lambda: tls.server_context(c.cert, c.key, c.ca, True, "strict", os.environ[c.key_passphrase_env].encode() if c.key_passphrase_env else None)
+        make = lambda: tls.server_context(c.cert, c.key, c.ca, True, "strict", env_passphrase(c.key_passphrase_env))
         self.server = Server(hostport(c.keyring_listen), make, self.respond, watch=[c.cert, c.key, c.ca], crl=c.crl or None,
                              ca=c.ca, max_connections=256, name="keyring")
         self.server.start()

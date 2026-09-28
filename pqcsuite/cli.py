@@ -9,7 +9,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import HTTP_IDLE, NAME, __version__, explain, tls
+from . import HTTP_IDLE, NAME, __version__, env_passphrase, explain, tls
 from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError, encrypted
 from .vault import VaultError
 from .vpn.charon import CharonError
@@ -40,14 +40,6 @@ def ca_passphrase(root, new=False):
     if p1 != p2:
         raise CAError("the passphrases do not match")
     return p1
-
-
-def env_passphrase(var):
-    if not var:
-        return None
-    if var not in os.environ:
-        raise CAError(f"environment variable {var} is not set")
-    return os.environ[var].encode()
 
 
 def show(obj, as_json):

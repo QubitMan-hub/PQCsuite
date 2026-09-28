@@ -16,7 +16,7 @@ import tomllib
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .. import HTTP_IDLE, build, explain, tls
+from .. import HTTP_IDLE, build, env_passphrase, explain, tls
 from . import hostport
 from .server import Server, Stats
 
@@ -45,11 +45,10 @@ class Route:
     fallback_key: str = ""
 
     def passphrase(self):
-        if not self.key_passphrase_env:
-            return None
-        if self.key_passphrase_env not in os.environ:
-            raise ValueError(f"{self.name}: environment variable {self.key_passphrase_env} is not set")
-        return os.environ[self.key_passphrase_env].encode()
+        try:
+            return env_passphrase(self.key_passphrase_env)
+        except ValueError as e:
+            raise ValueError(f"{self.name}: {e}") from None
 
     def validate(self):
         if self.mode not in ("terminate", "originate"):

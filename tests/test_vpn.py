@@ -68,7 +68,7 @@ class ConfigTest(unittest.TestCase):
             with self.assertRaisesRegex(tls.TLSError, "not a JSON object"):
                 read_line(Conn(bad))
         site = Site(name="hq", address="10.0.0.1", ca="ca.crt", cert="c.pem", key="k.pem", key_passphrase_env="PQCSUITE_TEST_UNSET_VAR")
-        with self.assertRaisesRegex(ValueError, "PQCSUITE_TEST_UNSET_VAR"):
+        with self.assertRaisesRegex(ValueError, "PQCSUITE_TEST_UNSET_VAR is not set"):
             Controller(site, charon=object()).passphrase()
 
     def test_example_configs_load(self):

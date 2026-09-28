@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -131,6 +132,21 @@ class GatewayTest(unittest.TestCase):
         self.assertEqual(self.gw.counts["revoked"], 1)
         self.assertEqual(self.gw.counts["expired"], 1)
         self.assertIn('pqcsuite_wireguard_events_total{event="revoked"} 1', self.gw.metrics())
+
+    def test_a_client_that_comes_back_while_it_is_being_expired_stays_tracked(self):
+        bob = self.client("bob")
+        bob.agree()
+        self.gw.clients["bob"]["agreed"] -= 3600
+        self.gw.lock.acquire()
+        t = threading.Thread(target=self.gw.expire)
+        t.start()
+        time.sleep(0.2)
+        fresh = dict(self.gw.clients["bob"], agreed=time.time())
+        self.gw.clients["bob"] = fresh
+        self.gw.lock.release()
+        t.join(5)
+        self.assertIs(self.gw.clients.get("bob"), fresh)
+        self.assertIn(bob.public, self.wg.peers_)
 
     def test_private_key_is_kept(self):
         self.assertEqual(private_key(self.d / "gw.key"), (self.gw.private, self.gw.public))

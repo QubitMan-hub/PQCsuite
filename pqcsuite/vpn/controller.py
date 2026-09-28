@@ -2,7 +2,6 @@
 tunnels whose peer certificate has been revoked."""
 import json
 import logging
-import os
 import re
 import secrets
 import threading
@@ -11,7 +10,7 @@ from collections import Counter
 
 from cryptography.x509.oid import NameOID
 
-from .. import explain, tls
+from .. import env_passphrase, explain, tls
 from ..pki import CAError
 from ..tls import hostport
 from ..tls.server import Revocation, Server
@@ -62,10 +61,7 @@ class Controller:
         self.started = time.time()
 
     def passphrase(self):
-        env = self.site.key_passphrase_env
-        if env and env not in os.environ:
-            raise ValueError(f"key_passphrase_env names {env}, which is not set")
-        return os.environ[env].encode() if env else None
+        return env_passphrase(self.site.key_passphrase_env)
 
     def install(self, peer, tag, material, cert):
         """Load the PSK and PPK derived from one key agreement; keep the previous PPK so SAs being rebuilt still find it."""
