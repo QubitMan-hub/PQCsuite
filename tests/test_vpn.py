@@ -52,6 +52,25 @@ class ConfigTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate(site(peers=[Peer("b", "1.2.3.4", ["not-a-net"], [], True, "1.2.3.4:1")]))
 
+    def test_key_agreement_messages_must_be_json_objects(self):
+        from pqcsuite import tls
+        from pqcsuite.vpn.controller import Controller, read_line
+
+        class Conn:
+            def __init__(self, data):
+                self.data = data
+
+            def recv(self, size, timeout):
+                data, self.data = self.data, b""
+                return data
+        self.assertEqual(read_line(Conn(b'{"ok": true}\n')), {"ok": True})
+        for bad in (b"[1]\n", b'"x"\n', b"{nope\n"):
+            with self.assertRaisesRegex(tls.TLSError, "not a JSON object"):
+                read_line(Conn(bad))
+        site = Site(name="hq", address="10.0.0.1", ca="ca.crt", cert="c.pem", key="k.pem", key_passphrase_env="PQCSUITE_TEST_UNSET_VAR")
+        with self.assertRaisesRegex(ValueError, "PQCSUITE_TEST_UNSET_VAR"):
+            Controller(site, charon=object()).passphrase()
+
     def test_example_configs_load(self):
         root = Path(__file__).parent.parent / "examples"
         for f in ("vpn-hq.toml", "vpn-branch.toml"):

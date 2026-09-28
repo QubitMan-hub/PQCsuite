@@ -38,7 +38,13 @@ def read_line(conn, limit=4096):
         if not chunk or len(buf) + len(chunk) >= limit:
             raise tls.TLSError("key agreement message missing or too long")
         buf += chunk
-    return json.loads(buf)
+    try:
+        msg = json.loads(buf)
+    except ValueError:
+        msg = None
+    if not isinstance(msg, dict):
+        raise tls.TLSError("the key agreement message is not a JSON object")
+    return msg
 
 
 class Controller:
@@ -57,6 +63,8 @@ class Controller:
 
     def passphrase(self):
         env = self.site.key_passphrase_env
+        if env and env not in os.environ:
+            raise ValueError(f"key_passphrase_env names {env}, which is not set")
         return os.environ[env].encode() if env else None
 
     def install(self, peer, tag, material, cert):
