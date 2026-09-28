@@ -1,5 +1,6 @@
 """The hunt, start to finish: scouts range wide, the den verifies, the alpha takes a second look and leads."""
 import json
+import sys
 import time
 from collections import Counter
 from dataclasses import dataclass, field, fields
@@ -63,8 +64,14 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=()):
     """The scouts go out. Each reports everything it saw; nothing is filtered until the den."""
     h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
     if roles.source:
-        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file)
+        unparsed = []
+        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed)
         h.sightings += s
+        if unparsed:
+            h.notes.append(f"{len(unparsed)} Python file(s) could not be parsed by this Python ({sys.version.split()[0]}): newer syntax, or not "
+                           f"Python 3. Only their strings and comments were read, so calls in them were missed; run Wolf Pack on the "
+                           f"project's Python or newer (the Docker image and GitHub Action use 3.14): "
+                           + ", ".join(unparsed[:5]) + (" ..." if len(unparsed) > 5 else ""))
         big = oversized(root, scope)
         if big:
             h.notes.append(f"{len(big)} source file(s) over {MAX_BYTES // 1_000_000} MB not read (usually generated or minified code): "

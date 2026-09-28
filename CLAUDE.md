@@ -15,7 +15,7 @@ Current version: 1.0.0 (first production release: Docker image, GitHub Action, `
 ```powershell
 py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 55 tests, must stay green
+python -m unittest discover -s tests -v          # 56 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors

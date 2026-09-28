@@ -2,7 +2,7 @@
 
 A zero-setup scanner that inventories the cryptography in a codebase, its compiled artifacts and its live TLS and SSH endpoints, writes a CycloneDX 1.6 CBOM, and ranks what to migrate first for the post-quantum transition.
 
-Pure Python, one dependency (`cryptography`), runs on Windows, macOS and Linux with Python 3.11 or newer.
+Pure Python, one dependency (`cryptography`), runs on Windows, macOS and Linux with Python 3.11 or newer. Python code is parsed with the running interpreter, so scan with the project's Python or newer: files it cannot parse are named in the report (the Docker image and GitHub Action use 3.14).
 
 Project site: [`site/index.html`](site/index.html), a single self-contained page. Open it locally, or serve it with GitHub Pages from the `site/` folder.
 

@@ -9,7 +9,7 @@ from ..model import Sighting
 
 SKIP_DIRS = {".git", ".hg", ".svn", "node_modules", "vendor", "venv", ".venv", "env", "__pycache__", "dist", "build", "target", ".tox",
              "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "wolfpack-out"}
-TEST_PARTS = {"test", "tests", "spec", "specs", "__tests__", "testdata", "test_data", "fixtures", "mocks", "examples", "example", "samples", "sample", "demo",
+TEST_PARTS = {"test", "tests", "unit", "spec", "specs", "__tests__", "testdata", "test_data", "fixtures", "mocks", "examples", "example", "samples", "sample", "demo",
               "bench", "benches", "benchmark", "benchmarks", "browsertest", "test-classes"}
 TEST_DIR = re.compile(r"(?:^|[._-])(?:unit|integration|functional|i)?tests?(?:net\d+|core)?$")
 BUILD_DIRS = {"dist", "build", "target", "bin", "obj"}

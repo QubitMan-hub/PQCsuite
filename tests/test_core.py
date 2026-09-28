@@ -201,6 +201,14 @@ class Roles(unittest.TestCase):
                       for x in cbom.sarif(r.assets, [])["runs"][0]["results"]}
             self.assertEqual(levels, {"etag.py": cbom.LEVEL["low"], "login.py": cbom.LEVEL["critical"]})
 
+    def test_python_this_interpreter_cannot_parse_is_named_in_the_notes(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "old.py").write_text('import hashlib\nprint "digest", hashlib.md5(x).hexdigest()\n', encoding="utf-8")
+            (Path(d) / "new.py").write_text("import hashlib\nhashlib.sha1(b)\n", encoding="utf-8")
+            notes = pack.run(d, "t").notes
+        self.assertTrue(any("1 Python file(s) could not be parsed" in n and "old.py" in n for n in notes), notes)
+
     def test_files_too_large_to_read_are_named_in_the_notes(self):
         import tempfile
         from wolfpack.scouts import MAX_BYTES
@@ -271,9 +279,9 @@ class Probe(unittest.TestCase):
 class Scope(unittest.TestCase):
     def test_test_and_benchmark_directories(self):
         from wolfpack.scouts import is_test
-        for p in ("UnitTestsNet46/jwk/JwkTest.cs", "src/Jose.Tests/A.cs", "benches/x25519.rs", "browserTest/perf.js", "tests/a.py", "src/itest/resources/id_ecdsa"):
+        for p in ("UnitTestsNet46/jwk/JwkTest.cs", "src/Jose.Tests/A.cs", "benches/x25519.rs", "browserTest/perf.js", "tests/a.py", "src/itest/resources/id_ecdsa", "t/unit/security/__init__.py"):
             self.assertTrue(is_test(p), p)
-        for p in ("src/contests/a.py", "src/attestation/a.py", "latest/a.go", "src/jwt/a.py", "src/digest/a.java", "wittest/a.py"):
+        for p in ("src/contests/a.py", "src/attestation/a.py", "latest/a.go", "src/jwt/a.py", "src/digest/a.java", "wittest/a.py", "src/units/convert.py", "unit.py"):
             self.assertFalse(is_test(p), p)
 
 
