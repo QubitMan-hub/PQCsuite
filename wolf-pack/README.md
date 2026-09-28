@@ -21,11 +21,21 @@ py -m wolfpack scan . --shelf-life 15 --migration 6 --crqc-year 2033
 py -m wolfpack scan . --fail-on critical                       # CI: exit 2 if anything critical
 py -m wolfpack scan . --baseline main-cbom.json --fail-on high # CI: fail only on crypto added since main
 py -m wolfpack hunt . --without den                          # ablation: leave a member of the pack out
+py -m wolfpack scan image.tar                                 # a container image saved with `docker save` or as an OCI archive
+py -m wolfpack merge scans\ --name "Acme Bank"              # every system's cbom.json into one inventory and dashboard
 py -m wolfpack bench bench\corpus                            # full pack plus one ablation per role
 py -m unittest discover -s tests
 ```
 
 Output lands in `wolfpack-out\`. `cbom.json` is the CycloneDX 1.6 CBOM, validated against the official schema. `report.html` is a self-contained report that works offline. `wolfpack.sarif` is SARIF 2.1.0 for GitHub code scanning. `findings.json` is the full audit trail, including everything the den rejected and why.
+
+`wolfpack merge` takes CBOMs from many scans, or from other tools such as CBOMkit, and writes one organisation inventory to `wolfpack-inventory\`:
+
+- `inventory.html`: systems weakest first, what to migrate first, and where each algorithm family is used;
+- `inventory.json`: the same as data;
+- `cbom.json`: a merged CycloneDX 1.6 CBOM in which each system is an application that depends on the algorithms it uses.
+
+Tiers for CBOMs without Wolf Pack's own properties are estimated from the algorithm alone and marked as such. `--fail-on` gates CI on the whole estate.
 
 To silence a finding you have reviewed, put `wolfpack:ignore` in a comment on that line or the line above. Suppressed findings stay in the audit trail.
 
@@ -109,7 +119,7 @@ CBOMkit's scanner (sonar-cryptography) does deep semantic analysis of Java (JCA,
 
 ## Evaluation so far
 
-Development corpus: `bench/corpus` has 55 files across 7 languages plus configs, certificates, a compiled binary and manifests. It is full of traps:
+Development corpus: `bench/corpus` has 70 files across 7 languages plus configs, certificates, a compiled binary and manifests. It is full of traps:
 - algorithms in comments, docstrings and log messages;
 - a Java `disabledAlgorithms` list, OpenSSL `!MD5` exclusions and a `WEAK_ALGORITHMS` deny-list;
 - an unused import and a suppressed line;
@@ -120,25 +130,29 @@ Development corpus: `bench/corpus` has 55 files across 7 languages plus configs,
 - a JS `'sha' + bits`, a command-line flag named `ecdsa`, a JSON field named `hmac`, libsodium prototypes in a header and in C# P/Invoke;
 - MD5 initial values that must not read as SHA-1, prose that looks like an SSH directive, benchmark labels, and `getDigest(name)` with a variable name.
 
-Ground truth is 106 (file, algorithm family) pairs.
+Ground truth is 136 (file, algorithm family) pairs.
 
 | configuration | precision | recall | F1 |
 |---|---|---|---|
 | full pack | 1.000 | 1.000 | 1.000 |
-| without den | 0.791 | 1.000 | 0.883 |
-| without corroboration | 1.000 | 0.991 | 0.995 |
-| without second look | 1.000 | 0.962 | 0.981 |
-| &nbsp;&nbsp;without flow | 1.000 | 0.991 | 0.995 |
-| &nbsp;&nbsp;without registries | 1.000 | 0.981 | 0.990 |
-| &nbsp;&nbsp;without siblings | 1.000 | 0.991 | 0.995 |
-| without recognition | 0.972 | 1.000 | 0.986 |
-| without propagation | 1.000 | 0.991 | 0.995 |
-| without cross-file | 1.000 | 0.991 | 0.995 |
-| without source scouts | 1.000 | 0.358 | 0.528 |
-| without implementation scouts | 1.000 | 0.962 | 0.981 |
-| without config scouts | 1.000 | 0.783 | 0.878 |
-| without artifact scouts | 1.000 | 0.915 | 0.956 |
-| without binary scouts | 1.000 | 0.981 | 0.990 |
+| without den | 0.824 | 1.000 | 0.904 |
+| without corroboration | 1.000 | 0.993 | 0.996 |
+| without second look | 1.000 | 0.919 | 0.958 |
+| &nbsp;&nbsp;without flow | 1.000 | 0.941 | 0.970 |
+| &nbsp;&nbsp;without registries | 1.000 | 0.985 | 0.993 |
+| &nbsp;&nbsp;without siblings | 1.000 | 0.993 | 0.996 |
+| without recognition | 0.978 | 1.000 | 0.989 |
+| without propagation | 1.000 | 0.985 | 0.993 |
+| without cross-file | 1.000 | 0.985 | 0.993 |
+| without source scouts | 1.000 | 0.353 | 0.522 |
+| without names | 1.000 | 0.985 | 0.993 |
+| without concat | 1.000 | 0.993 | 0.996 |
+| without symbols | 1.000 | 0.963 | 0.981 |
+| without implementation scouts | 1.000 | 0.978 | 0.989 |
+| without config scouts | 1.000 | 0.757 | 0.862 |
+| without lists | 1.000 | 0.963 | 0.981 |
+| without artifact scouts | 1.000 | 0.934 | 0.966 |
+| without binary scouts | 1.000 | 0.985 | 0.993 |
 
 This corpus was written alongside the scanner, so treat it as a regression test and ablation demo, not a result. Propagation also recovers parameters (RSA-1024 rather than RSA), which family-level scoring does not see.
 
@@ -148,7 +162,15 @@ Seven more unseen repos (mkcert, itsdangerous, node-jwa, patrickfav/bcrypt, mini
 
 A 40-repo stress test across seven languages is in [eval/stress](eval/stress/README.md). All 40 scanned without a crash and with valid CBOMs; the misses and false positives it exposed were fixed. After the fixes, CBOMkit found nothing on those repos that the labelling guide would count as a Wolf Pack miss. These repos are tuned on, so none of this is evidence of accuracy.
 
-The real held-out test is being prepared in [eval/heldout](eval/heldout/README.md): 18 pinned repositories, to be labelled blind before any tool runs on them.
+The held-out benchmark is in [eval/heldout](eval/heldout/README.md). It has 18 pinned repositories, labelled blind before any tool ran on them. Strict policy:
+
+| version | precision | recall | F1 |
+|---|---|---|---|
+| headline (commit 158d69f) | 0.886 | 0.336 | 0.487 |
+| 1.1.0 | 0.820 | 0.430 | 0.564 |
+| 1.2.0, after tuning on held-out data | 0.803 | 0.911 | 0.853 |
+
+The 1.2.0 row shows how far the pack goes on that code, not how it does on code it has never seen. [eval/unseen](eval/unseen/README.md) checks the 1.2.0 additions on 22 other repositories, by the developer's own review.
 
 A first head-to-head against IBM CBOMkit on six real repositories, with a hand review of every disagreement, is in [eval/cbomkit](eval/cbomkit/README.md). Those repos are unlabelled, so it is an agreement study, not a precision or recall result.
 
@@ -156,7 +178,7 @@ Live probes were verified against a real OpenSSL 3.5 server (hybrid X25519MLKEM7
 
 ## Limitations
 
-Algorithms implemented in source are recognised by their published constants (MD5, SHA-1, SHA-2, SHA-3, SM3, SM4, AES, DES, SM2, P-256). Implementations without such tables, such as most Curve25519, ChaCha20 and Blowfish code, are not.
+Algorithms implemented in source are recognised by their published constants (MD5, SHA-1, SHA-2, SHA-3, SM3, SM4, AES, DES, SM2, P-256), or by the names their code uses (`blowfish_encrypt`, `curve25519_generate_public`). An implementation with neither, such as WireGuard's JavaScript key generator, is missed.
 
 Only Python gets true AST analysis. Other languages use rules plus constant propagation: within a file, and across files for `Owner.NAME` constants in Java, Kotlin and C#, exported Go constants, and C header macros. Values passed through function parameters, JavaScript imports, reflection and dynamically built names are still missed.
 

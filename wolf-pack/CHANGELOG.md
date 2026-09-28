@@ -10,6 +10,7 @@ Much higher recall on real code. The changes were made after reading the held-ou
 - **Constants (`--without symbols`):** all-caps constants and enum members that name an algorithm where code uses them: `case KEY_ED25519:`, `kex[KEX_DH_GRP14_SHA256]`, `crypto.SHA1`, and TLS cipher-suite constants. Sizes, error names, feature flags, definitions, headers, and `case` labels that only throw are not counted.
 - **Names built at run time (`--without concat`):** `"RSA-SHA" + bits` reports RSA; `"SHA-" + bits` still reports nothing.
 - **Multi-line YAML and JSON lists (`--without lists`)** in configuration files.
+- **Organisation inventory:** `wolfpack merge` combines the CBOMs of many systems into one dashboard (`inventory.html`), a summary (`inventory.json`) and a merged CycloneDX 1.6 CBOM. The dashboard ranks systems weakest first, lists what to migrate first, and shows where each algorithm family is used. CBOMs from other tools work too, with tiers estimated from the algorithm. `--fail-on` gates CI on the whole estate.
 - **Container images:** `wolfpack scan image.tar` unpacks a `docker save` or OCI archive layer by layer, with whiteouts applied, and scans the result.
 - **Cloud KMS and HSM keys:** AWS KMS key specs, Google Cloud KMS algorithms and Azure Key Vault key types, in Terraform, CloudFormation or code.
 - **JavaScript and TypeScript imports:** `export const` values imported by name from a relative module now propagate (part of `cross-file`).

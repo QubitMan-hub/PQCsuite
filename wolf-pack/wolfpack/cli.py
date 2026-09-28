@@ -9,7 +9,7 @@ from pathlib import Path
 
 from cryptography.utils import CryptographyDeprecationWarning
 
-from . import __version__, pack, cbom, report, image
+from . import __version__, pack, cbom, report, image, inventory
 from .alpha import Horizon, TIERS
 from .pack import ROLES
 from .scouts import Scope
@@ -42,6 +42,12 @@ def main(argv=None):
     s.add_argument("--include-vendor", action="store_true", help="also scan vendor/, node_modules/ and similar")
     s.add_argument("--fail-on", choices=TIERS[:-1], help="exit 2 if any asset is at this tier or worse (for CI)")
     s.add_argument("-q", "--quiet", action="store_true")
+    m = sub.add_parser("merge", help="merge the CBOMs of many systems into one organisation inventory and dashboard")
+    m.add_argument("cboms", nargs="+", metavar="CBOM", help="cbom.json files, or folders searched for them (other tools' CBOMs work too)")
+    m.add_argument("--name", default="Organisation", help="organisation name for the inventory")
+    m.add_argument("-o", "--out", default="wolfpack-inventory")
+    m.add_argument("--fail-on", choices=TIERS[:-1], help="exit 2 if any system has an asset at this tier or worse")
+    m.add_argument("-q", "--quiet", action="store_true")
     b = sub.add_parser("bench", help="score the full pack and each ablation against a labelled corpus")
     b.add_argument("corpus")
     b.add_argument("--truth", default=None)
@@ -52,6 +58,8 @@ def main(argv=None):
     except SystemExit as e:
         raise SystemExit(1 if e.code == 2 else e.code)
 
+    if a.cmd == "merge":
+        return merge(a)
     if a.cmd == "bench":
         from .bench import main as bench
         return bench(a.corpus, a.truth, a.detail, a.json)
@@ -106,6 +114,24 @@ def main(argv=None):
         if hits:
             if not a.quiet:
                 print(f"\nfailing: {len(hits)} asset(s) at {a.fail_on} or worse" + (" introduced since the baseline" if a.baseline else ""))
+            sys.exit(2)
+    return 0
+
+
+def merge(a):
+    files = inventory.cbom_files(a.cboms)
+    if not files:
+        sys.exit("wolfpack: no cbom.json found in " + ", ".join(a.cboms))
+    try:
+        systems = inventory.run(files, a.name, a.out)
+    except (OSError, ValueError) as err:
+        sys.exit(f"wolfpack: cannot merge: {err}")
+    if not a.quiet:
+        print(inventory.terminal(a.name, systems))
+        print(f"\nwrote {Path(a.out) / 'inventory.html'}, {Path(a.out) / 'inventory.json'}, {Path(a.out) / 'cbom.json'}")
+    if a.fail_on:
+        bad = TIERS[:TIERS.index(a.fail_on) + 1]
+        if any(s["readiness"]["worst"] in bad for s in systems):
             sys.exit(2)
     return 0
 

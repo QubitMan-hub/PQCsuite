@@ -73,6 +73,36 @@ class Image(unittest.TestCase):
             self.assertTrue((Path(d) / "root/srv/app.py").exists())
 
 
+class Inventory(unittest.TestCase):
+    def test_merge_ranks_systems_and_estimates_foreign_cboms(self):
+        import json
+        import tempfile
+        from wolfpack import inventory
+        from wolfpack.cli import main
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            main(["scan", str(CORPUS), "-o", str(d / "corpus"), "--name", "corpus", "-q"])
+            (d / "other").mkdir()
+            (d / "other" / "cbom.json").write_text(json.dumps({"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
+                "metadata": {"component": {"type": "application", "name": "billing"}}, "components": [
+                    {"type": "cryptographic-asset", "name": "RSA-1024", "cryptoProperties": {"assetType": "algorithm"}},
+                    {"type": "cryptographic-asset", "name": "AES128-GCM", "cryptoProperties": {"assetType": "algorithm"}}]}))
+            systems = inventory.run([d], "Acme", d / "inv")
+            by = {s["name"]: s for s in systems}
+            self.assertEqual(set(by), {"corpus", "billing"})
+            self.assertTrue(by["billing"]["readiness"]["estimated"])
+            self.assertEqual({a["name"]: a["tier"] for a in by["billing"]["assets"]}, {"RSA-1024": "critical", "AES128-GCM": "low"})
+            self.assertFalse(by["corpus"]["readiness"]["estimated"])
+            bom = json.loads((d / "inv" / "cbom.json").read_text())
+            refs = {c["bom-ref"] for c in bom["components"]}
+            self.assertTrue({"system/corpus", "system/billing", "crypto/RSA-1024"} <= refs)
+            self.assertEqual(bom["dependencies"][0], {"ref": "organisation", "dependsOn": ["system/corpus", "system/billing"]})
+            self.assertIn("Where each algorithm is used", (d / "inv" / "inventory.html").read_text())
+            with self.assertRaises(SystemExit) as cm:
+                main(["merge", str(d / "other"), "-o", str(d / "gate"), "-q", "--fail-on", "critical"])
+            self.assertEqual(cm.exception.code, 2)
+
+
 class Formats(unittest.TestCase):
     def test_noise_and_jose(self):
         from wolfpack.scouts.suites import noise_name, jose_alg
