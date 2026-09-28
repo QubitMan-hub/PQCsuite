@@ -2,7 +2,9 @@
 
 Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; its GitHub release carries the wheel, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`) and build provenance.
 
-## Unreleased: 0.1.0, the first release
+## 0.1.0 (28 September 2026)
+
+The first release.
 
 Four products sharing one ML-DSA certificate authority.
 

@@ -2,7 +2,7 @@
 
 Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Suite repository; its GitHub release carries the wheel and build provenance.
 
-## Unreleased
+## 1.1.0 (28 September 2026)
 
 - **Trust stores:** a file of five or more self-signed certificates and nothing else (such as certifi's `cacert.pem`) is one line, "Trust store of 121 root certificates", ranked low, instead of one alert per root. Switch: `--without trust-store`.
 - **Declared non-security hashes:** Python `hashlib` calls with `usedforsecurity=False` rank low and are SARIF notes. Switch: `--without purpose`.

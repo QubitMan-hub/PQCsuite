@@ -8,7 +8,7 @@ Wolf Pack CBOM is a pure-Python scanner that inventories cryptography in source 
 
 Owner: Lakshmi Monish (QubitMan), CS student at BITS Pilani. He develops on Windows with PowerShell. He works one stage at a time, wants honest assessments including limitations, pushes back on overclaiming, and prefers code with minimal comments and no unnecessary lines.
 
-Current version: 1.0.0 (first production release: Docker image, GitHub Action, `.wolfpack.toml`, `--exclude`). It was built in a Claude.ai chat, then moved here. The company site presents it on its own page (`site/wolf-pack.html` at the repository root), linked from the main page's header, footer and starting-point finder but never listed as one of the suite's products.
+Current version: 1.1.0 (1.0.0 was the first production release: Docker image, GitHub Action, `.wolfpack.toml`, `--exclude`; 1.1.0 added trust stores, declared non-security hashes and named unparseable files; see CHANGELOG.md). It was built in a Claude.ai chat, then moved here. The company site presents it on its own page (`site/wolf-pack.html` at the repository root), linked from the main page's header, footer and starting-point finder but never listed as one of the suite's products.
 
 ## Commands
 
