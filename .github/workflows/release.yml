@@ -2,6 +2,11 @@ name: release
 on:
   push:
     tags: ["v*", "wolf-pack-v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to create and release from this branch's latest commit: vX.Y.Z for the suite, wolf-pack-vX.Y.Z for Wolf Pack"
+        required: true
 permissions:
   contents: read
 jobs:
@@ -11,18 +16,19 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Build the wheel, and for the suite its CBOM
-        env:
-          TAG: ${{ github.ref_name }}
         run: |
           case "$TAG" in
             wolf-pack-v*) dir=wolf-pack; version="${TAG#wolf-pack-v}" ;;
-            *) dir=.; version="${TAG#v}" ;;
+            v*) dir=.; version="${TAG#v}" ;;
+            *) echo "a release tag starts with v or wolf-pack-v, not '$TAG'"; exit 1 ;;
           esac
           python scripts/release_notes.py "$dir" "$version" > notes.md
           pip wheel "./$dir" --no-deps -w dist
@@ -34,8 +40,7 @@ jobs:
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/*
-      - name: Publish the release
+      - name: Publish the release (a tag pushed by hand is used as it is; from the button, the tag is created on this commit)
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" dist/* --title "$TAG" --notes-file notes.md --verify-tag
+        run: gh release create "$TAG" dist/* --title "$TAG" --notes-file notes.md --target "$GITHUB_SHA"

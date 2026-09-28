@@ -174,7 +174,7 @@ The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts
 
 ## Releases
 
-A tag `vX.Y.Z` releases the suite and `wolf-pack-vX.Y.Z` releases Wolf Pack. Before tagging, set the version in the package's `pyproject.toml` and rename its changelog's "Unreleased" section to `## X.Y.Z`; the release workflow refuses a tag that does not match both. Each GitHub release carries the wheel, signed build provenance (`gh attestation verify FILE --repo QubitMan-hub/PQCsuite`) and, for the suite, its CBOM.
+A tag `vX.Y.Z` releases the suite and `wolf-pack-vX.Y.Z` releases Wolf Pack: push the tag, or open Actions → release → Run workflow and type it, and the workflow creates the tag on the branch's latest commit. Before tagging, set the version in the package's `pyproject.toml` and rename its changelog's "Unreleased" section to `## X.Y.Z`; the release workflow refuses a tag that does not match both. Each GitHub release carries the wheel, signed build provenance (`gh attestation verify FILE --repo QubitMan-hub/PQCsuite`) and, for the suite, its CBOM.
 
 ## Limits
 

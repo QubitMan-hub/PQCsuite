@@ -3,6 +3,7 @@ import argparse
 import csv
 import json
 import random
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -234,6 +235,83 @@ def cmd_sample(a):
     return 0
 
 
+SUPPORT = {
+    "RSA": ["rsa", "rs256", "rs384", "rs512", "ps256", "ps384", "ps512"], "DSA": ["dsa"], "DH": ["dh", "dhe", "ffdhe", "diffiehellman"],
+    "ECC": ["ec", "ecc", "elliptic", "secp256r1", "secp384r1", "secp521r1", "secp256k1", "prime256v1", "p256", "p384", "p521", "curve"],
+    "ECDSA": ["ecdsa", "es256", "es384", "es512"], "ECDH": ["ecdh", "ecdhe"], "Ed25519": ["ed25519", "eddsa"], "Ed448": ["ed448"],
+    "X25519": ["x25519", "curve25519"], "X448": ["x448"], "ML-KEM": ["mlkem", "kyber"], "ML-DSA": ["mldsa", "dilithium"],
+    "SLH-DSA": ["slhdsa", "sphincs"], "FN-DSA": ["fndsa", "falcon"], "HQC": ["hqc"], "X25519MLKEM768": ["x25519mlkem768"],
+    "sntrup761x25519": ["sntrup761"], "SecP256r1MLKEM768": ["secp256r1mlkem768"], "SecP384r1MLKEM1024": ["secp384r1mlkem1024"],
+    "AES": ["aes", "rijndael"], "ChaCha20": ["chacha", "chacha20", "xchacha20"], "3DES": ["3des", "tripledes", "desede", "des3", "tdea"],
+    "DES": ["des"], "RC4": ["rc4", "arcfour"], "RC2": ["rc2"], "Blowfish": ["blowfish", "bf"], "MD4": ["md4"], "MD5": ["md5"],
+    "SHA-1": ["sha1"], "SHA-224": ["sha224"], "SHA-256": ["sha256", "hs256", "rs256", "es256", "ps256"],
+    "SHA-384": ["sha384", "hs384", "rs384", "es384", "ps384"], "SHA-512": ["sha512", "hs512", "rs512", "es512", "ps512"],
+    "SHA3-256": ["sha3256", "keccak256"], "SHA3-384": ["sha3384"], "SHA3-512": ["sha3512", "keccak512"], "BLAKE2": ["blake2", "blake2b", "blake2s"],
+    "HMAC": ["hmac", "hs256", "hs384", "hs512", "hotp", "totp"], "PBKDF2": ["pbkdf2"], "HKDF": ["hkdf"], "scrypt": ["scrypt"],
+    "Argon2": ["argon2", "argon2id", "argon2i"], "bcrypt": ["bcrypt"], "SSL 2.0": ["sslv2", "ssl2"], "SSL 3.0": ["sslv3", "ssl3"],
+    "TLS 1.0": ["tlsv10", "tls10", "tlsv1"], "TLS 1.1": ["tlsv11", "tls11"], "TLS 1.2": ["tlsv12", "tls12"], "TLS 1.3": ["tlsv13", "tls13"],
+}
+C_LIKE = {".c", ".h", ".cc", ".cpp", ".hpp", ".java", ".go", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".cs", ".rs", ".kt", ".swift", ".php", ".scala", ".m"}
+
+
+def support_pattern(token):
+    """A token matches in any case, with -, _, . or a space allowed between its letter and digit runs, at a word or camelCase boundary."""
+    parts = re.findall(r"[a-z]+|\d+", token)
+    body = r"[-_. ]?".join(re.escape(p) for p in parts)
+    return re.compile(rf"(?:(?<![A-Za-z])|(?<=[a-z])(?=[A-Z]))(?i:{body})(?![a-z])")
+
+
+PATTERNS = {fam: [support_pattern(t) for t in toks] for fam, toks in SUPPORT.items()}
+
+
+def code_only(path):
+    """The file without comments or Python docstrings (a plain text filter, independent of Wolf Pack's lexer)."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    ext = path.suffix.lower()
+    if ext in C_LIKE:
+        text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+        return re.sub(r"(?<![:\"'])//[^\n]*", " ", text)
+    if ext == ".py":
+        text = re.sub(r'("""|\'\'\').*?\1', " ", text, flags=re.S)
+    return re.sub(r"(?m)(^|\s)#[^\n]*", " ", text)
+
+
+def families_in(text):
+    return {fam for fam, pats in PATTERNS.items() if any(p.search(text) for p in pats)}
+
+
+def other_supported(fam, text):
+    name = re.sub(r"[^a-z0-9]", "", fam[6:].lower())
+    return bool(name) and name in re.sub(r"[^a-z0-9]", "", text.lower())
+
+
+def cmd_support(a):
+    """Amendment 3: every 'used' label must have a matching name in the file's code; files labelled '-' with such names are listed too."""
+    unsupported, unlabelled, checked = [], [], 0
+    for sheet in sorted((LABELS / a.labeller).glob("*.csv")):
+        repo = REPOS / sheet.stem
+        for file, (used, declared) in load_labels(sheet)[0].items():
+            path = repo / file
+            if not path.is_file():
+                unsupported.append((sheet.stem, file, "(file missing)"))
+                continue
+            text = code_only(path)
+            found = families_in(text)
+            for fam in sorted(used):
+                checked += 1
+                if not (other_supported(fam, text) if fam.startswith("OTHER:") else fam in found):
+                    unsupported.append((sheet.stem, file, fam))
+            if not used and not declared and found:
+                unlabelled.append((sheet.stem, file, ", ".join(sorted(found))))
+    print(f"{checked} 'used' labels checked: {checked - len(unsupported)} supported, {len(unsupported)} without a matching name in the code")
+    for r in unsupported:
+        print("  unsupported  ", *r)
+    print(f"{len(unlabelled)} files labelled '-' whose code names a family")
+    for r in unlabelled:
+        print("  unlabelled   ", *r)
+    return 0
+
+
 def cmd_score(a):
     sheets = sorted((LABELS / a.labeller).glob("*.csv"))
     if not sheets:
@@ -302,6 +380,8 @@ def main(argv=None):
     sm.add_argument("--to", required=True)
     sm.add_argument("--fraction", type=float, default=0.1)
     sm.add_argument("--seed", type=int, default=0)
+    su = sub.add_parser("support", help="amendment 3: check each 'used' label against the names in the file's code")
+    su.add_argument("--labeller", default="final")
     sc = sub.add_parser("score", help="score Wolf Pack (and optionally CBOMkit) against one labeller's finished sheets")
     sc.add_argument("--labeller", required=True)
     sc.add_argument("--ablations", action="store_true", help="also score every single-role ablation")
@@ -310,7 +390,7 @@ def main(argv=None):
     sc.add_argument("--partial", action="store_true", help="score even if sheets are incomplete (never for reported results)")
     sc.add_argument("--json", metavar="FILE")
     a = ap.parse_args(argv)
-    return {"fetch": cmd_fetch, "sheets": cmd_sheets, "check": cmd_check, "agree": cmd_agree, "merge": cmd_merge, "sample": cmd_sample, "score": cmd_score}[a.cmd](a)
+    return {"fetch": cmd_fetch, "sheets": cmd_sheets, "check": cmd_check, "agree": cmd_agree, "merge": cmd_merge, "sample": cmd_sample, "support": cmd_support, "score": cmd_score}[a.cmd](a)
 
 
 if __name__ == "__main__":
