@@ -335,3 +335,28 @@ body > footer small { grid-column: 1 / -1; padding-top: 20px; border-top: 1px so
 .up::before { content: "\2191"; margin-right: 6px; color: var(--amber-deep); }
 .up:hover { border-color: var(--amber); }
 [hidden] { display: none !important; }
+
+/* rhythm */
+section.alt { margin-top: 104px; padding-block: 88px; background: var(--paper); border-block: 1px solid var(--rule); }
+section.alt + section { padding-top: 88px; }
+@media (max-width: 720px) { section.alt { margin-top: 72px; padding-block: 60px; } section.alt + section { padding-top: 60px; } }
+
+/* also from acxelin */
+.also { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 48px; align-items: center; padding: 44px 48px; border-radius: 16px; background: #26313c; color: #d9dde2; position: relative; overflow: hidden; isolation: isolate; }
+.also::before { content: ""; position: absolute; z-index: -1; inset: -40% -10% auto 55%; height: 160%; background: radial-gradient(closest-side, rgba(255, 191, 0, .14), rgba(255, 191, 0, 0)); pointer-events: none; }
+.also .kicker { color: var(--amber); letter-spacing: .1em; text-transform: uppercase; font-size: 12.5px; }
+.also .kicker span { color: #6d7884; }
+.also h2 { color: #fff; font-size: clamp(26px, 2.8vw, 34px); margin-block: 12px 14px; }
+.also-text > p:not(.kicker) { font-size: 17px; max-width: 34em; }
+.also .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; margin-top: 26px; }
+.also .link { color: #fff; }
+.also .link:hover { color: var(--amber); }
+.term { margin: 0; display: grid; gap: 10px; min-width: 0; }
+.term pre { margin: 0; padding: 20px 22px; background: #1b232c; border: 1px solid #3a4652; border-radius: 12px; color: #d9dde2; font: 13px/1.75 var(--mono); overflow-x: auto; }
+.term b { color: #fff; font-weight: 500; }
+.term i { font-style: normal; }
+.term .c { color: #ff8a65; }
+.term .h { color: #ffb74d; }
+.term .m { color: var(--amber); }
+.term figcaption { font-size: 13px; color: #9aa5b1; }
+@media (max-width: 900px) { .also { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 32px 24px; } }

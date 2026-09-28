@@ -75,6 +75,12 @@ test("Wolf Pack is one click from the home page, links back, and opens its sampl
   await expect(page).toHaveURL(/index\.html$/);
 });
 
+test("the Also from Acxelin band opens Wolf Pack", async ({ page }) => {
+  await page.goto(SITE + "index.html");
+  await page.click("#also >> text=Explore Wolf Pack CBOM");
+  await expect(page).toHaveURL(/wolf-pack\.html$/);
+});
+
 test("fonts come from the site", async ({ page }) => {
   const hosts = new Set();
   page.on("request", r => hosts.add(new URL(r.url()).host));

@@ -85,7 +85,7 @@
     </div>
   </section>
 
-  <section id="start" hidden>
+  <section id="start" class="alt" hidden>
     <div class="wrap">
       <div class="intro">
         <p class="kicker">Where to start</p>
@@ -209,7 +209,34 @@ pqcsuite vpn status</pre></div>
     </div>
   </section>
 
-  <section id="plan">
+  <section id="also" aria-labelledby="also-title">
+    <div class="wrap">
+      <div class="also">
+        <div class="also-text">
+          <p class="kicker">Also from Acxelin <span aria-hidden="true">·</span> a separate tool</p>
+          <h2 id="also-title">Wolf Pack CBOM finds the cryptography inside your own code</h2>
+          <p>The readiness scan sees what your servers offer. Wolf Pack reads your source, configuration, keys and binaries, writes a CycloneDX inventory, and ranks what to migrate first. It runs on your machine; your code never leaves it.</p>
+          <div class="actions">
+            <a class="btn" href="wolf-pack.html">Explore Wolf Pack CBOM</a>
+            <a class="link" href="wolf-pack-sample.html">Open a sample report</a>
+          </div>
+        </div>
+        <figure class="term" aria-label="Wolf Pack's summary of an example payments API">
+          <pre tabindex="0"><b>$ wolfpack scan ./payments-api</b>
+quantum-safe asymmetric: 1/6 (17%)
+
+<i class="c">■■■■</i> critical  TLS 1.1     config
+<i class="c">■■■■</i> critical  MD5         code
+<i class="h">■■■□</i> high      RSA-2048    cert
+<i class="h">■■■□</i> high      AES-ECB     code
+<i class="m">■■□□</i> medium    ECDSA-P-256 code</pre>
+          <figcaption>Real output on the example in the sample report.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="plan" class="alt">
     <div class="wrap">
       <div class="intro">
         <p class="kicker">Getting started</p>
@@ -271,7 +298,7 @@ pqcsuite vpn status</pre></div>
     </div>
   </section>
 
-  <section id="faq">
+  <section id="faq" class="alt">
     <div class="wrap">
       <div class="intro">
         <p class="kicker">Questions</p><h2>Questions we get asked</h2></div>

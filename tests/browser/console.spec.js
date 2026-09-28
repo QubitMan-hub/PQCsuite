@@ -45,6 +45,10 @@ test("overview tiles open their pages; certificates are listed; Wolf Pack sits o
   await expect(page.locator("tbody")).toContainText("old.example.test");
   const groups = await page.$$eval("nav .group", g => g.map(x => [x.textContent, x.nextElementSibling.dataset.view]));
   expect(groups).toEqual([["Products", "edges"], ["Also from Acxelin", "wolfpack"]]);
+  await page.evaluate(() => (location.hash = "overview"));
+  await page.click("a.also");
+  await expect(page).toHaveURL(/#wolfpack$/);
+  await expect(page.locator("#view h1")).toHaveText("Wolf Pack CBOM");
 });
 
 test("no serious accessibility problems on the console pages", async ({ page }) => {

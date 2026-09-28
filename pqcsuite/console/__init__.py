@@ -48,7 +48,7 @@ class App:
     def __init__(self, settings, token=None):
         self.s = settings
         self.token = token or os.environ.get("PQCSUITE_CONSOLE_TOKEN") or secrets.token_urlsafe(24)
-        self.last_scan, self.scanning = None, False
+        self.last_scan, self.scanning, self.scan_error = None, False, None
         self.lock = threading.Lock()
 
     def ca(self):
@@ -125,12 +125,15 @@ class App:
         with self.lock:
             if self.scanning:
                 raise CAError("a scan is already running")
-            self.scanning = True
+            self.scanning, self.scan_error = True, None
 
         def work():
             try:
                 results = scan.scan(targets)
                 self.last_scan = {"finished": time.time(), "summary": scan.summary(results), "endpoints": results}
+            except Exception as e:
+                log.exception("readiness scan failed")
+                self.scan_error = f"the scan failed: {e}"
             finally:
                 self.scanning = False
         threading.Thread(target=work, daemon=True).start()
@@ -164,7 +167,7 @@ class App:
             ("GET", "/api/tunnels"): lambda: self.tunnels(),
             ("GET", "/api/remote"): lambda: self.remote_users(),
             ("GET", "/api/backups"): lambda: self.backups(),
-            ("GET", "/api/scan"): lambda: {"running": self.scanning, "last": self.last_scan, "targets": self.s.scan_targets},
+            ("GET", "/api/scan"): lambda: {"running": self.scanning, "last": self.last_scan, "error": self.scan_error, "targets": self.s.scan_targets},
             ("POST", "/api/certificates/issue"): lambda: self.issue(body),
             ("POST", "/api/certificates/revoke"): lambda: self.revoke(body),
             ("POST", "/api/certificates/maintain"): lambda: self.maintain(),
@@ -227,7 +230,7 @@ def policy(html):
     """The page's one inline script is allowed by its hash, so no other script can run even if markup were ever injected."""
     script = re.search(rb"<script>(.*?)</script>", html, re.S).group(1)
     digest = base64.b64encode(hashlib.sha256(script).digest()).decode()
-    return f"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'sha256-{digest}'; frame-ancestors 'none'"
+    return f"default-src 'self'; img-src 'self' data:; font-src data:; style-src 'self' 'unsafe-inline'; script-src 'sha256-{digest}'; frame-ancestors 'none'"
 
 
 class Backoff:

@@ -82,6 +82,13 @@ class SiteTest(unittest.TestCase):
         self.assertFalse([r for r in p.products if "wolf" in r.lower()])
         self.assertEqual(len(re.findall(r'<article class="product"', (SITE / "index.html").read_text(encoding="utf-8"))), 4)
 
+    def test_wolf_pack_band_sits_between_products_and_plan(self):
+        html = (SITE / "index.html").read_text(encoding="utf-8")
+        band = re.search(r'<section id="also".*?</section>', html, re.S).group(0)
+        self.assertIn('href="wolf-pack.html"', band)
+        self.assertLess(html.index('<section id="products"'), html.index('<section id="also"'))
+        self.assertLess(html.index('<section id="also"'), html.index('<section id="plan"'))
+
     def test_console_keeps_wolf_pack_out_of_the_products_group(self):
         html = (ROOT / "pqcsuite" / "console" / "console.html").read_text(encoding="utf-8")
         products = re.search(r'\["Products", \{([^}]*)\}\]', html).group(1)

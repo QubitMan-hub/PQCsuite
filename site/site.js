@@ -23,7 +23,7 @@ for (const a of links) {
   if (s) spy.observe(s);
 }
 
-for (const pre of document.querySelectorAll("main pre")) {
+for (const pre of document.querySelectorAll("main pre:not(.term pre)")) {
   const box = document.createElement("div");
   const b = document.createElement("button");
   box.className = "code";
