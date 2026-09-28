@@ -1,3 +1,6 @@
+@font-face { font-family: "Host Grotesk"; font-style: normal; font-weight: 400 600; font-display: swap; src: url("assets/fonts/host-grotesk.woff2") format("woff2"); }
+@font-face { font-family: "Roboto"; font-style: normal; font-weight: 400 500; font-display: swap; src: url("assets/fonts/roboto.woff2") format("woff2"); }
+@font-face { font-family: "Roboto Mono"; font-style: normal; font-weight: 400 500; font-display: swap; src: url("assets/fonts/roboto-mono.woff2") format("woff2"); }
 :root {
   color-scheme: light;
   --bg: #faf9f5;
@@ -130,6 +133,29 @@ section { padding-block: 104px 0; }
 .dates strong.now { color: var(--amber-deep); }
 @media (max-width: 760px) { .dates { grid-template-columns: 1fr; } .dates > div, .dates > div + div { padding: 22px 0; border-left: 0; border-bottom: 1px solid var(--rule); } .dates > div + div::before { display: none; } }
 
+/* finder */
+.finder { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+@media (max-width: 900px) { .finder { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
+.finder form { display: grid; gap: 28px; }
+.finder fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.finder legend { font: 500 18px/1.35 var(--display); color: var(--ink); margin-bottom: 14px; padding: 0; }
+.finder label { cursor: pointer; }
+.finder input { position: absolute; opacity: 0; pointer-events: none; }
+.finder label span { display: inline-block; padding: 10px 16px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); font-size: 15.5px; color: var(--body); transition: border-color .15s, background .15s, color .15s; }
+.finder label:hover span { border-color: var(--amber); }
+.finder input:checked + span { background: var(--amber-wash); border-color: var(--amber); color: var(--ink); font-weight: 500; }
+.finder input:focus-visible + span { outline: 3px solid var(--blue); outline-offset: 3px; }
+.plan-card { background: var(--paper); border: 1px solid var(--rule); border-top: 4px solid var(--amber); border-radius: 12px; padding: 26px 28px 28px; display: grid; gap: 16px; box-shadow: 0 18px 40px -30px rgba(46, 60, 78, .45); }
+@media (min-width: 901px) { .plan-card { position: sticky; top: 100px; } }
+.plan-card ol { display: grid; gap: 0; counter-reset: step; }
+.plan-card li { counter-increment: step; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 2px 12px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.plan-card li::before { content: counter(step); grid-row: span 3; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--amber-wash); color: var(--amber-deep); font: 600 13px/1 var(--display); }
+.plan-card li small { font: 500 12px/1.3 var(--text); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.plan-card li a { font: 500 18px/1.3 var(--display); color: var(--ink); text-decoration: none; }
+.plan-card li a:hover { text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; }
+.plan-card li p { font-size: 15px; }
+.plan-card .btn { justify-self: start; }
+
 /* products */
 .product { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 48px; padding-block: 44px; border-top: 1px solid var(--rule); }
 .product:last-of-type { border-bottom: 1px solid var(--rule); }
@@ -259,6 +285,9 @@ body > footer small { grid-column: 1 / -1; padding-top: 20px; border-top: 1px so
 .outputs code { font-size: 14px; color: var(--ink); }
 .outputs span { font-size: 15.5px; }
 @media (max-width: 760px) { .outputs { grid-template-columns: minmax(0, 1fr); } .outputs li { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+
+.more { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; margin-top: 28px; }
+.more span { font-size: 15.5px; color: var(--muted); }
 
 .stand { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; }
 @media (max-width: 860px) { .stand { grid-template-columns: minmax(0, 1fr); gap: 40px; } }

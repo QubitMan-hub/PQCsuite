@@ -1,0 +1,92 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>payments-api: Wolf Pack CBOM</title><style>
+:root{--ink:#000;--paper:#fff;--mid:#6b6b6b;--rule:#d4d4d4}
+@media (prefers-color-scheme:dark){:root{--ink:#f2f2f2;--paper:#0d0d0d;--mid:#9a9a9a;--rule:#333}}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.55 ui-monospace,"Cascadia Mono","JetBrains Mono",Consolas,Menlo,monospace}
+main{max-width:1120px;margin:0 auto;padding:40px 24px 80px}
+h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
+h2{font-size:15px;font-weight:700;margin:48px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.sub{color:var(--mid);margin:0 0 32px}
+.pack{display:grid;grid-template-columns:repeat(4,1fr);border:2px solid var(--ink)}
+.pack div{padding:16px;border-right:1px solid var(--ink)}.pack div:last-child{border-right:0}
+.pack b{display:block;font-size:30px;line-height:1.1;margin-top:4px}.pack span{color:var(--mid);font-size:12px}
+.pack small{display:block;margin-top:8px;font-size:12px}
+.ready{display:flex;gap:32px;flex-wrap:wrap;margin-top:20px}
+.bar{height:10px;border:1px solid var(--ink);width:260px;margin-top:6px}.bar i{display:block;height:100%;background:var(--ink)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th{text-align:left;font-weight:700;font-size:12px;border-bottom:1px solid var(--ink);padding:8px 10px 6px 0}
+td{border-bottom:1px solid var(--rule);padding:9px 10px 9px 0;vertical-align:top}
+tr.critical td:nth-child(3){font-weight:700}
+.m{white-space:nowrap;letter-spacing:1px}.dim{color:var(--mid)}.w{max-width:380px}
+.new{border:1px solid var(--ink);font-size:11px;padding:0 5px;margin-left:6px}
+details{border-bottom:1px solid var(--rule);padding:8px 0}summary{cursor:pointer}
+summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.occ{margin:8px 0 4px 18px;font-size:12px}.occ div{padding:2px 0;color:var(--mid)}.occ code{color:var(--ink)}
+.alert{display:grid;grid-template-columns:90px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--rule)}
+.tag{font-size:11px;border:1px solid var(--ink);padding:1px 6px;display:inline-block}
+.tag.critical{background:var(--ink);color:var(--paper)}
+.yes{font-weight:700}
+footer{margin-top:56px;color:var(--mid);font-size:12px}
+@media (max-width:720px){.pack{grid-template-columns:1fr 1fr}.pack div:nth-child(2){border-right:0}.pack div:nth-child(-n+2){border-bottom:1px solid var(--ink)}}
+</style></head><body><main>
+<h1>payments-api</h1>
+<p class="sub">Cryptographic inventory and quantum migration plan. Wolf Pack 1.0.0, scanned in 0.02s.</p>
+<div class="pack">
+<div><span>Elders</span><b>7</b><small>7 files and 0 endpoints checked against the rule base</small></div>
+<div><span>Scouts</span><b>35</b><small>raw sightings, noisy by design</small></div>
+<div><span>Den</span><b>26</b><small>verified; 0 held, 0 rejected, 0 suppressed</small></div>
+<div><span>Alpha</span><b>6</b><small>assets to act on first; 0 promoted on second look, 1 key trail followed</small></div>
+</div>
+<div class="ready">
+<div>Asymmetric assets that are quantum-safe: 1 of 6<div class="bar"><i style="width:17%"></i></div></div>
+<div>Hybrid PQ key exchange seen: yes</div>
+<div class="dim">Assumptions: 10y data shelf life, 5y migration, CRQC by 2035 (9y)</div>
+</div>
+
+
+<h2>Migration queue</h2>
+<div class="scroll"><table><thead><tr><th></th><th>Tier</th><th>Asset</th><th>Why</th><th>Do this</th><th>Exposure</th><th>Seen</th><th>Conf.</th></tr></thead>
+<tbody><tr class="critical"><td class="m" title="critical">■■■■</td><td>critical</td><td><b>TLS 1.1</b></td>
+<td class="w">Broken or disallowed today, independent of any quantum computer</td><td class="w">TLS 1.3 with X25519MLKEM768</td><td>deployed configuration</td>
+<td>1 in 1 place</td><td>0.90</td></tr><tr class="critical"><td class="m" title="critical">■■■■</td><td>critical</td><td><b>MD5</b></td>
+<td class="w">Broken or disallowed today, independent of any quantum computer</td><td class="w">SHA-256 or SHA3-256</td><td>application code</td>
+<td>2 in 2 places</td><td>0.90</td></tr><tr class="high"><td class="m" title="high">■■■□</td><td>high</td><td><b>RSA-2048</b></td>
+<td class="w">Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)</td><td class="w">ML-KEM-768 for encryption, ML-DSA-65 for signatures</td><td>deployed key or certificate</td>
+<td>2 in 2 places</td><td>1.00</td></tr><tr class="high"><td class="m" title="high">■■■□</td><td>high</td><td><b>RSA</b></td>
+<td class="w">Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)</td><td class="w">ML-KEM-768 for encryption, ML-DSA-65 for signatures</td><td>deployed configuration</td>
+<td>4 in 2 places</td><td>1.00</td></tr><tr class="high"><td class="m" title="high">■■■□</td><td>high</td><td><b>TLS 1.2</b></td>
+<td class="w">Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)</td><td class="w">TLS 1.3 with X25519MLKEM768</td><td>deployed configuration</td>
+<td>1 in 1 place</td><td>0.90</td></tr><tr class="high"><td class="m" title="high">■■■□</td><td>high</td><td><b>AES-ECB</b></td>
+<td class="w">ECB mode leaks plaintext structure; broken today regardless of quantum (test code only)</td><td class="w">Switch to AES-256-GCM (authenticated, randomized)</td><td>application code</td>
+<td>2 in 1 place</td><td>0.95</td></tr><tr class="medium"><td class="m" title="medium">■■□□</td><td>medium</td><td><b>ECDH</b></td>
+<td class="w">Classical fallback next to a configured hybrid PQ group; keep only while peers lack hybrid support</td><td class="w">Remove once clients support X25519MLKEM768</td><td>deployed configuration</td>
+<td>1 in 1 place</td><td>0.90</td></tr><tr class="medium"><td class="m" title="medium">■■□□</td><td>medium</td><td><b>X25519</b></td>
+<td class="w">Classical fallback next to a configured hybrid PQ group; keep only while peers lack hybrid support</td><td class="w">Remove once clients support X25519MLKEM768</td><td>deployed configuration</td>
+<td>1 in 1 place</td><td>0.90</td></tr><tr class="medium"><td class="m" title="medium">■■□□</td><td>medium</td><td><b>ECDSA-P-256</b></td>
+<td class="w">Breakable by Shor&#x27;s algorithm on a future quantum computer; no harvest-now risk for signatures, but forgery risk once a CRQC exists</td><td class="w">ML-DSA-65 (or hybrid ECDSA+ML-DSA during transition)</td><td>application code</td>
+<td>2 in 1 place</td><td>0.95</td></tr><tr class="low"><td class="m" title="low">■□□□</td><td>low</td><td><b>AES-128-GCM</b></td>
+<td class="w">Grover halves effective strength; fine for most data, prefer 256-bit for long-lived secrets</td><td class="w">AES-256</td><td>deployed configuration</td>
+<td>1 in 1 place</td><td>0.95</td></tr><tr class="low"><td class="m" title="low">■□□□</td><td>low</td><td><b>AES-GCM</b></td>
+<td class="w">Key size not visible statically; AES-128 is acceptable, AES-256 preferred for long-lived data</td><td class="w">AES-256</td><td>application code</td>
+<td>1 in 1 place</td><td>0.95</td></tr><tr class="ok"><td class="m" title="ok">□□□□</td><td>ok</td><td><b>SHA-256</b></td>
+<td class="w">No known quantum break at this strength</td><td class="w"><span class="dim">none needed</span></td><td>deployed key or certificate</td>
+<td>5 in 4 places</td><td>0.95</td></tr><tr class="ok"><td class="m" title="ok">□□□□</td><td>ok</td><td><b>SHA-384</b></td>
+<td class="w">No known quantum break at this strength</td><td class="w"><span class="dim">none needed</span></td><td>deployed configuration</td>
+<td>1 in 1 place</td><td>0.90</td></tr><tr class="ok"><td class="m" title="ok">□□□□</td><td>ok</td><td><b>TLS 1.3</b></td>
+<td class="w">TLS 1.3 with a hybrid ML-KEM group configured alongside it</td><td class="w"><span class="dim">none needed</span></td><td>deployed configuration</td>
+<td>1 in 1 place</td><td>0.90</td></tr><tr class="ok"><td class="m" title="ok">□□□□</td><td>ok</td><td><b>X25519MLKEM768</b></td>
+<td class="w">Quantum-safe</td><td class="w"><span class="dim">none needed</span></td><td>deployed configuration</td>
+<td>1 in 1 place</td><td>0.90</td></tr></tbody></table></div>
+<h2>Hygiene alerts</h2><div class='alert'><span><span class='tag medium'>medium</span></span><div>Certificate valid past 2030 with quantum-vulnerable RSA key<br><span class='dim'>deploy/certs/api.crt:1; Shorten validity or reissue under an ML-DSA or hybrid hierarchy</span></div></div>
+<h2>Where each asset lives</h2><details><summary><b>TLS 1.1</b> <span class='dim'>Disallowed now (NIST SP 800-131A)</span></summary><div class='occ'><div><code>deploy/nginx.conf:4</code> config, config evidence<br>ssl_protocols TLSv1.1 TLSv1.2 TLSv1.3;</div></div></details><details><summary><b>MD5</b> <span class='dim'>Disallowed now (NIST SP 800-131A)</span></summary><div class='occ'><div><code>services/tokens/etag.py:5</code> call, call evidence<br>return hashlib.md5(body, usedforsecurity=False).hexdigest()</div><div><code>src/main/java/com/example/payments/CardVault.java:15</code> call, call evidence<br>return MessageDigest.getInstance(&quot;MD5&quot;).digest(pan.getBytes(&quot;UTF-8&quot;));</div></div></details><details><summary><b>RSA-2048</b> <span class='dim'>Deprecated after 2030, disallowed after 2035 (NIST IR 8547)</span></summary><div class='occ'><div><code>services/tokens/sign.py:4</code> call, corroborated by import evidence on line 2<br>KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)</div><div><code>deploy/certs/api.crt:1</code> artifact, artifact evidence<br>certificate public key: CN=api.example.com</div></div></details><details><summary><b>RSA</b> <span class='dim'>Disallowed after 2035 (NIST IR 8547)</span></summary><div class='occ'><div><code>services/tokens/sign.py:2</code> import, corroborated by call evidence on line 4<br>from cryptography.hazmat.primitives.asymmetric import padding, rsa</div><div><code>services/tokens/sign.py:8</code> call, corroborated by import evidence on line 2<br>return KEY.sign(payload, padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=32), hashes.SHA256())</div><div><code>services/tokens/sign.py:12</code> call, corroborated by import evidence on line 2<br>return KEY.public_key().encrypt(session_key, padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None))</div><div><code>deploy/nginx.conf:6</code> config, config evidence<br>ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;</div></div></details><details><summary><b>TLS 1.2</b> <span class='dim'>Classical key exchange: quantum-vulnerable; NIST IR 8547 disallows it after 2035</span></summary><div class='occ'><div><code>deploy/nginx.conf:4</code> config, config evidence<br>ssl_protocols TLSv1.1 TLSv1.2 TLSv1.3;</div></div></details><details><summary><b>AES-ECB</b> <span class='dim'>Acceptable, but prefer 256-bit strength for long-term data</span></summary><div class='occ'><div><code>src/main/java/com/example/payments/CardVault.java:19</code> call, call evidence<br>Cipher c = Cipher.getInstance(&quot;AES/ECB/PKCS5Padding&quot;);</div><div><code>src/main/java/com/example/payments/CardVault.java:11</code> call, call evidence<br>this.key = new SecretKeySpec(secret, &quot;AES&quot;);</div></div></details><details><summary><b>ECDH</b> <span class='dim'>Disallowed after 2035 (NIST IR 8547)</span></summary><div class='occ'><div><code>deploy/nginx.conf:6</code> config, config evidence<br>ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;</div></div></details><details><summary><b>X25519</b> <span class='dim'>Disallowed after 2035 (NIST IR 8547)</span></summary><div class='occ'><div><code>deploy/nginx.conf:5</code> config, config evidence<br>ssl_ecdh_curve X25519MLKEM768:X25519;</div></div></details><details><summary><b>ECDSA-P-256</b> <span class='dim'>Disallowed after 2035 (NIST IR 8547)</span></summary><div class='occ'><div><code>cmd/release/sign.go:12</code> call, call evidence<br>key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)</div><div><code>cmd/release/sign.go:15</code> call, call evidence<br>sig, _ := ecdsa.SignASN1(rand.Reader, key, digest[:])</div></div></details><details><summary><b>AES-128-GCM</b> <span class='dim'>Acceptable, but prefer 256-bit strength for long-term data</span></summary><div class='occ'><div><code>deploy/nginx.conf:6</code> config, config evidence<br>ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;</div></div></details><details><summary><b>AES-GCM</b> <span class='dim'>Acceptable, but prefer 256-bit strength for long-term data</span></summary><div class='occ'><div><code>services/cache/seal.go:10</code> call, call evidence<br>block, err := aes.NewCipher(key)</div></div></details><details><summary><b>SHA-256</b> <span class='dim'>Quantum-safe</span></summary><div class='occ'><div><code>cmd/release/sign.go:14</code> call, call evidence<br>digest := sha256.Sum256(artifact)</div><div><code>services/tokens/sign.py:8</code> call, call evidence<br>return KEY.sign(payload, padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=32), hashes.SHA256())</div><div><code>services/tokens/sign.py:12</code> call, call evidence<br>return KEY.public_key().encrypt(session_key, padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None))</div><div><code>deploy/nginx.conf:6</code> config, config evidence<br>ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;</div><div><code>deploy/certs/api.crt:1</code> artifact, artifact evidence<br>certificate signature hash</div></div></details><details><summary><b>SHA-384</b> <span class='dim'>Quantum-safe</span></summary><div class='occ'><div><code>deploy/nginx.conf:6</code> config, config evidence<br>ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;</div></div></details><details><summary><b>TLS 1.3</b> <span class='dim'>Classical key exchange: quantum-vulnerable; NIST IR 8547 disallows it after 2035</span></summary><div class='occ'><div><code>deploy/nginx.conf:4</code> config, config evidence<br>ssl_protocols TLSv1.1 TLSv1.2 TLSv1.3;</div></div></details><details><summary><b>X25519MLKEM768</b> <span class='dim'>Quantum-safe</span></summary><div class='occ'><div><code>deploy/nginx.conf:5</code> config, config evidence<br>ssl_ecdh_curve X25519MLKEM768:X25519;</div></div></details>
+<h2>Crypto libraries</h2>
+<div class="scroll"><table><thead><tr><th>Library</th><th>Source</th><th>Version</th><th>Imported by</th><th>PQ-capable</th><th>Where declared</th></tr></thead>
+<tbody><tr><td>cryptography</td><td>pypi</td><td>==46.0.1</td><td>1 file</td><td>yes</td><td class='dim w'>requirements.txt</td></tr></tbody></table></div>
+<h2>Held back by the den</h2>
+<p class="dim"></p>
+<details><summary>Show 0 sightings that did not enter the CBOM</summary><div class="occ"></div></details>
+
+<footer>CycloneDX 1.6 CBOM in cbom.json, SARIF 2.1.0 in wolfpack.sarif, full audit trail in findings.json</footer>
+</main></body></html>

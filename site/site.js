@@ -47,3 +47,34 @@ for (const pre of document.querySelectorAll("main pre")) {
   pre.before(box);
   box.append(pre, b);
 }
+
+const finder = document.getElementById("finder");
+if (finder) {
+  const STEPS = {
+    readiness: ["Readiness assessment", "#readiness", "Grade your public TLS and SSH endpoints to see what is exposed today."],
+    tls: ["TLS 1.3 + mTLS", "#tls", "Put the post-quantum edge in front of one API or database, in transition mode so nobody is locked out."],
+    vpn: ["IPsec VPN", "#vpn", "Join two sites over the hybrid ML-KEM tunnel, then move remote staff to WireGuard."],
+    vault: ["Vault", "#vault", "Point your nightly backup job at Vault, so archives stay safe for their whole retention period."],
+    wolf: ["Wolf Pack CBOM", "wolf-pack.html", "Scan one repository to see which algorithms your own code uses, ranked by what to migrate first.", "Also from Acxelin"],
+    evidence: ["Evidence report", "#readiness", "Give audit a report that maps each finding to the NIST IR 8547 and CNSA 2.0 dates."],
+  };
+  const list = document.getElementById("steps");
+  const render = () => {
+    const f = new FormData(finder);
+    const first = f.get("first");
+    const plan = [];
+    if (f.get("known") !== "yes" && first !== "readiness") plan.push("readiness");
+    plan.push(first);
+    if (f.get("audit") === "yes") plan.push("evidence");
+    list.replaceChildren(...plan.map(k => {
+      const [name, href, text, tag] = STEPS[k];
+      const li = document.createElement("li");
+      const a = Object.assign(document.createElement("a"), { href, textContent: name });
+      li.append(...(tag ? [Object.assign(document.createElement("small"), { textContent: tag })] : []), a, Object.assign(document.createElement("p"), { textContent: text }));
+      return li;
+    }));
+  };
+  finder.addEventListener("change", render);
+  render();
+  document.getElementById("start").hidden = false;
+}

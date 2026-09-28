@@ -8,11 +8,17 @@
 <meta property="og:title" content="Wolf Pack CBOM">
 <meta property="og:description" content="Know where your cryptography is before you replace it.">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Acxelin Quantum">
+<meta property="og:image" content="assets/og-wolf-pack.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Wolf Pack CBOM: know where your cryptography is before you replace it.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="assets/og-wolf-pack.png">
 <meta name="theme-color" content="#faf9f5">
 <link rel="icon" href="assets/acxelin-mark.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600&family=Roboto:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap">
+<link rel="preload" href="assets/fonts/host-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/roboto.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -42,7 +48,7 @@
         <p class="lead">Wolf Pack finds the cryptography in your code, configuration, keys, binaries and live endpoints, writes it down as a standard inventory, and tells you what to migrate first.</p>
         <div class="actions">
           <a class="btn" href="#contact">Book a code scan</a>
-          <a class="link" href="#run">See how it runs</a>
+          <a class="link" href="wolf-pack-sample.html">Open a sample report</a>
         </div>
         <p class="fine">Runs on your laptop, in a container or in CI. Your code never leaves the machine that scans it.</p>
       </div>
@@ -146,6 +152,7 @@ tls        = ["api.example.com:443"]</pre>
         <li><code>wolfpack.sarif</code><span>Findings for GitHub code scanning and other SARIF tools</span></li>
         <li><code>findings.json</code><span>Everything, including what was rejected and why</span></li>
       </ul>
+      <p class="more"><a class="link" href="wolf-pack-sample.html">Open the sample report</a><span>Wolf Pack's report on an example payments API: Java, Python and Go code, an nginx configuration and a certificate.</span></p>
     </div>
   </section>
 

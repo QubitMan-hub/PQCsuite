@@ -8,11 +8,17 @@
 <meta property="og:title" content="Acxelin PQC Suite">
 <meta property="og:description" content="Quantum-safe TLS, VPN and backups on the systems you already run.">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Acxelin Quantum">
+<meta property="og:image" content="assets/og-suite.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Acxelin PQC Suite: quantum-safe traffic, tunnels and backups, on the systems you already run.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="assets/og-suite.png">
 <meta name="theme-color" content="#faf9f5">
 <link rel="icon" href="assets/acxelin-mark.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600&family=Roboto:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap">
+<link rel="preload" href="assets/fonts/host-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/roboto.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -74,6 +80,44 @@
         <div><strong class="now">Today</strong><p>Traffic captured now can be stored and decrypted once a large enough quantum computer exists. Anything that must stay secret for years is already at risk.</p></div>
         <div><strong>2030</strong><p>NIST IR 8547 deprecates RSA and elliptic-curve keys at 112-bit security. NSA CNSA 2.0 expects VPNs and network equipment to have moved by then.</p></div>
         <div><strong>2035</strong><p>Those algorithms are disallowed. Certificates, VPN gateways and archives you set up this year will still be in service.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="start" hidden>
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Where to start</p>
+        <h2>Find your starting point</h2>
+        <p>Three quick questions, and we suggest your first steps. Nothing you pick leaves this page.</p>
+      </div>
+      <div class="finder">
+        <form id="finder">
+          <fieldset>
+            <legend>What do you need to protect first?</legend>
+            <label><input type="radio" name="first" value="tls" checked><span>Websites, APIs or databases</span></label>
+            <label><input type="radio" name="first" value="vpn"><span>Links between offices, or remote staff</span></label>
+            <label><input type="radio" name="first" value="vault"><span>Backups and archives</span></label>
+            <label><input type="radio" name="first" value="wolf"><span>Cryptography inside our own software</span></label>
+            <label><input type="radio" name="first" value="readiness"><span>We don't know yet</span></label>
+          </fieldset>
+          <fieldset>
+            <legend>Do you know which of your systems still rely on RSA or elliptic curves?</legend>
+            <label><input type="radio" name="known" value="yes"><span>Yes</span></label>
+            <label><input type="radio" name="known" value="partly" checked><span>Partly</span></label>
+            <label><input type="radio" name="known" value="no"><span>No</span></label>
+          </fieldset>
+          <fieldset>
+            <legend>Will you need to show an auditor or regulator your plan?</legend>
+            <label><input type="radio" name="audit" value="yes" checked><span>Yes</span></label>
+            <label><input type="radio" name="audit" value="no"><span>No</span></label>
+          </fieldset>
+        </form>
+        <div class="plan-card" aria-live="polite">
+          <p class="kicker">Your first steps</p>
+          <ol id="steps"></ol>
+          <a class="btn" href="#contact">Book a free readiness scan</a>
+        </div>
       </div>
     </div>
   </section>

@@ -21,6 +21,8 @@ class Page(HTMLParser):
             self.stack.append(a.get("id"))
         if a.get("id"):
             self.ids.add(a["id"])
+        if tag == "meta" and re.fullmatch(r"(og|twitter):image", a.get("property") or a.get("name") or ""):
+            self.refs.append(a["content"])
         for k in ("href", "src"):
             if a.get(k):
                 self.refs.append(a[k])
@@ -48,6 +50,23 @@ class SiteTest(unittest.TestCase):
                     self.assertTrue((SITE / path).exists(), f"{name}: {ref}")
                 if frag and target is not None:
                     self.assertIn(frag, target.ids, f"{name}: {ref}")
+
+    def test_fonts_are_served_from_the_site_and_the_finder_links_resolve(self):
+        css = (SITE / "style.css").read_text(encoding="utf-8")
+        fonts = re.findall(r'url\("(assets/fonts/[^"]+)"\)', css)
+        self.assertEqual(len(fonts), 3)
+        for f in fonts:
+            self.assertTrue((SITE / f).exists(), f)
+        for name in PAGES:
+            self.assertNotIn("fonts.googleapis.com", (SITE / name).read_text(encoding="utf-8"))
+        ids = self.page("index.html").ids
+        js = (SITE / "site.js").read_text(encoding="utf-8")
+        for href in re.findall(r'\["[^"]+", "([^"]+)", "', js):
+            self.assertTrue(href[1:] in ids if href.startswith("#") else (SITE / href).exists(), href)
+
+    def test_sample_report_is_published_and_linked(self):
+        self.assertIn("wolf-pack-sample.html", self.page("wolf-pack.html").refs)
+        self.assertIn("payments-api", (SITE / "wolf-pack-sample.html").read_text(encoding="utf-8"))
 
     def test_wolf_pack_is_reachable_but_not_a_product(self):
         p = self.page("index.html")

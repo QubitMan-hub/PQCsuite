@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Link preview</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+.card { box-sizing: border-box; width: 1200px; height: 630px; padding: 72px 80px; display: grid; grid-template-rows: auto 1fr auto; background: var(--bg); position: relative; isolation: isolate; }
+.card::before { content: ""; position: absolute; z-index: -1; inset: -30% -20% auto 45%; height: 150%; background: radial-gradient(closest-side, rgba(255, 191, 0, .22), rgba(255, 191, 0, 0)); }
+.card::after { content: ""; position: absolute; z-index: -1; inset: 0 0 0 55%; background-image: radial-gradient(rgba(46, 60, 78, .14) 1.2px, transparent 1.6px); background-size: 26px 26px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 50%); }
+.card img { height: 40px; width: auto; }
+.card .kicker { font-size: 24px; letter-spacing: .08em; text-transform: uppercase; margin: 56px 0 18px; }
+.card h1 { font-size: 68px; line-height: 1.08; letter-spacing: -.02em; max-width: 15em; }
+.card h1 span { background: linear-gradient(transparent 62%, var(--amber) 62%, var(--amber) 90%, transparent 90%); }
+.card footer { display: flex; gap: 12px; align-items: center; font: 500 22px/1 var(--text); color: var(--muted); }
+.card footer .grade { width: 44px; height: 44px; font-size: 22px; }
+.card footer .tier { font-size: 16px; padding: 10px 12px; min-width: 0; }
+.card footer b { margin-left: auto; font: 500 22px/1 var(--mono); color: var(--ink); }
+</style>
+<div class="card" id="card"></div>
+<script>
+const wolf = location.hash === "#wolf-pack";
+document.getElementById("card").innerHTML = wolf ? `
+  <img src="acxelin-quantum.svg" alt="">
+  <div><p class="kicker">Wolf Pack CBOM</p><h1>Know where your cryptography is <span>before you replace it</span>.</h1></div>
+  <footer><span class="tier t-critical">Critical</span><span class="tier t-high">High</span><span class="tier t-medium">Medium</span><span class="tier t-low">Low</span><span class="tier t-ok">OK</span><b>CycloneDX 1.6</b></footer>` : `
+  <img src="acxelin-quantum.svg" alt="">
+  <div><p class="kicker">Acxelin PQC Suite</p><h1>Quantum-safe traffic, tunnels and backups, <span>on the systems you already run</span>.</h1></div>
+  <footer><span class="grade g-a">A</span><span class="grade g-b">B</span><span class="grade g-c">C</span><span class="grade g-f">F</span><b>ML-KEM · ML-DSA · SLH-DSA</b></footer>`;
+</script>
+</html>

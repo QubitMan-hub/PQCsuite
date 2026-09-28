@@ -9,7 +9,7 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 | **Vault** | Quantum-safe encryption for files, folders and backups | `pqcsuite vault` |
 | **Readiness assessment** | TLS and SSH endpoint grades, and compliance evidence for NIST IR 8547 and CNSA 2.0 | `pqcsuite readiness` |
 
-`pqcsuite console` shows all four on one page. The website is in `site/`. Wolf Pack CBOM, the separate cryptography inventory scanner, is in [`wolf-pack/`](wolf-pack/README.md). `pqcsuite` is a working name (`NAME` in `pqcsuite/__init__.py`).
+`pqcsuite console` shows all four on one page. The website is in `site/`; `python site/publish.py https://YOUR-ADDRESS/ dist` copies it into `dist` with the absolute addresses that link previews and search engines need (canonical links, preview images, `sitemap.xml`, `robots.txt`). Wolf Pack CBOM, the separate cryptography inventory scanner, is in [`wolf-pack/`](wolf-pack/README.md). `pqcsuite` is a working name (`NAME` in `pqcsuite/__init__.py`).
 
 ## Install
 
