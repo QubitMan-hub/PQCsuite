@@ -13,7 +13,7 @@ WORD = re.compile(rf"(?:(?<![A-Za-z0-9])|(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Za-
 CALL = re.compile(r"(?<![\w.$])((?:new\s+)?[A-Za-z_$][\w$]*(?:\s*(?:\.|::|->)\s*[A-Za-z_$][\w$]*)*)\s*(?:<[\w\s,<>\[\]]*>)?\s*\(")
 DEFN = re.compile(r"\b(?:class|struct|record|trait|impl|object)\s+([A-Za-z_]\w*)|\btype\s+([A-Za-z_]\w*)\s+struct\b")
 NOT_USE = re.compile(r"(?i)(?:exception|error|errors|attribute|parameters|params|options|settings|config|info|name|names|size|length|type|types)$"
-                     r"|(?:not_?supported|unsupported|invalid)|^(?-i:is|has|can|Is|Has|Can)(?:[A-Z_]|$)")
+                     r"|(?:not_?supported|unsupported|invalid)|(?-i:^(?:is|has|can|Is|Has|Can)(?:[A-Z_]|$))")
 TEST_WORD = re.compile(r"(?:Test|TEST|(?:^|(?<=_))test)s?(?=$|_|[A-Z])")
 UTILITY = re.compile(r"(?i)^(?:en|de)code|^parse|^format|^to\w*string$|^values?$|^valueof$|^from[A-Z_]|^ordinal$|^equals$|^hashcode$")
 KDF = {"HKDF", "PBKDF2"}
@@ -138,7 +138,7 @@ def symbols(code, lang, path=""):
         for m in SYMBOL.finditer(line):
             owner, sym = m.group(1), m.group(2)
             rest, before = line[m.end():].lstrip(), line[:m.start()]
-            if owner is None and (re.match(r"=(?!=)|,|$|\(|\}", rest) and not re.search(r"\b(?:case|return|==|!=)\s*$|[\[(,=]\s*$", before)):
+            if owner is None and (re.match(r"=(?!=)|,|$|\(|\}", rest) and not re.search(r"\b(?:case|return|==|!=)\s*$|[\[(,=>]\s*$", before)):
                 continue
             if re.search(r"\b(?:const|final|static|define|enum|let|var|val)\b[^=]*$", before) and rest[:1] in ("=", ":"):
                 continue

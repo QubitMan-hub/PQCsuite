@@ -21,6 +21,7 @@ py -m wolfpack scan . --shelf-life 15 --migration 6 --crqc-year 2033
 py -m wolfpack scan . --fail-on critical                       # CI: exit 2 if anything critical
 py -m wolfpack scan . --baseline main-cbom.json --fail-on high # CI: fail only on crypto added since main
 py -m wolfpack hunt . --without den                          # ablation: leave a member of the pack out
+py -m wolfpack scan --pcap traffic.pcapng                     # what clients and servers really negotiated, from a capture
 py -m wolfpack scan image.tar                                 # a container image saved with `docker save` or as an OCI archive
 py -m wolfpack merge scans\ --name "Acme Bank"              # every system's cbom.json into one inventory and dashboard
 py -m wolfpack bench bench\corpus                            # full pack plus one ablation per role
@@ -159,7 +160,7 @@ Development corpus: `bench/corpus` has 70 files across 7 languages plus configs,
 - a JS `'sha' + bits`, a command-line flag named `ecdsa`, a JSON field named `hmac`, libsodium prototypes in a header and in C# P/Invoke;
 - MD5 initial values that must not read as SHA-1, prose that looks like an SSH directive, benchmark labels, and `getDigest(name)` with a variable name.
 
-Ground truth is 136 (file, algorithm family) pairs.
+Ground truth is 163 (file, algorithm family) pairs.
 
 | configuration | precision | recall | F1 |
 |---|---|---|---|

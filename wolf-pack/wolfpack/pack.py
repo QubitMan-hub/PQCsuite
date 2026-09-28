@@ -7,7 +7,7 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 from . import den, alpha
-from .scouts import MAX_BYTES, source, config, artifacts, deps, tls, binary, implementations, params, carried_hashes, oversized
+from .scouts import MAX_BYTES, source, config, artifacts, deps, tls, binary, implementations, params, capture, carried_hashes, oversized
 
 SCOUTS = ("source", "implementations", "config", "artifacts", "binary")
 
@@ -66,7 +66,7 @@ class Hunt:
     endpoints: list = field(default_factory=list)
 
 
-def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=()):
+def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=(), captures=()):
     """The scouts go out. Each reports everything it saw; nothing is filtered until the den."""
     h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
     if roles.source:
@@ -108,6 +108,15 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=()):
         h.sightings += s
         h.notes += n
         h.endpoints.append(ep)
+    for f in captures:
+        try:
+            s, eps, n = capture.scan(f)
+        except (OSError, ValueError) as err:
+            h.notes.append(f"capture {f}: not read ({err})")
+            continue
+        h.sightings += s
+        h.endpoints += eps
+        h.notes += n
     h.sightings += carried_hashes(h.sightings)
     return h
 
@@ -139,10 +148,10 @@ def load_baseline(path):
     return seen
 
 
-def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(), scope=False, ssh_targets=(), baseline=None):
+def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(), scope=False, ssh_targets=(), baseline=None, captures=()):
     t0 = time.time()
     horizon = horizon or alpha.Horizon()
-    h = hunt(root, roles, scope, tls_targets, ssh_targets)
+    h = hunt(root, roles, scope, tls_targets, ssh_targets, captures)
     lines = den.Lines(root)
     trails = alpha.follow_trails(root, h.artifacts, h.sightings, scope) if roles.trails else 0
     if roles.den:

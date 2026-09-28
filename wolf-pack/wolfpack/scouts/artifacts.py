@@ -1,3 +1,4 @@
+import base64
 import re
 import hashlib
 
@@ -11,6 +12,7 @@ from . import iter_files, rel, is_test
 
 EXT = {".pem", ".crt", ".cer", ".der", ".key", ".pub", ".csr", ".cert"}
 SSH_NAMES = re.compile(r"^(id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|ssh_host_\w+_key(\.pub)?|authorized_keys|known_hosts)$")
+K8S_B64 = re.compile(rb"""(?m)^\s*["']?(tls\.crt|ca\.crt|tls\.key|[\w.-]*\.(?:pem|crt))["']?\s*:\s*["']?([A-Za-z0-9+/]{80,}={0,2})["']?\s*,?$""")
 PEM = re.compile(rb"-----BEGIN ([A-Z0-9 ]+)-----\r?\n.*?-----END \1-----", re.S)
 SSH_LINE = re.compile(rb"^(?:[\w@.,*\[\]:-]+\s+)?((?:ssh|ecdsa|sk)-[\w@.-]+)\s+(AAAA[0-9A-Za-z+/=]+)", re.M)
 KEYS = [("RSA", rsa, "RSA"), ("ECC", ec, "EllipticCurve"), ("DSA", dsa, "DSA"), ("DH", dh, "DH"), ("Ed25519", ed25519, "Ed25519"),
@@ -139,6 +141,20 @@ def scan(root, scope=False):
             continue
         path = rel(root, p)
         base = {"test"} if is_test(path) else set()
+        if ext in (".yaml", ".yml", ".json"):
+            for m in K8S_B64.finditer(data):
+                try:
+                    blob = base64.b64decode(m.group(2), validate=True)
+                except ValueError:
+                    continue
+                a, s = scan_bytes(blob, path, base)
+                line = data.count(b"\n", 0, m.start()) + 1
+                for x in list(a) + list(s):
+                    x.line = line
+                for x in s:
+                    x.context.add("deployed-secret")
+                arts += a
+                sights += s
         if ext in CODE_EXT and b"-----BEGIN" not in data and b"ssh-" not in data:
             continue
         n += 1

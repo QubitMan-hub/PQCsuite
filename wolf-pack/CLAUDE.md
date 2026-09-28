@@ -15,7 +15,7 @@ Current version: 1.2.0. 1.0.0 was the first production release (Docker image, Gi
 ```powershell
 cd wolf-pack; py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 77 tests, must stay green
+python -m unittest discover -s tests -v          # 83 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -54,6 +54,7 @@ wolfpack/
     binary.py    native constants (from implementations.py), embedded lib versions, JAR/WAR class constants
     deps.py      manifests across 6 ecosystems, KNOWN crypto libs, usage cross-check
     probe.py     raw TLS ClientHello (empty key_share -> HelloRetryRequest reveals groups), SSH KEXINIT
+    capture.py   pcap/pcapng reader: TLS ClientHello/ServerHello/ServerKeyExchange and SSH KEXINIT, negotiated per server
     tls.py       live TLS scout (handshake, cert, legacy probes, groups) and SSH scout
   den.py         verification: confidence by evidence, hard rejects, corroboration, suppression,
                  admit_all (den-off ablation), assets()
@@ -70,7 +71,7 @@ wolfpack/
                  overdue vs due later; tests, declared non-security hashes and trust stores are exempt
   cli.py         scan / merge / bench subcommands, .wolfpack.toml settings, exit codes 0 / 1 error / 2 fail-on
   bench.py       scores at (file, algorithm family) granularity, full pack and one ablation per role
-bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 136 labelled pairs
+bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 163 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
 Dockerfile, action.yml  container image and GitHub Action (../.github/workflows/wolf-pack.yml builds and runs both, and the wheel)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)

@@ -11,6 +11,7 @@ NAMES = {"sshd_config", "ssh_config", "openssl.cnf", "nginx.conf", "httpd.conf",
 
 TLSV = re.compile(r"\b(SSLv[23]|TLSv1(?:\.[0-3])?|TLS1_[0-3]_VERSION|TLS1_VERSION|TLSv1_[0-3])\b", re.I)
 PAIRS = [
+    (re.compile(r"""^\s*["']?(?:min[_-]?tls[_-]?version|minimum[_-]?tls[_-]?version|minTlsVersion|MinimumTlsVersion|min_tls)["']?\s*[=:]\s*["']?(?:TLS[_v]?)?\s*(1)[._](\d)""", re.I), "tlsmin"),
     (re.compile(r"^\s*(KexAlgorithms|HostKeyAlgorithms|PubkeyAcceptedAlgorithms|PubkeyAcceptedKeyTypes|HostbasedAcceptedAlgorithms|CASignatureAlgorithms|Ciphers|MACs)\s+(.+)"), "ssh"),
     (re.compile(r"^\s*ssl_protocols\s+([^;#]+)", re.I), "protocols"),
     (re.compile(r"^\s*SSLProtocol\s+(.+)", re.I), "apache_protocols"),
@@ -18,6 +19,9 @@ PAIRS = [
     (re.compile(r"^\s*(?:ssl_ecdh_curve|Groups|Curves|ssl-default-bind-curves|ssl_ecdh_curves|curves|groups|named[_-]?groups)\s*[=:\s]\s*(.+)", re.I), "groups"),
     (re.compile(r"^\s*[\w.\-\"']*(?:min[_-]?(?:tls|ssl|proto(?:col)?)?[_-]?version|MinProtocol|MaxProtocol|ssl-min-ver|ssl-max-ver|enabled[_-]?protocols|sslEnabledProtocols|sslProtocol|tls[_-]?versions?|protocols?)[\w\"']*\s*[=:]\s*(.+)", re.I), "protocols"),
     (re.compile(r"\bssl-(?:min|max)-ver\s+(\S+)", re.I), "protocols"),
+    (re.compile(r"""^\s*["']?[\w./-]*ssl-ciphers["']?\s*:\s*(.+)""", re.I), "ciphers"),
+    (re.compile(r"""^\s*["']?[\w./-]*ssl-protocols["']?\s*:\s*(.+)""", re.I), "protocols"),
+    (re.compile(r"""^\s*["']?(?:ssl_policy|policy_name|SslPolicy|sslPolicy)["']?\s*[=:]\s*["']?((?:ELBSecurityPolicy|AppGwSslPolicy)[\w-]*)""", re.I), "lbpolicy"),
     (re.compile(r"""^\s*["']?(?:customer_master_key_spec|key_spec|KeySpec|CustomerMasterKeySpec|key_type|kty|KeyType)["']?\s*[=:]\s*["']?([\w\-]+)""", re.I), "kms"),
     (re.compile(r"^\s*[\w.\-\"']*(?:algorithm|alg|signing[_-]?alg\w*|key[_-]?algorithm|keyAlgorithm|hash[_-]?algorithm|digest[_-]?algorithm|kex)[\w\"']*\s*[=:]\s*[\"']?([\w\-/]+)", re.I), "algo"),
     (re.compile(r"^\s*[\w.\-\"']*(?:key[_-]?size|keysize|key[_-]?length|rsa[_-]?bits|modulus[_-]?length|size)[\w\"']*\s*[=:]\s*[\"']?(\d{3,5})\b", re.I), "size"),
@@ -30,6 +34,21 @@ def is_config(p):
 
 def _vals(s):
     return [t for t in re.split(r"[\s,;\"'\[\]]+", s.split("#")[0]) if t]
+
+
+def lb_policy(name):
+    """TLS versions (and hybrid PQ key exchange) a cloud load balancer's predefined policy allows, from its documented name."""
+    n = name.upper()
+    if n.startswith("APPGWSSLPOLICY"):
+        date = re.search(r"(\d{8})(S?)", n)
+        low = "1.0" if not date or date.group(1) < "20170401" else "1.2" if date.group(2) or date.group(1) >= "20220101" else "1.1"
+        high = "1.3" if date and date.group(1) >= "20220101" else "1.2"
+    else:
+        v = re.search(r"TLS13-1-(\d)|TLS-1-(\d)|FS-1-(\d)", n)
+        low = f"1.{next(g for g in v.groups() if g)}" if v else "1.0"
+        high = "1.3" if "TLS13" in n else "1.2"
+    out = [(lookup(f"TLSv{v}"), {"policy": name}) for v in ("1.0", "1.1", "1.2", "1.3") if low <= v <= high]
+    return out + ([("X25519MLKEM768", {"policy": name})] if "PQ" in n else [])
 
 
 def parse_line(kind, m):
@@ -54,6 +73,10 @@ def parse_line(kind, m):
         for t in re.split(r",", m.group(2).split("#")[0].strip()):
             out += ssh_token(t)
         return out
+    if kind == "tlsmin":
+        return [(lookup(f"TLSv1.{m.group(2)}"), {"minimum": True})]
+    if kind == "lbpolicy":
+        return lb_policy(m.group(1))
     if kind == "kms":
         v = m.group(1)
         return kms_spec(v) or ([(lookup(v), {})] if v.upper() in ("RSA", "EC") and lookup(v) else [])

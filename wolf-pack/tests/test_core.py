@@ -1,3 +1,4 @@
+import sys
 import unittest
 from pathlib import Path
 
@@ -6,6 +7,7 @@ from wolfpack.elders import lookup, parse_transformation, curve
 from wolfpack.scouts.suites import cipher_string, ssh_token, sig_scheme
 
 CORPUS = Path(__file__).resolve().parent.parent / "bench" / "corpus"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 class Elders(unittest.TestCase):
@@ -167,6 +169,42 @@ class Inventory(unittest.TestCase):
             self.assertEqual(cm.exception.code, 2)
 
 
+class Capture(unittest.TestCase):
+    def scan(self, frames):
+        import tempfile
+        import pcapgen
+        from wolfpack.scouts import capture
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "traffic.pcap"
+            f.write_bytes(pcapgen.pcap(frames))
+            return capture.scan(f)
+
+    def test_tls13_hybrid_and_tls12_ecdhe(self):
+        import pcapgen
+        s, eps, _ = self.scan(pcapgen.tls_capture([0x11EC, 0x001D], pcapgen.server_hello(0x1301, group=0x11EC)))
+        self.assertEqual(eps[0]["pq_groups"], ["X25519MLKEM768"])
+        self.assertEqual(eps[0]["clients_offering_pq"], 1)
+        self.assertTrue({"TLS 1.3", "X25519MLKEM768", "AES"} <= {x.algo for x in s})
+        s, eps, _ = self.scan(pcapgen.tls_capture([0x0017], pcapgen.server_hello(0xC02F, version=0x0303), pcapgen.server_key_exchange(0x0017)))
+        self.assertEqual(eps[0]["version"], "TLSv1.2")
+        self.assertEqual(eps[0]["pq_groups"], [])
+        self.assertTrue({"TLS 1.2", "ECDH", "RSA", "AES"} <= {x.algo for x in s})
+
+    def test_ssh_agreed_algorithms(self):
+        import pcapgen
+        s, eps, _ = self.scan(pcapgen.ssh_capture("mlkem768x25519-sha256,curve25519-sha256", "curve25519-sha256,diffie-hellman-group14-sha256"))
+        self.assertEqual(eps[0]["preferred_group"], "curve25519-sha256")
+        self.assertEqual(eps[0]["pq_groups"], [])
+        self.assertEqual(eps[0]["clients_offering_pq"], 1)
+        self.assertIn("RSA", {x.algo for x in s})
+        self.assertNotIn("Ed25519", {x.algo for x in s})
+
+    def test_not_a_capture(self):
+        from wolfpack.scouts import capture
+        with self.assertRaises(ValueError):
+            list(capture.packets(b"hello world, not a pcap"))
+
+
 class Formats(unittest.TestCase):
     def test_noise_and_jose(self):
         from wolfpack.scouts.suites import noise_name, jose_alg
@@ -278,7 +316,12 @@ class Pack(unittest.TestCase):
         t = {a.variant: a.tier for a in self.r.assets}
         self.assertEqual(t["AES-ECB"], "critical")
         self.assertEqual(t["ML-KEM-768"], "ok")
-        self.assertEqual(t["TLS 1.3"], "ok")
+        self.assertEqual(t["TLS 1.3"], "high")
+
+    def test_tls13_is_ok_only_where_a_hybrid_group_is_configured_with_it(self):
+        from wolfpack.scouts import Scope
+        hybrid = pack.run(CORPUS / "config", "c", scope=Scope(exclude=("tls", "haproxy.cfg")))
+        self.assertEqual({a.variant: a.tier for a in hybrid.assets}["TLS 1.3"], "ok")
 
     def test_cbom_shape(self):
         b = cbom.build("corpus", self.r.assets, self.r.artifacts, self.r.libraries)
@@ -358,6 +401,21 @@ class Roles(unittest.TestCase):
         from wolfpack.scouts.params import params_of
         self.assertEqual(params_of("byte[] data, final String algorithm"), ["data", "algorithm"])
         self.assertEqual(params_of("self, name: str = 'sha256', *, n=1"), ["self", "name", "n"])
+
+    def test_cloud_and_kubernetes_tls(self):
+        self.assertIn("RSA", self.accepted((), "infra/k8s.yaml"))
+        self.assertEqual(self.accepted((), "infra/lb.tf"), {"TLS 1.2", "TLS 1.3"})
+        from wolfpack.scouts.config import lb_policy
+        self.assertEqual([a for a, _ in lb_policy("ELBSecurityPolicy-2016-08")], ["TLS 1.0", "TLS 1.1", "TLS 1.2"])
+        self.assertIn("X25519MLKEM768", [a for a, _ in lb_policy("ELBSecurityPolicy-TLS13-1-2-PQ-2025-09")])
+
+    def test_swift_and_php(self):
+        self.assertTrue({"ECDSA", "ChaCha20-Poly1305", "HMAC", "RSA"} <= self.accepted((), "swift/Crypto.swift"))
+        self.assertTrue({"HMAC", "RSA", "bcrypt"} <= self.accepted((), "php/crypto.php"))
+        from wolfpack.scouts import names
+        self.assertEqual(names.algos("hash_hmac"), ["HMAC"])
+        self.assertEqual(list(names.scan("x = hash_hmac(a);", "c", "a.php")), [(1, "HMAC")])
+        self.assertEqual(list(names.scan("if (isRsaKey(k)) {}", "java", "A.java")), [])
 
     def test_concat_keeps_only_complete_parts(self):
         self.assertEqual(self.accepted((), "js/runtime_names.js"), {"RSA"})

@@ -27,6 +27,8 @@ def main(argv=None):
     s.add_argument("path", nargs="?", default=None, help="folder to scan, or a container image saved with `docker save` or as an OCI archive (default: current folder, or none if only --tls/--ssh are given)")
     s.add_argument("--tls", action="append", default=[], metavar="HOST:PORT", help="probe a live TLS endpoint, including which key-exchange groups it accepts (repeatable)")
     s.add_argument("--ssh", action="append", default=[], metavar="HOST[:PORT]", help="read a live SSH server's algorithm lists (repeatable)")
+    s.add_argument("--pcap", action="append", default=[], metavar="FILE",
+                   help="read TLS and SSH handshakes from a packet capture (.pcap or .pcapng): what clients and servers actually negotiated (repeatable)")
     s.add_argument("--baseline", metavar="CBOM", help="previous cbom.json; report what is new and gate CI only on new findings")
     s.add_argument("-o", "--out", default="wolfpack-out")
     s.add_argument("--name", help="project name for the CBOM")
@@ -68,7 +70,7 @@ def main(argv=None):
         from .bench import main as bench
         return bench(a.corpus, a.truth, a.detail, a.json)
 
-    cfg = settings(a.config, None if a.path is None and (a.tls or a.ssh) else Path(a.path or "."))
+    cfg = settings(a.config, None if a.path is None and (a.tls or a.ssh or a.pcap) else Path(a.path or "."))
     a.exclude = cfg.get("exclude", []) + a.exclude
     a.tls = cfg.get("tls", []) + a.tls
     a.ssh = cfg.get("ssh", []) + a.ssh
@@ -86,11 +88,11 @@ def main(argv=None):
     a.fail_on_policy = a.fail_on_policy or policy.get("fail", False)
     if a.fail_on is not None and a.fail_on not in TIERS[:-1]:
         sys.exit(f"wolfpack: fail_on must be one of {', '.join(TIERS[:-1])}")
-    targets_only = a.path is None and (a.tls or a.ssh)
+    targets_only = a.path is None and (a.tls or a.ssh or a.pcap)
     root = Path(tempfile.mkdtemp()) if targets_only else Path(a.path or ".").resolve()
     if not root.exists():
         sys.exit(f"wolfpack: {a.path} does not exist")
-    name = a.name or ((a.tls + a.ssh)[0] if targets_only else root.name)
+    name = a.name or ((a.tls + a.ssh + [Path(p).name for p in a.pcap])[0] if targets_only else root.name)
     if a.baseline:
         try:
             pack.load_baseline(a.baseline)
@@ -108,7 +110,7 @@ def main(argv=None):
         notes = image.unpack(root, unpacked)
         name = a.name or root.name.split(".")[0]
     try:
-        r = pack.run(unpacked or root, name, a.tls, h, a.threshold, pack.Roles.without(*a.without), Scope(a.include_vendor, tuple(a.exclude)), a.ssh, a.baseline)
+        r = pack.run(unpacked or root, name, a.tls, h, a.threshold, pack.Roles.without(*a.without), Scope(a.include_vendor, tuple(a.exclude)), a.ssh, a.baseline, a.pcap)
     finally:
         if unpacked:
             shutil.rmtree(unpacked, ignore_errors=True)

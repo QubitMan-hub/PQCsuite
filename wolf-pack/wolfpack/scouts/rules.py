@@ -432,3 +432,26 @@ def _(m, x):
 
 # Shell: WireGuard keys are Curve25519 by the protocol's definition
 simple("hash", r'\bwg\s+(?:genkey|pubkey)\b', "X25519", lib="wireguard-tools")
+
+
+# Swift: CryptoKit and the Security framework (Swift files are read with the C-family rules)
+@rule("c", r'\b(P256|P384|P521)\.(Signing|KeyAgreement)\b')
+def _(m, x):
+    return [("ECDSA" if m.group(2) == "Signing" else "ECDH", {"curve": f"P-{m.group(1)[1:]}", "lib": "CryptoKit"})]
+
+
+simple("c", r'\bCurve25519\.(Signing|KeyAgreement)\b', {"Signing": "Ed25519", "KeyAgreement": "X25519"}, lib="CryptoKit")
+simple("c", r'\bChaChaPoly\.(?:seal|open|SealedBox)\b', "ChaCha20-Poly1305", lib="CryptoKit")
+
+
+@rule("c", r'\bHMAC<\s*(SHA256|SHA384|SHA512|Insecure\.SHA1|Insecure\.MD5)\s*>')
+def _(m, x):
+    h = lookup(m.group(1).split(".")[-1])
+    return [("HMAC", {"hash": h, "lib": "CryptoKit"})]
+
+
+@rule("c", r'\bkSecAttrKeyType(RSA|ECSECPrimeRandom|EC)\b')
+def _(m, x):
+    n = re.search(r"kSecAttrKeySizeInBits\D{0,40}(\d{3,4})", x.window_text(6))
+    algo = "RSA" if m.group(1) == "RSA" else "ECC"
+    return [(algo, {"key_size": int(n.group(1)) if n and algo == "RSA" else None, "lib": "Security"})]

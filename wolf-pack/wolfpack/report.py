@@ -60,6 +60,8 @@ def endpoints_html(eps):
         others = [g for g in ep.get("groups", []) if g not in ep.get("pq_groups", [])]
         legacy = ", ".join(ep.get("legacy", []))
         extra = ep.get("cert") or ", ".join(ep.get("hostkeys", [])[:4])
+        if "observed" in ep:
+            extra = f"{_plural(ep['observed'], 'handshake')} captured; {ep.get('clients_offering_pq', 0)} client(s) offered a PQ group"
         rows.append(f"<tr><td>{e(ep['target'])}</td><td>{e(ep.get('version') or '')}</td>"
                     f"<td>{'<span class=yes>yes, ' + e(pq) + '</span>' if pq else 'no'}</td><td>{e(ep.get('preferred_group') or 'unknown')}</td>"
                     f"<td class=w>{e(', '.join(others[:8]))}</td><td class=w>{e(extra)}{'<br>legacy accepted: ' + e(legacy) if legacy else ''}</td></tr>")

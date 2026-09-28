@@ -261,5 +261,38 @@
   ],
   "java/Archive.java": [
     "SHA-512"
+  ],
+  "infra/k8s.yaml": [
+    "RSA",
+    "SHA-256",
+    "ECDH",
+    "ECDSA",
+    "AES",
+    "SHA-384",
+    "TLS 1.2",
+    "TLS 1.3"
+  ],
+  "infra/lb.tf": [
+    "TLS 1.2",
+    "TLS 1.3"
+  ],
+  "swift/Crypto.swift": [
+    "AES",
+    "ChaCha20",
+    "ECDSA",
+    "HMAC",
+    "MD5",
+    "RSA",
+    "SHA-1",
+    "SHA-256",
+    "X25519"
+  ],
+  "php/crypto.php": [
+    "AES",
+    "HMAC",
+    "MD5",
+    "RSA",
+    "SHA-256",
+    "bcrypt"
   ]
 }

@@ -8,6 +8,14 @@ Much higher recall on real code. The changes were made after reading the held-ou
 
 - **Used or declared:** a finding that is only named in an algorithm list or table (supported-algorithm arrays, OID tables, TypeScript unions) is marked `declared`. It shows in the CBOM (`wolfpack:usage`), the report and the terminal, and becomes a SARIF note, so what actually runs stands out.
 - **Values through parameters (`--without parameters`):** a crypto API called with a parameter, such as `MessageDigest.getInstance(algorithm)` inside a helper, is resolved from the literals its callers pass (Java, JavaScript/TypeScript, Python).
+- **Traffic captures:** `wolfpack scan --pcap traffic.pcap` reads the TLS and SSH handshakes in a packet capture (pcap or pcapng) and reports what was actually negotiated per server: version, cipher suite and key-exchange group, and how many clients offered a PQ group. Pure Python; nothing is decrypted or sent.
+- **Kubernetes and cloud TLS:**
+  - certificates in Kubernetes TLS Secrets (base64 `tls.crt`);
+  - ingress-nginx `ssl-ciphers` and `ssl-protocols` annotations;
+  - AWS ELB/ALB and Azure Application Gateway predefined TLS policies, decoded from their names, including AWS's PQ policies;
+  - minimum-TLS-version settings in Terraform.
+- **Swift and PHP:** CryptoKit (`P256.Signing`, `Curve25519`, `ChaChaPoly`, `HMAC<SHA256>`), Security framework key types, and PHP's `hash_hmac`, `password_hash` and `openssl_pkey_new`.
+- **Fix:** functions whose names start with `hash`, `can` or `is` in lower case (`hash_hmac`) were wrongly skipped as predicates.
 - **Policy and compliance:** `--policy nist-ir-8547` and `--policy cnsa-2.0` check the findings against those standards' algorithms and dates. Your own rules go in `[policy]` in `.wolfpack.toml`: forbidden algorithms, minimum key sizes, and required hybrid key exchange. Rules already broken are "overdue", and `--fail-on-policy` exits 2 on them. Rules with a future deadline are listed as "due later". Results appear in the report, `findings.json` and the CBOM (`wolfpack:policy`), and `merge` counts them per system.
 - **Names (`--without names`):** code named for its algorithm is found without any library API: `aes_encrypt()`, `md5_update()`, `BCrypt.HashPassword()`, `class HkdfSha256`, `curve25519_generate_public()`. Declarations are not counted: header prototypes, `extern`/`partial`, Java enum constants, `.d.ts` typings, test names, predicates, and error or not-supported helpers.
 - **Constants (`--without symbols`):** all-caps constants and enum members that name an algorithm where code uses them: `case KEY_ED25519:`, `kex[KEX_DH_GRP14_SHA256]`, `crypto.SHA1`, and TLS cipher-suite constants. Sizes, error names, feature flags, definitions, headers, and `case` labels that only throw are not counted.
