@@ -66,6 +66,7 @@
   <section id="why">
     <div class="wrap">
       <div class="intro">
+        <p class="kicker">Why now</p>
         <h2>Why this can't wait for the quantum computer</h2>
         <p>Nobody can break RSA or elliptic curves with a quantum computer yet. The problem is the data being recorded in the meantime, and the dates regulators have already set.</p>
       </div>
@@ -80,6 +81,7 @@
   <section id="products">
     <div class="wrap">
       <div class="intro">
+        <p class="kicker">The suite</p>
         <h2>Four products, one certificate authority</h2>
         <p>Each one works on its own. Together they share identities, revocation and one report for your auditors.</p>
       </div>
@@ -165,6 +167,7 @@ pqcsuite vpn status</pre></div>
   <section id="plan">
     <div class="wrap">
       <div class="intro">
+        <p class="kicker">Getting started</p>
         <h2>How we usually start</h2>
         <p>Most teams want to see it working on one real service before anything else. This is a typical first two weeks.</p>
       </div>
@@ -181,6 +184,7 @@ pqcsuite vpn status</pre></div>
   <section id="grades">
     <div class="wrap">
       <div class="intro">
+        <p class="kicker">Readiness grades</p>
         <h2>What the readiness grades mean</h2>
         <p>Every endpoint in the scan gets one letter. This is what each one means and what to do about it.</p>
       </div>
@@ -204,6 +208,7 @@ pqcsuite vpn status</pre></div>
   <section id="tested">
     <div class="wrap">
       <div class="intro">
+        <p class="kicker">Compatibility</p>
         <h2>Tested with the software you run</h2>
         <p>Each of these runs behind the suite in our automated tests, on every change, and is checked with independent clients.</p>
       </div>
@@ -223,7 +228,8 @@ pqcsuite vpn status</pre></div>
 
   <section id="faq">
     <div class="wrap">
-      <div class="intro"><h2>Questions we get asked</h2></div>
+      <div class="intro">
+        <p class="kicker">Questions</p><h2>Questions we get asked</h2></div>
       <div class="faq">
         <details><summary>Do we need to change our applications?</summary><p>No. The TLS edge runs in front of the service, as a separate machine or as a Kubernetes sidecar, and forwards plain traffic to it. Clients that cannot speak post-quantum TLS yet can reach the service through a second edge on their side.</p></details>
         <details><summary>Will our website still work in browsers?</summary><p>Yes. Browsers already use the post-quantum key exchange, but they cannot check ML-DSA certificates yet. In transition mode the edge gives them a normal ECDSA or RSA certificate and gives ML-DSA to every client that can use it, on the same port.</p></details>

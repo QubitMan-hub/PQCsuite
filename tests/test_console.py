@@ -40,7 +40,7 @@ class ConsoleTest(unittest.TestCase):
 
     def test_page_is_public_but_the_api_needs_the_token(self):
         with urllib.request.urlopen(self.base + "/", timeout=5) as r:
-            self.assertIn(b"pqcsuite console", r.read())
+            self.assertIn(b"PQC Suite console", r.read())
             self.assertIn("frame-ancestors 'none'", r.headers["Content-Security-Policy"])
             self.assertIn("script-src 'sha256-", r.headers["Content-Security-Policy"])
             self.assertNotIn("script-src 'self' 'unsafe-inline'", r.headers["Content-Security-Policy"])
