@@ -1,8 +1,45 @@
 # Held-out benchmark
 
-**Status (25 September 2026):** labels are done and committed: `labels/ai-a`, `labels/ai-b`, and the adjudicated `labels/final` (see `labels/LOG.md` and pre-registration amendments 1 and 2). No person was available for the human audit, so amendment 3 replaced it with a label-support check and an AI audit (28 September 2026). AI-audit agreement is Dice 0.939 strict and 0.960 inclusive. Of 393 `used` labels, 1 looks doubtful. The details are in `labels/SUPPORT.md`. Scoring is next.
+**Status (28 September 2026):** labels are done and committed: `labels/ai-a`, `labels/ai-b`, and the adjudicated `labels/final` (see `labels/LOG.md` and pre-registration amendments 1 and 2). No person was available for the human audit, so amendment 3 replaced it with a label-support check and an AI audit (28 September 2026). AI-audit agreement is Dice 0.939 strict and 0.960 inclusive. Of 393 `used` labels, 1 looks doubtful. The details are in `labels/SUPPORT.md`. Wolf Pack is scored (below). The CBOMkit comparison (step 6) has not been run yet.
 
 The benchmark for the paper: 18 real repositories that Wolf Pack was not developed on, labelled blind by someone other than the author, then used to score Wolf Pack, its ablations and CBOMkit. The development corpus in `bench/` only shows that each part of the pack works. This benchmark is the one that measures it.
+
+## Results (28 September 2026)
+
+These are micro-averaged over 18 repos and about 600 files, with 95% bootstrap intervals over repos. Labels: `final`. The full per-repo tables and every ablation are in the JSON files.
+
+| Version | Policy | Precision | Recall | F1 |
+|---|---|---|---|---|
+| **Headline: `158d69f`** (amendment 2) | strict (primary) | 0.886 [0.79, 1.00] | 0.336 [0.19, 0.50] | 0.487 |
+| **Headline: `158d69f`** | inclusive | 0.987 [0.97, 1.00] | 0.277 [0.14, 0.47] | 0.432 |
+| Later version: 1.1.0 (`78ec4ed`) | strict | 0.820 [0.70, 1.00] | 0.430 [0.29, 0.57] | 0.564 |
+| Later version: 1.1.0 | inclusive | 0.976 [0.96, 1.00] | 0.379 [0.26, 0.50] | 0.545 |
+
+Files: `results-headline-158d69f.json` and `results-later-1.1.0.json`. The later version includes the stress-test fixes. It was not tuned on these repos; no fix has come from held-out errors.
+
+**What the numbers say.** Wolf Pack is precise on unseen code, but it finds about a third of the used pairs. Recall is lowest where cryptography is implemented by hand, or reached through the project's own wrappers, with no library call or algorithm name to match:
+
+| Repo | Headline recall | Why |
+|---|---|---|
+| crypto-algorithms | 0.00 | Hand-written ciphers and hashes in C |
+| node-bcrypt | 0.00 | A native binding |
+| wireguard-tools | 0.04 | Curve25519 hidden behind `wg genkey` and `wg_generate_*` |
+| nsec | 0.07 | libsodium through P/Invoke |
+| password4j | 0.08 | Argon2, bcrypt, scrypt and BLAKE2b written in pure Java, and JCA names built at run time |
+
+The later version lifts nsec to 0.67 and crypto-algorithms to 0.28 through its implementation scout. The one precision failure is otp-java, where 5 found pairs match 0 used pairs (all 5 are `declared`).
+
+**Expectations** (pre-registration):
+
+- **H2 holds.** Precision is higher under the inclusive policy: 0.987 against 0.886.
+- **H3 holds.** Without the den, precision drops from 0.886 to 0.744 (strict). Without the second look, recall drops from 0.336 to 0.229.
+- **H1 is untested.** It needs the CBOMkit run in step 6.
+- **Removing the den raises F1** (0.487 to 0.584 strict), because on this code it rejects more true pairs than false ones. The paper reports this.
+
+**Caveats.**
+
+- Every gold label was written by AI, and there was no human check (amendment 3, item 4).
+- One gold pair is doubtful (`labels/SUPPORT.md`).
 
 | File | What it is |
 |---|---|
