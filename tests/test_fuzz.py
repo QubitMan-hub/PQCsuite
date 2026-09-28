@@ -83,6 +83,36 @@ class FuzzTest(unittest.TestCase):
                 self.assertFalse(out.exists() and any(out.rglob("*")), "a refused archive left something behind")
                 self.assertLess(time.monotonic() - start, 5)
 
+    def test_header_fields_of_the_wrong_type_are_refused(self):
+        me = vault.Identity.generate()
+        src = self.d / "data"
+        src.write_bytes(os.urandom(1000))
+        vault.encrypt(src, self.d / "good.pqv", [me.public])
+        good = (self.d / "good.pqv").read_bytes()
+        n = int.from_bytes(good[5:9], "big")
+        header, rest = json.loads(good[9:9 + n]), good[9 + n:]
+        keys = list(header) + ["signer"]
+        for i in range(300):
+            h = dict(header)
+            h[self.rnd.choice(keys)] = junk(self.rnd)
+            raw = json.dumps(h).encode()
+            p, out = self.d / "x.pqv", self.d / "out"
+            p.write_bytes(vault.MAGIC + len(raw).to_bytes(4, "big") + raw + rest)
+            with self.subTest(i=i):
+                for fn in (lambda: vault.inspect(p), lambda: vault.decrypt(p, out, me)):
+                    try:
+                        fn()
+                    except vault.VaultError:
+                        pass
+                shutil.rmtree(out, ignore_errors=True)
+
+    def test_the_longest_file_name_round_trips(self):
+        me, src = vault.Identity.generate(), self.d / ("n" * 255)
+        src.write_bytes(b"data")
+        vault.encrypt(src, self.d / "long.pqv", [me.public])
+        target, _ = vault.decrypt(self.d / "long.pqv", self.d / "out", me)
+        self.assertEqual(target.read_bytes(), b"data")
+
     def test_every_size_round_trips_including_chunk_edges(self):
         me, rnd, c = vault.Identity.generate(), self.rnd, vault.CHUNK
         for n in [0, 1, c - 1, c, c + 1, 2 * c, 2 * c + 7] + [rnd.randrange(3 * c) for _ in range(4)]:

@@ -9,7 +9,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import HTTP_IDLE, NAME, ConfigWatch, __version__, env_passphrase, explain, restart, tls
+from . import JSON, METRICS, NAME, PEM, ConfigWatch, __version__, env_passphrase, explain, restart, serve_http, tls
 from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError, encrypted
 from .vault import VaultError
 from .vpn.charon import CharonError
@@ -112,7 +112,7 @@ def cmd_ca(a):
         print(f"signed {r.serial} for {r.common_name} -> {a.out}")
     elif a.ca_cmd == "revoke":
         ca.revoke(a.serial, a.reason)
-        print(f"revoked {ca.find(a.serial).serial}; {Path(a.dir) / 'crl.pem'} updated, distribute it to your servers")
+        print(f"revoked {ca.find(a.serial).serial}; {Path(a.dir) / 'crl.pem'} updated (servers with crl_url fetch it from 'ca publish'; copy it to any others)")
     elif a.ca_cmd == "crl":
         ca.crl(a.days)
         print(f"wrote {Path(a.dir) / 'crl.pem'}")
@@ -132,7 +132,7 @@ def cmd_ca(a):
     elif a.ca_cmd == "publish":
         crl, anchor = Path(a.dir) / "crl.pem", ca.anchor
         read = lambda f: lambda: f.read_text(encoding="ascii") if f.exists() else None
-        httpd = serve_json(a.listen, {"/crl.pem": read(crl), "/ca.crt": read(anchor)}, "application/x-pem-file")
+        httpd = serve_http(a.listen, {"/crl.pem": (PEM, read(crl)), "/ca.crt": (PEM, read(anchor))})
         host, port = httpd.server_address[:2]
         print(f"publishing http://{host}:{port}/crl.pem (read fresh on every request) and /ca.crt; set crl_url to it on edges and gateways")
         stop = threading.Event()
@@ -282,7 +282,7 @@ def cmd_vpn(a):
         ctl = Controller(site)
         ctl.start()
         if site.metrics:
-            serve_json(site.metrics, {"/metrics": ctl.metrics, "/status": lambda: json.dumps(ctl.status(), default=str)})
+            serve_http(site.metrics, {"/metrics": (METRICS, ctl.metrics), "/status": (JSON, lambda: json.dumps(ctl.status(), default=str))})
         again = threading.Event()
         watch = ConfigWatch(a.config, load_config, lambda new: new != site and (again.set(), ctl.shutdown()))
         run_until_signal(ctl.stop.wait, ctl.shutdown, watch.poke)
@@ -312,7 +312,7 @@ def cmd_wireguard(a):
         gw = wg.Gateway(wg.load_gateway(a.config)).start()
         print(f"WireGuard gateway {gw.cfg.name} on {gw.cfg.interface}, key agreement on {gw.cfg.keyring_listen}, public key {gw.public}")
         if gw.cfg.metrics:
-            serve_json(gw.cfg.metrics, {"/metrics": gw.metrics, "/status": lambda: json.dumps(gw.status(), default=str)})
+            serve_http(gw.cfg.metrics, {"/metrics": (METRICS, gw.metrics), "/status": (JSON, lambda: json.dumps(gw.status(), default=str))})
         again = threading.Event()
         watch = ConfigWatch(a.config, wg.load_gateway, lambda new: gw.reconfigure(new) or (again.set(), gw.shutdown()))
         run_until_signal(gw.stop.wait, gw.shutdown, watch.poke)
@@ -479,32 +479,6 @@ def cmd_report(a):
     print(f"{rep['assets']} assets: {s['ready']} quantum-safe, {s['transition']} with classical fallback, {s['action']} need action; "
           f"{rep['cnsa2_compliant']} meet CNSA 2.0")
     return 0 if not s["action"] else 2
-
-
-def serve_json(address, routes, ctype="text/plain; charset=utf-8"):
-    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-
-    class Handler(BaseHTTPRequestHandler):
-        timeout = HTTP_IDLE
-
-        def do_GET(self):
-            fn = routes.get(self.path) or (lambda: "ok\n" if self.path == "/healthz" else None)
-            body = fn()
-            if body is None:
-                self.send_error(404)
-                return
-            self.send_response(200)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body.encode())))
-            self.end_headers()
-            self.wfile.write(body.encode())
-
-        def log_message(self, *args):
-            pass
-
-    httpd = ThreadingHTTPServer(parse_addr(address, "127.0.0.1"), Handler)
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    return httpd
 
 
 def parse_addr(s, default_host="0.0.0.0"):

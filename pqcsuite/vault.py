@@ -190,7 +190,7 @@ def _recipients_mac(dek, recipients):
 
 
 def _check_recipients(h, dek):
-    if h["v"] >= 2 and not hmac.compare_digest(str(h.get("mac", "")), _recipients_mac(dek, h["recipients"])):
+    if h["v"] >= 2 and not hmac.compare_digest(str(h.get("mac", "")).encode(), _recipients_mac(dek, h["recipients"]).encode()):
         raise VaultError("the list of recipients was modified")
 
 
@@ -256,7 +256,7 @@ def read_header(f):
         raise VaultError("header too large")
     try:
         h = json.loads(f.read(n))
-        fields = all(isinstance(h.get(k), str) for k in ("suite", "id", "nonce", "name", "kind", "created"))
+        fields = all(isinstance(h.get(k), str) for k in ("suite", "id", "nonce", "name", "kind", "created")) and isinstance(h.get("signer", ""), str)
         entries = isinstance(h.get("recipients"), list) and all(
             isinstance(r, dict) and all(isinstance(r.get(k), str) for k in ("id", "kem", "dh", "key")) for r in h["recipients"])
     except (ValueError, UnicodeDecodeError, AttributeError):
@@ -319,13 +319,20 @@ def chunks(f, h, identity):
         raise VaultError("unexpected data after the last chunk")
 
 
+def _signer_cert(h):
+    try:
+        return x509.load_pem_x509_certificate(h["signer"].encode())
+    except ValueError:
+        raise VaultError("the signer's certificate in the header is damaged") from None
+
+
 def verify_signer(h, ca=None, crl=None, expected=None):
     """Check the signature and, with a CA, that the signer's certificate chains to it. Returns the signer's name."""
     if "signer" not in h:
         raise VaultError("the file is not signed")
     if "_signature" not in h:
         raise VaultError("the signature is missing")
-    cert = x509.load_pem_x509_certificate(h["signer"].encode())
+    cert = _signer_cert(h)
     sig, digest = h["_signature"]
     try:
         cert.public_key().verify(sig, digest)
@@ -358,7 +365,7 @@ def load_signer(cert_path, key_path, passphrase=None):
 
 
 def encrypt(src, dst, recipients, signer=None):
-    """Encrypt a file or a whole folder (as a tar stream) to `dst`. Returns bytes of plaintext read."""
+    """Encrypt a file or a whole folder (as a tar stream) to `dst`, which appears only once complete and on disk."""
     src, dst = Path(src), Path(dst)
     tmp = dst.with_name(dst.name + ".part")
     try:
@@ -372,6 +379,8 @@ def encrypt(src, dst, recipients, signer=None):
                     while block := f.read(CHUNK):
                         w.write(block)
             w.finish()
+            out.flush()
+            os.fsync(out.fileno())
         os.replace(tmp, dst)
     finally:
         if tmp.exists():
@@ -423,8 +432,10 @@ def _decrypt(src, dst_dir, identity, ca, crl, expected_signer, require_signature
     with open(src, "rb") as f:
         h = read_header(f)
         name = Path(h["name"]).name
+        if name in ("", ".", "..") or "\0" in name:
+            raise VaultError("the archive names no usable file name")
         dst_dir.mkdir(parents=True, exist_ok=True)
-        staging = dst_dir / f".{name}.pqv-partial"
+        staging = dst_dir / f".pqv-partial-{os.urandom(6).hex()}"
         try:
             gen = chunks(f, h, identity)
             if h["kind"] == "dir":
@@ -487,6 +498,8 @@ def add_recipients(path, identity, recipients):
                 out.write(MAGIC + struct.pack(">I", len(header)) + header)
                 while block := f.read(CHUNK):
                     out.write(block)
+                out.flush()
+                os.fsync(out.fileno())
         except BaseException:
             tmp.unlink(missing_ok=True)
             raise
@@ -500,7 +513,7 @@ def add_recipients(path, identity, recipients):
 def inspect(path):
     with open(path, "rb") as f:
         h = read_header(f)
-    signer = x509.load_pem_x509_certificate(h["signer"].encode()).subject.rfc4514_string() if "signer" in h else None
+    signer = _signer_cert(h).subject.rfc4514_string() if "signer" in h else None
     return {"name": h["name"], "kind": h["kind"], "created": h["created"], "suite": h["suite"],
             "recipients": [r["id"] for r in h["recipients"]], "signed_by": signer, "size": os.path.getsize(path)}
 

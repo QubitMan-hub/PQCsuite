@@ -50,6 +50,16 @@ class Stats:
         with self.lock:
             self.counts[key] += n
 
+    def opened(self, group):
+        with self.lock:
+            self.counts["handshakes"] += 1
+            self.groups[group] += 1
+            self.active += 1
+
+    def closed(self):
+        with self.lock:
+            self.active -= 1
+
     def snapshot(self):
         with self.lock:
             return {"active": self.active, **self.counts, "groups": dict(self.groups)}
@@ -166,10 +176,7 @@ class Server:
             finally:
                 self._handshake_over(addr[0])
             info = conn.info()
-            with self.stats.lock:
-                self.stats.counts["handshakes"] += 1
-                self.stats.groups[info["group"]] += 1
-                self.stats.active += 1
+            self.stats.opened(info["group"])
             log.info("%s: %s %s %s %s peer=%s", self.name, peer, info["version"], info["group"], info["cipher"], info["peer"] or "-")
             try:
                 self.handler(conn, addr)
@@ -179,8 +186,7 @@ class Server:
                 self.stats.add("handler_failed")
                 log.exception("%s: %s: handler failed", self.name, peer)
             finally:
-                with self.stats.lock:
-                    self.stats.active -= 1
+                self.stats.closed()
         finally:
             if conn:
                 conn.close()

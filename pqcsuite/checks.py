@@ -7,7 +7,7 @@ from pathlib import Path
 from cryptography import x509
 
 from . import read_toml
-from .pki import CA, CAError, encrypted, now
+from .pki import CA, CAError, encrypted, now, signed_by
 
 
 def _private(path):
@@ -35,19 +35,28 @@ def ca(root):
         out += _private(root / "ca.key")
         out.append(("ok", "CA key is encrypted") if encrypted(root / "ca.key") else
                    ("warn", "CA key is not encrypted: anyone who copies ca.key can issue certificates (use --encrypt, KMS or an HSM)"))
+    try:
+        records = c.records()
+    except (OSError, ValueError, TypeError) as e:
+        return out + [("fail", f"{root / 'index.json'} cannot be read ({e}): restore it from a backup")]
     crl = root / "crl.pem"
-    if not crl.exists():
+    try:
+        listed = x509.load_pem_x509_crl(crl.read_bytes()) if crl.exists() else None
+    except ValueError:
+        listed = False
+    if listed is None:
         out.append(("fail", f"no {crl}: mutual-TLS services cannot start (pqcsuite ca crl)"))
+    elif listed is False or not signed_by(c.cert, listed.tbs_certlist_bytes, listed.signature):
+        out.append(("fail", f"{crl} is damaged or not signed by this CA; every client would be refused (pqcsuite ca crl)"))
     else:
-        listed = x509.load_pem_x509_crl(crl.read_bytes())
-        missing = [r.common_name for r in c.records() if r.status == "revoked" and listed.get_revoked_certificate_by_serial_number(int(r.serial, 16)) is None]
+        missing = [r.common_name for r in records if r.status == "revoked" and listed.get_revoked_certificate_by_serial_number(int(r.serial, 16)) is None]
         if missing:
             out.append(("fail", f"{len(missing)} revoked certificate(s) not in crl.pem ({', '.join(missing[:5])}): run pqcsuite ca crl"))
         nxt = listed.next_update_utc
         days = (nxt - now()) / dt.timedelta(days=1)
         out.append(("fail" if days < 0 else "warn" if days < 2 else "ok",
                     f"CRL {'expired' if days < 0 else 'valid for'} {abs(days):.1f} days{'' if days >= 2 else ': run pqcsuite ca maintain'}"))
-    soon = [r for r in c.expiring(30) if r.status == "valid"]
+    soon = c.expiring(30)
     out.append(("warn", f"{len(soon)} certificate(s) expire within 30 days: {', '.join(r.common_name for r in soon[:5])} "
                         "(pqcsuite ca maintain renews them)") if soon else ("ok", "no certificate expires within 30 days"))
     return out

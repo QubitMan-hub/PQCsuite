@@ -9,7 +9,6 @@ from pqcsuite import checks
 from pqcsuite.pki import CA
 
 
-
 def find(results, text):
     return next((lvl for lvl, m in results if text in m), None)
 
@@ -41,6 +40,17 @@ class ChecksTest(unittest.TestCase):
         CA.init(self.d / "enc", "Encrypted", passphrase=b"pw").crl()
         self.assertEqual(find(checks.ca(self.d / "enc"), "is encrypted"), "ok")
         self.assertEqual(find(checks.ca(self.d / "missing"), "CA at"), "fail")
+
+    def test_damaged_ca_files_are_problems_not_crashes(self):
+        CA.init(self.d / "pki", "Root")
+        other = CA.init(self.d / "other", "Other")
+        crl = self.d / "pki" / "crl.pem"
+        for name, data in (("damaged", b"-----BEGIN X509 CRL-----\nAAAA\n-----END X509 CRL-----\n"), ("another CA's", other.crl())):
+            with self.subTest(name):
+                crl.write_bytes(data)
+                self.assertEqual(find(checks.ca(self.d / "pki"), "damaged or not signed"), "fail")
+        (self.d / "pki" / "index.json").write_text("[{")
+        self.assertEqual(find(checks.ca(self.d / "pki"), "index.json cannot be read"), "fail")
 
     def write(self, text):
         p = self.d / "c.toml"

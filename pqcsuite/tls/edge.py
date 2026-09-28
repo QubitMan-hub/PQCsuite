@@ -13,9 +13,8 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .. import HTTP_IDLE, build, env_passphrase, explain, read_toml, tls
+from .. import JSON, METRICS, build, env_passphrase, explain, read_toml, serve_http, tls
 from . import hostport
 from .server import Server, Stats
 
@@ -116,9 +115,14 @@ class Edge:
                 self.crl_follow = follow_crl(r.crl_url, r.crl, r.ca, r.crl_every)
             fallback = (r.fallback_cert, r.fallback_key) if r.fallback_cert else None
             make = lambda: tls.server_context(r.cert, r.key, r.ca or None, r.require_client_cert, r.policy, r.passphrase(), fallback=fallback)
-            self.server = Server(hostport(r.listen), make, self._terminate, watch=[r.cert, r.key, r.ca, r.fallback_cert, r.fallback_key], crl=r.crl or None,
-                                 ca=r.ca or None, max_connections=r.max_connections, handshake_timeout=r.handshake_timeout, name=r.name,
-                                 reuse_port=reuse_port)
+            try:
+                self.server = Server(hostport(r.listen), make, self._terminate, watch=[r.cert, r.key, r.ca, r.fallback_cert, r.fallback_key],
+                                     crl=r.crl or None, ca=r.ca or None, max_connections=r.max_connections,
+                                     handshake_timeout=r.handshake_timeout, name=r.name, reuse_port=reuse_port)
+            except BaseException:
+                if self.crl_follow:
+                    self.crl_follow.set()
+                raise
             self.stats = self.server.stats
             self.port = self.server.port
         else:
@@ -178,16 +182,11 @@ class Edge:
         def run(client):
             try:
                 with tls.connect(*host_port, self.client_context(), r.server_name or host_port[0], r.handshake_timeout) as conn:
-                    info = conn.info()
-                    with self.stats.lock:
-                        self.stats.counts["handshakes"] += 1
-                        self.stats.groups[info["group"]] += 1
-                        self.stats.active += 1
+                    self.stats.opened(conn.info()["group"])
                     try:
                         pump(conn, client, r.idle_timeout)
                     finally:
-                        with self.stats.lock:
-                            self.stats.active -= 1
+                        self.stats.closed()
             except (tls.TLSError, OSError) as e:
                 self.stats.add("handshake_failed")
                 log.warning("%s: tunnel to %s failed: %s", r.name, r.target, explain(e))
@@ -344,30 +343,8 @@ def metrics_text(edges, workers=None):
 
 
 def serve_metrics(address, edges, workers=None):
-    class Handler(BaseHTTPRequestHandler):
-        timeout = HTTP_IDLE
-
-        def do_GET(self):
-            if self.path == "/healthz":
-                body, ctype = b"ok\n", "text/plain"
-            elif self.path == "/metrics":
-                body, ctype = metrics_text(edges, workers).encode(), "text/plain; version=0.0.4"
-            elif self.path == "/status":
-                body, ctype = json.dumps({e.route.name: {"mode": e.route.mode, "listen": e.route.listen, "target": e.route.target,
-                                                         "policy": e.route.policy, **totals(e, workers)} for e in edges}).encode(), "application/json"
-            else:
-                self.send_error(404)
-                return
-            self.send_response(200)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-        def log_message(self, *args):
-            pass
-
-    httpd = ThreadingHTTPServer(hostport(address, "127.0.0.1"), Handler)
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    status = lambda: json.dumps({e.route.name: {"mode": e.route.mode, "listen": e.route.listen, "target": e.route.target,
+                                                "policy": e.route.policy, **totals(e, workers)} for e in edges})
+    httpd = serve_http(address, {"/metrics": (METRICS, lambda: metrics_text(edges, workers)), "/status": (JSON, status)})
     log.info("metrics on http://%s:%d/metrics", *httpd.server_address[:2])
     return httpd

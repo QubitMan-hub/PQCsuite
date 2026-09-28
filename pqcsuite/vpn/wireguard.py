@@ -181,6 +181,8 @@ class GatewayConfig:
         hostport(self.keyring_listen)
         if self.crl_url and not self.crl:
             raise ValueError("crl_url needs crl = \"PATH\", where the copy is kept")
+        if self.crl_every < 5:
+            raise ValueError("crl_every must be at least 5 seconds")
         if self.rotate_minutes < 0.25:
             raise ValueError("rotate_minutes must be at least 0.25")
         return self

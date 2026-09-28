@@ -6,6 +6,7 @@ remote access: browsers already do X25519MLKEM768, though they cannot verify ML-
 import base64
 import hashlib
 import hmac
+import http.client
 import json
 import logging
 import os
@@ -78,17 +79,7 @@ class App:
                          "algorithm": ca.algorithm}, "certificates": rows}
 
     def edges(self):
-        out = []
-        for url in self.s.edges:
-            try:
-                with NO_PROXY.open(url.rstrip("/") + "/status", timeout=3) as r:
-                    status = json.loads(r.read())
-                if not (isinstance(status, dict) and all(isinstance(v, dict) for v in status.values())):
-                    raise ValueError("this address does not answer like an edge's /status")
-                out += [{"source": url, "name": k, **v} for k, v in status.items()]
-            except (OSError, ValueError) as e:
-                out.append({"source": url, "error": str(e)})
-        return out
+        return self._statuses(self.s.edges, "name", "an edge")
 
     def tunnels(self):
         from ..vpn.charon import Charon, CharonError
@@ -102,16 +93,21 @@ class App:
         return out
 
     def remote_users(self):
+        return self._statuses(self.s.wireguard, "user", "a WireGuard gateway", skip="_events")
+
+    @staticmethod
+    def _statuses(urls, key, what, skip=None):
+        """One row per entry of each service's /status; an address that is down or answers like something else is one error row."""
         out = []
-        for url in self.s.wireguard:
+        for url in urls:
             try:
                 with NO_PROXY.open(url.rstrip("/") + "/status", timeout=3) as r:
                     status = json.loads(r.read())
-                users = {k: v for k, v in status.items() if k != "_events"} if isinstance(status, dict) else None
-                if users is None or not all(isinstance(v, dict) for v in users.values()):
-                    raise ValueError("this address does not answer like a WireGuard gateway's /status")
-                out += [{"source": url, "user": k, **v} for k, v in users.items()]
-            except (OSError, ValueError) as e:
+                entries = {k: v for k, v in status.items() if k != skip} if isinstance(status, dict) else None
+                if entries is None or not all(isinstance(v, dict) for v in entries.values()):
+                    raise ValueError(f"this address does not answer like {what}'s /status")
+                out += [{"source": url, key: k, **v} for k, v in entries.items()]
+            except (OSError, ValueError, http.client.HTTPException) as e:
                 out.append({"source": url, "error": str(e)})
         return out
 

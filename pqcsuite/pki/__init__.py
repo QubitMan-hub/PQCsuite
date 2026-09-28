@@ -441,13 +441,14 @@ def fetch_crl(url, dest, ca_certs, timeout=10):
     """Download the CRL published at `url` and keep it at `dest`. Only a CRL that the CA signed, that has not expired and that
     is not older than the copy already kept replaces it, so a forged, stale or replayed download changes nothing. True when
     the copy changed."""
+    import http.client
     import urllib.request
     if not url.startswith(("http://", "https://")):
         raise CAError(f"crl_url must start with http:// or https://, not {url!r}")
     try:
         with urllib.request.urlopen(url, timeout=timeout) as r:
             data = r.read(20 << 20)
-    except OSError as e:
+    except (OSError, ValueError, http.client.HTTPException) as e:
         raise CAError(f"cannot fetch the CRL from {url}: {e}") from None
     if not data.lstrip().startswith(b"-----BEGIN"):
         try:
@@ -490,7 +491,7 @@ def follow_crl(url, dest, ca_path, every=60.0):
             try:
                 if fetch_crl(url, dest, cas):
                     log.info("CRL from %s changed; saved to %s", url, dest)
-            except (CAError, OSError) as e:
+            except Exception as e:  # the follower must outlive any one bad answer, or the kept copy silently expires
                 log.error("%s; keeping %s", e, dest)
     threading.Thread(target=loop, daemon=True, name="crl").start()
     return stop

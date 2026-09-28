@@ -7,14 +7,15 @@ import tempfile
 import threading
 import time
 import unittest
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
 
 from cryptography import x509
 
-from pqcsuite import ConfigWatch, latest_release, tls
-from pqcsuite.cli import serve_json
+from pqcsuite import JSON, PEM, ConfigWatch, latest_release, serve_http, tls
 from pqcsuite.console import App, Settings
 from pqcsuite.pki import CA, CAError, fetch_crl, follow_crl, shared
 from pqcsuite.vpn import Peer, Site, validate
@@ -40,6 +41,23 @@ def revoked(path):
     return {r.serial_number for r in x509.load_pem_x509_crl(shared(Path(path).read_bytes))}
 
 
+NOT_HTTP = b"not http at all\r\n\r\n"
+
+
+def garbage_server(test, answer):
+    """An address that answers one request with `answer`, however broken."""
+    srv = socket.create_server(("127.0.0.1", 0))
+    test.addCleanup(srv.close)
+
+    def serve():
+        conn, _ = srv.accept()
+        conn.recv(4096)
+        conn.sendall(answer)
+        conn.close()
+    threading.Thread(target=serve, daemon=True).start()
+    return f"http://127.0.0.1:{srv.getsockname()[1]}"
+
+
 class CRLDistributionTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -50,7 +68,7 @@ class CRLDistributionTest(unittest.TestCase):
         _, self.rec = self.ca.issue("laptop", "client", out=d / "laptop")
         self.cas = x509.load_pem_x509_certificates((d / "pki" / "ca.crt").read_bytes())
         self.served = {"/crl.pem": lambda: (d / "pki" / "crl.pem").read_text()}
-        httpd = serve_json("127.0.0.1:0", {"/crl.pem": lambda: self.served["/crl.pem"]()}, "application/x-pem-file")
+        httpd = serve_http("127.0.0.1:0", {"/crl.pem": (PEM, lambda: self.served["/crl.pem"]())})
         self.addCleanup(httpd.shutdown)
         self.url = f"http://127.0.0.1:{httpd.server_address[1]}/crl.pem"
         self.copy = d / "edge" / "crl.pem"
@@ -109,6 +127,15 @@ class CRLDistributionTest(unittest.TestCase):
         with self.assertRaisesRegex(CAError, "expired"):
             check.check(12345)
 
+    def test_a_broken_http_answer_is_logged_and_the_follower_keeps_going(self):
+        stop = follow_crl(self.url, self.copy, self.d / "pki" / "ca.crt", 0.2)
+        self.addCleanup(stop.set)
+        for answer in (b"HTTP/1.1 200 OK\r\nContent-Length: 5000\r\n\r\n-----BEGIN", NOT_HTTP):
+            with self.assertRaises(CAError):
+                fetch_crl(garbage_server(self, answer) + "/crl.pem", self.copy, self.cas)
+        self.ca.revoke(self.rec.serial)
+        self.assertTrue(wait(lambda: int(self.rec.serial, 16) in revoked(self.copy)))
+
     def test_settings_need_somewhere_to_keep_the_copy(self):
         site = Site("hq", "1.2.3.4", "c", "k", "a", crl_url=self.url, peers=[Peer("b", "5.6.7.8", ["10.0.0.0/24"], ["10.1.0.0/24"], True, "b:7443")])
         with self.assertRaisesRegex(ValueError, "crl_url needs crl"):
@@ -116,6 +143,12 @@ class CRLDistributionTest(unittest.TestCase):
         cfg = GatewayConfig(name="vpn", endpoint="vpn:51820", keyring_listen="0.0.0.0:7443", pool="10.99.0.0/24", cert="c", key="k", ca="a",
                             crl_url=self.url)
         with self.assertRaisesRegex(ValueError, "crl_url needs crl"):
+            cfg.validate()
+        site.crl, cfg.crl = "copy.pem", "copy.pem"
+        site.crl_every = cfg.crl_every = 0
+        with self.assertRaisesRegex(ValueError, "crl_every"):
+            validate(site)
+        with self.assertRaisesRegex(ValueError, "crl_every"):
             cfg.validate()
 
 
@@ -146,6 +179,26 @@ class ConfigWatchTest(unittest.TestCase):
             path.write_text("n = 3\n")
             w.poke()
             self.assertTrue(wait(lambda: seen == [2, 3]))
+
+
+class ServeHTTPTest(unittest.TestCase):
+    def test_the_console_shows_a_service_that_does_not_speak_http_as_an_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            app = App(Settings(audit_log=str(Path(d) / "a.jsonl"), edges=[garbage_server(self, NOT_HTTP)]))
+            self.assertIn("error", app.edges()[0])
+
+    def test_routes_health_and_missing_paths(self):
+        httpd = serve_http("127.0.0.1:0", {"/status": (JSON, lambda: '{"up": 1}'), "/crl.pem": (PEM, lambda: None)})
+        self.addCleanup(httpd.shutdown)
+        base = f"http://127.0.0.1:{httpd.server_address[1]}"
+        with urllib.request.urlopen(base + "/status", timeout=5) as r:
+            self.assertEqual((r.headers["Content-Type"], json.load(r)), (JSON, {"up": 1}))
+        with urllib.request.urlopen(base + "/healthz", timeout=5) as r:
+            self.assertEqual(r.read(), b"ok\n")
+        for path in ("/crl.pem", "/nope"):
+            with self.subTest(path=path), self.assertRaises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(base + path, timeout=5)
+            self.assertEqual(e.exception.code, 404)
 
 
 class Echo(BaseHTTPRequestHandler):
@@ -218,10 +271,24 @@ class EdgeReloadTest(unittest.TestCase):
         with self.assertRaises((tls.TLSError, OSError)):
             self.get(c)
 
+    def test_a_route_that_cannot_bind_leaves_no_crl_follower_behind(self):
+        from pqcsuite.tls.edge import Edge
+        httpd = serve_http("127.0.0.1:0", {"/crl.pem": (PEM, lambda: (self.d / "pki" / "crl.pem").read_text())})
+        self.addCleanup(httpd.shutdown)
+        taken = socket.create_server(("127.0.0.1", 0))
+        self.addCleanup(taken.close)
+        followers = lambda: sum(t.name == "crl" and t.is_alive() for t in threading.enumerate())
+        before = followers()
+        route = self.route("web", taken.getsockname()[1], "one", crl=str(self.d / "edge-crl.pem"),
+                           crl_url=f"http://127.0.0.1:{httpd.server_address[1]}/crl.pem", crl_every=5)
+        with self.assertRaises(OSError):
+            Edge(route).bind()
+        self.assertTrue(wait(lambda: followers() == before, 10))
+
     def test_a_revocation_at_the_ca_reaches_the_edge(self):
         from pqcsuite.tls.edge import Edge
         who, rec = self.ca.issue("laptop", "client", out=self.d / "laptop")
-        httpd = serve_json("127.0.0.1:0", {"/crl.pem": lambda: (self.d / "pki" / "crl.pem").read_text()})
+        httpd = serve_http("127.0.0.1:0", {"/crl.pem": (PEM, lambda: (self.d / "pki" / "crl.pem").read_text())})
         self.addCleanup(httpd.shutdown)
         port = self.port()
         e = Edge(self.route("mtls", port, "one", require_client_cert=True, crl=str(self.d / "edge-crl.pem"),
@@ -296,7 +363,7 @@ class ReadinessChangesTest(unittest.TestCase):
 
 class UpdatesTest(unittest.TestCase):
     def serve(self, releases):
-        httpd = serve_json("127.0.0.1:0", {"/releases": lambda: json.dumps(releases)})
+        httpd = serve_http("127.0.0.1:0", {"/releases": (JSON, lambda: json.dumps(releases))})
         self.addCleanup(httpd.shutdown)
         return f"http://127.0.0.1:{httpd.server_address[1]}/releases"
 
@@ -309,6 +376,8 @@ class UpdatesTest(unittest.TestCase):
         self.assertIsNone(latest_release(self.serve([])))
         with self.assertRaises(ValueError):
             latest_release(self.serve({"message": "Not Found"}))
+        with self.assertRaises(OSError):
+            latest_release(garbage_server(self, NOT_HTTP))
 
     def test_the_console_only_asks_when_told_to(self):
         with tempfile.TemporaryDirectory() as d:

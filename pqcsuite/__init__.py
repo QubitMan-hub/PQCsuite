@@ -85,6 +85,41 @@ def explain(e):
     return str(e)
 
 
+METRICS, JSON, PEM = "text/plain; version=0.0.4; charset=utf-8", "application/json", "application/x-pem-file"
+
+
+def serve_http(address, routes):
+    """Answers GET on a background thread. `routes` maps a path to (content type, function returning the body as text, or
+    None for 404); /healthz always answers ok."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from .tls import hostport
+    routes = {"/healthz": ("text/plain; charset=utf-8", lambda: "ok\n"), **routes}
+
+    class Handler(BaseHTTPRequestHandler):
+        timeout = HTTP_IDLE
+
+        def do_GET(self):
+            ctype, fn = routes.get(self.path, (None, lambda: None))
+            body = fn()
+            if body is None:
+                self.send_error(404)
+                return
+            body = body.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    httpd = ThreadingHTTPServer(hostport(address, "127.0.0.1"), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd
+
+
 def content_length(headers):
     """An HTTP request's body length, or None unless the header is a plain non-negative number (int() would accept "-1",
     and reading -1 bytes reads until the client stops sending)."""
@@ -153,9 +188,13 @@ def restart():
 def latest_release(url=None, timeout=10):
     """The newest published suite release (tags vX.Y.Z; Wolf Pack's are skipped) from GitHub, or from PQCSUITE_RELEASES_URL (a
     mirror inside your network). None when there is none. Nothing calls this unless asked to."""
+    import http.client
     import urllib.request
-    with urllib.request.urlopen(url or os.environ.get("PQCSUITE_RELEASES_URL") or RELEASES, timeout=timeout) as r:
-        data = json.loads(r.read(5 << 20))
+    try:
+        with urllib.request.urlopen(url or os.environ.get("PQCSUITE_RELEASES_URL") or RELEASES, timeout=timeout) as r:
+            data = json.loads(r.read(5 << 20))
+    except http.client.HTTPException as e:
+        raise OSError(f"the releases address did not answer in HTTP: {e!r}") from None
     if not isinstance(data, list):
         raise ValueError("the releases address did not return a list of releases")
     found = [(tuple(map(int, m.groups())), r) for r in data if isinstance(r, dict) and not r.get("draft") and not r.get("prerelease")

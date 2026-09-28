@@ -57,7 +57,6 @@ def load_config(path):
     return site
 
 
-
 def validate(site):
     if not site.peers:
         raise ValueError("no [[peer]] sections")
@@ -75,5 +74,7 @@ def validate(site):
             ipaddress.ip_network(net)
     if site.crl_url and not site.crl:
         raise ValueError("crl_url needs crl = \"PATH\", where the copy is kept")
+    if site.crl_every < 5:
+        raise ValueError("crl_every must be at least 5 seconds")
     if any(not p.initiate for p in site.peers) and not site.keyring_listen:
         raise ValueError("peers that initiate towards this site need keyring_listen = \"0.0.0.0:7443\"")
