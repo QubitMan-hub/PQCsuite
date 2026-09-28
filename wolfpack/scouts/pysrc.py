@@ -117,10 +117,11 @@ class PyScout(ast.NodeVisitor):
     def handle(self, n, q, last):
         a = lambda pos, kw=None: self.arg(n, pos, kw)
         if q.startswith("hashlib."):
+            declared = {"purpose": "non-security"} if self.val(a(None, "usedforsecurity")) is False else {}
             if last in HASHLIB:
-                return self.emit(n, lookup(last)) or True
+                return self.emit(n, lookup(last), declared) or True
             if last == "new":
-                return self.emit(n, lookup(str(self.val(a(0, "name")) or ""))) or True
+                return self.emit(n, lookup(str(self.val(a(0, "name")) or "")), declared) or True
             if last == "pbkdf2_hmac":
                 return self.emit(n, "PBKDF2", {"hash": self.hashname(a(0, "hash_name"))}) or True
             if last == "scrypt":

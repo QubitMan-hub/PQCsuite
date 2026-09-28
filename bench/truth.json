@@ -141,6 +141,13 @@
   "c/ripemd160_impl.c": [
     "RIPEMD-160"
   ],
+  "py/checksums.py": [
+    "MD5",
+    "SHA-1"
+  ],
+  "py/password_check.py": [
+    "SHA-1"
+  ],
   "go/sm4.go": [
     "SM4"
   ],

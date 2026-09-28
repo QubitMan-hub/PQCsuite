@@ -166,7 +166,10 @@ def sarif(assets, alerts):
         for s in a.sightings:
             if s.file.startswith("tls://"):
                 continue
-            results.append({"ruleId": rid, "level": LEVEL[a.tier], "message": {"text": f"{a.variant} [{a.tier}]: {a.why}. Fix: {a.action}"},
+            declared = "non-security" in s.context and a.tier in ("critical", "high", "medium")
+            text = (f"{a.variant}, declared not for security here (usedforsecurity=False): fine as a checksum; keep it out of passwords and "
+                    f"signatures" if declared else f"{a.variant} [{a.tier}]: {a.why}. Fix: {a.action}")
+            results.append({"ruleId": rid, "level": LEVEL["low" if declared else a.tier], "message": {"text": text},
                             "locations": [{"physicalLocation": {"artifactLocation": {"uri": s.file}, "region": {"startLine": max(1, s.line)}}}],
                             "properties": {"confidence": s.confidence, "evidence": s.evidence}})
     for sev, title, where, fix in alerts:

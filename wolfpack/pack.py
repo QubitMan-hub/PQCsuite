@@ -27,6 +27,7 @@ class Roles:
     registries: bool = True
     siblings: bool = True
     recognition: bool = True
+    purpose: bool = True
     trails: bool = True
 
     @classmethod
@@ -134,7 +135,7 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
         held = alpha.recognise(sightings, lines) if roles.recognition else 0
     else:
         sightings, looks, held = den.admit_all(h.sightings), dict.fromkeys(alpha.LOOKS, 0), 0
-    assets = alpha.lead(den.assets(sightings), horizon)
+    assets = alpha.lead(den.assets(sightings), horizon, roles.purpose)
     if baseline:
         seen = load_baseline(baseline)
         for a in assets:

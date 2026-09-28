@@ -15,7 +15,7 @@ Current version: 1.0.0 (first production release: Docker image, GitHub Action, `
 ```powershell
 py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 54 tests, must stay green
+python -m unittest discover -s tests -v          # 55 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -62,7 +62,7 @@ wolfpack/
   report.py      self-contained monochrome HTML report and terminal summary
   cli.py         scan / bench subcommands, .wolfpack.toml settings, exit codes 0 / 1 error / 2 fail-on
   bench.py       scores at (file, algorithm family) granularity across 3 configs
-bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 96 labelled pairs
+bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 100 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
 Dockerfile, action.yml  container image and GitHub Action (CI builds and runs both, and the wheel)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)
@@ -85,6 +85,8 @@ Counting conventions (owner-confirmed, also in eval/heldout/LABELLING.md): a pri
 Evidence types and base confidence (den.BASE): live 1.0, artifact .95, config .9, call .9, constant .85, binary .8, identifier .65, import .45, string .35. Params found add .05. Same-file corroboration from a different evidence type adds .25 (ECC/ECDSA/ECDH count as kin). Threshold is 0.6.
 
 Verdicts: accepted, quarantined (held, still in findings.json), rejected (comment, docstring, prose, unknown algo), suppressed (`wolfpack:ignore` on the line or the line above).
+
+Alpha purpose: a Python hashlib call with `usedforsecurity=False` is a declared non-security use (checksum, cache key). An asset whose every sighting is declared ranks low, and those lines are SARIF notes; one undeclared use keeps the asset's tier. It is the developer's statement, not verified.
 
 Alpha recognition: entries of a list whose later uses only search for them inside input data are format sniffing; they are never promoted and are held back even if the den accepted them.
 

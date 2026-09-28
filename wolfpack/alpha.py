@@ -195,7 +195,12 @@ def exposure(a):
     return "application code", 2
 
 
-def assess(a, h, hybrid_files):
+def declared_non_security(a):
+    """Every use of this asset was declared not for security (Python's usedforsecurity=False): a checksum or cache key."""
+    return all(s.params.get("purpose") == "non-security" for s in a.sightings)
+
+
+def assess(a, h, hybrid_files, purpose=True):
     c = CATALOG[a.algo]
     bits = classical_bits(a.algo, a.params)
     label, w = exposure(a)
@@ -251,6 +256,14 @@ def assess(a, h, hybrid_files):
         tier = "ok"
         a.why = "Quantum-safe" if c.primitive in ("kem", "signature") else "No known quantum break at this strength"
         a.action = ""
+    if purpose:
+        for s in a.sightings:
+            if s.params.get("purpose") == "non-security":
+                s.context.add("non-security")
+    if purpose and tier in ("critical", "high", "medium") and declared_non_security(a):
+        tier = "low"
+        a.why = "Declared not for security (usedforsecurity=False), so a checksum or cache key; this is the developer's statement, not verified"
+        a.action = "Keep it out of passwords, signatures and integrity checks"
     if a.test_only and tier in ("critical", "high", "medium"):
         tier = TIERS[TIERS.index(tier) + 1]
         a.why += " (test code only)"
@@ -293,8 +306,8 @@ def readiness(assets):
             "tiers": {t: sum(1 for a in assets if a.tier == t) for t in TIERS}}
 
 
-def lead(assets, h):
+def lead(assets, h, purpose=True):
     hybrid = {s.file for a in assets if a.algo in HYBRIDS for s in a.sightings}
     for a in assets:
-        assess(a, h, hybrid)
+        assess(a, h, hybrid, purpose)
     return sorted(assets, key=lambda a: (-a.score, a.variant))

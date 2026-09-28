@@ -185,6 +185,22 @@ class Roles(unittest.TestCase):
         self.assertEqual(self.accepted(["implementations"], "c/keccak.c"), set())
         self.assertEqual(self.accepted(["implementations"], "c/ripemd160_impl.c"), set())
 
+    def test_declared_non_security_hashes_rank_low_only_when_every_use_says_so(self):
+        import tempfile
+        declared = {(s.file, s.algo) for s in pack.run(CORPUS, "corpus").sightings if s.params.get("purpose") == "non-security"}
+        self.assertEqual(declared, {("py/checksums.py", "MD5"), ("py/checksums.py", "SHA-1")})
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "etag.py").write_text("import hashlib\nhashlib.md5(b, usedforsecurity=False)\n", encoding="utf-8")
+            tier = lambda **k: {a.algo: a.tier for a in pack.run(d, "t", **k).assets}["MD5"]
+            self.assertEqual(tier(), "low")
+            self.assertEqual(tier(roles=pack.Roles.without("purpose")), "critical")
+            (Path(d) / "login.py").write_text("import hashlib\nhashlib.md5(password)\n", encoding="utf-8")
+            self.assertEqual(tier(), "critical")
+            r = pack.run(d, "t")
+            levels = {x["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]: x["level"]
+                      for x in cbom.sarif(r.assets, [])["runs"][0]["results"]}
+            self.assertEqual(levels, {"etag.py": cbom.LEVEL["low"], "login.py": cbom.LEVEL["critical"]})
+
     def test_files_too_large_to_read_are_named_in_the_notes(self):
         import tempfile
         from wolfpack.scouts import MAX_BYTES
