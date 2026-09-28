@@ -12,11 +12,10 @@ import subprocess
 import sys
 import threading
 import time
-import tomllib
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .. import HTTP_IDLE, build, env_passphrase, explain, tls
+from .. import HTTP_IDLE, build, env_passphrase, explain, read_toml, tls
 from . import hostport
 from .server import Server, Stats
 
@@ -211,8 +210,7 @@ class Edge:
 
 def load_config(path):
     """Read [[edge]] routes from a TOML file."""
-    with open(path, "rb") as f:
-        doc = tomllib.load(f)
+    doc = read_toml(path)
     routes = []
     for i, e in enumerate(doc.get("edge", [])):
         routes.append(build(Route, {"name": f"edge{i + 1}", **e}, f"edge #{i + 1}"))

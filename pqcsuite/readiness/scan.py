@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
-from .. import explain, tls
+from .. import explain, read_text, tls
 from ..pki import algorithm_of
 from ..tls import hostport
 from ..tls.openssl import Context
@@ -240,8 +240,7 @@ def load_targets(items):
     targets = []
     for item in items:
         if item.endswith(".txt") or item.endswith(".lst"):
-            with open(item, encoding="utf-8") as f:
-                targets += [l.split("#")[0].strip() for l in f if l.split("#")[0].strip()]
+            targets += [l.split("#")[0].strip() for l in read_text(item).splitlines() if l.split("#")[0].strip()]
         else:
             targets.append(item)
     return targets

@@ -1,6 +1,8 @@
 import os
 import socket
+import tomllib
 from dataclasses import MISSING
+from pathlib import Path
 
 NAME = "pqcsuite"
 __version__ = "0.1.0"
@@ -31,6 +33,25 @@ def build(cls, d, where, **extra):
             kind = {str: "text in quotes", int: "a whole number", float: "a number", bool: "true or false", list: "a list", dict: "a table"}
             raise ValueError(f"{where}: {k} must be {kind.get(t, t.__name__)}, not {v!r}")
     return cls(**d, **extra)
+
+
+def read_text(path):
+    """A text file as Windows tools save it too: UTF-8 with or without a byte-order mark, or UTF-16 (PowerShell 5 redirection)."""
+    data = Path(path).read_bytes()
+    for bom, codec in ((b"\xef\xbb\xbf", "utf-8-sig"), (b"\xff\xfe", "utf-16"), (b"\xfe\xff", "utf-16")):
+        if data.startswith(bom):
+            return data.decode(codec)
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ValueError(f"{path} is not UTF-8 text; save it as UTF-8") from None
+
+
+def read_toml(path):
+    try:
+        return tomllib.loads(read_text(path))
+    except tomllib.TOMLDecodeError as e:
+        raise ValueError(f"{path}: {e}") from None
 
 
 def env_passphrase(var):

@@ -13,14 +13,13 @@ import re
 import secrets
 import threading
 import time
-import tomllib
 import urllib.request
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 
-from .. import HTTP_IDLE, NAME, __version__, build, content_length
+from .. import HTTP_IDLE, NAME, __version__, build, content_length, read_toml
 from ..pki import CA, CAError, encrypted
 from ..tls import hostport
 
@@ -41,8 +40,7 @@ class Settings:
 
     @classmethod
     def load(cls, path):
-        with open(path, "rb") as f:
-            d = tomllib.load(f).get("console", {})
+        d = read_toml(path).get("console", {})
         return build(cls, d, "[console]")
 
 

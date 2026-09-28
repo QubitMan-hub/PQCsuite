@@ -119,6 +119,16 @@ class CLITest(unittest.TestCase):
         self.assertIn("[site]: missing address", self.fails("vpn", "up", "--config", cfg))
         cfg.write_text('[wireguard]\nname = "x"\n')
         self.assertIn("[wireguard]: missing endpoint", self.fails("vpn", "gateway", "--config", cfg))
+        text = '[[edge]]\nmode = "terminate"\nlisten = "127.0.0.1:0"\ntarget = "127.0.0.1:1"\n'
+        for data in (b"\xef\xbb\xbf" + text.encode(), b"\xff\xfe" + text.encode("utf-16-le")):
+            cfg.write_bytes(data)
+            self.assertIn("terminate needs cert and key", self.fails("tls", "edge", "--config", cfg))
+        cfg.write_bytes(b"\x80\x81 not text")
+        self.assertIn("is not UTF-8 text", self.fails("tls", "edge", "--config", cfg))
+        targets = self.d / "t.txt"
+        targets.write_bytes(b"\xef\xbb\xbfbank.example\r\n# note\r\nssh://gw\r\n")
+        from pqcsuite.readiness.scan import load_targets
+        self.assertEqual(load_targets([str(targets)]), ["bank.example", "ssh://gw"])
 
     def test_nothing_to_do_is_an_error(self):
         empty = self.d / "hosts.txt"

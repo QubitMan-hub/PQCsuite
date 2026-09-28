@@ -21,7 +21,6 @@ import subprocess
 import tempfile
 import threading
 import time
-import tomllib
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,7 +29,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
-from .. import build, env_passphrase, explain, tls
+from .. import build, env_passphrase, explain, read_toml, tls
 from ..pki import CAError, write
 from ..tls import hostport
 from ..tls.server import Server
@@ -183,8 +182,7 @@ class GatewayConfig:
 
 
 def load_gateway(path):
-    with open(path, "rb") as f:
-        d = tomllib.load(f).get("wireguard")
+    d = read_toml(path).get("wireguard")
     if d is None:
         raise ValueError(f"{path}: missing [wireguard]")
     return build(GatewayConfig, d, "[wireguard]").validate()

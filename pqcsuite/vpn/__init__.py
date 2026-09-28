@@ -6,10 +6,9 @@ over post-quantum mutual TLS (ML-DSA certificates from our CA, X25519MLKEM768) a
 the IKE pre-shared key and an RFC 8784 post-quantum pre-shared key (PPK). Both rotate; a revoked gateway gets no new keys.
 """
 import ipaddress
-import tomllib
 from dataclasses import dataclass, field
 
-from .. import build
+from .. import build, read_toml
 
 PROFILES = {
     "standard": ("aes256gcm16-prfsha384-x25519-ke1_mlkem768", "aes256gcm16-x25519-ke1_mlkem768"),
@@ -48,8 +47,7 @@ class Site:
 
 
 def load_config(path):
-    with open(path, "rb") as f:
-        doc = tomllib.load(f)
+    doc = read_toml(path)
     if "site" not in doc:
         raise ValueError(f"{path}: missing [site]")
     site = build(Site, doc["site"], "[site]", peers=[build(Peer, p, f"peer #{i + 1}") for i, p in enumerate(doc.get("peer", []))])
