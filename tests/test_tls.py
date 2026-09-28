@@ -262,6 +262,29 @@ class EdgeTest(unittest.TestCase):
         self.assertIn('pqcsuite_group_total{edge="web",group="X25519MLKEM768"} 51', metrics_text([edge, tunnel]))
         self.assertEqual(edge.stats.snapshot().get("handshake_failed", 0), 0)
 
+    def test_a_client_that_pauses_longer_than_the_handshake_deadline_still_gets_everything(self):
+        d = Path(tempfile.mkdtemp())
+        ca = CA.init(d / "pki", "Root")
+        srv, _ = ca.issue("localhost", "server", ["127.0.0.1"], out=d / "srv")
+        up = socket.create_server(("127.0.0.1", 0))
+        self.addCleanup(up.close)
+        size = 8 << 20
+
+        def upstream():
+            c, _ = up.accept()
+            with c:
+                c.sendall(b"x" * size)
+        threading.Thread(target=upstream, daemon=True).start()
+        edge = Edge(Route("slow", "terminate", "127.0.0.1:0", f"127.0.0.1:{up.getsockname()[1]}", cert=str(srv / "chain.pem"),
+                          key=str(srv / "key.pem"), handshake_timeout=1.0)).start()
+        self.addCleanup(edge.stop)
+        with tls.connect("127.0.0.1", edge.port, tls.client_context(str(d / "pki" / "ca.crt")), "localhost", 10) as c:
+            got = len(c.recv())
+            time.sleep(2.5)
+            while data := c.recv():
+                got += len(data)
+        self.assertEqual(got, size)
+
     @unittest.skipUnless(sys.platform.startswith("linux"), "SO_REUSEPORT spreads connections on Linux only")
     def test_workers_share_the_port_and_the_metrics_add_up(self):
         d = Path(tempfile.mkdtemp())

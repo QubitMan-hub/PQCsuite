@@ -67,8 +67,10 @@ class Route:
 
 
 def pump(conn, raw, idle_timeout):
-    """Copy bytes both ways between a TLS connection and a plain socket until either side closes or goes idle."""
+    """Copy bytes both ways between a TLS connection and a plain socket until either side closes or goes idle. A peer that
+    stops reading for a while (a slow link, a paused phone) gets the idle timeout too, not the short handshake deadline."""
     raw.settimeout(idle_timeout)
+    conn.timeout = idle_timeout
     with selectors.DefaultSelector() as sel:
         sel.register(conn.sock, selectors.EVENT_READ, "tls")
         sel.register(raw, selectors.EVENT_READ, "raw")
