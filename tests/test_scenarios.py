@@ -285,8 +285,9 @@ class EnrollTest(Scenario):
         token = run("ca", "token", "--dir", self.d / "pki", "client", "laptop-7").stdout.strip().splitlines()[-1]
         from pqcsuite.pki.est import fingerprint
         fp = fingerprint(self.ca.cert)
-        r = run("ca", "enroll", f"https://127.0.0.1:{port}", "--token", token, "--cn", "laptop-7", "--ca-fingerprint", fp,
-                "--server-name", "ca.internal", "--out", self.d / "laptop")
+        r = subprocess.run([sys.executable, "-m", "pqcsuite", "ca", "enroll", f"https://127.0.0.1:{port}", "--cn", "laptop-7", "--ca-fingerprint", fp,
+                            "--server-name", "ca.internal", "--out", str(self.d / "laptop")], capture_output=True, text=True, timeout=60,
+                           env={**os.environ, "PQCSUITE_ENROLL_TOKEN": token})
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         r = run("ca", "enroll", f"https://127.0.0.1:{port}", "--token", token, "--cn", "laptop-7", "--ca-fingerprint", fp,
                 "--server-name", "ca.internal", "--out", self.d / "again")

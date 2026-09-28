@@ -60,10 +60,11 @@ def cmd_doctor(a):
         ctx = tls.client_context(verify=False)
         ctx.close()
         print(f"TLS: {lib.version}, groups {tls.PQC_GROUPS} available")
-        ok = 0
+        broken = False
     except tls.TLSError as e:
         print(f"TLS: not available: {e}")
-        ok = 1
+        broken = True
+    fails = warns = 0
     if a.check_updates:
         from . import latest_release
         try:
@@ -80,8 +81,7 @@ def cmd_doctor(a):
             print(f"{mark[level]}  {msg}")
         fails, warns = sum(r[0] == "fail" for r in results), sum(r[0] == "warn" for r in results)
         print(f"\n{fails} problem(s), {warns} warning(s)")
-        ok = ok or int(fails > 0)
-    return ok
+    return 3 if broken else 2 if fails else 1 if warns and a.strict else 0
 
 
 def cmd_ca(a):
@@ -441,15 +441,16 @@ def cmd_enroll(a):
         print(f"{a.renew}: " + (f"renewed, new serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}" if cert
                                 else f"still valid for more than {a.within_days} days, nothing to do"))
         return 0
-    if not (a.token and a.common_name):
-        raise CAError("first enrollment needs --token and --cn (renewal needs --renew FOLDER)")
+    token = a.token or os.environ.get("PQCSUITE_ENROLL_TOKEN")
+    if not (token and a.common_name):
+        raise CAError("first enrollment needs the token (PQCSUITE_ENROLL_TOKEN, or --token) and --cn (renewal needs --renew FOLDER)")
     ca = a.ca
     if not ca:
         if not a.ca_fingerprint:
             raise CAError("give --ca FILE or --ca-fingerprint SHA256 (from `pqcsuite ca serve`) so the CA can be trusted")
         ca = Path(a.out) / "ca.crt"
         est.fetch_ca(a.url, a.ca_fingerprint, ca, a.server_name)
-    cert = est.enroll(a.url, a.token, a.common_name, a.san, a.out, ca, passphrase=env_passphrase(a.key_passphrase_env), server_name=a.server_name)
+    cert = est.enroll(a.url, token, a.common_name, a.san, a.out, ca, passphrase=env_passphrase(a.key_passphrase_env), server_name=a.server_name)
     print(f"enrolled {a.common_name}: serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}, files in {a.out}")
     print(f"renew it daily from cron: pqcsuite ca enroll {a.url} --renew {a.out} --within-days 30")
     return 0
@@ -546,10 +547,12 @@ def parser():
     ap.add_argument("--log-json", action="store_true", help="structured JSON logs")
     ap.add_argument("-v", "--verbose", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("doctor", help="check that this machine can run everything")
+    p = sub.add_parser("doctor", help="check that this machine can run everything",
+                       epilog="exit codes: 0 safe, 1 warnings (with --strict), 2 unsafe configuration, 3 broken installation")
     p.set_defaults(func=cmd_doctor)
     p.add_argument("--check-updates", action="store_true", help="also ask GitHub whether a newer release is out (the only request it makes)")
     p.add_argument("--ca", action="append", default=[], metavar="DIR", help="check a CA: key protection, CRL freshness, certificates expiring")
+    p.add_argument("--strict", action="store_true", help="warnings fail too (exit 1); a deployment gate")
     p.add_argument("--config", action="append", default=[], metavar="FILE",
                    help="check an edge, VPN, WireGuard or console configuration: it loads, its files exist, nothing weakens it")
 
@@ -655,7 +658,7 @@ def parser():
     p = ca.add_parser("enroll", help="get or renew a certificate from an EST service; the key stays on this machine")
     p.set_defaults(func=cmd_enroll)
     p.add_argument("url", help="https://ca.example.com:9443")
-    p.add_argument("--token", help="one-time token from `ca token`")
+    p.add_argument("--token", help="one-time token from `ca token`; better in PQCSUITE_ENROLL_TOKEN, since other users can read command lines")
     p.add_argument("--cn", dest="common_name")
     p.add_argument("--san", action="append", default=[])
     p.add_argument("--out", default=".")

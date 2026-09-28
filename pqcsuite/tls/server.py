@@ -34,7 +34,8 @@ class Revocation:
 
     def check(self, serial, chain=()):
         """`chain` is the verified chain above the certificate, where an intermediate CA's certificate comes from."""
-        m = os.stat(self.crl_path).st_mtime
+        st = os.stat(self.crl_path)
+        m = (st.st_mtime_ns, st.st_size, st.st_ino)  # a CRL rewritten within one timestamp tick still counts as changed
         if m != self.mtime:
             self.data, self.mtime = shared(Path(self.crl_path).read_bytes), m
         check_revocation(serial, self.data, self.cas + list(chain))

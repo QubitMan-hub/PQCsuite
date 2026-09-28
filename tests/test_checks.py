@@ -31,8 +31,10 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(find(r, "CRL valid"), "ok")
         self.assertEqual(find(r, "expire within 30 days"), "warn")
         if os.name != "nt":
+            os.chmod(self.d / "pki" / "ca.key", 0o640)
+            self.assertEqual(find(checks.ca(self.d / "pki"), "read by its group"), "warn")
             os.chmod(self.d / "pki" / "ca.key", 0o644)
-            self.assertEqual(find(checks.ca(self.d / "pki"), "read by other users"), "fail")
+            self.assertEqual(find(checks.ca(self.d / "pki"), "read by every user"), "fail")
         ca.crl(days=0)
         time.sleep(1.1)
         self.assertEqual(find(checks.ca(self.d / "pki"), "CRL expired"), "fail")
@@ -62,6 +64,28 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(find(checks.config(self.write('[console]\nlisten = "0.0.0.0:8900"\n')), "plain HTTP"), "warn")
         self.assertIsNone(find(checks.config(self.write('[console]\nlisten = "127.0.0.1:8900"\n')), "plain HTTP"))
         self.assertEqual(find(checks.config(self.write('[nothing]\n')), "no [[edge]]"), "fail")
+
+
+    def test_exit_codes_make_it_a_deployment_gate(self):
+        import subprocess
+        import sys
+        CA.init(self.d / "pki", "Root").crl()
+        good = self.write('[console]\nlisten = "127.0.0.1:8900"\n')
+        exposed = self.d / "exposed.toml"
+        exposed.write_text('[console]\nlisten = "0.0.0.0:8900"\n', encoding="utf-8")
+        broken = self.d / "broken.toml"
+        broken.write_text('[[edge]]\nmode = "sideways"\nlisten = "x:1"\ntarget = "y:2"\n', encoding="utf-8")
+        run = lambda *a: subprocess.run([sys.executable, "-m", "pqcsuite", "doctor", *map(str, a)], capture_output=True, text=True).returncode
+        from pqcsuite import tls
+        try:
+            tls.lib()
+        except tls.OpenSSLUnavailable:
+            self.assertEqual(run("--config", good), 3)
+            return
+        self.assertEqual(run("--config", good), 0)
+        self.assertEqual(run("--config", exposed), 0)
+        self.assertEqual(run("--strict", "--config", exposed), 1)
+        self.assertEqual(run("--strict", "--config", broken), 2)
 
 
 if __name__ == "__main__":

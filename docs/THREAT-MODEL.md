@@ -13,7 +13,8 @@ The suite writes no cryptographic primitive itself. ML-KEM, ML-DSA, SLH-DSA, X25
 | Records traffic now, decrypts it with a future quantum computer | Yes | X25519MLKEM768 (or SecP384r1MLKEM1024 under `cnsa2`) on every TLS connection; ML-KEM on every IKE exchange and rekey; ML-KEM in every Vault recipient wrap. `transition` still lets old clients connect classically: their traffic is not protected. |
 | Active man in the middle | Yes | TLS 1.3 with certificates from your CA; mutual TLS where `require_client_cert` is set. VPN keys come only from ML-DSA mutual TLS. |
 | Forges signatures with a quantum computer | Yes, for what the CA issues | ML-DSA or SLH-DSA certificates and CRLs. Browsers get a classical certificate under `transition` because they cannot verify ML-DSA yet. |
-| Downgrades a connection to classical key exchange | Yes under `strict` and `cnsa2` | The edge offers only hybrid groups, so a client without them is refused, not downgraded. |
+| Downgrades a connection to classical key exchange | Yes under `strict` and `cnsa2` | The edge offers only hybrid groups, so a client without them is refused, not downgraded; TLS 1.2 is refused by every policy. Two peers that both support post-quantum always agree on it, whatever their policies (`tests/test_downgrade.py` tries every pairing). |
+| Presents the wrong algorithm or role | Yes | A `cnsa2` server refuses ML-DSA-65 client certificates; a server certificate is refused as a client identity and a client certificate as a server's (`tests/test_downgrade.py`). |
 | Holds a stolen client certificate and key | Until revoked | Revoke it; the edge refuses it at its next handshake once its CRL copy has the revocation (at most `crl_every`, 60 s by default, with `crl_url`). There is no OCSP. |
 | Holds a revoked VPN site or user certificate | Yes, within about a minute | It gets no new keys; its tunnel is cut 15 s after the CRL reaches the gateway. |
 | Serves an old, forged or expired CRL | Yes | A downloaded CRL replaces the copy only if the CA signed it, it has not expired and it is not older than the copy. An expired copy refuses every client (fail closed). |
@@ -39,6 +40,7 @@ The suite writes no cryptographic primitive itself. ML-KEM, ML-DSA, SLH-DSA, X25
 | Older CRL served after a newer one | Ignored | `test_changes` |
 | CA offline longer than the CRL's validity | Mutual-TLS clients are refused when the copy expires: run `ca maintain` (or `ca crl --days N`) before then | |
 | Gateway restarts | It fetches the CRL before accepting anyone; without a copy and without the address it does not start | `test_changes` |
+| CA killed between recording a revocation and re-signing the CRL | `pqcsuite doctor --ca` reports the revocation missing from `crl.pem`; `ca crl` or the daily `ca maintain` fixes it | `test_crash` |
 
 Clocks matter: a machine whose clock runs ahead treats a CRL as expired early. Run NTP.
 
@@ -54,6 +56,12 @@ Clocks matter: a machine whose clock runs ahead treats a CRL as expired early. R
 | Revoke | `ca revoke SERIAL` (console: Revoke). The CRL is re-signed at once; `ca publish` serves it. |
 | Back up | The CA folder (`ca.key`, `ca.crt`, `index.json`, `crl.pem`). Encrypt it with Vault to an offline recipient: `pqcsuite vault backup pki --to backups -r offline.pub`. A KMS or HSM key is backed up by the provider, not by the suite. |
 | Destroy | Delete the key file and its backups, or schedule deletion in KMS. Deleting a file does not scrub it from disks or snapshots; use full-disk encryption on machines that hold keys. |
+
+## Crashes and recovery
+
+Every file the CA writes is written to a temporary name, flushed to disk and renamed into place, so a crash leaves the old file or the new one, never half of one. A certificate is recorded in `index.json` before its files are written, so a crash can leave a record without files (still revocable; `ca maintain` renews it into place) but never a certificate the CA does not know about. Vault archives are written to a `.part` file and renamed into place when complete (they are not flushed to disk first, so after a power cut check the newest archive with `vault inspect`). `tests/test_crash.py` kills the CA and Vault at random moments and checks all of this; `tests/test_races.py` runs six processes issuing and revoking at once, renewals racing revocations, two console administrators, and revocations landing during handshakes.
+
+**Recovery objectives.** The recovery point is how often you back the CA folder up: with a nightly `vault backup` from cron, up to a day of issuance can be missing after a restore (see "If the CA machine is lost"). Restoring itself is quick: in `tests/test_recovery.py`, decrypting the backup and bringing the CA back, with existing clients still accepted and a revoked one still refused, takes about two seconds. Plan the recovery time around getting a machine and the backup's offline key, not around the software.
 
 ## Runbooks
 

@@ -1,0 +1,8 @@
+# Triaged image vulnerabilities. CI fails on any HIGH or CRITICAL finding that has a fix, unless it is listed here; findings
+# without a fix are printed on every run but do not fail it. Every entry says why it does not affect the suite, who decided,
+# and when to look again: an expired entry fails the build again.
+#
+#  - id: CVE-2026-00000
+#    statement: "only reachable through <feature>, which the image does not use; decided by <name>, <date>"
+#    expired_at: 2026-12-31
+vulnerabilities: []

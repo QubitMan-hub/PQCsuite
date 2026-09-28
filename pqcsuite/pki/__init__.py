@@ -128,6 +128,8 @@ def write(path, data, secret=False):
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
         shared(lambda: os.replace(tmp, path))
     except BaseException:
         tmp.unlink(missing_ok=True)
@@ -301,10 +303,12 @@ class CA:
             cert, algorithm, not_after, names = self._certify(key.public_key(), common_name, kind, names, days)
             safe = re.sub(r"[^\w.-]", "_", common_name)
             out = Path(out or self.root / "issued" / f"{safe}-{format(cert.serial_number, 'x')[:8]}")
+            # recorded before any file holds it: a crash in between leaves a record without files, which can still be revoked,
+            # never a certificate on disk that the CA does not know about
+            rec = self._record(cert, common_name, kind, algorithm, not_after, names, str(out.resolve()))
             write(out / "key.pem", key_pem(key, passphrase), secret=True)
             write(out / "cert.pem", cert_pem(cert))
             write(out / "chain.pem", cert_pem(cert) + self.chain())
-            rec = self._record(cert, common_name, kind, algorithm, not_after, names, str(out.resolve()))
         return out, rec
 
     def sign_csr(self, csr_pem, kind, days=397):

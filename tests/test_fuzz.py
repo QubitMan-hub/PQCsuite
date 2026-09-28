@@ -83,6 +83,23 @@ class FuzzTest(unittest.TestCase):
                 self.assertFalse(out.exists() and any(out.rglob("*")), "a refused archive left something behind")
                 self.assertLess(time.monotonic() - start, 5)
 
+    def test_every_size_round_trips_including_chunk_edges(self):
+        me, rnd, c = vault.Identity.generate(), self.rnd, vault.CHUNK
+        for n in [0, 1, c - 1, c, c + 1, 2 * c, 2 * c + 7] + [rnd.randrange(3 * c) for _ in range(4)]:
+            with self.subTest(size=n):
+                src, arc, out = self.d / f"f{n}", self.d / f"f{n}.pqv", self.d / f"out{n}"
+                data = os.urandom(n)
+                src.write_bytes(data)
+                vault.encrypt(src, arc, [me.public])
+                vault.decrypt(arc, out, me)
+                self.assertEqual((out / src.name).read_bytes(), data)
+                chunks = max(1, -(-n // c))
+                for cut in (len(arc.read_bytes()) - 1, len(arc.read_bytes()) - (len(arc.read_bytes()) - n) // chunks):
+                    bad = self.d / "cut.pqv"
+                    bad.write_bytes(arc.read_bytes()[:cut])
+                    with self.assertRaises(vault.VaultError):
+                        vault.decrypt(bad, self.d / "cut-out", me)
+
     def test_acme_answers_every_request_with_an_acme_problem(self):
         ca = CA.init(self.d / "pki", "Root")
         svc, rnd = Service(ca, "http://127.0.0.1:14000", allow=["*.test"], validate_async=False), self.rnd

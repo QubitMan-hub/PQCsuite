@@ -5,6 +5,7 @@ import re
 import socket
 import sys
 import threading
+import time
 import tomllib
 from dataclasses import MISSING
 from pathlib import Path
@@ -93,14 +94,18 @@ def content_length(headers):
 
 class ConfigWatch:
     """Follows a service's configuration file: when it changes (checked every few seconds) or on `poke()` (SIGHUP), the file
-    is loaded again and, if it loads and validates, handed to `apply`. A file that does not load is logged and the running
-    configuration stays as it is."""
+    is loaded again once it has stopped changing (an editor may write it in several steps) and, if it loads and validates,
+    handed to `apply`. A file that does not load is logged and the running configuration stays as it is."""
 
-    def __init__(self, path, load, apply, every=5.0):
-        self.path, self.load, self.apply, self.every = path, load, apply, every
-        self.mtime = os.stat(path).st_mtime
+    def __init__(self, path, load, apply, every=5.0, settle=0.3):
+        self.path, self.load, self.apply, self.every, self.settle = path, load, apply, every, settle
+        self.seen = self._stamp()
         self.wake, self.stopped = threading.Event(), False
         threading.Thread(target=self._loop, daemon=True, name="config").start()
+
+    def _stamp(self):
+        st = os.stat(self.path)
+        return st.st_mtime_ns, st.st_size
 
     def poke(self):
         self.wake.set()
@@ -117,12 +122,18 @@ class ConfigWatch:
             if self.stopped:
                 return
             try:
-                m = os.stat(self.path).st_mtime
-                if m == self.mtime and not poked:
+                stamp = self._stamp()
+                if stamp == self.seen and not poked:
                     continue
-                self.mtime = m
+                while True:
+                    time.sleep(self.settle)
+                    now = self._stamp()
+                    if now == stamp:
+                        break
+                    stamp = now
+                self.seen = stamp
                 new = self.load(self.path)
-            except (OSError, ValueError) as e:
+            except Exception as e:
                 log.error("%s changed but cannot be used, keeping the running configuration: %s", self.path, e)
                 continue
             log.info("%s changed; applying it", self.path)

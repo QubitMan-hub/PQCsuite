@@ -11,11 +11,14 @@ from .pki import CA, CAError, encrypted, now
 
 
 def _private(path):
-    """fail when a key file can be read by other users (POSIX permissions; Windows ACLs are not checked)."""
+    """A key file readable by everyone fails, by its group warns (Kubernetes mounts secrets group-readable for fsGroup). POSIX
+    permissions only; Windows ACLs are not checked."""
     if os.name == "nt":
         return []
-    mode = os.stat(path).st_mode & 0o077
-    return [("fail", f"{path} can be read by other users (chmod 600 it)")] if mode else []
+    mode = os.stat(path).st_mode
+    if mode & 0o004:
+        return [("fail", f"{path} can be read by every user (chmod 600 it)")]
+    return [("warn", f"{path} can be read by its group (chmod 600 it unless the group is this service's)")] if mode & 0o040 else []
 
 
 def ca(root):
@@ -36,7 +39,11 @@ def ca(root):
     if not crl.exists():
         out.append(("fail", f"no {crl}: mutual-TLS services cannot start (pqcsuite ca crl)"))
     else:
-        nxt = x509.load_pem_x509_crl(crl.read_bytes()).next_update_utc
+        listed = x509.load_pem_x509_crl(crl.read_bytes())
+        missing = [r.common_name for r in c.records() if r.status == "revoked" and listed.get_revoked_certificate_by_serial_number(int(r.serial, 16)) is None]
+        if missing:
+            out.append(("fail", f"{len(missing)} revoked certificate(s) not in crl.pem ({', '.join(missing[:5])}): run pqcsuite ca crl"))
+        nxt = listed.next_update_utc
         days = (nxt - now()) / dt.timedelta(days=1)
         out.append(("fail" if days < 0 else "warn" if days < 2 else "ok",
                     f"CRL {'expired' if days < 0 else 'valid for'} {abs(days):.1f} days{'' if days >= 2 else ': run pqcsuite ca maintain'}"))
@@ -48,7 +55,7 @@ def ca(root):
 
 def _files(where, d, names):
     out = []
-    for k in names:
+    for k in [n for n in names if not (n == "crl" and d.get("crl_url"))]:  # with crl_url the copy appears at the first fetch
         p = d.get(k)
         if not p:
             continue

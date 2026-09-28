@@ -51,6 +51,17 @@ spec:
         checksum/config: {{ toYaml .Values.edge | sha256sum | trunc 16 }}
     spec:
       securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.edge.preflight }}
+      initContainers:
+        - name: preflight
+          image: {{ include "pqcsuite.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          args: ["doctor", "--config", "/etc/pqcsuite/edge.toml"]
+          volumeMounts:
+            - {name: config, mountPath: /etc/pqcsuite/edge.toml, subPath: edge.toml}
+            - {name: tls, mountPath: /etc/pqcsuite/tls, readOnly: true}
+      {{- end }}
       containers:
         - name: edge
           image: {{ include "pqcsuite.image" . }}
@@ -79,6 +90,7 @@ spec:
         - name: tls
           secret:
             secretName: {{ .Values.edge.certSecret }}
+            defaultMode: 0440
         - name: state
           emptyDir: {}
 ---

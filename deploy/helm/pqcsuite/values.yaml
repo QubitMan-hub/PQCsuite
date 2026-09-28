@@ -43,6 +43,7 @@ edge:
   # Secret with chain.pem, key.pem and ca.crt (and crl.pem when requireClientCert and no CRL address). Create it with
   #   pqcsuite ca issue server <name> --out edge && kubectl create secret generic edge-tls --from-file=edge/ --from-file=pki/ca.crt
   certSecret: edge-tls
+  preflight: true              # run `pqcsuite doctor --config` first; a broken or unsafe edge.toml keeps the pod from starting
   policy: strict               # strict, transition (also serves classical clients) or cnsa2
   routes:
     - name: web
