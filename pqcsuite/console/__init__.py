@@ -21,7 +21,7 @@ from importlib import resources
 from pathlib import Path
 
 from .. import HTTP_IDLE, NAME, __version__, build, content_length
-from ..pki import CA, CAError
+from ..pki import CA, CAError, encrypted
 from ..tls import hostport
 
 log = logging.getLogger("pqcsuite.console")
@@ -57,9 +57,7 @@ class App:
         if not self.s.ca:
             raise CAError("no CA configured (start the console with --ca)")
         pw = os.environ.get("PQCSUITE_CA_PASSPHRASE")
-        key = Path(self.s.ca) / "ca.key"
-        encrypted = key.exists() and b"ENCRYPTED" in key.read_bytes()[:64]
-        return CA(self.s.ca, pw.encode() if pw and encrypted else None)
+        return CA(self.s.ca, pw.encode() if pw and encrypted(Path(self.s.ca) / "ca.key") else None)
 
     def audit(self, action, detail):
         line = json.dumps({"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "action": action, **detail})

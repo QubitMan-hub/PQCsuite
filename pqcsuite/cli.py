@@ -10,7 +10,7 @@ import threading
 from pathlib import Path
 
 from . import HTTP_IDLE, NAME, __version__, explain, tls
-from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError
+from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError, encrypted
 from .vault import VaultError
 from .vpn.charon import CharonError
 from .vpn.wireguard import WGError
@@ -30,8 +30,7 @@ def ask(prompt, instead):
 
 def ca_passphrase(root, new=False):
     """From PQCSUITE_CA_PASSPHRASE or a prompt, and only when the CA key is (or will be) encrypted."""
-    key = Path(root) / "ca.key"
-    if not new and not (key.exists() and b"ENCRYPTED" in key.read_bytes()[:64]):
+    if not new and not encrypted(Path(root) / "ca.key"):
         return None
     if os.environ.get(CA_PASS_ENV):
         return os.environ[CA_PASS_ENV].encode()
@@ -79,9 +78,8 @@ def cmd_ca(a):
     if a.ca_cmd == "init":
         parent = None
         if a.parent:
-            key = Path(a.parent) / "ca.key"
             pw = None
-            if key.exists() and b"ENCRYPTED" in key.read_bytes()[:64]:
+            if encrypted(Path(a.parent) / "ca.key"):
                 pw = os.environ.get("PQCSUITE_PARENT_CA_PASSPHRASE", "").encode() or ask("Parent CA passphrase: ", "set PQCSUITE_PARENT_CA_PASSPHRASE")
             parent = CA(a.parent, pw)
         if a.signer_command and not a.signer_public_key:
@@ -326,7 +324,7 @@ def cmd_vault(a):
     def passphrase():
         if a.passphrase_env:
             return env_passphrase(a.passphrase_env)
-        return ask("Key passphrase: ", "pass --passphrase-env VARIABLE") if b"ENCRYPTED" in Path(a.key).read_bytes()[:64] else None
+        return ask("Key passphrase: ", "pass --passphrase-env VARIABLE") if encrypted(a.key) else None
 
     signer = lambda: vault.load_signer(a.sign_cert, a.sign_key, env_passphrase(a.sign_passphrase_env)) if a.sign_cert else None
     if a.vault_cmd == "keygen":

@@ -96,6 +96,12 @@ def key_pem(key, passphrase=None):
     return key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, enc)
 
 
+def encrypted(path):
+    """True when the PEM key at `path` exists and is passphrase-protected."""
+    p = Path(path)
+    return p.exists() and b"ENCRYPTED" in p.read_bytes()[:64]
+
+
 def cert_pem(cert):
     return cert.public_bytes(serialization.Encoding.PEM)
 
@@ -350,7 +356,7 @@ class CA:
             if dt.datetime.fromisoformat(r.not_after) > cutoff:
                 continue
             key = Path(r.path) / "key.pem"
-            if not key.exists() or b"ENCRYPTED" in key.read_bytes()[:64]:
+            if not key.exists() or encrypted(key):
                 skipped.append(r)
                 continue
             renewed.append(self.renew(r.serial, algorithm=algorithm, out=r.path)[1])
