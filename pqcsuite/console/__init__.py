@@ -234,11 +234,15 @@ class App:
             return 500, {"error": "internal error; the details are in the console's log"}
 
     def issue(self, b):
-        kind, cn = b["kind"], str(b["common_name"]).strip()
+        kind, cn = b["kind"], b["common_name"]
+        if not isinstance(cn, str) or not isinstance(b.get("names", ""), str):
+            raise ValueError("common_name and names must be text")
+        cn = cn.strip()
         if not cn:
             raise ValueError("a common name is needed")
         names = [n.strip() for n in str(b.get("names", "")).split(",") if n.strip()]
-        out, rec = self.ca().issue(cn, kind, names, int(b.get("days", 397)))
+        days = b.get("days", 397)
+        out, rec = self.ca().issue(cn, kind, names, int(days) if isinstance(days, str) and days.strip().isdigit() else days)
         self.audit("issue", {"serial": rec.serial, "common_name": cn, "kind": kind})
         return {"serial": rec.serial, "folder": str(out)}
 
@@ -255,7 +259,9 @@ class App:
 
     def start_scan(self, b):
         raw = b.get("targets", "")
-        items = raw if isinstance(raw, list) else str(raw).replace("\n", ",").split(",")
+        if not isinstance(raw, (str, list)):
+            raise ValueError("targets must be text (one per line) or a list")
+        items = raw if isinstance(raw, list) else raw.replace("\n", ",").split(",")
         targets = [str(t).strip() for t in items if str(t).strip()] or self.s.scan_targets
         from ..readiness.scan import endpoint
         for t in targets:

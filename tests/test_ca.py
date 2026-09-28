@@ -149,7 +149,10 @@ class CATest(unittest.TestCase):
         with self.assertRaisesRegex(CAError, "unknown algorithm"):
             self.ca.issue("x", "server", algorithm="RSA-2048")
         with self.assertRaisesRegex(CAError, "no certificate"):
-            self.ca.find("ffff")
+            self.ca.find("ffffffff")
+        for tiny in ("", "ab", "not-hex!", None):
+            with self.subTest(serial=tiny), self.assertRaisesRegex(CAError, "at least its first 8"):
+                self.ca.revoke(tiny)
         with self.assertRaisesRegex(CAError, "1 to 64"):
             self.ca.issue("", "client")
         with self.assertRaisesRegex(CAError, "not a valid host name"):

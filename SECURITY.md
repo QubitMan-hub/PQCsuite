@@ -4,7 +4,7 @@
 
 Email info@acxelinquantum.com with "security" in the subject. Please do not open a public issue.
 
-For an independent review of the suite, start with [docs/SECURITY-REVIEW.md](docs/SECURITY-REVIEW.md): assets, trust boundaries, what to test and how to build a test setup.
+For an independent review of the suite, start with [docs/SECURITY-REVIEW.md](docs/SECURITY-REVIEW.md): assets, trust boundaries, what to test and how to build a test setup. [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) says which attackers the suite stops and which it does not, how revocation behaves when things fail, and what to do if a key is compromised.
 
 ## Cryptography used by this repository
 

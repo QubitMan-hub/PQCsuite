@@ -72,6 +72,15 @@ def cmd_doctor(a):
             print(f"updates: cannot check: {explain(e) if isinstance(e, OSError) else e}")
         else:
             print(f"updates: {latest['version']} is out: {latest['url']}" if latest and latest["newer"] else f"updates: {__version__} is the newest release")
+    if a.ca or a.config:
+        from . import checks
+        results = [r for d in a.ca for r in checks.ca(d)] + [r for f in a.config for r in checks.config(f)]
+        mark = {"ok": "ok  ", "warn": "WARN", "fail": "FAIL"}
+        for level, msg in results:
+            print(f"{mark[level]}  {msg}")
+        fails, warns = sum(r[0] == "fail" for r in results), sum(r[0] == "warn" for r in results)
+        print(f"\n{fails} problem(s), {warns} warning(s)")
+        ok = ok or int(fails > 0)
     return ok
 
 
@@ -540,6 +549,9 @@ def parser():
     p = sub.add_parser("doctor", help="check that this machine can run everything")
     p.set_defaults(func=cmd_doctor)
     p.add_argument("--check-updates", action="store_true", help="also ask GitHub whether a newer release is out (the only request it makes)")
+    p.add_argument("--ca", action="append", default=[], metavar="DIR", help="check a CA: key protection, CRL freshness, certificates expiring")
+    p.add_argument("--config", action="append", default=[], metavar="FILE",
+                   help="check an edge, VPN, WireGuard or console configuration: it loads, its files exist, nothing weakens it")
 
     t = sub.add_parser("tls", help="TLS 1.3 + mTLS: post-quantum edge, server and client").add_subparsers(dest="tls_cmd", required=True)
     p = t.add_parser("edge", help="post-quantum TLS in front of any TCP service, or a tunnel to one")

@@ -28,5 +28,5 @@ python -m pytest                          # suite and wolf-pack/ tests together,
 ruff check .                              # lint (config in pyproject.toml), CI runs it
 cd tests/browser; npm install; npx playwright test   # website and console in Chromium, axe accessibility
 wolfpack scan pqcsuite -o out --baseline docs/cbom.json --fail-on high   # CI self-scan; refresh docs/cbom.json when intended
-pqcsuite doctor
+pqcsuite doctor --ca pki --config edge.toml   # preflight checks (pqcsuite/checks.py)
 ```

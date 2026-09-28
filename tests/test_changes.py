@@ -88,6 +88,27 @@ class CRLDistributionTest(unittest.TestCase):
         self.ca.revoke(self.rec.serial)
         self.assertTrue(wait(lambda: int(self.rec.serial, 16) in revoked(self.copy)))
 
+    def test_an_outage_keeps_the_last_copy_and_an_expired_copy_refuses_everyone(self):
+        from pqcsuite.tls.server import Revocation
+        stop = follow_crl(self.url, self.copy, self.d / "pki" / "ca.crt", 0.2)
+        self.addCleanup(stop.set)
+        kept = self.copy.read_bytes()
+        self.served["/crl.pem"] = lambda: None
+        with self.assertLogs("pqcsuite.crl", "ERROR") as logs:
+            time.sleep(0.6)
+        self.assertIn("cannot fetch the CRL", logs.output[0])
+        self.assertEqual(self.copy.read_bytes(), kept)
+        check = Revocation(str(self.copy), str(self.d / "pki" / "ca.crt"))
+        check.check(int(self.rec.serial, 16))
+        self.served["/crl.pem"] = lambda: (self.d / "pki" / "crl.pem").read_text()
+        self.ca.revoke(self.rec.serial)
+        self.assertTrue(wait(lambda: int(self.rec.serial, 16) in revoked(self.copy)))
+        stop.set()
+        self.copy.write_bytes(self.ca.crl(days=0))
+        time.sleep(1.1)
+        with self.assertRaisesRegex(CAError, "expired"):
+            check.check(12345)
+
     def test_settings_need_somewhere_to_keep_the_copy(self):
         site = Site("hq", "1.2.3.4", "c", "k", "a", crl_url=self.url, peers=[Peer("b", "5.6.7.8", ["10.0.0.0/24"], ["10.1.0.0/24"], True, "b:7443")])
         with self.assertRaisesRegex(ValueError, "crl_url needs crl"):

@@ -238,7 +238,11 @@ class CA:
         write(self.root / "index.json", ("[\n" + ",\n".join(json.dumps(vars(r)) for r in records) + "\n]\n").encode())
 
     def find(self, serial):
-        serial = serial.lower()
+        """The one certificate whose serial is `serial` or starts with it; at least 8 hex characters, so an empty or tiny prefix
+        can never pick a certificate by accident."""
+        if not isinstance(serial, str) or not re.fullmatch(r"[0-9a-fA-F]{8,40}", serial.strip()):
+            raise CAError(f"a serial is written in hex, at least its first 8 characters (as `ca list` shows them), not {serial!r}")
+        serial = serial.strip().lower()
         match = [r for r in self.records() if r.serial == serial or r.serial.startswith(serial)]
         if len(match) != 1:
             raise CAError(f"{'no' if not match else 'more than one'} certificate matches serial {serial}")
@@ -252,8 +256,13 @@ class CA:
         return cert, rec
 
     def _certify(self, public_key, common_name, kind, names, days):
-        if kind not in USAGE:
+        if not isinstance(kind, str) or kind not in USAGE:
             raise CAError(f"kind must be one of {', '.join(USAGE)}")
+        if not isinstance(days, int) or isinstance(days, bool) or days < 1:
+            raise CAError(f"days must be a whole number of at least 1, not {days!r}")
+        days = min(days, 36500)
+        if not isinstance(common_name, str) or not all(isinstance(n, str) for n in names):
+            raise CAError("the common name and other names must be text")
         algorithm = algorithm_of(public_key)
         if not algorithm:
             raise CAError("only ML-DSA keys can be certified")
@@ -313,7 +322,7 @@ class CA:
         return self.sign(csr.public_key(), cn[0].value if cn else "unnamed", kind, names, days)
 
     def revoke(self, serial, reason="unspecified"):
-        if reason != "unspecified" and reason not in REASONS:
+        if not isinstance(reason, str) or reason != "unspecified" and reason not in REASONS:
             raise CAError(f"reason must be one of: unspecified, {', '.join(REASONS)}")
         with locked(self.root):
             self._revoke(serial, reason)

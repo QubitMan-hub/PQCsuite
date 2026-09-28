@@ -3,6 +3,7 @@ import datetime as dt
 import html
 import json
 import logging
+import re
 import socket
 import warnings
 from concurrent.futures import ThreadPoolExecutor
@@ -146,7 +147,7 @@ def endpoint(target):
     ssh = target.startswith("ssh://")
     t = target.split("://", 1)[-1].split("/", 1)[0]
     host, port = (t.strip("[]"), None) if ":" not in t or t.endswith("]") else hostport(t, "")
-    if not host:
+    if not host or not re.fullmatch(r"[\w.:%-]+", host):
         raise ValueError(f"expected host, host:port or ssh://host, got {target!r}")
     return ("ssh" if ssh else "tls"), host, port or (22 if ssh else 443)
 
