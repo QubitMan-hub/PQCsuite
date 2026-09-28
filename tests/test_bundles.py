@@ -39,6 +39,14 @@ class BundleTest(unittest.TestCase):
             self.assertTrue((ca.root / "ca.key").exists())
             self.assertIn("mosquitto_passwd", (out / "README.txt").read_text())
 
+    def test_an_encrypted_ca_needs_its_passphrase_and_leaves_nothing_behind_without_it(self):
+        with tempfile.TemporaryDirectory() as d:
+            ca = CA.init(Path(d) / "corp", "Corp Root", passphrase=b"pw")
+            with self.assertRaisesRegex(CAError, "cannot open the CA key"):
+                create("nginx", Path(d) / "web", "web.corp", ca_dir=ca.root)
+            self.assertFalse((Path(d) / "web").exists())
+            self.assertTrue((create("nginx", Path(d) / "web", "web.corp", ca_dir=ca.root, passphrase=b"pw") / "edge" / "key.pem").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

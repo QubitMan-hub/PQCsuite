@@ -23,7 +23,7 @@ SERVICES = {
 }
 
 
-def create(service, out, host, ca_dir=None, require_client_cert=False, policy="strict"):
+def create(service, out, host, ca_dir=None, require_client_cert=False, policy="strict", passphrase=None):
     """Write docker-compose.yml, edge.toml and a certificate for `host` into `out`. Reuses the CA in `ca_dir` when given."""
     if service not in SERVICES:
         raise CAError(f"unknown service {service}; choose from {', '.join(SERVICES)}")
@@ -31,7 +31,7 @@ def create(service, out, host, ca_dir=None, require_client_cert=False, policy="s
     if (out / "docker-compose.yml").exists():
         raise CAError(f"{out} already has a bundle")
     general_names([host])
-    ca = CA(ca_dir) if ca_dir else None
+    ca = CA(ca_dir, passphrase) if ca_dir else None
     fresh = not out.exists()
     try:
         return _create(service, s, out, host, ca, ca_dir, require_client_cert, policy)

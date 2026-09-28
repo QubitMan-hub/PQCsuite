@@ -372,7 +372,7 @@ def cmd_vault(a):
 
 def cmd_bundle(a):
     from .tls.bundles import create
-    out = create(a.service, a.out or f"{a.service}-pqc", a.host, a.ca, a.mtls, a.policy)
+    out = create(a.service, a.out or f"{a.service}-pqc", a.host, a.ca, a.mtls, a.policy, ca_passphrase(a.ca) if a.ca else None)
     print((out / "README.txt").read_text())
     return 0
 
