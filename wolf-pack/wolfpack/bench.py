@@ -19,6 +19,7 @@ CONFIGS = [
     ("without source scouts", ("source",)),
     ("without names", ("names",)),
     ("without concat", ("concat",)),
+    ("without symbols", ("symbols",)),
     ("without implementation scouts", ("implementations",)),
     ("without config scouts", ("config",)),
     ("without lists", ("lists",)),

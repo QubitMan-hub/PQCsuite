@@ -1,16 +1,16 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:6fafffbe-de99-49e7-9d71-acdc1f68c5e2",
+  "serialNumber": "urn:uuid:648f8410-84b2-41e3-9642-8e29b7f932e2",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-28T06:47:51Z",
+    "timestamp": "2026-09-28T11:44:52Z",
     "tools": {
       "components": [
         {
           "type": "application",
           "name": "wolfpack",
-          "version": "1.0.0"
+          "version": "1.2.0"
         }
       ]
     },
@@ -208,6 +208,16 @@
             "location": "pki/acme.py",
             "additionalContext": "string: if alg == \"RS256\":",
             "line": 99
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa",
+            "line": 10
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "identifier: if isinstance(key, rsa.RSAPublicKey):",
+            "line": 31
           }
         ]
       },
@@ -277,6 +287,11 @@
             "location": "vault.py",
             "additionalContext": "call: return x25519.X25519PublicKey.from_public_bytes(data) if self.curve is None else ec.EllipticCurvePublicKey.from_encoded_point(self.curve, data)",
             "line": 54
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "identifier: return kem_ok and isinstance(dh_key, (x25519.X25519PrivateKey, x25519.X25519PublicKey))",
+            "line": 62
           },
           {
             "location": "readiness/scan.py",
@@ -583,6 +598,11 @@
             "location": "readiness/scan.py",
             "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa",
             "line": 10
+          },
+          {
+            "location": "readiness/scan.py",
+            "additionalContext": "identifier: if isinstance(key, ed25519.Ed25519PublicKey):",
+            "line": 35
           },
           {
             "location": "readiness/scan.py",
@@ -953,6 +973,21 @@
             "location": "vault.py",
             "additionalContext": "import: from cryptography.hazmat.primitives.ciphers.aead import AESGCM",
             "line": 33
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "identifier: ct = self.aes.encrypt(_nonce(unb64(self.h[\"nonce\"]), self.i, last), chunk, self.aad)",
+            "line": 229
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "identifier: pt = aes.decrypt(_nonce(prefix, i, last), ct, aad)",
+            "line": 298
+          },
+          {
+            "location": "pki/signers.py",
+            "additionalContext": "identifier: cipher = L_.EVP_aes_256_cbc() if passphrase else None",
+            "line": 138
           }
         ]
       },
@@ -963,11 +998,11 @@
         },
         {
           "name": "wolfpack:risk-score",
-          "value": "12.7"
+          "value": "13.4"
         },
         {
           "name": "wolfpack:confidence",
-          "value": "0.7"
+          "value": "0.9"
         },
         {
           "name": "wolfpack:exposure",
@@ -1071,9 +1106,19 @@
             "line": 186
           },
           {
+            "location": "vault.py",
+            "additionalContext": "identifier: if h[\"v\"] >= 2 and not hmac.compare_digest(str(h.get(\"mac\", \"\")), _recipients_mac(dek, h[\"recipients\"])):",
+            "line": 190
+          },
+          {
             "location": "pki/acme.py",
             "additionalContext": "call: mac = hmac.new(unb64u(k[\"hmac\"]), f\"{eab['protected']}.{eab['payload']}\".encode(), hashlib.sha256).digest()",
             "line": 250
+          },
+          {
+            "location": "pki/acme.py",
+            "additionalContext": "identifier: if not hmac.compare_digest(mac, unb64u(eab.get(\"signature\", \"\"))):",
+            "line": 251
           },
           {
             "location": "pki/acme.py",
@@ -1249,6 +1294,11 @@
           },
           {
             "location": "pki/acme.py",
+            "additionalContext": "call: mac = hmac.new(unb64u(k[\"hmac\"]), f\"{eab['protected']}.{eab['payload']}\".encode(), hashlib.sha256).digest()",
+            "line": 250
+          },
+          {
+            "location": "pki/acme.py",
             "additionalContext": "string: return key, {\"RS256\"}",
             "line": 81
           },
@@ -1281,11 +1331,6 @@
             "location": "pki/est.py",
             "additionalContext": "call: return hashlib.sha256(cert.public_bytes(Encoding.DER)).hexdigest()",
             "line": 198
-          },
-          {
-            "location": "pki/acme.py",
-            "additionalContext": "call: mac = hmac.new(unb64u(k[\"hmac\"]), f\"{eab['protected']}.{eab['payload']}\".encode(), hashlib.sha256).digest()",
-            "line": 250
           }
         ]
       },
@@ -1337,6 +1382,11 @@
       },
       "evidence": {
         "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "call: Suite(\"P-384+ML-KEM-1024/AES-256-GCM\", mlkem.MLKEM1024PrivateKey, mlkem.MLKEM1024PublicKey, ec.SECP384R1(), hashlib.sha384),",
+            "line": 68
+          },
           {
             "location": "pki/acme.py",
             "additionalContext": "call: CURVES = {\"P-256\": (ec.SECP256R1(), hashes.SHA256(), \"ES256\"), \"P-384\": (ec.SECP384R1(), hashes.SHA384(), \"ES384\"),",
@@ -1421,6 +1471,180 @@
         {
           "name": "wolfpack:confidence",
           "value": "0.9"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "No known quantum break at this strength"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/SHA3-256",
+      "name": "SHA3-256",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "cryptoFunctions": [
+            "digest"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "256",
+          "classicalSecurityLevel": 128,
+          "nistQuantumSecurityLevel": 2
+        },
+        "oid": "2.16.840.1.101.3.4.2.8"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "vault.py",
+            "additionalContext": "call: Suite(\"X25519+ML-KEM-768/AES-256-GCM\", mlkem.MLKEM768PrivateKey, mlkem.MLKEM768PublicKey, None, hashlib.sha3_256),",
+            "line": 67
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "3.9"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.9"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "No known quantum break at this strength"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/SLH-DSA",
+      "name": "SLH-DSA",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/__init__.py",
+            "additionalContext": "identifier: CA_ALGORITHMS = list(PUBLIC) + signers.SLH_DSA",
+            "line": 31
+          },
+          {
+            "location": "pki/signers.py",
+            "additionalContext": "identifier: a: NIST_SIG + str(20 + i) for i, a in enumerate(SLH_DSA)}",
+            "line": 26
+          },
+          {
+            "location": "pki/signers.py",
+            "additionalContext": "string: SLH_DSA = [f\"SLH-DSA-{h}-{b}{v}\" for h in (\"SHA2\", \"SHAKE\") for b in (128, 192, 256) for v in \"sf\"]",
+            "line": 24
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "3.4"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.9"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/HMAC",
+      "name": "HMAC",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "cryptoFunctions": [
+            "tag"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "console/__init__.py",
+            "additionalContext": "identifier: return hmac.compare_digest(given.encode(), app.token.encode())",
+            "line": 272
+          },
+          {
+            "location": "pki/est.py",
+            "additionalContext": "identifier: if not auth.startswith(\"Basic \") or not t or not hmac.compare_digest(t[\"hash\"], hashlib.sha256(secret.encode()).hexdigest()):",
+            "line": 108
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "3.15"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
         },
         {
           "name": "wolfpack:exposure",
@@ -1530,6 +1754,11 @@
             "location": "pki/__init__.py",
             "additionalContext": "string: def init(cls, root, name, algorithm=\"ML-DSA-87\", days=3650, passphrase=None, parent=None, signer_config=None):",
             "line": 174
+          },
+          {
+            "location": "readiness/compliance.py",
+            "additionalContext": "string: cnsa = r.algorithm == \"ML-DSA-87\"",
+            "line": 28
           },
           {
             "location": "readiness/scan.py",
@@ -1737,59 +1966,6 @@
             "location": "readiness/scan.py",
             "additionalContext": "string: PQ = [\"X25519MLKEM768\", \"SecP256r1MLKEM768\", \"SecP384r1MLKEM1024\", \"MLKEM768\", \"MLKEM1024\"]",
             "line": 18
-          }
-        ]
-      },
-      "properties": [
-        {
-          "name": "wolfpack:tier",
-          "value": "ok"
-        },
-        {
-          "name": "wolfpack:risk-score",
-          "value": "2.7"
-        },
-        {
-          "name": "wolfpack:confidence",
-          "value": "0.7"
-        },
-        {
-          "name": "wolfpack:exposure",
-          "value": "application code"
-        },
-        {
-          "name": "wolfpack:nist-status",
-          "value": "Quantum-safe"
-        },
-        {
-          "name": "wolfpack:rationale",
-          "value": "Quantum-safe"
-        }
-      ]
-    },
-    {
-      "type": "cryptographic-asset",
-      "bom-ref": "crypto/SLH-DSA",
-      "name": "SLH-DSA",
-      "cryptoProperties": {
-        "assetType": "algorithm",
-        "algorithmProperties": {
-          "primitive": "signature",
-          "cryptoFunctions": [
-            "keygen",
-            "sign",
-            "verify"
-          ],
-          "executionEnvironment": "unknown",
-          "implementationPlatform": "unknown"
-        }
-      },
-      "evidence": {
-        "occurrences": [
-          {
-            "location": "pki/signers.py",
-            "additionalContext": "string: SLH_DSA = [f\"SLH-DSA-{h}-{b}{v}\" for h in (\"SHA2\", \"SHAKE\") for b in (128, 192, 256) for v in \"sf\"]",
-            "line": 24
           }
         ]
       },

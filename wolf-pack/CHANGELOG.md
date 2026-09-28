@@ -7,6 +7,7 @@ Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Sui
 Much higher recall on real code. The changes were made after reading the held-out benchmark's misses, so held-out scores for this version are reported as "after tuning on held-out data" (see `eval/heldout/README.md` and `eval/unseen/README.md`).
 
 - **Names (`--without names`):** code named for its algorithm is found without any library API: `aes_encrypt()`, `md5_update()`, `BCrypt.HashPassword()`, `class HkdfSha256`, `curve25519_generate_public()`. Declarations are not counted: header prototypes, `extern`/`partial`, Java enum constants, `.d.ts` typings, test names, predicates, and error or not-supported helpers.
+- **Constants (`--without symbols`):** all-caps constants and enum members that name an algorithm where code uses them: `case KEY_ED25519:`, `kex[KEX_DH_GRP14_SHA256]`, `crypto.SHA1`, and TLS cipher-suite constants. Sizes, error names, feature flags, definitions, headers, and `case` labels that only throw are not counted.
 - **Names built at run time (`--without concat`):** `"RSA-SHA" + bits` reports RSA; `"SHA-" + bits` still reports nothing.
 - **Multi-line YAML and JSON lists (`--without lists`)** in configuration files.
 - **Container images:** `wolfpack scan image.tar` unpacks a `docker save` or OCI archive layer by layer, with whiteouts applied, and scans the result.
@@ -19,6 +20,11 @@ Much higher recall on real code. The changes were made after reading the held-ou
   - `hashlib.sha1` passed as a value, but not when it is only compared against;
   - WireGuard's `wg genkey` and `wg pubkey` in shell scripts.
 - **The flow check** now follows byte and raw literals (`b"..."`) and code that branches on an algorithm name (`case "AES256":`, `alg == "EdDSA"`).
+- **More APIs:**
+  - Go types of an imported crypto package (`*ecdsa.PrivateKey`) and `x509` signature-algorithm constants;
+  - .NET `SecurityAlgorithms.*`;
+  - Python `isinstance(k, rsa.RSAPublicKey)`.
+- **Faster:** large repositories scan up to 8 times faster (spring-security took 210 s and now takes 24 s), with the same results.
 - **New algorithms:** MD2, SHA3-224, AEGIS-128L, AEGIS-256, ConcatKDF, ANSI X9.63 KDF, Balloon hashing and SPAKE2.
 
 ## 1.1.0 (28 September 2026, not released)

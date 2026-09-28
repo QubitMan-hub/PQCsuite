@@ -128,6 +128,10 @@ class PyScout(ast.NodeVisitor):
             if q.startswith("hashlib.") and q.split(".")[-1] in HASHLIB and q.count(".") == 1:
                 self.root = None
                 self.emit(node, lookup(q.split(".")[-1]))
+            n = _norm(q)
+            if n.startswith("C.asymmetric.") and n.count(".") == 3 and n.split(".")[2] in ("rsa", "dsa", "dh", "ed25519", "ed448", "x25519", "x448"):
+                self.root = "cryptography"
+                self.emit(node, lookup(n.split(".")[2]), evidence="identifier")
         self.generic_visit(node)
 
     def handle(self, n, q, last):

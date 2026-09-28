@@ -1,4 +1,5 @@
 import io
+import re
 import tokenize
 
 LANGS = {
@@ -11,13 +12,17 @@ C_LIKE = {"java", "go", "js", "c", "csharp", "rust"}
 
 
 def _blank(s):
-    return "".join(ch if ch == "\n" else " " for ch in s)
+    return "\n".join(" " * len(p) for p in s.split("\n"))
+
+
+SPECIAL = {q: re.compile("//|/\\*|[" + re.escape(q) + "]") for q in ("\"'`", "\"'", "\"")}
 
 
 def split_c(text, lang):
     code, com, strings = [], [], []
     i, n, line = 0, len(text), 1
-    quotes = "\"'`" if lang in ("js", "go") else "\"'"
+    quotes = "\"'`" if lang in ("js", "go") else "\"" if lang == "rust" else "\"'"
+    special = SPECIAL[quotes]
     while i < n:
         ch = text[i]
         two = text[i:i + 2]
@@ -31,7 +36,7 @@ def split_c(text, lang):
             j = n if j == -1 else j + 2
             seg = text[i:j]
             code.append(_blank(seg)); com.append(seg); line += seg.count("\n"); i = j
-        elif ch in quotes and not (lang == "rust" and ch == "'"):
+        elif ch in quotes:
             j, start_line = i + 1, line
             while j < n and text[j] != ch:
                 if text[j] == "\\" and ch != "`":
@@ -43,8 +48,11 @@ def split_c(text, lang):
             code.append(seg); com.append(_blank(seg)); strings.append((start_line, seg[1:-1] if len(seg) > 1 else ""))
             line += seg.count("\n"); i = j + 1
         else:
-            code.append(ch); com.append("\n" if ch == "\n" else " ")
-            line += ch == "\n"; i += 1
+            m = special.search(text, i + 1)
+            j = m.start() if m else n
+            seg = text[i:j]
+            code.append(seg); com.append(_blank(seg))
+            line += seg.count("\n"); i = j
     return "".join(code), "".join(com), strings
 
 

@@ -8,14 +8,14 @@ Wolf Pack CBOM is a pure-Python scanner that inventories cryptography in source 
 
 Owner: Lakshmi Monish (QubitMan), CS student at BITS Pilani. He develops on Windows with PowerShell. He works one stage at a time, wants honest assessments including limitations, pushes back on overclaiming, and prefers code with minimal comments and no unnecessary lines.
 
-Current version: 1.2.0. 1.0.0 was the first production release (Docker image, GitHub Action, `.wolfpack.toml`, `--exclude`). 1.1.0, never released, added trust stores, declared non-security hashes and named unparseable files. 1.2.0 added the `names`, `concat` and `lists` roles, container images, cloud KMS keys, JS imports, and the Noise and JOSE formats; it was tuned on held-out data. See CHANGELOG.md. It was built in a Claude.ai chat, then moved here. The company site presents it on its own page (`site/wolf-pack.html` at the repository root), linked from the main page's header, footer and starting-point finder but never listed as one of the suite's products.
+Current version: 1.2.0. 1.0.0 was the first production release (Docker image, GitHub Action, `.wolfpack.toml`, `--exclude`). 1.1.0, never released, added trust stores, declared non-security hashes and named unparseable files. 1.2.0 added the `names`, `symbols`, `concat` and `lists` roles, container images, cloud KMS keys, JS imports, and the Noise and JOSE formats; it was tuned on held-out data. See CHANGELOG.md. It was built in a Claude.ai chat, then moved here. The company site presents it on its own page (`site/wolf-pack.html` at the repository root), linked from the main page's header, footer and starting-point finder but never listed as one of the suite's products.
 
 ## Commands
 
 ```powershell
 cd wolf-pack; py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 68 tests, must stay green
+python -m unittest discover -s tests -v          # 69 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -42,7 +42,8 @@ wolfpack/
                  the one constant table, also packed into byte patterns for binaries
     pysrc.py     Python AST scout: import aliasing, constant propagation, params, lib attribution
     rules.py     regex rules per language (java, go, js, c, csharp, rust, and shell as "hash"); rule decorator
-    names.py     code named for its algorithm (aes_encrypt(), class HkdfSha256); skips declarations, tests, predicates
+    names.py     code named for its algorithm (aes_encrypt(), class HkdfSha256) and all-caps constants that name one
+                 (case KEY_ED25519:); skips declarations, headers, tests, predicates, sizes, errors, flags
     source.py    runs rules and names on code, rules on comments, constant propagation (in-file, shared_constants
                  across files, js_imports), string scout, classify_literal, concatenated (runtime-built names)
     suites.py    TLS cipher suites, OpenSSL cipher strings (skips ! and -), SSH names, sig schemes, Noise names, JOSE ids, KMS key specs
@@ -65,7 +66,7 @@ wolfpack/
   image.py       container images (docker save / OCI archive): layers unpacked in order, whiteouts applied
   cli.py         scan / bench subcommands, .wolfpack.toml settings, exit codes 0 / 1 error / 2 fail-on
   bench.py       scores at (file, algorithm family) granularity, full pack and one ablation per role
-bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 130 labelled pairs
+bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 136 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
 Dockerfile, action.yml  container image and GitHub Action (../.github/workflows/wolf-pack.yml builds and runs both, and the wheel)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)
@@ -120,7 +121,7 @@ New scout: return a list of `Sighting`s with the right evidence type, add a swit
 
 ## Next work, in priority order
 
-1. Held-out benchmark: done and scored (eval/heldout/README.md). Amendment 3 replaced the human audit with a label-support check and an AI audit (labels/SUPPORT.md). Headline 158d69f: strict P 0.886, R 0.336. 1.1.0: P 0.820, R 0.430. 1.2.0 (after tuning on held-out data): P 0.817, R 0.896. The held-out repos and the ten in eval/unseen are now tuned on; any new claim about unseen code needs a new, unseen, labelled set.
+1. Held-out benchmark: done and scored (eval/heldout/README.md). Amendment 3 replaced the human audit with a label-support check and an AI audit (labels/SUPPORT.md). Headline 158d69f: strict P 0.886, R 0.336. 1.1.0: P 0.820, R 0.430. 1.2.0 (after tuning on held-out data): P 0.803, R 0.911. The held-out repos and the 22 in eval/unseen are now tuned on; any new claim about unseen code needs a new, unseen, labelled set.
 2. Head-to-head with CBOMkit on the Java/Python/Go subset: run sonar-cryptography via its Docker setup, convert both CBOMs to (file, family) pairs, and score both against the same labels. Harness and a first unlabelled six-repo run are in `eval/cbomkit/`. Second baseline candidate: OWASP cdxgen `--include-crypto` (Java and JS/TS source crypto); see docs/HANDOFF.md, "Other baselines".
 3. Done in stage 3: format-sniffing lists (`recognition` role). Sniffers not written as startswith/in/HasPrefix are still counted.
 4. Cross-file constants: done for Java/Kotlin/C# `Owner.NAME`, Go `pkg.Name`, C header macros, and (1.2.0) JavaScript/TypeScript `export const` imported by name from a relative module. Not done: values passed through parameters into another function (the flow look catches a literal passed straight into a call).

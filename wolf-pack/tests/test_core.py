@@ -246,6 +246,11 @@ class Roles(unittest.TestCase):
         self.assertEqual(self.accepted((), "js/settings.js"), {"SHA-1"})
         self.assertEqual(self.accepted(("cross-file",), "js/checksum.js"), set())
 
+    def test_symbols_count_used_constants_but_not_sizes_flags_declarations_or_refusals(self):
+        self.assertEqual(self.accepted((), "c/kex_table.c"), {"Ed25519", "DH", "SHA-256"})
+        self.assertEqual(self.accepted((), "cs/AlgFactory.cs"), {"HMAC", "SHA-256"})
+        self.assertEqual(self.accepted(("symbols",), "c/kex_table.c"), set())
+
     def test_concat_keeps_only_complete_parts(self):
         self.assertEqual(self.accepted((), "js/runtime_names.js"), {"RSA"})
         self.assertEqual(self.accepted(("concat",), "js/runtime_names.js"), set())

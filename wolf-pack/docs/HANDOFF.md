@@ -154,13 +154,14 @@ Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3
 
   Precision held up on unseen code. Recall did not: most misses were code named for its algorithm with no library API (`aes_encrypt`, `BCrypt.HashPassword`, `class HkdfSha256`), plus Noise and JOSE names, and hashlib functions passed as values.
 - **1.2.0** was built from those misses:
-  - the `names`, `concat` and `lists` roles;
+  - the `names`, `symbols`, `concat` and `lists` roles;
   - Noise, JOSE and KMS formats, PyNaCl, JS imports and container images;
   - eight algorithms added to the catalog;
   - the flow look now follows byte literals and branches.
 
-  Held-out (after tuning on held-out data): strict P 0.817, R 0.896, F1 0.854. Removing `names` drops recall to 0.514.
+  Held-out (after tuning on held-out data): strict P 0.803, R 0.911, F1 0.853. Removing `names` drops recall to 0.646.
 - **Generalisation check** (`eval/unseen/`): ten repos never used before. Of 100 random pairs that 1.2.0 adds, 77 are used, 14 declared and 9 wrong, by the developer's own review. The error causes were fixed after the review, so those repos are tuned on now too.
+- **Round 2** (`eval/unseen/`, twelve larger repos): found the `symbols` gap and three slow spots. Large scans are up to 8x faster.
 - **Next for the paper:** a second blind-labelled held-out set to measure 1.2.0 honestly; then the CBOMkit run for H1. Building CBOMkit from source in the cloud session was refused by the session's permission check.
 
 ## Known limitations

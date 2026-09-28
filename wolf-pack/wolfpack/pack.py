@@ -18,6 +18,7 @@ class Roles:
     source: bool = True
     names: bool = True
     concat: bool = True
+    symbols: bool = True
     implementations: bool = True
     config: bool = True
     lists: bool = True
@@ -69,7 +70,7 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=()):
     h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
     if roles.source:
         unparsed = []
-        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed, roles.names, roles.concat)
+        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed, roles.names, roles.concat, roles.symbols)
         h.sightings += s
         if unparsed:
             h.notes.append(f"{len(unparsed)} Python file(s) could not be parsed by this Python ({sys.version.split()[0]}): newer syntax, or not "

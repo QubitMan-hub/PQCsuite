@@ -67,19 +67,31 @@ def constants(code, fixed_only=False):
     return out
 
 
+CHAIN = re.compile(r"(?<![\w.$])[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*")
+ASSIGNED = re.compile(r"\s*:?=[^=]")
+
+
 def propagate(code, shared=None):
     """Inlines constants into later uses, keeping line structure intact. `shared` holds constants reachable from other files."""
     consts = constants(code)
     for k, v in (shared or {}).items():
         consts.setdefault(k, (v, -1))
-    names = "|".join(re.escape(k) for k in sorted(consts, key=len, reverse=True) if len(k) > 1)
-    if not names:
+    consts = {k: v for k, v in consts.items() if len(k) > 1}
+    if not consts:
         return code
 
     def sub(m):
-        val, end = consts[m.group(1)]
-        return val if m.start() > end else m.group(0)
-    return re.sub(r"(?<![\w.$])(" + names + r")\b(?!\s*:?=[^=])", sub, code)
+        parts = m.group(0).split(".")
+        for n in range(len(parts), 0, -1):
+            name = ".".join(parts[:n])
+            if name in consts:
+                val, end = consts[name]
+                stop = m.start() + len(name)
+                if m.start() > end and not ASSIGNED.match(code, stop):
+                    return val + m.group(0)[len(name):]
+                break
+        return m.group(0)
+    return CHAIN.sub(sub, code)
 
 
 def shared_constants(root, scope=False):
@@ -186,11 +198,19 @@ def classify_literal(v):
     return [], False
 
 
+def glued(text, lit):
+    i = text.find(lit)
+    while i >= 0:
+        if text[i + len(lit):].lstrip().startswith("+") or text[:i].rstrip().endswith("+"):
+            return True
+        i = text.find(lit, i + 1)
+    return False
+
+
 def concatenated(val, text):
     """A literal glued to a runtime value ("RSA-SHA" + bits, "PBKDF2WithHmac" + name): only its complete parts are known.
     A fragment the value may finish ("SHA-" + bits) is ambiguous and never guessed."""
-    q = re.escape(val)
-    if not val.strip() or not re.search(rf"""['"`]{q}['"`]\s*\+|\+\s*['"`]{q}['"`]""", text):
+    if not val.strip() or "+" not in text or not any(glued(text, q + val + q) for q in "'\"`"):
         return None
     parts = [p for p in re.split(r"[-_/\s.]+|(?<=[a-z0-9])(?=[A-Z])", val) if p]
     return [(a, {}) for a in dict.fromkeys(lookup(p) for p in parts if p.upper() not in AMBIGUOUS and len(p) > 2) if a]
@@ -209,7 +229,7 @@ def string_scout(path, lang, strings, lines, sink, base_ctx, docs, concat=True):
             _emit(sink, path, lang, line, lines, a, dict(p, literal=val), "string", "strings", c)
 
 
-def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, names=True, concat=True, cross_file=True):
+def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, names=True, concat=True, cross_file=True, symbols=True):
     lang = LANGS.get(p.suffix.lower())
     if not lang:
         return False
@@ -236,6 +256,9 @@ def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, nam
     if names and lang != "hash":
         for ln, a in named.scan(code, lang, path):
             _emit(sink, path, lang, ln, lines, a, {}, "identifier", "names", base | ({"doc"} if ln in docs else set()))
+    if symbols and lang != "hash":
+        for ln, a in named.symbols(code, lang, path):
+            _emit(sink, path, lang, ln, lines, a, {}, "identifier", "symbols", base | ({"doc"} if ln in docs else set()))
     string_scout(path, lang, strings, lines, sink, base, docs, concat)
     for m in re.finditer(r"[^\n]+", comments):
         for a, p in classify_literal(m.group(0))[0] if len(m.group(0).strip()) > 3 else []:
@@ -243,10 +266,10 @@ def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, nam
     return True
 
 
-def scan(root, scope=False, constants=True, cross_file=True, unparsed=None, names=True, concat=True):
+def scan(root, scope=False, constants=True, cross_file=True, unparsed=None, names=True, concat=True, symbols=True):
     """`unparsed` collects Python files this interpreter cannot parse (newer syntax); only their strings and comments are read."""
     sink, n = [], 0
     shared = shared_constants(root, scope) if constants and cross_file else ((), {})
     for p in iter_files(root, scope):
-        n += scan_file(root, p, sink, constants, shared, unparsed, names, concat, cross_file)
+        n += scan_file(root, p, sink, constants, shared, unparsed, names, concat, cross_file, symbols)
     return sink, n

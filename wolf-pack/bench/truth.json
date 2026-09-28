@@ -246,5 +246,14 @@
   ],
   "js/checksum.js": [
     "SHA-1"
+  ],
+  "c/kex_table.c": [
+    "Ed25519",
+    "DH",
+    "SHA-256"
+  ],
+  "cs/AlgFactory.cs": [
+    "HMAC",
+    "SHA-256"
   ]
 }

@@ -193,6 +193,16 @@ simple("go", r'\bnoise\.(DH25519|DH448|CipherChaChaPoly|CipherAESGCM|HashBLAKE2s
         "HashBLAKE2b": "BLAKE2", "HashSHA256": "SHA-256", "HashSHA512": "SHA-512"}, lib="noise")
 
 
+@rule("go", r'\bx509\.((?:MD5|SHA1|SHA256|SHA384|SHA512)WithRSA(?:PSS)?|ECDSAWithSHA(?:1|256|384|512)|DSAWithSHA(?:1|256)|PureEd25519)\b')
+def _(m, x):
+    t = m.group(1)
+    if t == "PureEd25519":
+        return [("Ed25519", {})]
+    h = lookup(re.search(r"MD5|SHA\d+", t).group(0))
+    sig = "ECDSA" if t.startswith("ECDSA") else "DSA" if t.startswith("DSA") else "RSA"
+    return [(sig, {"hash": h, "padding": "pss" if t.endswith("PSS") else None}), (h, {})]
+
+
 @rule("go", r'\bhmac\.New\(\s*(sha1|sha256|sha512|md5)\.New')
 def _(m, x):
     return [("HMAC", {"hash": lookup(m.group(1))})]
