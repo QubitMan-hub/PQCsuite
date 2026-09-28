@@ -75,3 +75,12 @@ Human labellers were not available, so labels come from AI labellers under these
 ### Correction to amendment 2 (same day)
 
 The audit sample drawn by that command has **63** files, not 66.
+
+### Amendment 3: 28 September 2026, by the owner (QubitMan), before any scoring
+
+No person is available for the human audit in amendment 1, item 4. The owner asked for a different check instead. It replaces item 4; nothing else changes.
+
+1. **Label-support check (mechanical, all files).** A script (`heldout.py support`), written and committed before it is run, checks every `used` label in `final/` against the file: the file's code, with comments and docstrings removed, must contain a name, API or constant that denotes that family (the table is in the script and is not derived from Wolf Pack). It lists `used` labels with no such support, and files labelled `-` whose code contains such names. The counts are reported. Listed cells are reviewed and each gets a written verdict in `labels/SUPPORT.md`, but **no label in `final/` is changed**: the gold labels stay frozen as committed.
+2. **AI audit of the same 63-file sample.** The assistant that develops Wolf Pack labels `audit/` from the source, following `LABELLING.md`, before opening `final/`, `ai-a/` or `ai-b/` (it has never read their labels; it has seen only counts of blank cells during merging, and the labellers' summary reports described in amendment 2) and without running any scanner on these repositories. `heldout.py agree final audit` is reported as **AI-audit agreement**, not as the accuracy of the gold labels, and the paper says the auditor knows Wolf Pack's rules, which could bias its labels toward what Wolf Pack finds. Because the audit only measures the gold labels and never changes them or the score, that bias cannot raise Wolf Pack's reported numbers.
+3. **Order.** Commit this amendment, then the support script, then the audit sheets; then run the support check and `agree`; then score. The headline version stays commit `158d69f` (amendment 2).
+4. **What this weakens.** There is no human check of the gold labels. Every label was written by AI (two labellers and an adjudicator), and both checks above are mechanical or AI. The paper reports this as a limitation.
