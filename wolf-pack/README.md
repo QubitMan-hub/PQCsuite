@@ -23,8 +23,6 @@ py -m wolfpack scan . --baseline main-cbom.json --fail-on high # CI: fail only o
 py -m wolfpack hunt . --without den                          # ablation: leave a member of the pack out
 py -m wolfpack scan --pcap traffic.pcapng                     # what clients and servers really negotiated, from a capture
 py -m wolfpack scan . --changed-since origin/main            # CI on a pull request: only the files it changed
-py -m wolfpack keygen; py -m wolfpack scan . --sign wolfpack-keys\signing-key.pem   # ML-DSA-65 signed cbom.json
-py -m wolfpack verify wolfpack-out\cbom.json --pub signing-key.pub.pem
 py -m wolfpack scan image.tar                                 # a container image saved with `docker save` or as an OCI archive
 py -m wolfpack merge scans\ --name "Acme Bank"              # every system's cbom.json into one inventory and dashboard
 py -m wolfpack merge scans\ --history readiness.jsonl        # add this run to a history; the dashboard charts readiness over time

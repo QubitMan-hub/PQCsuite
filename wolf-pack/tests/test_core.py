@@ -220,20 +220,6 @@ class Capture(unittest.TestCase):
 
 
 class Operations(unittest.TestCase):
-    def test_signed_cbom_verifies_and_detects_tampering(self):
-        import tempfile
-        from wolfpack import signing
-        with tempfile.TemporaryDirectory() as d:
-            priv, pub, algo = signing.keygen(Path(d) / "k")
-            f = Path(d) / "cbom.json"
-            f.write_text('{"bomFormat": "CycloneDX"}')
-            signing.sign(f, priv)
-            self.assertTrue(signing.verify(f, pub)[0])
-            other = signing.keygen(Path(d) / "other")[1]
-            self.assertFalse(signing.verify(f, other)[0])
-            f.write_text('{"bomFormat": "CycloneDX", "x": 1}')
-            self.assertEqual(signing.verify(f, pub), (False, "the file changed after it was signed"))
-
     def test_history_keeps_one_row_per_day(self):
         import json
         import tempfile

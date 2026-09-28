@@ -71,7 +71,7 @@
 
   <nav class="wrap jump" aria-label="On this page">
     <a href="#sources"><span>Coverage</span><b>What it reads</b><code>code, configs, keys, traffic</code></a>
-    <a href="#features"><span>After the scan</span><b>Fix, gate, prove</b><code>policy, fixes, signed CBOMs</code></a>
+    <a href="#features"><span>After the scan</span><b>Fix, gate, prove</b><code>policy, fixes, CI gates</code></a>
     <a href="#samples"><span>Try before you book</span><b>Sample outputs</b><code>report and dashboard</code></a>
     <a href="#results"><span>Honest numbers</span><b>How accurate it is</b><code>unseen repositories</code></a>
   </nav>
@@ -126,7 +126,6 @@
         <li><b>One view of the organisation</b><p>Merges the scans of every system into one inventory and dashboard: weakest systems first, and where each algorithm is used.</p><code>wolfpack merge</code></li>
         <li><b>Progress over time</b><p>Each merge can be added to a history, so the dashboard charts the quantum-safe share and the policy breaches run by run.</p><code>--history runs.jsonl</code></li>
         <li><b>Fast checks on every pull request</b><p>Scans only the files changed since a branch, and fails the build only on cryptography that is new since the last release.</p><code>--changed-since main</code></li>
-        <li><b>Signed inventories</b><p>Signs the CBOM with ML-DSA-65, so an auditor can check who produced it and that nothing changed since.</p><code>wolfpack sign, verify</code></li>
         <li><b>An audit trail</b><p>Everything the scouts found is kept with the evidence and the reason it was accepted, held or rejected.</p><code>findings.json</code></li>
         <li><b>Silence what you have checked</b><p>A <code>wolfpack:ignore</code> comment on a line, or an exclude pattern, keeps a reviewed finding out of later runs.</p><code>.wolfpack.toml</code></li>
       </ul>
@@ -182,8 +181,7 @@ profiles = ["nist-ir-8547"]</pre>
         <pre>wolfpack scan app-image.tar          # a saved container image
 wolfpack scan --pcap gateway.pcap    # handshakes from a capture
 wolfpack scan --tls api.example.com:443 --ssh bastion.example.com
-wolfpack merge scans/ --name "Example Bank" --history runs.jsonl
-wolfpack keygen; wolfpack sign wolfpack-out/cbom.json --key wolfpack-keys/signing-key.pem</pre>
+wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
       </div>
     </div>
   </section>

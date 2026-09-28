@@ -15,7 +15,7 @@ Current version: 1.2.0. 1.0.0 was the first production release (Docker image, Gi
 ```powershell
 cd wolf-pack; py -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 87 tests, must stay green
+python -m unittest discover -s tests -v          # 86 tests, must stay green
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors
@@ -68,10 +68,9 @@ wolfpack/
   image.py       container images (docker save / OCI archive): layers unpacked in order, whiteouts applied
   remedy.py      how to fix each asset where it was found: per-language API, config line, certificate reissue, PQC Suite product
   inventory.py   merge: many systems' CBOMs (any tool) into one organisation inventory, dashboard and merged CBOM
-  signing.py     keygen / sign / verify: detached ML-DSA-65 (else Ed25519) signature over cbom.json bytes
   compliance.py  policy: NIST IR 8547 and CNSA 2.0 profiles plus [policy] rules (forbid, min_bits, require_hybrid);
                  overdue vs due later; tests, declared non-security hashes and trust stores are exempt
-  cli.py         scan / merge / keygen / sign / verify / bench subcommands; --changed-since (git) for incremental scans, .wolfpack.toml settings, exit codes 0 / 1 error / 2 fail-on
+  cli.py         scan / merge / bench subcommands; --changed-since (git) for incremental scans, .wolfpack.toml settings, exit codes 0 / 1 error / 2 fail-on
   bench.py       scores at (file, algorithm family) granularity, full pack and one ablation per role
 bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 163 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
