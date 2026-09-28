@@ -154,6 +154,11 @@ class VaultTest(unittest.TestCase):
         _, who = vault.decrypt(f, self.d / "x", self.alice, ca=self.d / "pki" / "ca.crt", expected_signer="backup-server")
         self.assertEqual(who, "CN=backup-server")
         self.assertEqual(vault.inspect(f)["signed_by"], "CN=backup-server")
+        evil, _ = ca.issue("evil,CN=backup-server", "client")
+        f2 = self.d / "evil.pqv"
+        vault.encrypt(self.d / "db.dump", f2, [self.alice.public], vault.load_signer(evil / "cert.pem", evil / "key.pem"))
+        with self.assertRaisesRegex(VaultError, "expected CN=backup-server"):
+            vault.decrypt(f2, self.d / "e", self.alice, ca=self.d / "pki" / "ca.crt", expected_signer="backup-server")
 
     def test_signature_cannot_be_stripped_or_faked(self):
         ca = CA.init(self.d / "pki", "Root")
@@ -190,6 +195,15 @@ class VaultTest(unittest.TestCase):
         self.assertEqual(target.read_bytes(), self.data)
         with self.assertRaisesRegex(VaultError, "only share"):
             vault.add_recipients(f, self.eve, [self.eve.public])
+        raw = bytearray(f.read_bytes())
+        (n,) = struct.unpack(">I", raw[5:9])
+        h = json.loads(raw[9:9 + n])
+        h["recipients"][0]["key"] = h["recipients"][1]["key"]
+        header = json.dumps(h).encode()
+        (self.d / "bad.pqv").write_bytes(vault.MAGIC + struct.pack(">I", len(header)) + header + raw[9 + n:])
+        with self.assertRaisesRegex(VaultError, "cannot unwrap"):
+            vault.add_recipients(self.d / "bad.pqv", self.alice, [self.eve.public])
+        self.assertFalse((self.d / "bad.pqv.part").exists())
 
     def test_cnsa2_suite(self):
         a, b = Identity.generate(cnsa2=True), Identity.generate(cnsa2=True)

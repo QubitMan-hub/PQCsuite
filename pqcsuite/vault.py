@@ -27,6 +27,7 @@ import tarfile
 from pathlib import Path
 
 from cryptography import x509
+from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization as ser
 from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -340,7 +341,7 @@ def verify_signer(h, ca=None, crl=None, expected=None):
             except CAError as e:
                 raise VaultError(f"signer: {e}") from None
     name = cert.subject.rfc4514_string()
-    if expected and f"CN={expected}" not in name.split(","):
+    if expected and expected not in [a.value for a in cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)]:
         raise VaultError(f"signed by {name}, expected CN={expected}")
     return name
 
@@ -465,7 +466,10 @@ def add_recipients(path, identity, recipients):
         entry = next((r for r in h["recipients"] if r["id"] == identity.public.id), None)
         if not entry:
             raise VaultError("you can only share a file you can open")
-        dek = unwrap(entry, identity, aad)
+        try:
+            dek = unwrap(entry, identity, aad)
+        except Exception:
+            raise VaultError("cannot unwrap the file key: wrong key or corrupted header") from None
         _check_recipients(h, dek)
         if any(r.suite.name != h["suite"] for r in recipients):
             raise VaultError(f"this file uses {h['suite']}; new recipients must have keys of that suite")
@@ -475,11 +479,14 @@ def add_recipients(path, identity, recipients):
             h["mac"] = _recipients_mac(dek, h["recipients"])
         header = json.dumps(h).encode()
         tmp = path.with_name(path.name + ".part")
-        with open(tmp, "wb") as out:
-            out.write(MAGIC + struct.pack(">I", len(header)) + header)
-            while block := f.read(CHUNK):
-                out.write(block)
-    os.replace(tmp, path)
+        try:
+            with open(tmp, "wb") as out:
+                out.write(MAGIC + struct.pack(">I", len(header)) + header)
+                while block := f.read(CHUNK):
+                    out.write(block)
+            os.replace(tmp, path)
+        finally:
+            tmp.unlink(missing_ok=True)
     return len(h["recipients"])
 
 
