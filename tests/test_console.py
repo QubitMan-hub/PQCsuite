@@ -116,6 +116,9 @@ class ConsoleTest(unittest.TestCase):
         self.app.s.edges = [f"http://127.0.0.1:{port}/a", f"http://127.0.0.1:{port}/b"]
         _, _, edges = self.call("/api/edges")
         self.assertEqual([("error" in e) for e in edges], [True, True])
+        self.app.s.wireguard = self.app.s.edges
+        _, _, users = self.call("/api/remote")
+        self.assertEqual([("error" in u) for u in users], [True, True])
         self.app.backups = lambda: 1 / 0
         with self.assertRaises(urllib.error.HTTPError) as e:
             self.call("/api/backups")
@@ -136,6 +139,9 @@ class ConsoleTest(unittest.TestCase):
                 self.call(path, body)
             self.assertEqual(e.exception.code, 400)
             self.assertIn(message, json.loads(e.exception.read())["error"])
+        with self.assertRaises(urllib.error.HTTPError) as e:
+            self.call("/api/certificates/revoke", ["serial"])
+        self.assertEqual(e.exception.code, 400)
         self.assertEqual(self.call("/api/scan", {"targets": ["127.0.0.1:1"]})[2], {"started": 1})
 
 

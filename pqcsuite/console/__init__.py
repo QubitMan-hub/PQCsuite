@@ -102,7 +102,11 @@ class App:
         for url in self.s.wireguard:
             try:
                 with NO_PROXY.open(url.rstrip("/") + "/status", timeout=3) as r:
-                    out += [{"source": url, "user": k, **v} for k, v in json.loads(r.read()).items() if k != "_events"]
+                    status = json.loads(r.read())
+                users = {k: v for k, v in status.items() if k != "_events"} if isinstance(status, dict) else None
+                if users is None or not all(isinstance(v, dict) for v in users.values()):
+                    raise ValueError("this address does not answer like a WireGuard gateway's /status")
+                out += [{"source": url, "user": k, **v} for k, v in users.items()]
             except (OSError, ValueError) as e:
                 out.append({"source": url, "error": str(e)})
         return out
@@ -289,6 +293,8 @@ def serve(app):
                 body = json.loads(self.rfile.read(n)) if n else {}
             except ValueError:
                 return self.reply(400, {"error": "invalid JSON"})
+            if not isinstance(body, dict):
+                return self.reply(400, {"error": "the body must be a JSON object"})
             self.reply(*app.handle(method, path, body))
 
         def do_GET(self):
