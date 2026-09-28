@@ -257,7 +257,7 @@ class SiteToSiteTest(unittest.TestCase):
         t = self.tunnel("hq")
         self.assertIn("ML_KEM_768", t["key_exchange"])
         self.assertIn("CURVE_25519", t["key_exchange"])
-        self.assertEqual(t["encryption"], "AES_GCM_16")
+        self.assertEqual(t["encryption"], "AES_GCM_16_256")
 
         if os.environ.get("PQCSUITE_VPN_DATAPLANE"):
             sh("ip", "netns", "exec", "pqc-br", "ping", "-c", "3", "-W", "2", "-I", "192.168.20.1", "192.168.10.1")

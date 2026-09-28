@@ -31,6 +31,12 @@ def text(v):
     return v.decode() if isinstance(v, bytes) else v
 
 
+def cipher(sa):
+    """The encryption as strongSwan names it in proposals, key size included: AES_GCM_16_256."""
+    alg, size = text(sa.get("encr-alg", b"")), text(sa.get("encr-keysize", b""))
+    return f"{alg}_{size}" if alg and size else alg
+
+
 def ppk_pattern(site, peer):
     a, b = sorted((site, peer))
     return f"{a}.{b}.ppk.pqcsuite"
@@ -115,9 +121,9 @@ class Charon:
                 kes = [text(ike.get(k)) for k in ["dh-group"] + [f"ake{i}" for i in range(1, 8)] if ike.get(k)]
                 out.append({
                     "peer": text(name), "state": text(ike["state"]), "remote": text(ike.get("remote-host", b"")),
-                    "established_s": int(text(ike.get("established", b"0"))), "encryption": text(ike.get("encr-alg", b"")),
+                    "established_s": int(text(ike.get("established", b"0"))), "encryption": cipher(ike),
                     "key_exchange": " + ".join(kes), "ppk": text(ike.get("ppk", b"no")) == "yes",
-                    "children": [{"name": text(cn), "state": text(c["state"]), "encryption": text(c.get("encr-alg", b"")),
+                    "children": [{"name": text(cn), "state": text(c["state"]), "encryption": cipher(c),
                                   "bytes_in": int(text(c.get("bytes-in", b"0"))), "bytes_out": int(text(c.get("bytes-out", b"0"))),
                                   "packets_in": int(text(c.get("packets-in", b"0"))), "packets_out": int(text(c.get("packets-out", b"0")))}
                                  for cn, c in ike.get("child-sas", {}).items()],

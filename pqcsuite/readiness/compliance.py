@@ -21,12 +21,15 @@ def _row(kind, name, detail, status, nist, cnsa2, evidence):
 
 def certificates(records):
     out = []
+    now = dt.datetime.now(dt.timezone.utc)
     for r in records:
         if r.status != "valid":
             continue
         cnsa = r.algorithm == "ML-DSA-87"
-        out.append(_row("pki", r.common_name, f"{r.kind} certificate, {r.algorithm}, expires {r.not_after[:10]}", "ready",
-                        "approved (FIPS 204)", "compliant" if cnsa else "needs ML-DSA-87", {"serial": r.serial}))
+        expired = dt.datetime.fromisoformat(r.not_after) < now
+        out.append(_row("pki", r.common_name, f"{r.kind} certificate, {r.algorithm}, {'expired' if expired else 'expires'} {r.not_after[:10]}",
+                        "action" if expired else "ready", "expired: renew it" if expired else "approved (FIPS 204)",
+                        "compliant" if cnsa and not expired else "needs ML-DSA-87" if not cnsa else "expired", {"serial": r.serial}))
     return out
 
 
@@ -60,11 +63,12 @@ def tunnels(items):
             continue
         kex = t["key_exchange"]
         pq = "ML_KEM" in kex
-        cnsa = "ML_KEM_1024" in kex and "ECP_384" in kex and "AES_GCM_16" in t["encryption"]
+        ciphers = [t["encryption"]] + [c["encryption"] for c in t.get("children", [])]
+        cnsa = "ML_KEM_1024" in kex and "ECP_384" in kex and all(c == "AES_GCM_16_256" for c in ciphers)
         out.append(_row("vpn", t["peer"], f"{t['state']}, {kex}, {t['encryption']}, PPK {'yes' if t['ppk'] else 'no'}",
                         "ready" if pq and t["ppk"] else "transition" if pq else "action",
                         "post-quantum key exchange" + ("" if t["ppk"] else "; authentication still classical") if pq else "classical key exchange: disallowed after 2035",
-                        "compliant" if cnsa else "needs profile = \"high\" (P-384 + ML-KEM-1024)", {"key_exchange": kex}))
+                        "compliant" if cnsa else "needs profile = \"high\" (P-384 + ML-KEM-1024, AES-256-GCM)", {"key_exchange": kex}))
     return out
 
 
