@@ -113,7 +113,10 @@ class Identity:
         try:
             keys = [ser.load_pem_private_key(b, passphrase) for b in blocks]
         except (TypeError, ValueError) as e:
-            why = "wrong passphrase" if "Incorrect password" in str(e) else "it needs its passphrase" if "not given" in str(e) else e
+            # a wrong passphrase usually fails the padding check, but about one time in 256 the garbage it decrypts to fails to
+            # parse instead; with a passphrase given for an encrypted key, both mean the passphrase is wrong (or the file damaged)
+            wrong = "Incorrect password" in str(e) or (passphrase is not None and b"ENCRYPTED" in data)
+            why = "wrong passphrase" if wrong else "it needs its passphrase" if "not given" in str(e) else e
             raise VaultError(f"cannot open {path}: {why}") from None
         kem = next((k for k in keys if isinstance(k, (mlkem.MLKEM768PrivateKey, mlkem.MLKEM1024PrivateKey))), None)
         dh = next((k for k in keys if not isinstance(k, (mlkem.MLKEM768PrivateKey, mlkem.MLKEM1024PrivateKey))), None)

@@ -164,7 +164,8 @@ class CA:
         try:
             signer = signers.from_config(self.root, self.passphrase)
         except (signers.SignerError, OSError, KeyError, ValueError) as e:
-            raise CAError(f"cannot open the CA key: {e}") from None
+            hint = " (wrong passphrase?)" if self.passphrase and "passphrase" not in str(e) else ""
+            raise CAError(f"cannot open the CA key: {e}{hint}") from None
         if signer.spki != _spki(self.cert):
             raise CAError("the CA key does not match ca.crt")
         return signer
