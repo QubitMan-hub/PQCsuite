@@ -22,6 +22,8 @@ ca:
     allow: []                  # e.g. ["*.corp.example"]
     requireEab: true
     httpPort: 80
+  crl:
+    port: 8080                 # `ca publish`: crl.pem and ca.crt over HTTP; edges with requireClientCert follow it
   maintain:
     renewWithinDays: 30
     crlDays: 7
@@ -35,7 +37,10 @@ ca:
 edge:
   enabled: false
   replicas: 2
-  # Secret with chain.pem, key.pem and ca.crt (and crl.pem when requireClientCert). Create it with
+  # Where edges with requireClientCert fetch the CRL (every minute). Default: this release's CA; with ca.enabled false,
+  # set it to your CA's published crl.pem, or leave it empty and put crl.pem in the Secret.
+  crlUrl: ""
+  # Secret with chain.pem, key.pem and ca.crt (and crl.pem when requireClientCert and no CRL address). Create it with
   #   pqcsuite ca issue server <name> --out edge && kubectl create secret generic edge-tls --from-file=edge/ --from-file=pki/ca.crt
   certSecret: edge-tls
   policy: strict               # strict, transition (also serves classical clients) or cnsa2

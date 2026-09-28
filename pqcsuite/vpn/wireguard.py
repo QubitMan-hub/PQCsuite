@@ -30,12 +30,13 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
 from .. import build, env_passphrase, explain, read_toml, tls
-from ..pki import CAError, write
+from ..pki import CAError, follow_crl, write
 from ..tls import hostport
 from ..tls.server import Server
 from .controller import TAG, common_name, read_line
 
 log = logging.getLogger("pqcsuite.wireguard")
+LIVE = {"users", "routes", "dns", "sites", "rotate_minutes"}
 LABEL = "EXPORTER-pqcsuite-wireguard-v1"
 RAW = (serialization.Encoding.Raw, serialization.PublicFormat.Raw)
 
@@ -146,6 +147,8 @@ class GatewayConfig:
     key: str
     ca: str
     crl: str = ""
+    crl_url: str = ""
+    crl_every: float = 60.0
     key_passphrase_env: str = ""
     interface: str = "wg0"
     listen_port: int = 51820
@@ -176,6 +179,8 @@ class GatewayConfig:
                 raise ValueError("full-tunnel routes (0.0.0.0/0) are not supported yet; list the networks behind the gateway")
         hostport(self.endpoint)
         hostport(self.keyring_listen)
+        if self.crl_url and not self.crl:
+            raise ValueError("crl_url needs crl = \"PATH\", where the copy is kept")
         if self.rotate_minutes < 0.25:
             raise ValueError("rotate_minutes must be at least 0.25")
         return self
@@ -198,7 +203,7 @@ class Gateway:
         self.clients = {}
         self.counts = Counter()
         self.leases = json.loads(Path(cfg.state).read_text()) if Path(cfg.state).exists() else {}
-        self.server = None
+        self.server = self.crl_follow = None
 
     def lease(self, cn):
         if cn not in self.leases:
@@ -273,6 +278,8 @@ class Gateway:
         self.wg.set_private_key(self.private, c.listen_port)
         for stale in self.wg.peers():
             self.wg.remove_peer(stale)
+        if c.crl_url:
+            self.crl_follow = follow_crl(c.crl_url, c.crl, c.ca, c.crl_every)
         make = lambda: tls.server_context(c.cert, c.key, c.ca, True, "strict", env_passphrase(c.key_passphrase_env))
         self.server = Server(hostport(c.keyring_listen), make, self.respond, watch=[c.cert, c.key, c.ca], crl=c.crl or None,
                              ca=c.ca, max_connections=256, name="keyring")
@@ -289,8 +296,26 @@ class Gateway:
 
     def shutdown(self):
         self.stop.set()
+        if self.crl_follow:
+            self.crl_follow.set()
         if self.server:
             self.server.stop(2)
+
+    def reconfigure(self, new):
+        """Apply a changed configuration while running when only users, routes, dns, sites or rotate_minutes differ, removing
+        users no longer listed; False when anything else changed and the gateway has to restart."""
+        if any(getattr(self.cfg, k) != v for k, v in vars(new).items() if k not in LIVE):
+            return False
+        self.cfg = new
+        for cn, c in list(self.clients.items()):
+            if new.users and cn not in new.users:
+                with self.lock:
+                    self.wg.remove_peer(c["public"])
+                    self.clients.pop(cn, None)
+                self.counts["removed"] += 1
+                log.warning("%s: no longer in users; removed", cn)
+        log.info("applied the new users, routes and settings; connected users get them at their next key agreement")
+        return True
 
     def status(self):
         peers = self.wg.peers()

@@ -36,6 +36,8 @@ class Site:
     key: str
     ca: str
     crl: str = ""
+    crl_url: str = ""
+    crl_every: float = 60.0
     key_passphrase_env: str = ""
     vici: str = "unix:///var/run/charon.vici"
     keyring_listen: str = ""
@@ -71,5 +73,7 @@ def validate(site):
             raise ValueError(f"{p.name}: rotate_minutes must be at least 1")
         for net in p.local_subnets + p.remote_subnets:
             ipaddress.ip_network(net)
+    if site.crl_url and not site.crl:
+        raise ValueError("crl_url needs crl = \"PATH\", where the copy is kept")
     if any(not p.initiate for p in site.peers) and not site.keyring_listen:
         raise ValueError("peers that initiate towards this site need keyring_listen = \"0.0.0.0:7443\"")

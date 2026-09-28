@@ -6,6 +6,7 @@ ConditionPathExists=/etc/pqcsuite/wireguard.toml
 
 [Service]
 ExecStart=/opt/pqcsuite/bin/pqcsuite vpn gateway --config /etc/pqcsuite/wireguard.toml
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 
 [Install]

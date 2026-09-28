@@ -176,13 +176,14 @@ const RENDER = {
     const o = await api("overview");
     const c = o.certificates, e = o.edges, v = o.vpn, b = o.backups, r = o.readiness;
     const tile = (label, value, note, cls = "", view = "") => `<a class="tile" href="#${view}"><span>${label}</span><b class="${cls}">${esc(value)}</b><small>${esc(note)}</small></a>`;
-    $("#view").innerHTML = head("Overview", `${o.product} ${o.version}. Every tile opens its page; figures refresh every 10 seconds.`, "PQC Suite") + `<div class="tiles">
+    $("#view").innerHTML = head("Overview", `${o.product} ${o.version}. Every tile opens its page; figures refresh every 10 seconds.`, "PQC Suite") +
+      (o.update ? `<div class="panel notice">Version ${esc(o.update.version)} is out. <a href="${esc(o.update.url)}" target="_blank" rel="noopener">What changed and how to install it</a></div>` : "") + `<div class="tiles">
       ${c.error ? tile("Certificates", "–", c.error, "", "certificates") : tile("Certificates", c.valid, `${c.expiring_30d} expire within 30 days, ${c.revoked} revoked`, c.expiring_30d ? "warn" : "", "certificates")}
       ${tile("Edges", e.routes, `${e.active} open connections, ${e.handshakes} handshakes, ${e.failed} refused${e.unreachable ? `, ${e.unreachable} unreachable` : ""}`, e.unreachable ? "warn" : "", "edges")}
       ${tile("Remote users", `${v.remote_online}/${v.remote_users}`, v.remote_users ? "handshake in the last 3 minutes" : "no gateways or users", v.remote_users ? "ok" : "", "vpn")}
       ${tile("VPN tunnels", `${v.quantum_safe}/${v.tunnels}`, v.tunnels ? "up with ML-KEM and a PPK" : "no tunnels connected", !v.tunnels ? "" : v.quantum_safe < v.tunnels ? "bad" : "ok", "vpn")}
       ${tile("Backups", b.count, b.latest ? `latest ${b.latest.slice(0, 16).replace("T", " ")}, ${b.signed} signed` : "none found", "", "backups")}
-      ${tile("Readiness", r ? `${r.pq_key_exchange}/${r.endpoints}` : "–", r ? "endpoints offer post-quantum key exchange" : "run a scan on the Readiness page", r && r.pq_key_exchange < r.endpoints ? "warn" : "", "readiness")}
+      ${tile("Readiness", r ? `${r.pq_key_exchange}/${r.endpoints}` : "–", r ? `endpoints offer post-quantum key exchange${r.changes ? `; ${r.changes} changed since the scan before` : ""}` : "run a scan on the Readiness page", r && (r.changes || r.pq_key_exchange < r.endpoints) ? "warn" : "", "readiness")}
     </div>
     <a class="also" href="#wolfpack"><span>Also from Acxelin</span><b>Wolf Pack CBOM</b><small>The readiness scan sees your endpoints. Wolf Pack finds the cryptography inside your own code, configuration and keys.</small><em>How to scan a repository →</em></a>`;
   },
@@ -269,10 +270,14 @@ const RENDER = {
   async readiness() {
     const s = await api("scan");
     const grade = { A: "ok", B: "ok", C: "bad", F: "mute" };
-    $("#view").innerHTML = head("Readiness", "Which endpoints offer post-quantum key exchange, and with which certificates.", "Readiness assessment") +
+    const when = s.last ? new Date(s.last.finished * 1000).toLocaleString() : "";
+    const changes = (s.last && s.last.changes) || [];
+    $("#view").innerHTML = head("Readiness", `Which endpoints offer post-quantum key exchange, and with which certificates.${when ? ` Last scan ${when}.` : ""}${s.every_hours ? ` Scanned again every ${s.every_hours} h.` : ""}`, "Readiness assessment") +
       `<div class="panel"><h2>Scan</h2><form id="scan" style="padding:14px 16px;display:grid;gap:10px">
         <label>Endpoints, one per line (host:port)<textarea name="targets">${esc((s.targets || []).join("\n"))}</textarea></label>
         <div><button ${s.running ? "disabled" : ""}>${s.running ? "Scanning…" : "Scan"}</button> <span class="${s.error ? "bad" : "mute"}" id="scanmsg">${esc(s.error)}</span></div></form></div>` +
+      (changes.length ? `<div class="panel"><h2>Changed since the scan before</h2>${table(["Endpoint", "Before", "Now"],
+        changes.map((c) => [{ mono: c.target }, c.before ? pill(c.before, grade[c.before]) : "new", pill(c.after, grade[c.after])]), "")}</div>` : "") +
       (s.last ? `<div class="panel"><h2>${s.last.summary.pq_key_exchange}/${s.last.summary.endpoints} offer post-quantum key exchange, ${s.last.summary.pq_certificates} use ML-DSA certificates</h2>${table(
         ["Grade", "Endpoint", "Negotiated", "Accepted", "Certificate", "Expires"],
         s.last.endpoints.slice().sort((a, b) => a.grade.localeCompare(b.grade)).map((r) => [pill(r.grade, grade[r.grade]), { mono: r.target }, r.negotiated || r.error || "",

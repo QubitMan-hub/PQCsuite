@@ -6,6 +6,7 @@ ConditionPathExists=/etc/pqcsuite/site.toml
 
 [Service]
 ExecStart=/opt/pqcsuite/bin/pqcsuite vpn up --config /etc/pqcsuite/site.toml
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 
 [Install]

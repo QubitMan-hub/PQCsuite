@@ -388,9 +388,8 @@ def signed_by(issuer, tbs, signature):
                       "SLH-DSA, so it cannot be their issuer") from None
 
 
-def check_revocation(serial, crl_pem, ca_certs):
-    """Raise if the certificate with this serial number is revoked, or if the CRL is forged or stale. Fails closed.
-    `ca_certs` is the issuing CA's certificate, or several of which one issued the CRL."""
+def verify_crl(crl_pem, ca_certs):
+    """The CRL, if one of `ca_certs` signed it and it has not expired; CAError otherwise."""
     try:
         crl = x509.load_pem_x509_crl(crl_pem)
     except ValueError:
@@ -400,6 +399,71 @@ def check_revocation(serial, crl_pem, ca_certs):
         raise CAError("the CRL was not signed by this CA")
     if crl.next_update_utc and crl.next_update_utc < now():
         raise CAError(f"the CRL expired at {crl.next_update_utc.isoformat()}")
-    r = crl.get_revoked_certificate_by_serial_number(serial)
+    return crl
+
+
+def check_revocation(serial, crl_pem, ca_certs):
+    """Raise if the certificate with this serial number is revoked, or if the CRL is forged or stale. Fails closed.
+    `ca_certs` is the issuing CA's certificate, or several of which one issued the CRL."""
+    r = verify_crl(crl_pem, ca_certs).get_revoked_certificate_by_serial_number(serial)
     if r is not None:
         raise CAError(f"certificate {serial:x} was revoked on {r.revocation_date_utc.date()}")
+
+
+def fetch_crl(url, dest, ca_certs, timeout=10):
+    """Download the CRL published at `url` and keep it at `dest`. Only a CRL that the CA signed, that has not expired and that
+    is not older than the copy already kept replaces it, so a forged, stale or replayed download changes nothing. True when
+    the copy changed."""
+    import urllib.request
+    if not url.startswith(("http://", "https://")):
+        raise CAError(f"crl_url must start with http:// or https://, not {url!r}")
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            data = r.read(20 << 20)
+    except OSError as e:
+        raise CAError(f"cannot fetch the CRL from {url}: {e}") from None
+    if not data.lstrip().startswith(b"-----BEGIN"):
+        try:
+            data = x509.load_der_x509_crl(data).public_bytes(serialization.Encoding.PEM)
+        except ValueError:
+            raise CAError(f"{url} did not return a CRL") from None
+    new = verify_crl(data, ca_certs)
+    dest = Path(dest)
+    if dest.exists():
+        old = dest.read_bytes()
+        if old == data:
+            return False
+        try:
+            if x509.load_pem_x509_crl(old).last_update_utc > new.last_update_utc:
+                raise CAError(f"{url} served a CRL older than the one kept at {dest}; keeping the newer one")
+        except ValueError:
+            pass
+    write(dest, data)
+    return True
+
+
+def follow_crl(url, dest, ca_path, every=60.0):
+    """Keep `dest` in step with the CRL published at `url`: fetched once now, which must work unless a copy is already kept,
+    then every `every` seconds in the background. Returns an Event that stops it. Failures are logged and the old copy is
+    kept; once it expires, every client is refused (fail closed)."""
+    import logging
+    log = logging.getLogger("pqcsuite.crl")
+    cas = x509.load_pem_x509_certificates(Path(ca_path).read_bytes())
+    try:
+        if fetch_crl(url, dest, cas):
+            log.info("CRL from %s saved to %s", url, dest)
+    except CAError as e:
+        if not Path(dest).exists():
+            raise
+        log.error("%s; keeping %s", e, dest)
+    stop = threading.Event()
+
+    def loop():
+        while not stop.wait(every):
+            try:
+                if fetch_crl(url, dest, cas):
+                    log.info("CRL from %s changed; saved to %s", url, dest)
+            except (CAError, OSError) as e:
+                log.error("%s; keeping %s", e, dest)
+    threading.Thread(target=loop, daemon=True, name="crl").start()
+    return stop

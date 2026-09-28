@@ -1,5 +1,10 @@
+import json
+import logging
 import os
+import re
 import socket
+import sys
+import threading
 import tomllib
 from dataclasses import MISSING
 from pathlib import Path
@@ -7,6 +12,7 @@ from pathlib import Path
 NAME = "pqcsuite"
 __version__ = "0.1.0"
 HTTP_IDLE = 30  # seconds an HTTP client may stay silent before its connection is closed
+RELEASES = "https://api.github.com/repos/QubitMan-hub/PQCsuite/releases?per_page=50"
 
 try:
     from cryptography.hazmat.primitives.asymmetric import mldsa, mlkem  # noqa: F401
@@ -83,3 +89,67 @@ def content_length(headers):
     and reading -1 bytes reads until the client stops sending)."""
     v = headers.get("Content-Length") or "0"
     return int(v) if v.isascii() and v.isdigit() else None
+
+
+class ConfigWatch:
+    """Follows a service's configuration file: when it changes (checked every few seconds) or on `poke()` (SIGHUP), the file
+    is loaded again and, if it loads and validates, handed to `apply`. A file that does not load is logged and the running
+    configuration stays as it is."""
+
+    def __init__(self, path, load, apply, every=5.0):
+        self.path, self.load, self.apply, self.every = path, load, apply, every
+        self.mtime = os.stat(path).st_mtime
+        self.wake, self.stopped = threading.Event(), False
+        threading.Thread(target=self._loop, daemon=True, name="config").start()
+
+    def poke(self):
+        self.wake.set()
+
+    def stop(self):
+        self.stopped = True
+        self.wake.set()
+
+    def _loop(self):
+        log = logging.getLogger(NAME)
+        while True:
+            poked = self.wake.wait(self.every)
+            self.wake.clear()
+            if self.stopped:
+                return
+            try:
+                m = os.stat(self.path).st_mtime
+                if m == self.mtime and not poked:
+                    continue
+                self.mtime = m
+                new = self.load(self.path)
+            except (OSError, ValueError) as e:
+                log.error("%s changed but cannot be used, keeping the running configuration: %s", self.path, e)
+                continue
+            log.info("%s changed; applying it", self.path)
+            try:
+                self.apply(new)
+            except Exception:
+                log.exception("applying %s failed", self.path)
+
+
+def restart():
+    """Replace this process with a fresh run of the same command (same PID, so systemd and supervisors keep following it)."""
+    logging.getLogger(NAME).info("restarting to apply the new configuration")
+    logging.shutdown()
+    os.execv(sys.executable, [sys.executable, "-m", NAME, *sys.argv[1:]])
+
+
+def latest_release(url=None, timeout=10):
+    """The newest published suite release (tags vX.Y.Z; Wolf Pack's are skipped) from GitHub, or from PQCSUITE_RELEASES_URL (a
+    mirror inside your network). None when there is none. Nothing calls this unless asked to."""
+    import urllib.request
+    with urllib.request.urlopen(url or os.environ.get("PQCSUITE_RELEASES_URL") or RELEASES, timeout=timeout) as r:
+        data = json.loads(r.read(5 << 20))
+    if not isinstance(data, list):
+        raise ValueError("the releases address did not return a list of releases")
+    found = [(tuple(map(int, m.groups())), r) for r in data if isinstance(r, dict) and not r.get("draft") and not r.get("prerelease")
+             and (m := re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", str(r.get("tag_name", ""))))]
+    if not found:
+        return None
+    v, r = max(found, key=lambda x: x[0])
+    return {"version": ".".join(map(str, v)), "url": r.get("html_url", ""), "newer": v > tuple(map(int, __version__.split(".")))}

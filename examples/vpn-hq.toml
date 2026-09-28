@@ -6,6 +6,7 @@ cert = "pki/issued/hq/chain.pem"
 key = "pki/issued/hq/key.pem"
 ca = "pki/ca.crt"
 crl = "pki/crl.pem"                   # revoke a branch in the CA and its tunnel is cut within 15 seconds
+# crl_url = "http://ca.internal:8080/crl.pem"   # when the CA runs elsewhere: fetched every crl_every (60) seconds into crl
 vici = "unix:///var/run/charon.vici"
 keyring_listen = "0.0.0.0:7443"       # branches agree keys here over ML-DSA mutual TLS
 metrics = "127.0.0.1:9101"            # /metrics, /status

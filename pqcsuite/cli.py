@@ -9,7 +9,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import HTTP_IDLE, NAME, __version__, env_passphrase, explain, tls
+from . import HTTP_IDLE, NAME, ConfigWatch, __version__, env_passphrase, explain, restart, tls
 from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError, encrypted
 from .vault import VaultError
 from .vpn.charon import CharonError
@@ -60,10 +60,19 @@ def cmd_doctor(a):
         ctx = tls.client_context(verify=False)
         ctx.close()
         print(f"TLS: {lib.version}, groups {tls.PQC_GROUPS} available")
-        return 0
+        ok = 0
     except tls.TLSError as e:
         print(f"TLS: not available: {e}")
-        return 1
+        ok = 1
+    if a.check_updates:
+        from . import latest_release
+        try:
+            latest = latest_release()
+        except (OSError, ValueError) as e:
+            print(f"updates: cannot check: {explain(e) if isinstance(e, OSError) else e}")
+        else:
+            print(f"updates: {latest['version']} is out: {latest['url']}" if latest and latest["newer"] else f"updates: {__version__} is the newest release")
+    return ok
 
 
 def cmd_ca(a):
@@ -82,7 +91,7 @@ def cmd_ca(a):
         what = f"intermediate CA under '{parent.cert.subject.rfc4514_string()}'" if parent else "root"
         print(f"created {ca.algorithm} {what} '{a.name}' in {a.dir} (serial {ca.cert.serial_number:x}); clients trust {ca.anchor}, servers check {Path(a.dir) / 'crl.pem'}")
         return 0
-    ca = CA(a.dir, None if a.ca_cmd == "list" else ca_passphrase(a.dir))
+    ca = CA(a.dir, None if a.ca_cmd in ("list", "publish") else ca_passphrase(a.dir))
     if a.ca_cmd == "issue":
         out, r = ca.issue(a.common_name, a.kind, a.san, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
         print(f"issued {r.kind} certificate {r.serial} for {r.common_name} ({r.algorithm}), valid until {r.not_after}")
@@ -111,6 +120,14 @@ def cmd_ca(a):
         srv = serve(a.dir, a.listen, a.cert, a.key, ca_passphrase(a.dir), env_passphrase(a.key_passphrase_env))
         print(f"EST enrollment on https://{a.listen}/.well-known/est; CA fingerprint (give it to clients):\n{fingerprint(load_pem_x509_certificate(ca.anchor.read_bytes()))}")
         run_until_signal(srv.serve_forever, srv.stop)
+    elif a.ca_cmd == "publish":
+        crl, anchor = Path(a.dir) / "crl.pem", ca.anchor
+        read = lambda f: lambda: f.read_text(encoding="ascii") if f.exists() else None
+        httpd = serve_json(a.listen, {"/crl.pem": read(crl), "/ca.crt": read(anchor)}, "application/x-pem-file")
+        host, port = httpd.server_address[:2]
+        print(f"publishing http://{host}:{port}/crl.pem (read fresh on every request) and /ca.crt; set crl_url to it on edges and gateways")
+        stop = threading.Event()
+        run_until_signal(stop.wait, lambda: (httpd.shutdown(), stop.set()))
     elif a.ca_cmd == "maintain":
         renewed, skipped = ca.maintain(a.renew_within, a.crl_days)
         for r in renewed:
@@ -202,7 +219,7 @@ def cmd_scan(a):
 
 
 def cmd_edge(a):
-    from .tls.edge import WORKER, Edge, Route, Workers, load_config, report, serve_metrics
+    from .tls.edge import WORKER, Edge, Route, Workers, load_config, reconcile, report, serve_metrics
     if not (a.config or a.target):
         raise ValueError("edge needs --config or --target")
     if a.config:
@@ -210,7 +227,7 @@ def cmd_edge(a):
     else:
         routes = [Route(name="edge", mode=a.mode, listen=a.listen, target=a.target, policy=a.policy, cert=a.cert or "", key=a.key or "",
                         key_passphrase_env=a.key_passphrase_env or "", ca=a.ca or "", require_client_cert=a.require_client_cert,
-                        crl=a.crl or "", server_name=a.server_name or "", proxy_protocol=a.proxy_protocol,
+                        crl=a.crl or "", crl_url=a.crl_url or "", server_name=a.server_name or "", proxy_protocol=a.proxy_protocol,
                         fallback_cert=a.fallback_cert or "", fallback_key=a.fallback_key or "")]
         metrics = a.metrics
     if a.workers < 1:
@@ -228,16 +245,20 @@ def cmd_edge(a):
         threading.Thread(target=report, args=(edges,), daemon=True).start()
     elif metrics:
         serve_metrics(metrics, edges, workers)
-    threads = [threading.Thread(target=e.serve_forever, daemon=True, name=e.route.name) for e in edges]
-    for t in threads:
-        t.start()
+    for e in edges:
+        threading.Thread(target=e.serve_forever, daemon=True, name=e.route.name).start()
+    watch = ConfigWatch(a.config, load_config, lambda new: reconcile(edges, new[0], shared)) if a.config else None
+    done = threading.Event()
 
     def stop():
-        for e in edges:
+        if watch:
+            watch.stop()
+        for e in list(edges):
             e.stop()
         if workers:
             workers.stop()
-    run_until_signal(lambda: [t.join() for t in threads], stop)
+        done.set()
+    run_until_signal(done.wait, stop, watch.poke if watch else None)
     return 0
 
 
@@ -253,7 +274,11 @@ def cmd_vpn(a):
         ctl.start()
         if site.metrics:
             serve_json(site.metrics, {"/metrics": ctl.metrics, "/status": lambda: json.dumps(ctl.status(), default=str)})
-        run_until_signal(lambda: ctl.stop.wait(), ctl.shutdown)
+        again = threading.Event()
+        watch = ConfigWatch(a.config, load_config, lambda new: new != site and (again.set(), ctl.shutdown()))
+        run_until_signal(ctl.stop.wait, ctl.shutdown, watch.poke)
+        if again.is_set():
+            restart()
         return 0
     ch = Charon(load_config(a.config).vici if a.config else a.vici)
     if a.vpn_cmd == "check":
@@ -279,7 +304,11 @@ def cmd_wireguard(a):
         print(f"WireGuard gateway {gw.cfg.name} on {gw.cfg.interface}, key agreement on {gw.cfg.keyring_listen}, public key {gw.public}")
         if gw.cfg.metrics:
             serve_json(gw.cfg.metrics, {"/metrics": gw.metrics, "/status": lambda: json.dumps(gw.status(), default=str)})
-        run_until_signal(lambda: gw.stop.wait(), gw.shutdown)
+        again = threading.Event()
+        watch = ConfigWatch(a.config, wg.load_gateway, lambda new: gw.reconfigure(new) or (again.set(), gw.shutdown()))
+        run_until_signal(gw.stop.wait, gw.shutdown, watch.poke)
+        if again.is_set():
+            restart()
         return 0
     c = wg.Client(a.keyring, a.cert_dir, a.interface, a.server_name, not a.no_apply, a.config_out, env_passphrase(a.key_passphrase_env), ca=a.ca)
     if a.once:
@@ -377,6 +406,10 @@ def cmd_console(a):
     s.vpn += a.vici
     s.wireguard += a.wireguard
     s.backups += a.backups
+    s.scan_targets += a.scan
+    if a.scan_every is not None:
+        s.scan_every_hours = a.scan_every
+    s.check_updates = s.check_updates or a.check_updates
     if s.ca and not (Path(s.ca) / "ca.crt").exists():
         raise ValueError(f"no CA at {s.ca}; run 'pqcsuite ca init' first, or leave out --ca")
     app = App(s)
@@ -386,6 +419,7 @@ def cmd_console(a):
     if host not in ("127.0.0.1", "::1", "localhost"):
         print("warning: listening beyond localhost over plain HTTP; put `pqcsuite tls edge --policy transition` in front of it")
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    app.schedule()
     stop = threading.Event()
     run_until_signal(stop.wait, lambda: (httpd.shutdown(), stop.set()))
     return 0
@@ -437,7 +471,7 @@ def cmd_report(a):
     return 0 if not s["action"] else 2
 
 
-def serve_json(address, routes):
+def serve_json(address, routes, ctype="text/plain; charset=utf-8"):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     class Handler(BaseHTTPRequestHandler):
@@ -450,6 +484,7 @@ def serve_json(address, routes):
                 self.send_error(404)
                 return
             self.send_response(200)
+            self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body.encode())))
             self.end_headers()
             self.wfile.write(body.encode())
@@ -467,13 +502,16 @@ def parse_addr(s, default_host="0.0.0.0"):
     return hostport(s, default_host)
 
 
-def run_until_signal(run, stop):
+def run_until_signal(run, stop, reload=None):
+    """Run until SIGINT or SIGTERM calls `stop`. With `reload`, SIGHUP (`systemctl reload`) calls it, where the platform has one."""
     def handle(*_):
         logging.getLogger(NAME).info("shutting down")
         stop()
     signal.signal(signal.SIGINT, handle)
     if hasattr(signal, "SIGTERM"):
         signal.signal(signal.SIGTERM, handle)
+    if reload and hasattr(signal, "SIGHUP"):
+        signal.signal(signal.SIGHUP, lambda *_: reload())
     run()
 
 
@@ -499,7 +537,9 @@ def parser():
     ap.add_argument("--log-json", action="store_true", help="structured JSON logs")
     ap.add_argument("-v", "--verbose", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("doctor", help="check that this machine can run everything").set_defaults(func=cmd_doctor)
+    p = sub.add_parser("doctor", help="check that this machine can run everything")
+    p.set_defaults(func=cmd_doctor)
+    p.add_argument("--check-updates", action="store_true", help="also ask GitHub whether a newer release is out (the only request it makes)")
 
     t = sub.add_parser("tls", help="TLS 1.3 + mTLS: post-quantum edge, server and client").add_subparsers(dest="tls_cmd", required=True)
     p = t.add_parser("edge", help="post-quantum TLS in front of any TCP service, or a tunnel to one")
@@ -509,7 +549,7 @@ def parser():
     p.add_argument("--listen", default="0.0.0.0:8443")
     p.add_argument("--target", help="upstream host:port (terminate) or remote edge host:port (originate)")
     p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
-    for flag in ("--cert", "--key", "--key-passphrase-env", "--ca", "--crl", "--server-name", "--metrics"):
+    for flag in ("--cert", "--key", "--key-passphrase-env", "--ca", "--crl", "--crl-url", "--server-name", "--metrics"):
         p.add_argument(flag)
     p.add_argument("--fallback-cert", help="with --policy transition: an ECDSA or RSA certificate for browsers that cannot verify ML-DSA")
     p.add_argument("--fallback-key")
@@ -591,6 +631,8 @@ def parser():
     p.add_argument("common_name")
     p.add_argument("--san", action="append", default=[])
     p.add_argument("--hours", type=float, default=24)
+    p = ca.add_parser("publish", parents=[common], help="serve crl.pem and ca.crt over HTTP, for edges and gateways to follow (crl_url)")
+    p.add_argument("--listen", default="0.0.0.0:8080")
     p = ca.add_parser("serve", parents=[common], help="EST enrollment service (RFC 7030) over post-quantum TLS")
     p.add_argument("--listen", default="0.0.0.0:9443")
     p.add_argument("--cert", required=True, help="the service's own server chain.pem")
@@ -722,6 +764,9 @@ def parser():
     p.add_argument("--vici", action="append", default=[], help="strongSwan VICI address (repeatable)")
     p.add_argument("--wireguard", action="append", default=[], help="a WireGuard gateway's metrics address (repeatable)")
     p.add_argument("--backups", action="append", default=[], help="folder of vault archives (repeatable)")
+    p.add_argument("--scan", action="append", default=[], metavar="HOST:PORT", help="an endpoint for readiness scans (repeatable)")
+    p.add_argument("--scan-every", type=float, metavar="HOURS", help="scan those endpoints again every HOURS and show what changed")
+    p.add_argument("--check-updates", action="store_true", help="show when a newer release is out (asks GitHub once a day)")
     return ap
 
 

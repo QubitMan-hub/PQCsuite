@@ -36,12 +36,17 @@ class Settings:
     wireguard: list = field(default_factory=list)
     backups: list = field(default_factory=list)
     scan_targets: list = field(default_factory=list)
+    scan_every_hours: float = 0.0
+    check_updates: bool = False
     audit_log: str = "console-audit.jsonl"
 
     @classmethod
     def load(cls, path):
         d = read_toml(path).get("console", {})
-        return build(cls, d, "[console]")
+        s = build(cls, d, "[console]")
+        if s.scan_every_hours and s.scan_every_hours < 0.25:
+            raise ValueError("[console]: scan_every_hours must be at least 0.25 (15 minutes), or 0 for no scheduled scans")
+        return s
 
 
 class App:
@@ -49,6 +54,7 @@ class App:
         self.s = settings
         self.token = token or os.environ.get("PQCSUITE_CONSOLE_TOKEN") or secrets.token_urlsafe(24)
         self.last_scan, self.scanning, self.scan_error = None, False, None
+        self.latest, self.latest_checked = None, 0.0
         self.lock = threading.Lock()
 
     def ca(self):
@@ -130,7 +136,12 @@ class App:
         def work():
             try:
                 results = scan.scan(targets)
-                self.last_scan = {"finished": time.time(), "summary": scan.summary(results), "endpoints": results}
+                before = {e["target"]: e["grade"] for e in (self.last_scan or {}).get("endpoints", [])}
+                changes = [{"target": r["target"], "before": before.get(r["target"]), "after": r["grade"]}
+                           for r in results if self.last_scan and before.get(r["target"]) != r["grade"]]
+                for c in changes:
+                    log.warning("readiness: %s went from %s to %s", c["target"], c["before"] or "not scanned", c["after"])
+                self.last_scan = {"finished": time.time(), "summary": scan.summary(results), "endpoints": results, "changes": changes}
             except Exception as e:
                 log.exception("readiness scan failed")
                 self.scan_error = f"the scan failed: {e}"
@@ -138,8 +149,42 @@ class App:
                 self.scanning = False
         threading.Thread(target=work, daemon=True).start()
 
+    def schedule(self):
+        """With scan_every_hours and scan_targets set, scan them now and then again every scan_every_hours; each scan lists
+        the endpoints whose grade changed since the one before."""
+        if not (self.s.scan_every_hours and self.s.scan_targets):
+            return
+
+        def loop():
+            while True:
+                if not self.scanning:
+                    try:
+                        self.run_scan(self.s.scan_targets)
+                        self.audit("scan", {"targets": len(self.s.scan_targets), "scheduled": True})
+                    except (CAError, OSError) as e:
+                        log.error("scheduled scan: %s", e)
+                time.sleep(self.s.scan_every_hours * 3600)
+        threading.Thread(target=loop, daemon=True, name="scheduled-scan").start()
+
+    def update(self):
+        """The newest release when check_updates is on and it is newer than this one; looked up at most once a day, in the
+        background, so a network without internet access only loses the notice."""
+        if not self.s.check_updates:
+            return None
+        if time.time() - self.latest_checked > 86400:
+            self.latest_checked = time.time()
+
+            def check():
+                from .. import latest_release
+                try:
+                    self.latest = latest_release()
+                except (OSError, ValueError) as e:
+                    log.info("update check failed: %s", e)
+            threading.Thread(target=check, daemon=True).start()
+        return self.latest if self.latest and self.latest["newer"] else None
+
     def overview(self):
-        out = {"product": NAME, "version": __version__}
+        out = {"product": NAME, "version": __version__, "update": self.update()}
         try:
             certs = self.certificates()["certificates"]
             out["certificates"] = {"valid": sum(c["status"] == "valid" for c in certs), "revoked": sum(c["status"] == "revoked" for c in certs),
@@ -156,7 +201,8 @@ class App:
                       "remote_users": len(users), "remote_online": sum(time.time() - u.get("latest_handshake", 0) < 180 for u in users)}
         b = [x for x in self.backups() if "error" not in x]
         out["backups"] = {"count": len(b), "latest": b[0]["created"] if b else None, "signed": sum(bool(x["signed_by"]) for x in b)}
-        out["readiness"] = self.last_scan["summary"] if self.last_scan else None
+        out["readiness"] = self.last_scan["summary"] | {"changes": len(self.last_scan.get("changes", [])),
+                                                        "finished": self.last_scan["finished"]} if self.last_scan else None
         return out
 
     def handle(self, method, path, body):
@@ -167,7 +213,8 @@ class App:
             ("GET", "/api/tunnels"): lambda: self.tunnels(),
             ("GET", "/api/remote"): lambda: self.remote_users(),
             ("GET", "/api/backups"): lambda: self.backups(),
-            ("GET", "/api/scan"): lambda: {"running": self.scanning, "last": self.last_scan, "error": self.scan_error, "targets": self.s.scan_targets},
+            ("GET", "/api/scan"): lambda: {"running": self.scanning, "last": self.last_scan, "error": self.scan_error, "targets": self.s.scan_targets,
+                                           "every_hours": self.s.scan_every_hours},
             ("POST", "/api/certificates/issue"): lambda: self.issue(body),
             ("POST", "/api/certificates/revoke"): lambda: self.revoke(body),
             ("POST", "/api/certificates/maintain"): lambda: self.maintain(),

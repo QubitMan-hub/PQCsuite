@@ -11,7 +11,7 @@ from collections import Counter
 from cryptography.x509.oid import NameOID
 
 from .. import env_passphrase, explain, tls
-from ..pki import CAError
+from ..pki import CAError, follow_crl
 from ..tls import hostport
 from ..tls.server import Revocation, Server
 from .charon import Charon, CharonError, conn_config, ppk_pattern
@@ -56,6 +56,7 @@ class Controller:
         self.serials = {}
         self.last_agreed = {}
         self.counts = Counter()
+        self.crl_follow = follow_crl(site.crl_url, site.crl, site.ca, site.crl_every) if site.crl_url else None
         self.revocation = Revocation(site.crl, site.ca) if site.crl else None
         self.server = None
         self.started = time.time()
@@ -198,6 +199,8 @@ class Controller:
 
     def shutdown(self):
         self.stop.set()
+        if self.crl_follow:
+            self.crl_follow.set()
         if self.server:
             self.server.stop(2)
 

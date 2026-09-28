@@ -6,6 +6,7 @@ cert = "pki/issued/branch1/chain.pem"
 key = "pki/issued/branch1/key.pem"
 ca = "pki/ca.crt"
 crl = "pki/crl.pem"
+# crl_url = "http://ca.internal:8080/crl.pem"   # when the CA runs elsewhere: fetched every crl_every (60) seconds into crl
 vici = "unix:///var/run/charon.vici"
 
 [[peer]]

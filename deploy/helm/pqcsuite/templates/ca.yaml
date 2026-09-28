@@ -11,6 +11,8 @@ spec:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: ca
   ports:
+    - name: crl
+      port: {{ .Values.ca.crl.port }}
     {{- if .Values.ca.est.enabled }}
     - name: est
       port: {{ .Values.ca.est.port }}
@@ -63,6 +65,18 @@ spec:
           volumeMounts:
             - {name: data, mountPath: /data}
       containers:
+        - name: crl
+          image: {{ include "pqcsuite.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          args: ["ca", "publish", "--dir", "/data/pki", "--listen", "0.0.0.0:{{ .Values.ca.crl.port }}"]
+          ports:
+            - {name: crl, containerPort: {{ .Values.ca.crl.port }}}
+          readinessProbe:
+            httpGet: {path: /crl.pem, port: crl}
+          volumeMounts:
+            - {name: data, mountPath: /data, readOnly: true}
+          resources: {{- toYaml .Values.ca.resources | nindent 12 }}
         {{- if .Values.ca.est.enabled }}
         - name: est
           image: {{ include "pqcsuite.image" . }}

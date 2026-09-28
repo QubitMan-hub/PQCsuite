@@ -1,4 +1,5 @@
 {{- if .Values.edge.enabled }}
+{{- $crlUrl := .Values.edge.crlUrl | default (ternary (printf "http://%s-ca.%s.svc:%v/crl.pem" .Release.Name .Release.Namespace .Values.ca.crl.port) "" .Values.ca.enabled) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -21,7 +22,12 @@ data:
     ca = "/etc/pqcsuite/tls/ca.crt"
     {{- if .requireClientCert }}
     require_client_cert = true
+    {{- if $crlUrl }}
+    crl = "/var/lib/pqcsuite/crl.pem"
+    crl_url = {{ $crlUrl | quote }}
+    {{- else }}
     crl = "/etc/pqcsuite/tls/crl.pem"
+    {{- end }}
     {{- end }}
     {{- end }}
 ---
@@ -64,6 +70,7 @@ spec:
           volumeMounts:
             - {name: config, mountPath: /etc/pqcsuite/edge.toml, subPath: edge.toml}
             - {name: tls, mountPath: /etc/pqcsuite/tls, readOnly: true}
+            - {name: state, mountPath: /var/lib/pqcsuite}
           resources: {{- toYaml .Values.edge.resources | nindent 12 }}
       volumes:
         - name: config
@@ -72,6 +79,8 @@ spec:
         - name: tls
           secret:
             secretName: {{ .Values.edge.certSecret }}
+        - name: state
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

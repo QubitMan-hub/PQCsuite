@@ -143,7 +143,10 @@ jobs:
           mkdir edge && for f in chain.pem key.pem; do ca cat /data/issued/edge/$f > edge/$f; done && ca cat /data/pki/ca.crt > edge/ca.crt
           kubectl create secret generic edge-tls --from-file=edge/
           helm upgrade pqc deploy/helm/pqcsuite --reuse-values --set edge.enabled=true --set 'edge.routes[0].name=web' \
-            --set 'edge.routes[0].port=8443' --set 'edge.routes[0].target=web:80' --wait --timeout 180s
+            --set 'edge.routes[0].port=8443' --set 'edge.routes[0].target=web:80' \
+            --set 'edge.routes[1].name=partners' --set 'edge.routes[1].port=9443' --set 'edge.routes[1].target=web:80' \
+            --set 'edge.routes[1].requireClientCert=true' --wait --timeout 180s
+          kubectl logs deploy/pqc-edge | grep "CRL from http://pqc-ca.default.svc:8080/crl.pem saved"
       - name: Post-quantum request through the edge
         run: |
           kubectl cp deploy/k8s/smoke.py pqc-ca-0:/data/smoke.py -c maintain

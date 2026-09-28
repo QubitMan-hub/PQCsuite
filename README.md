@@ -42,10 +42,10 @@ pqcsuite tls edge --target 127.0.0.1:8080 --cert certs/edge/chain.pem --key cert
 Clients now reach the app on port 8443 over TLS 1.3 with X25519MLKEM768 and an ML-DSA certificate. `examples/edge.toml` documents routes, mutual TLS, CRLs and tunnels (`pqcsuite tls edge --config examples/edge.toml`).
 
 - **Edge modes:** `terminate` puts PQC TLS in front of a service. `originate` lets a plain local client reach a remote edge, so two edges make a post-quantum tunnel for any TCP protocol.
-- **Mutual TLS:** `require_client_cert` plus a CRL. Revoked clients are refused at the next handshake. A forged or expired CRL refuses everyone (fail closed).
+- **Mutual TLS:** `require_client_cert` plus a CRL. Revoked clients are refused at the next handshake. A forged or expired CRL refuses everyone (fail closed). When the CA runs on another machine, `pqcsuite ca publish` serves its CRL and `crl_url` makes edges and VPN gateways fetch it every minute (`crl_every`), so a revocation reaches them without copying files; a download that is forged, expired or older than the kept copy is ignored.
 - **Policies:** `strict` (post-quantum only, the default), `transition` (also serves classical clients) and `cnsa2` (ML-KEM-1024, ML-DSA-87, AES-256 only).
 - **Browsers:** they negotiate X25519MLKEM768 but cannot verify ML-DSA yet. Under `transition`, `fallback_cert`/`fallback_key` (or `--fallback-cert`/`--fallback-key`) give them an ECDSA or RSA certificate, while post-quantum clients get ML-DSA on the same port.
-- **Operations:** certificates reload without a restart, `/metrics` for Prometheus, JSON logs, graceful shutdown, connection limits and deadlines on every socket.
+- **Operations:** certificates reload without a restart, and so does `edge.toml`: a changed route restarts on its own while the others keep their connections, and a file that does not load is logged and ignored (`systemctl reload` works too). `/metrics` for Prometheus, JSON logs, graceful shutdown, connection limits and deadlines on every socket.
 - **Bundles:** `pqcsuite tls bundle nginx|postgres|pgvector|mqtt --host NAME` writes a Compose project with the service behind the edge.
 
 Which clients connect (tested against the edge):
@@ -89,7 +89,8 @@ hq.acme.example  ESTABLISHED  CURVE_25519 + ML_KEM_768         PPK yes  up 42s
 
 - **Key exchange:** IKEv2 with X25519 + ML-KEM-768 (RFC 9370) on the first exchange and every rekey; the `high` profile uses P-384 + ML-KEM-1024.
 - **Authentication:** strongSwan cannot authenticate with ML-DSA yet, so each pair of gateways agrees keys over ML-DSA mutual TLS and derives the IKE PSK and an RFC 8784 post-quantum PPK from the TLS exporter. The keys never cross the network.
-- **Rotation and revocation:** keys rotate make-before-break. A revoked gateway's tunnel closes within 15 seconds.
+- **Rotation and revocation:** keys rotate make-before-break. A revoked gateway's tunnel closes within 15 seconds of the CRL reaching it (`crl_url` fetches it from the CA every minute).
+- **Configuration changes:** the controller and the WireGuard gateway follow their TOML files. The controller restarts in place and its tunnels stay up; the gateway applies changed users, routes, DNS and sites while running (a user taken off the list is removed at once) and restarts in place for anything else. A file that does not load is logged and ignored.
 - **Gateway image:** `docker/vpn-gateway.Dockerfile` builds strongSwan 6.1.0 (it fixes CVE-2026-78133 and CVE-2026-78135).
 
 ### Remote access
@@ -101,7 +102,7 @@ pqcsuite vpn gateway --config examples/wireguard-gateway.toml
 sudo pqcsuite vpn connect vpn.acme.example:7443 --cert-dir ~/.pqcsuite/alice
 ```
 
-Each user keeps one address from the pool. Revoking a user removes them within 15 seconds. Why not IKEv2 for laptops: the IKEv2 clients built into Windows, macOS and phones support neither ML-KEM nor PPKs. `vpn connect` configures the interface on Linux only; full-tunnel routing is not supported yet.
+Each user keeps one address from the pool. Revoking a user removes them within 15 seconds of the CRL reaching the gateway (`crl_url`: at most a minute later). Why not IKEv2 for laptops: the IKEv2 clients built into Windows, macOS and phones support neither ML-KEM nor PPKs. `vpn connect` configures the interface on Linux only; full-tunnel routing is not supported yet.
 
 ## Vault
 
@@ -141,7 +142,7 @@ SSH servers are graded from their key-exchange offer (`mlkem768x25519-sha256` an
 pqcsuite console --ca pki --edge http://127.0.0.1:9100 --vici unix:///var/run/charon.vici --wireguard http://127.0.0.1:9101 --backups /backups
 ```
 
-Pages: overview, TLS 1.3 edges, mTLS certificates (issue, revoke, renew), IPsec VPN tunnels and remote users, Vault backups, and readiness scans. It binds to localhost, needs the printed token on every API call and audits every change. Browsers cannot verify ML-DSA yet, so publish it with `pqcsuite tls edge --policy transition` and a classical certificate.
+Pages: overview, TLS 1.3 edges, mTLS certificates (issue, revoke, renew), IPsec VPN tunnels and remote users, Vault backups, and readiness scans. `--scan HOST:PORT --scan-every 24` re-scans your endpoints on a schedule and lists every endpoint whose grade changed since the scan before. `--check-updates` shows when a newer release is out (it asks GitHub once a day; nothing is sent otherwise, and `pqcsuite doctor --check-updates` does the same once). It binds to localhost, needs the printed token on every API call and audits every change. Browsers cannot verify ML-DSA yet, so publish it with `pqcsuite tls edge --policy transition` and a classical certificate.
 
 ## Deploy
 
@@ -186,4 +187,4 @@ A tag `vX.Y.Z` releases the suite and `wolf-pack-vX.Y.Z` releases Wolf Pack: pus
 ## Roadmap
 
 1. VPN: Windows and macOS clients, and full-tunnel routing, for remote access.
-2. mTLS: a cert-manager issuer and in-cluster renewal of edge Secrets; dns-01 for ACME.
+2. mTLS: a cert-manager issuer and in-cluster renewal of edge certificates (CRLs already reach edges through `crl_url`); dns-01 for ACME.
