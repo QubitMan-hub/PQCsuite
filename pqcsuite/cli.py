@@ -36,7 +36,8 @@ def ca_passphrase(root, new=False):
         return os.environ[CA_PASS_ENV].encode()
     if not new:
         return ask("CA passphrase: ", f"set {CA_PASS_ENV}")
-    p1, p2 = ask("New CA passphrase: ", f"set {CA_PASS_ENV}"), ask("Repeat: ", f"set {CA_PASS_ENV}")
+    instead = f"set {CA_PASS_ENV}, or pass --no-encrypt to leave the CA key unencrypted"
+    p1, p2 = ask("New CA passphrase: ", instead), ask("Repeat: ", instead)
     if p1 != p2:
         raise CAError("the passphrases do not match")
     return p1
@@ -96,7 +97,7 @@ def cmd_ca(a):
             raise CAError("--signer-command needs --signer-public-key")
         signer = ({"type": "aws-kms", "key_id": a.kms, **({"region": a.kms_region} if a.kms_region else {})} if a.kms else
                   {"type": "command", "command": a.signer_command, "public_key": str(Path(a.signer_public_key).resolve())} if a.signer_command else None)
-        ca = CA.init(a.dir, a.name, a.algorithm, a.days, ca_passphrase(a.dir, new=True) if a.encrypt and not signer else None, parent, signer)
+        ca = CA.init(a.dir, a.name, a.algorithm, a.days, ca_passphrase(a.dir, new=True) if not (a.no_encrypt or signer) else None, parent, signer)
         what = f"intermediate CA under '{parent.cert.subject.rfc4514_string()}'" if parent else "root"
         print(f"created {ca.algorithm} {what} '{a.name}' in {a.dir} (serial {ca.cert.serial_number:x}); clients trust {ca.anchor}, servers check {Path(a.dir) / 'crl.pem'}")
         return 0
@@ -585,7 +586,10 @@ def parser():
     p.add_argument("--signer-command", nargs="+", metavar="ARG", help="an HSM tool that reads data on stdin and writes the signature")
     p.add_argument("--signer-public-key", help="PEM public key of the --signer-command key")
     p.add_argument("--days", type=int, default=3650)
-    p.add_argument("--encrypt", action="store_true", help=f"encrypt the CA key (passphrase from {CA_PASS_ENV} or a prompt)")
+    enc = p.add_mutually_exclusive_group()
+    enc.add_argument("--encrypt", action="store_true", help=argparse.SUPPRESS)  # the default now; still accepted from older scripts
+    enc.add_argument("--no-encrypt", action="store_true",
+                     help=f"leave the CA key unencrypted (by default it is encrypted, passphrase from {CA_PASS_ENV} or a prompt)")
     for name in ("issue", "renew"):
         p = ca.add_parser(name, parents=[common], help="issue a key and certificate" if name == "issue" else "new key and certificate, same names")
         if name == "issue":

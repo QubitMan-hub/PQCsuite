@@ -53,7 +53,7 @@ spec:
           command: ["sh", "-ec"]
           args:
             - |
-              test -f /data/pki/ca.crt || pqcsuite ca init --dir /data/pki --name "$CA_NAME" --algorithm {{ .Values.ca.algorithm }} {{ if .Values.ca.passphraseSecret }}--encrypt{{ end }}
+              test -f /data/pki/ca.crt || pqcsuite ca init --dir /data/pki --name "$CA_NAME" --algorithm {{ .Values.ca.algorithm }} {{ if not .Values.ca.passphraseSecret }}--no-encrypt{{ end }}
               {{- if .Values.ca.est.enabled }}
               test -f /data/est/chain.pem || pqcsuite ca issue --dir /data/pki server {{ $host }} --san {{ .Release.Name }}-ca --out /data/est
               {{- end }}

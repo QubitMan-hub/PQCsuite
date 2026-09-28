@@ -35,7 +35,7 @@ Config and target files can be written with any editor, Notepad and PowerShell i
 ## TLS 1.3 + mTLS
 
 ```
-pqcsuite ca init --name "Acme PQC Root" --encrypt              # ML-DSA-87 root; scripts set PQCSUITE_CA_PASSPHRASE
+pqcsuite ca init --name "Acme PQC Root"                        # ML-DSA-87 root, key encrypted; scripts set PQCSUITE_CA_PASSPHRASE
 pqcsuite ca issue server app.acme.example --out certs/edge
 pqcsuite tls edge --target 127.0.0.1:8080 --cert certs/edge/chain.pem --key certs/edge/key.pem --metrics 127.0.0.1:9100
 ```

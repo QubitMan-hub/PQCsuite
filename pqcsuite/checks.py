@@ -34,7 +34,7 @@ def ca(root):
     else:
         out += _private(root / "ca.key")
         out.append(("ok", "CA key is encrypted") if encrypted(root / "ca.key") else
-                   ("warn", "CA key is not encrypted: anyone who copies ca.key can issue certificates (use --encrypt, KMS or an HSM)"))
+                   ("warn", "CA key is not encrypted (created with --no-encrypt): anyone who copies ca.key can issue certificates; use KMS, an HSM or an encrypted key"))
     try:
         records = c.records()
     except (OSError, ValueError, TypeError) as e:

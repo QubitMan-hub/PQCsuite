@@ -7,7 +7,7 @@ ca:
   enabled: true
   name: "Acme PQC Root"
   algorithm: ML-DSA-87
-  # Secret with key "passphrase": encrypts the CA key on the volume. Leave empty for an unencrypted key.
+  # Secret with key "passphrase": encrypts the CA key on the volume. Empty leaves it unencrypted (pqcsuite doctor warns).
   passphraseSecret: ""
   storage:
     size: 1Gi

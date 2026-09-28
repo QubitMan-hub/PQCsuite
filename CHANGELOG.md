@@ -6,6 +6,7 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 Changes on the customer's side now reach running services by themselves.
 
+- **The CA key is encrypted by default:** `ca init` takes the passphrase from `PQCSUITE_CA_PASSPHRASE` or a prompt, and without either refuses rather than writing an unencrypted key; `--no-encrypt` keeps the old behaviour. `--encrypt` is still accepted. The Helm chart passes `--no-encrypt` when `ca.passphraseSecret` is empty.
 - **Revocations reach every machine:** `pqcsuite ca publish` serves the CA's CRL, and `crl_url` makes edges, VPN controllers and WireGuard gateways fetch it every `crl_every` seconds (60 by default). Only a CRL that the CA signed, that has not expired and that is not older than the kept copy replaces it. The Helm chart runs the publisher in the CA pod and points edges with `requireClientCert` at it.
 - **Configuration files are followed:** the edge applies a changed `edge.toml` route by route (unchanged routes keep their connections); the VPN controller restarts in place with its tunnels up; the WireGuard gateway applies users, routes, DNS and sites while running. A file that does not load is logged and ignored. The systemd units support `systemctl reload`.
 - **Readiness on a schedule:** the console re-scans its endpoints every `scan_every_hours` (`--scan-every`) and lists the endpoints whose grade changed since the scan before; a failed scan shows its error.

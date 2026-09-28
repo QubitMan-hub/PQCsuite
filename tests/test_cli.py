@@ -101,8 +101,19 @@ class CLITest(unittest.TestCase):
         os.chdir(self.d)
         with mock.patch("sys.stdin", io.StringIO("")):
             self.assertIn("--no-passphrase", self.fails("vault", "keygen", "ops"))
-            self.assertIn("PQCSUITE_CA_PASSPHRASE", self.fails("ca", "init", "--name", "T", "--encrypt", "--dir", "ca2"))
+            for flags in ((), ("--encrypt",)):
+                self.assertIn("--no-encrypt", self.fails("ca", "init", "--name", "T", "--dir", "ca2", *flags))
         self.assertFalse((self.d / "ops.key").exists() or (self.d / "ca2" / "ca.crt").exists())
+
+    def test_the_ca_key_is_encrypted_unless_asked_not_to(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"PQCSUITE_CA_PASSPHRASE": "pw"}), contextlib.redirect_stdout(io.StringIO()):
+            for argv in (["--dir", self.d / "enc"], ["--dir", self.d / "plain", "--no-encrypt"]):
+                with self.assertRaises(SystemExit) as e:
+                    main(["ca", "init", "--name", "T", *map(str, argv)])
+                self.assertEqual(e.exception.code, 0)
+        self.assertIn(b"ENCRYPTED", (self.d / "enc" / "ca.key").read_bytes())
+        self.assertNotIn(b"ENCRYPTED", (self.d / "plain" / "ca.key").read_bytes())
 
     def test_config_files_name_what_is_missing_or_wrong(self):
         cfg = self.d / "c.toml"

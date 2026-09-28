@@ -92,6 +92,7 @@ def switch_request(port, line, timeout=5):
 
 def main():
     sys.stdout.reconfigure(line_buffering=True)
+    os.environ.setdefault("PQCSUITE_CA_PASSPHRASE", "demo-only-passphrase")  # CA keys are encrypted; scripts pass the passphrase
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--auto", action="store_true", help="run without pauses and check every result")
     ap.add_argument("--dir", help="work folder (default: a new temporary folder)")

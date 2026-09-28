@@ -22,7 +22,7 @@ The suite writes no cryptographic primitive itself. ML-KEM, ML-DSA, SLH-DSA, X25
 | Replays a key-agreement or ACME message | Yes | VPN keys come from the TLS exporter of that session, bound to both site names and a fresh tag (WireGuard also to both public keys); ACME uses one-time nonces. |
 | Alters, truncates or reorders a Vault archive | Yes | Every chunk is authenticated and the chunk count is bound; nothing is written until everything verifies. Fuzzed in `tests/test_fuzz.py`. |
 | Steals backup storage | Yes | Archives open only with a recipient's private key. |
-| Steals the CA key | No | See "If the CA key is compromised". Keep it in AWS KMS or an HSM, or encrypted (`ca init --encrypt`). |
+| Steals the CA key | No | See "If the CA key is compromised". Keep it in AWS KMS or an HSM, or encrypted (the default for `ca init`). |
 | Has root on a machine running the suite | No | Keys and session secrets are in its memory and files. Python cannot wipe keys from memory. |
 | Holds the console token | No | The token is full administrator access: issue, revoke, scan. There are no roles. Keep the console on localhost, or behind the edge with mutual TLS. Ten wrong tokens a minute from one address are refused. |
 | Floods the edge with connections | Partly | Per-host limits on unfinished handshakes, deadlines on every socket and a connection cap; a flood from many addresses can still fill it. Put a load balancer or firewall that limits per-source connections in front. |
@@ -49,7 +49,7 @@ Clocks matter: a machine whose clock runs ahead treats a CRL as expired early. R
 | Stage | How |
 |---|---|
 | Generate | `ca init` (ML-DSA-87 by default, or SLH-DSA); `ca issue` and `ca enroll` generate leaf keys where they will be used (EST keys never leave the machine). |
-| Store | Owner-only files (`chmod 600`), optionally encrypted (`--encrypt`, `--key-passphrase-env`); CA keys in AWS KMS (`--kms`) or behind an HSM command (`--signer-command`). |
+| Store | Owner-only files (`chmod 600`), CA keys encrypted unless `--no-encrypt`, leaf keys optionally (`--key-passphrase-env`); CA keys in AWS KMS (`--kms`) or behind an HSM command (`--signer-command`). |
 | Rotate leaves | `ca maintain` daily renews what expires within 30 days in place with a new key; services reload the files without a restart. |
 | Rotate an issuing CA | Create a new intermediate under the root (`ca init --parent ROOT`), issue from it, and let the old one's certificates expire. Clients trust the root, so nothing changes for them. |
 | Rotate the root | Create a new root, add its `ca.crt` to every trust bundle next to the old one, reissue, then remove the old root once nothing chains to it. |
@@ -67,7 +67,7 @@ Every file the CA writes is written to a temporary name, flushed to disk and ren
 
 **If the CA key is compromised.** Anyone holding it can issue certificates your services trust, so revoking leaves is not enough.
 1. Stop the CA (EST, ACME, console) so nothing more is issued from it.
-2. Create a new root on a clean machine, preferably in KMS or an HSM: `pqcsuite ca init --dir pki-new --name "…" --kms KEY` or `--encrypt`.
+2. Create a new root on a clean machine, preferably in KMS or an HSM: `pqcsuite ca init --dir pki-new --name "…" --kms KEY`, or with an encrypted key file (the default).
 3. Put the new `ca.crt` in every trust bundle (edges, VPN gateways, clients) and remove the old one. Until it is removed, the old CA can still vouch for anyone.
 4. Reissue every server, client and site certificate from the new CA (`ca enroll` with new tokens, or `ca issue`).
 5. Re-encrypt Vault archives only if their recipients' keys were also exposed; the CA key does not open archives.
