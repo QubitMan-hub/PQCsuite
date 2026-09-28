@@ -87,7 +87,7 @@ class Signer:
     @property
     def key_id(self):
         """RFC 5280 method 1: SHA-1 of the public key bits, the same value cryptography puts in SubjectKeyIdentifier."""
-        return hashlib.sha1(public_key_bits(self.spki)).digest()  # wolfpack:ignore (an identifier, not a security function)
+        return hashlib.sha1(public_key_bits(self.spki), usedforsecurity=False).digest()  # wolfpack:ignore (an identifier, not a security function)
 
     def sign(self, data):
         raise NotImplementedError
