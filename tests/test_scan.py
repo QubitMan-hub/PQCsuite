@@ -176,6 +176,7 @@ class SSHTest(unittest.TestCase):
                     return
                 with c:
                     c.sendall(b"SSH-2.0-odd\r\n\x00\x00\x00\x10\x04\x14ab")
+                    c.recv(64)
         threading.Thread(target=answer, daemon=True).start()
         target = f"ssh://127.0.0.1:{srv.getsockname()[1]}"
         self.assertIn("truncated", scan.probe(target, timeout=3)["error"])

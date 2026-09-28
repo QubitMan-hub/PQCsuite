@@ -484,9 +484,13 @@ def add_recipients(path, identity, recipients):
                 out.write(MAGIC + struct.pack(">I", len(header)) + header)
                 while block := f.read(CHUNK):
                     out.write(block)
-            os.replace(tmp, path)
-        finally:
+        except BaseException:
             tmp.unlink(missing_ok=True)
+            raise
+    try:
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
     return len(h["recipients"])
 
 

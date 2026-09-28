@@ -5,6 +5,11 @@ from urllib.parse import urlparse
 
 from . import PROFILES
 
+try:
+    from vici.exception import CommandException
+except ImportError:
+    CommandException = ()
+
 
 class CharonError(Exception):
     pass
@@ -74,12 +79,11 @@ class Charon:
 
     def _call(self, fn, *args):
         """One request at a time: the session is a single socket shared by the controller's threads and the metrics server."""
-        import vici.exception
         try:
             with self.lock:
                 result = fn(*args)
                 return list(result) if hasattr(result, "__next__") else result
-        except vici.exception.CommandException as e:
+        except CommandException as e:
             raise CharonError(str(e)) from None
 
     def version(self):
