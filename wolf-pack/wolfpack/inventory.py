@@ -69,6 +69,7 @@ def load(path, taken):
         if estimated:
             tier = estimate(algo, c.get("name", ""))
         assets.append({"name": c.get("name", "?"), "algo": algo, "tier": tier, "estimated": estimated, "component": c,
+                       "policy": [p for p in (prop(c, "wolfpack:policy") or "").split("; ") if p],
                        "recommendation": prop(c, "wolfpack:recommendation") or (CATALOG[algo].replace if algo else ""),
                        "occurrences": (c.get("evidence") or {}).get("occurrences", [])})
     assets.sort(key=lambda a: (RANK.get(a["tier"], len(TIERS)), a["name"]))
@@ -82,6 +83,7 @@ def readiness(assets):
     worst = next((t for t in TIERS if tiers[t]), None)
     return {"asymmetric": len(asym), "pq_safe": len(safe), "percent": round(100 * len(safe) / len(asym)) if asym else 0,
             "hybrid": any(a["algo"] in HYBRIDS for a in assets), "tiers": tiers, "worst": worst,
+            "policy_breaches": sum(1 for a in assets if a["policy"]),
             "estimated": any(a["estimated"] for a in assets)}
 
 
@@ -164,6 +166,7 @@ def html(org, systems):
         rows.append(f"<tr class={r['worst'] or 'ok'}><td class=m>{MARK.get(r['worst'], '')}</td><td>{e(s['name'])}"
                     f"{'<span class=new>estimated</span>' if r['estimated'] else ''}</td>"
                     f"<td>{r['tiers']['critical']}</td><td>{r['tiers']['high']}</td><td>{r['percent']}%</td><td>{'yes' if r['hybrid'] else 'no'}</td>"
+                    f"<td>{r['policy_breaches'] or '<span class=dim>0</span>'}</td>"
                     f"<td class=w>{e(top['name']) + ' → ' + e(top['recommendation']) if top and top['tier'] in ('critical', 'high') else '<span class=dim>none</span>'}</td></tr>")
     use = []
     for fam, where in sorted(usage(systems).items(), key=lambda kv: (min(RANK.get(t, 9) for _, t, _ in kv[1]), -len({n for n, *_ in kv[1]}), kv[0])):
@@ -183,7 +186,7 @@ def html(org, systems):
 <div><span>distinct algorithms</span><b>{sm['algorithms']}</b><small>across all systems</small></div>
 <div><span>quantum-safe asymmetric</span><b>{sm['pq_ready_percent']}%</b><small>of asymmetric algorithms in use</small></div>
 <div><span>systems at high or worse</span><b>{at['critical'] + at['high']}</b><small>{at['high']} high, {at['critical']} critical</small></div></div>
-<h2>Systems, weakest first</h2><div class=scroll><table><tr><th></th><th>system</th><th>critical</th><th>high</th><th>quantum-safe</th><th>hybrid</th><th>worst finding → replacement</th></tr>
+<h2>Systems, weakest first</h2><div class=scroll><table><tr><th></th><th>system</th><th>critical</th><th>high</th><th>quantum-safe</th><th>hybrid</th><th>policy</th><th>worst finding → replacement</th></tr>
 {''.join(rows)}</table></div>
 <h2>Migrate first</h2><div class=scroll><table><tr><th></th><th>system</th><th>algorithm</th><th>replacement</th><th>places</th></tr>{todo or '<tr><td colspan=5 class=dim>nothing at high or critical</td></tr>'}</table></div>
 <h2>Where each algorithm is used</h2><div class=scroll><table><tr><th></th><th>algorithm</th><th>systems</th><th>which</th><th>variants</th></tr>{''.join(use)}</table></div>

@@ -9,13 +9,13 @@ from pathlib import Path
 
 from cryptography.utils import CryptographyDeprecationWarning
 
-from . import __version__, pack, cbom, report, image, inventory
+from . import __version__, pack, cbom, report, image, inventory, compliance
 from .alpha import Horizon, TIERS
 from .pack import ROLES
 from .scouts import Scope
 
 SETTINGS = {"exclude": list, "include_vendor": bool, "tls": list, "ssh": list, "shelf_life": (int, float), "migration": (int, float),
-            "crqc_year": int, "threshold": (int, float), "fail_on": str, "name": str}
+            "crqc_year": int, "threshold": (int, float), "fail_on": str, "name": str, "policy": dict}
 
 
 def main(argv=None):
@@ -41,6 +41,10 @@ def main(argv=None):
                    help=f"leave a member of the pack out (ablation, repeatable): {', '.join(ROLES)}")
     s.add_argument("--include-vendor", action="store_true", help="also scan vendor/, node_modules/ and similar")
     s.add_argument("--fail-on", choices=TIERS[:-1], help="exit 2 if any asset is at this tier or worse (for CI)")
+    s.add_argument("--policy", action="append", default=[], choices=compliance.PROFILES, metavar="PROFILE",
+                   help=f"check against a published transition standard (repeatable): {', '.join(compliance.PROFILES)}; own rules go in [policy] in .wolfpack.toml")
+    s.add_argument("--as-of", type=int, metavar="YEAR", help="judge policy deadlines as of this year (default: this year)")
+    s.add_argument("--fail-on-policy", action="store_true", help="exit 2 if any policy rule is already broken (deadline passed or none)")
     s.add_argument("-q", "--quiet", action="store_true")
     m = sub.add_parser("merge", help="merge the CBOMs of many systems into one organisation inventory and dashboard")
     m.add_argument("cboms", nargs="+", metavar="CBOM", help="cbom.json files, or folders searched for them (other tools' CBOMs work too)")
@@ -72,6 +76,14 @@ def main(argv=None):
     for k, default in (("shelf_life", 10), ("migration", 5), ("crqc_year", 2035), ("threshold", 0.6), ("fail_on", None), ("name", None)):
         if getattr(a, k) is None:
             setattr(a, k, cfg.get(k, default))
+    policy = dict(cfg.get("policy", {}))
+    problems = compliance.check(policy)
+    if problems:
+        sys.exit("wolfpack: " + "; ".join(problems))
+    policy["profiles"] = list(dict.fromkeys(policy.get("profiles", []) + a.policy))
+    if a.as_of:
+        policy["as_of"] = a.as_of
+    a.fail_on_policy = a.fail_on_policy or policy.get("fail", False)
     if a.fail_on is not None and a.fail_on not in TIERS[:-1]:
         sys.exit(f"wolfpack: fail_on must be one of {', '.join(TIERS[:-1])}")
     targets_only = a.path is None and (a.tls or a.ssh)
@@ -101,6 +113,8 @@ def main(argv=None):
         if unpacked:
             shutil.rmtree(unpacked, ignore_errors=True)
     r.notes[:0] = notes
+    if any(policy.get(k) for k in ("profiles", "forbid", "min_bits", "require_hybrid")):
+        r.compliance = compliance.evaluate(r.assets, r.endpoints, policy)
     try:
         _write(out, name, r)
     except OSError as e:
@@ -108,6 +122,10 @@ def main(argv=None):
     if not a.quiet:
         print(report.terminal(r))
         print(f"\nwrote {out / 'cbom.json'}, {out / 'report.html'}, {out / 'wolfpack.sarif'}, {out / 'findings.json'}")
+    if a.fail_on_policy and r.compliance and not r.compliance["passed"]:
+        if not a.quiet:
+            print(f"\nfailing: {r.compliance['overdue']} policy rule(s) already broken")
+        sys.exit(2)
     if a.fail_on:
         bad = TIERS[:TIERS.index(a.fail_on) + 1]
         hits = [x for x in r.assets if x.tier in bad and (x.new_files or not a.baseline)]
@@ -156,5 +174,5 @@ def settings(path, root):
 def _write(out, name, r):
     (out / "cbom.json").write_text(json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2), encoding="utf-8")
     (out / "wolfpack.sarif").write_text(json.dumps(cbom.sarif(r.assets, r.alerts), indent=2), encoding="utf-8")
-    (out / "findings.json").write_text(json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness}, indent=2, default=str), encoding="utf-8")
+    (out / "findings.json").write_text(json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness, "compliance": r.compliance}, indent=2, default=str), encoding="utf-8")
     (out / "report.html").write_text(report.html(r), encoding="utf-8")

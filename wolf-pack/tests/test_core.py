@@ -73,6 +73,70 @@ class Image(unittest.TestCase):
             self.assertTrue((Path(d) / "root/srv/app.py").exists())
 
 
+class Policy(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.r = pack.run(CORPUS, "corpus")
+
+    def evaluate(self, policy, year=2026):
+        from datetime import date
+        from wolfpack import compliance
+        for a in self.r.assets:
+            a.policy = []
+        return compliance.evaluate(self.r.assets, self.r.endpoints, policy, date(year, 1, 1))
+
+    def test_nist_ir_8547_dates(self):
+        c = self.evaluate({"profiles": ["nist-ir-8547"]})
+        by = {(v["rule"], v["asset"]): v for v in c["violations"]}
+        self.assertTrue(by["NIST SP 800-131A", "MD5"]["overdue"])
+        self.assertEqual(by["NIST IR 8547", "RSA-2048"]["deadline"], 2030)
+        self.assertFalse(by["NIST IR 8547", "RSA-2048"]["overdue"])
+        self.assertTrue(self.evaluate({"profiles": ["nist-ir-8547"]}, 2031)["overdue"] > c["overdue"])
+        self.assertFalse(any(v["asset"].startswith(("ML-KEM", "AES-256")) for v in c["violations"]))
+
+    def test_cnsa_accepts_only_its_suite(self):
+        bad = {v["asset"] for v in self.evaluate({"profiles": ["cnsa-2.0"]})["violations"]}
+        self.assertIn("AES-128-GCM", bad)
+        self.assertIn("SHA-256", bad)
+        self.assertNotIn("SHA-384", bad)
+        self.assertFalse({a for a in bad if a.startswith("ML-KEM-1024")})
+
+    def test_own_rules_and_exemptions(self):
+        c = self.evaluate({"forbid": ["md5"], "min_bits": {"RSA": 3072}, "require_hybrid": True})
+        rules = {(v["rule"], v["asset"]) for v in c["violations"]}
+        self.assertIn(("policy: forbid", "MD5"), rules)
+        self.assertIn(("policy: min_bits", "RSA-2048"), rules)
+        self.assertFalse(c["passed"])
+
+    def test_tests_and_declared_non_security_uses_break_no_rule(self):
+        import tempfile
+        from wolfpack import compliance
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "tests").mkdir()
+            (Path(d) / "tests" / "test_vectors.py").write_text("import hashlib\nhashlib.sha1(b'abc')\n")
+            (Path(d) / "cache.py").write_text("import hashlib\nkey = hashlib.md5(b'x', usedforsecurity=False)\n")
+            r = pack.run(d, "t")
+            self.assertEqual({a.algo for a in r.assets}, {"SHA-1", "MD5"})
+            self.assertEqual(compliance.evaluate(r.assets, [], {"profiles": ["nist-ir-8547"], "forbid": ["MD5", "SHA-1"]})["violations"], [])
+
+    def test_settings_are_checked_and_gate_ci(self):
+        import tempfile
+        from wolfpack import compliance
+        from wolfpack.cli import main
+        self.assertTrue(compliance.check({"profiles": ["fips-9999"]}))
+        self.assertTrue(compliance.check({"forbid": "md5"}))
+        self.assertTrue(compliance.check({"min_bits": {"RSA": "3072"}}))
+        self.assertEqual(compliance.check({"profiles": ["cnsa-2.0"], "min_bits": {"RSA": 3072}, "fail": True}), [])
+        with tempfile.TemporaryDirectory() as d:
+            cfg = Path(d) / "p.toml"
+            cfg.write_text('[policy]\nforbid = ["MD5"]\nfail = true\n')
+            with self.assertRaises(SystemExit) as cm:
+                main(["scan", str(CORPUS), "-o", d, "-q", "--config", str(cfg)])
+            self.assertEqual(cm.exception.code, 2)
+            cfg.write_text('[policy]\nforbid = ["Kyber-9"]\nfail = true\n')
+            self.assertEqual(main(["scan", str(CORPUS), "-o", d, "-q", "--config", str(cfg)]), 0)
+
+
 class Inventory(unittest.TestCase):
     def test_merge_ranks_systems_and_estimates_foreign_cboms(self):
         import json

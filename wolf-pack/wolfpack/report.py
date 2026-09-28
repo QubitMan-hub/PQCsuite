@@ -67,6 +67,20 @@ def endpoints_html(eps):
 <th>Preferred group</th><th>Classical groups accepted</th><th>Certificate or host keys</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>"""
 
 
+def policy_html(c):
+    if not c:
+        return ""
+    rows = []
+    for v in c["violations"]:
+        due = "<span class='tag critical'>overdue</span>" if v["overdue"] else f"<span class=tag>{v['deadline']}</span>"
+        rows.append(f"<tr><td>{due}</td><td>{e(v['rule'])}</td><td><b>{e(v['asset']) or 'whole scan'}</b></td><td class=w>{e(v['message'])}</td>"
+                    f"<td class='w dim'>{e(', '.join(v['files'][:3]))}</td></tr>")
+    verdict = "passes" if c["passed"] else f"fails: {_plural(c['overdue'], 'rule')} already broken"
+    return (f"<h2>Policy</h2><p>Checked against {e(', '.join(c['profiles']) or 'own rules')} as of {c['as_of']}: <span class=yes>{verdict}</span>, "
+            f"{c['upcoming']} more due later.</p><div class=scroll><table><thead><tr><th>Due</th><th>Rule</th><th>Asset</th><th>Why</th><th>Where</th></tr></thead>"
+            f"<tbody>{''.join(rows) or '<tr><td colspan=5 class=dim>No rule broken.</td></tr>'}</tbody></table></div>")
+
+
 def html(r):
     st, rd = r.stats, r.readiness
     rows = []
@@ -94,6 +108,7 @@ def html(r):
         items = "".join(f"<div><b>{e(a.variant)}</b> <span class='dim'>{e(a.tier)}</span><br><span class='dim'>{e(', '.join(a.new_files[:8]))}</span></div>" for a in changed)
         base = f"<h2>New since baseline</h2><div class='occ' style='margin-left:0'>{items or '<p class=dim>Nothing new since the baseline.</p>'}</div>"
     scanned = st['files_code'] + st['files_config'] + st['files_artifacts'] + st['files_binary']
+    pol = policy_html(r.compliance)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(r.project)}: Wolf Pack CBOM</title><style>{CSS}</style></head><body><main>
 <h1>{e(r.project)}</h1>
@@ -111,6 +126,7 @@ def html(r):
 </div>
 {endpoints_html(r.endpoints)}
 {base}
+{pol}
 <h2>Migration queue</h2>
 <div class="scroll"><table><thead><tr><th></th><th>Tier</th><th>Asset</th><th>Why</th><th>Do this</th><th>Exposure</th><th>Seen</th><th>Conf.</th></tr></thead>
 <tbody>{''.join(rows) or '<tr><td colspan=8 class=dim>No cryptography found.</td></tr>'}</tbody></table></div>
@@ -146,6 +162,12 @@ def terminal(r):
         out.append("")
         for s, t, where, _ in r.alerts:
             out.append(f"  ! {s:<8} {t}  ({where})")
+    if r.compliance:
+        c = r.compliance
+        out.append(f"\npolicy ({', '.join(c['profiles']) or 'own rules'}, as of {c['as_of']}): "
+                   f"{'passes' if c['passed'] else 'FAILS'}, {c['overdue']} overdue, {c['upcoming']} due later")
+        for v in c["violations"][:12]:
+            out.append(f"  {'overdue ' if v['overdue'] else 'by ' + str(v['deadline']):<8} {v['rule']:<22} {v['asset'] or '(whole scan)'}: {v['message']}")
     for n in r.notes:
         out.append(f"  note: {n}")
     return "\n".join(out)

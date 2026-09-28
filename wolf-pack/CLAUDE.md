@@ -65,6 +65,8 @@ wolfpack/
   report.py      self-contained monochrome HTML report and terminal summary
   image.py       container images (docker save / OCI archive): layers unpacked in order, whiteouts applied
   inventory.py   merge: many systems' CBOMs (any tool) into one organisation inventory, dashboard and merged CBOM
+  compliance.py  policy: NIST IR 8547 and CNSA 2.0 profiles plus [policy] rules (forbid, min_bits, require_hybrid);
+                 overdue vs due later; tests, declared non-security hashes and trust stores are exempt
   cli.py         scan / merge / bench subcommands, .wolfpack.toml settings, exit codes 0 / 1 error / 2 fail-on
   bench.py       scores at (file, algorithm family) granularity, full pack and one ablation per role
 bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 136 labelled pairs

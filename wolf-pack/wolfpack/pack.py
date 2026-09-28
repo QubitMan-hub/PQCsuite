@@ -122,6 +122,7 @@ class Result:
     notes: list = field(default_factory=list)
     endpoints: list = field(default_factory=list)
     baseline: str = ""
+    compliance: dict = field(default_factory=dict)
 
 
 def load_baseline(path):

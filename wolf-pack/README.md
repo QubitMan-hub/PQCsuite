@@ -80,6 +80,35 @@ tls = ["api.example.com:443"]
 ssh = ["bastion.example.com"]
 ```
 
+### Policy and compliance
+
+`--policy nist-ir-8547` and `--policy cnsa-2.0` check the findings against published transition standards:
+
+- **NIST IR 8547** (initial public draft, November 2024):
+  - quantum-vulnerable public-key algorithms at 112-bit strength are deprecated after 2030;
+  - all of them are disallowed after 2035;
+  - anything SP 800-131A already disallows is overdue now.
+- **CNSA 2.0:** AES-256, SHA-384/512, ML-KEM-1024 and ML-DSA-87. The deadline defaults to 2033 and can be changed, because NSA's dates differ by product category.
+
+Your own rules go in `.wolfpack.toml`:
+
+```toml
+[policy]
+profiles = ["nist-ir-8547"]
+forbid = ["MD5", "SHA-1", "3DES"]     # a family, algorithm or variant name
+min_bits = { RSA = 3072, DH = 3072 }
+require_hybrid = true                  # key exchange must include a hybrid PQ group somewhere
+as_of = 2026                           # judge deadlines as of this year (default: this year)
+cnsa_deadline = 2033
+fail = true                            # same as --fail-on-policy
+```
+
+Each broken rule is listed in the report and in `findings.json`, and recorded on the asset in `cbom.json` (`wolfpack:policy`), so `wolfpack merge` can count breaches per system.
+
+- **Overdue:** a rule whose deadline has passed, or that has no deadline. `--fail-on-policy` exits 2 when any rule is overdue.
+- **Due later:** a rule with a future deadline. It is listed but does not fail the build.
+- **Not counted:** test-only code, hashes declared `usedforsecurity=False` and trust-store roots are still reported, but break no rule.
+
 `vendor/`, `node_modules/`, virtual environments and build output are skipped unless you pass `--include-vendor`. Files over 2 MB are skipped, except binaries and archives (up to 256 MB).
 
 ### Exit codes
@@ -88,7 +117,7 @@ ssh = ["bastion.example.com"]
 |---|---|
 | 0 | Scan finished; nothing at or above `--fail-on` (or no `--fail-on`) |
 | 1 | The scan could not run: a mistyped option, a missing folder, an unreadable or invalid settings file |
-| 2 | Something at or above `--fail-on`; with `--baseline`, only what is new counts |
+| 2 | Something at or above `--fail-on` (with `--baseline`, only what is new counts), or an overdue policy rule with `--fail-on-policy` |
 
 An endpoint that cannot be reached is reported in the output and the report, and does not change the exit code.
 

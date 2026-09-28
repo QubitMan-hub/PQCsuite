@@ -29,7 +29,8 @@ def algorithm_component(a):
     c = CATALOG[a.algo]
     ev = {"occurrences": [_occ(s) for s in a.sightings[:200]]}
     props = _props(tier=a.tier, risk_score=a.score, confidence=a.confidence, exposure=a.exposure, nist_status=a.nist,
-                   rationale=a.why, recommendation=a.action, test_only=a.test_only or None)
+                   rationale=a.why, recommendation=a.action, test_only=a.test_only or None,
+                   policy="; ".join(a.policy) or None)
     if c.primitive == "protocol":
         ver = re.search(r"(\d\.\d)", a.algo)
         pp = {"type": "tls" if "TLS" in a.algo or "SSL" in a.algo else "other"}
