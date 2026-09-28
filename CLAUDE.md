@@ -24,5 +24,6 @@ Acxelin PQC Suite (working name `pqcsuite`, `NAME` in `pqcsuite/__init__.py`) is
 ```
 pip install -e ".[test]"
 python -m unittest discover -s tests -v
+python -m pytest                          # suite and wolf-pack/ tests together, from the root
 pqcsuite doctor
 ```

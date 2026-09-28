@@ -1,6 +1,7 @@
 import re
 import socket
 import ssl
+import warnings
 
 from cryptography import x509
 
@@ -22,10 +23,12 @@ def _ctx(minv=None, maxv=None, legacy=False):
             c.set_ciphers("ALL:@SECLEVEL=0")
         except ssl.SSLError:
             pass
-    if minv:
-        c.minimum_version = minv
-    if maxv:
-        c.maximum_version = maxv
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        if minv:
+            c.minimum_version = minv
+        if maxv:
+            c.maximum_version = maxv
     return c
 
 
