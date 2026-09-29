@@ -53,6 +53,22 @@ class RaceTest(unittest.TestCase):
         self.assertEqual(revoked, listed(self.root))
         verify_crl((self.root / "crl.pem").read_bytes(), x509.load_pem_x509_certificates((self.root / "ca.crt").read_bytes()))
 
+    def test_enrollment_tokens_and_eab_keys_made_at_once_are_all_kept(self):
+        worker = textwrap.dedent("""
+            import sys
+            from pqcsuite.pki import CA
+            from pqcsuite.pki.acme import create_eab
+            from pqcsuite.pki.est import create_token
+            for i in range(5):
+                create_token(CA(sys.argv[1]), f"t{sys.argv[2]}-{i}.test", "server")
+                create_eab(sys.argv[1])
+        """)
+        procs = [subprocess.Popen([sys.executable, "-c", worker, str(self.root), str(n)]) for n in range(6)]
+        self.assertEqual([p.wait(120) for p in procs], [0] * 6)
+        from pqcsuite.pki.acme import eab_keys
+        from pqcsuite.pki.est import _load_tokens
+        self.assertEqual((len(_load_tokens(self.root)), len(eab_keys(self.root))), (30, 30))
+
     def test_renewing_and_revoking_the_same_certificate_at_once(self):
         for n in range(6):
             _, rec = self.ca.issue(f"race{n}.test", "server")

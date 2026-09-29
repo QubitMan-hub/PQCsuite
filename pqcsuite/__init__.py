@@ -127,6 +127,12 @@ def content_length(headers):
     return int(v) if v.isascii() and v.isdigit() else None
 
 
+def file_stamp(path):
+    """What changes when a file is rewritten, even twice within one timestamp tick: its mtime in ns, size and inode."""
+    st = os.stat(path)
+    return st.st_mtime_ns, st.st_size, st.st_ino
+
+
 class ConfigWatch:
     """Follows a service's configuration file: when it changes (checked every few seconds) or on `poke()` (SIGHUP), the file
     is loaded again once it has stopped changing (an editor may write it in several steps) and, if it loads and validates,
@@ -134,13 +140,9 @@ class ConfigWatch:
 
     def __init__(self, path, load, apply, every=5.0, settle=0.3):
         self.path, self.load, self.apply, self.every, self.settle = path, load, apply, every, settle
-        self.seen = self._stamp()
+        self.seen = file_stamp(self.path)
         self.wake, self.stopped = threading.Event(), False
         threading.Thread(target=self._loop, daemon=True, name="config").start()
-
-    def _stamp(self):
-        st = os.stat(self.path)
-        return st.st_mtime_ns, st.st_size
 
     def poke(self):
         self.wake.set()
@@ -157,12 +159,12 @@ class ConfigWatch:
             if self.stopped:
                 return
             try:
-                stamp = self._stamp()
+                stamp = file_stamp(self.path)
                 if stamp == self.seen and not poked:
                     continue
                 while True:
                     time.sleep(self.settle)
-                    now = self._stamp()
+                    now = file_stamp(self.path)
                     if now == stamp:
                         break
                     stamp = now

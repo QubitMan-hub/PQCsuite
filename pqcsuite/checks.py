@@ -56,6 +56,14 @@ def ca(root):
         days = (nxt - now()) / dt.timedelta(days=1)
         out.append(("fail" if days < 0 else "warn" if days < 2 else "ok",
                     f"CRL {'expired' if days < 0 else 'valid for'} {abs(days):.1f} days{'' if days >= 2 else ': run pqcsuite ca maintain'}"))
+    newest = {}
+    for r in records:
+        if r.status == "valid" and r.kind != "ca" and r.path and dt.datetime.fromisoformat(r.not_after) > now():
+            newest[r.path] = max(newest.get(r.path, r), r, key=lambda x: x.not_after)
+    gone = [r for r in newest.values() if not all((Path(r.path) / f).exists() for f in ("cert.pem", "key.pem", "chain.pem"))]
+    if gone:
+        out.append(("warn", f"{len(gone)} valid certificate(s) recorded without their files ({', '.join(r.common_name for r in gone[:5])}): "
+                            "moved elsewhere, or a crash while issuing; revoke any whose files are gone for good"))
     soon = c.expiring(30)
     out.append(("warn", f"{len(soon)} certificate(s) expire within 30 days: {', '.join(r.common_name for r in soon[:5])} "
                         "(pqcsuite ca maintain renews them)") if soon else ("ok", "no certificate expires within 30 days"))

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from cryptography import x509
 
+from .. import file_stamp
 from ..pki import CAError, check_revocation, shared
 from .openssl import TLSError
 
@@ -30,14 +31,13 @@ class Revocation:
             raise ValueError(f"no CRL at {crl_path}: write one with 'pqcsuite ca crl' (every client would be refused without it)")
         with open(ca_path, "rb") as f:
             self.crl_path, self.cas = crl_path, x509.load_pem_x509_certificates(f.read())
-        self.mtime, self.data = None, None
+        self.stamp, self.data = None, None
 
     def check(self, serial, chain=()):
         """`chain` is the verified chain above the certificate, where an intermediate CA's certificate comes from."""
-        st = os.stat(self.crl_path)
-        m = (st.st_mtime_ns, st.st_size, st.st_ino)  # a CRL rewritten within one timestamp tick still counts as changed
-        if m != self.mtime:
-            self.data, self.mtime = shared(Path(self.crl_path).read_bytes), m
+        m = file_stamp(self.crl_path)
+        if m != self.stamp:
+            self.data, self.stamp = shared(Path(self.crl_path).read_bytes), m
         check_revocation(serial, self.data, self.cas + list(chain))
 
 
@@ -76,7 +76,7 @@ class Server:
                  handshake_timeout=10.0, name="tls", reuse_port=False):
         self.address, self.make_context, self.handler, self.name = address, make_context, handler, name
         self.ctx = make_context()
-        self.watch = {p: os.stat(p).st_mtime for p in watch if p}
+        self.watch = {p: file_stamp(p) for p in watch if p}
         self.revocation = Revocation(crl, ca) if crl else None
         self.slots = threading.BoundedSemaphore(max_connections)
         self.max_connections, self.per_host = max_connections, max(8, max_connections // 16)
@@ -92,11 +92,11 @@ class Server:
     def reload_if_changed(self):
         """Rebuild the context when a watched file changed. A missing or broken file keeps the old context serving."""
         try:
-            changed = [p for p, m in self.watch.items() if os.stat(p).st_mtime != m]
+            changed = [p for p, m in self.watch.items() if file_stamp(p) != m]
             if not changed:
                 return False
             ctx = self.make_context()
-            self.watch = {p: os.stat(p).st_mtime for p in self.watch}
+            self.watch = {p: file_stamp(p) for p in self.watch}
         except (TLSError, OSError, ValueError) as e:
             log.error("%s: keeping the old certificates, reload failed: %s", self.name, e)
             self.stats.add("reload_failed")

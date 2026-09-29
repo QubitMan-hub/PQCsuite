@@ -136,6 +136,13 @@ def write(path, data, secret=False):
         raise
 
 
+def append(path, line):
+    """Add one line to a log that only its owner can read (audit logs name identities and administrative actions)."""
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
+    with os.fdopen(fd, "ab") as f:
+        f.write(line.encode() + b"\n")
+
+
 HOSTNAME = re.compile(r"(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?", re.I)
 
 

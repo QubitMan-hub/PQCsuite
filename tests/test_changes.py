@@ -257,6 +257,16 @@ class EdgeReloadTest(unittest.TestCase):
         with self.assertRaises((tls.TLSError, OSError)):
             self.get(c)
 
+    def test_a_certificate_renewed_within_one_timestamp_tick_is_still_reloaded(self):
+        from pqcsuite.tls.server import Server
+        chain = self.srv / "chain.pem"
+        s = Server(("127.0.0.1", 0), lambda: tls.server_context(chain, self.srv / "key.pem"), lambda c, a: None, watch=[chain])
+        self.addCleanup(s.stop, 0)
+        before = os.stat(chain).st_mtime_ns
+        self.ca.renew(self.ca.records()[-1].serial, out=self.srv)
+        os.utime(chain, ns=(before, before))
+        self.assertTrue(s.reload_if_changed())
+
     def test_a_route_that_cannot_bind_leaves_no_crl_follower_behind(self):
         from pqcsuite.tls.edge import Edge
         httpd = serve_http("127.0.0.1:0", {"/crl.pem": (PEM, lambda: (self.d / "pki" / "crl.pem").read_text())})

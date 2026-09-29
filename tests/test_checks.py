@@ -49,6 +49,12 @@ class ChecksTest(unittest.TestCase):
             with self.subTest(name):
                 crl.write_bytes(data)
                 self.assertEqual(find(checks.ca(self.d / "pki"), "damaged or not signed"), "fail")
+        ca = CA(self.d / "pki")
+        out, _ = ca.issue("gone.test", "server", out=self.d / "gone")
+        ca.crl()
+        self.assertIsNone(find(checks.ca(self.d / "pki"), "without their files"))
+        (out / "key.pem").unlink()
+        self.assertEqual(find(checks.ca(self.d / "pki"), "without their files"), "warn")
         (self.d / "pki" / "index.json").write_text("[{")
         self.assertEqual(find(checks.ca(self.d / "pki"), "index.json cannot be read"), "fail")
 

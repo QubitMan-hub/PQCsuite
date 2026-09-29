@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, pkcs7
 from cryptography.x509.oid import NameOID
 
 from .. import tls
-from . import CA, CAError, USAGE, algorithm_of, cert_pem, check_revocation, general_names, generate, key_pem, locked, names_of, now, write
+from . import CA, CAError, USAGE, algorithm_of, cert_pem, check_revocation, append, general_names, generate, key_pem, locked, names_of, now, write
 from ..tls.http import HTTPError, request
 
 PREFIX = "/.well-known/est"
@@ -65,8 +65,7 @@ class Service:
         return x509.load_pem_x509_certificates(self.ca.chain())
 
     def audit(self, event, **detail):
-        with open(self.audit_log, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"time": now().isoformat(), "event": event, **detail}) + "\n")
+        append(self.audit_log, json.dumps({"time": now().isoformat(), "event": event, **detail}))
 
     def __call__(self, method, path, headers, body, conn):
         try:
@@ -106,9 +105,15 @@ class Service:
                 raise CAError(f"this token is for {t['common_name']} {t['names']}, not {cn} {names}")
             if not algorithm_of(csr.public_key()):
                 raise CAError("the request must carry an ML-DSA key; the token was not used")
-            cert, rec = self.ca.sign(csr.public_key(), cn, t["kind"], names or t["names"])
+            # spent on disk before anything is signed: a crash from here on leaves the token used up, never reusable
             t["used"] = now().isoformat()
             write(_tokens_path(self.ca.root), json.dumps(tokens, indent=1).encode(), secret=True)
+            try:
+                cert, rec = self.ca.sign(csr.public_key(), cn, t["kind"], names or t["names"])
+            except Exception:
+                t["used"] = ""
+                write(_tokens_path(self.ca.root), json.dumps(tokens, indent=1).encode(), secret=True)
+                raise
         self.audit("enrolled", serial=rec.serial, common_name=cn, kind=t["kind"], token=tid)
         return cert
 

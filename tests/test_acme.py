@@ -56,7 +56,8 @@ class ACMETest(unittest.TestCase):
         self.d = Path(self.tmp.name)
         self.ca = CA.init(self.d / "pki", "ACME Root")
         self.web = start(ThreadingHTTPServer(("127.0.0.1", 0), Challenges), self)
-        self.httpd = serve(Service(self.ca, "http://placeholder", allow=["*.test", "localhost", "127.0.0.1"], http_port=self.web), "127.0.0.1:0")
+        self.httpd = serve(Service(self.ca, "http://placeholder", allow=["*.test", "localhost", "127.0.0.1"], http_port=self.web,
+                                     allow_local=True), "127.0.0.1:0")
         self.svc = self.httpd.service
         self.url = self.svc.base = f"http://127.0.0.1:{self.httpd.server_address[1]}"
         start(self.httpd, self)
@@ -211,13 +212,25 @@ class ValidationTest(unittest.TestCase):
     def test_http01_does_not_follow_redirects_to_other_addresses(self):
         with tempfile.TemporaryDirectory() as d:
             web = start(ThreadingHTTPServer(("127.0.0.1", 0), Redirect), self)
-            svc = Service(CA.init(Path(d) / "pki", "R"), "http://acme", http_port=web, validate_async=False)
+            svc = Service(CA.init(Path(d) / "pki", "R"), "http://acme", http_port=web, validate_async=False, allow_local=True)
             svc.state["authz"]["z"] = {"account": "a", "identifier": {"type": "ip", "value": "127.0.0.1"}, "status": "pending",
                                        "token": "t", "challenge_status": "pending", "error": None, "validated": None}
             svc.validate("z", "t.tp")
             detail = svc.state["authz"]["z"]["error"]["detail"]
         self.assertIn("302", detail)
         self.assertNotIn("refused", detail)
+
+    def test_validation_never_reaches_loopback_or_metadata_addresses_by_default(self):
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            svc = Service(CA.init(Path(d) / "pki", "R"), "http://acme", validate_async=False)
+            for n, ip in enumerate(["127.0.0.1", "169.254.169.254", "::1", "0.0.0.0", "10.0.0.5"]):
+                svc.state["authz"][str(n)] = {"account": "a", "identifier": {"type": "ip", "value": ip}, "status": "pending",
+                                              "token": "t", "challenge_status": "pending", "error": None, "validated": None}
+                with self.subTest(ip=ip), mock.patch("pqcsuite.pki.acme.FETCH.open", side_effect=OSError("connection refused")) as fetch:
+                    svc.validate(str(n), "t.tp")
+                    self.assertEqual(svc.state["authz"][str(n)]["status"], "invalid")
+                    self.assertEqual(fetch.called, ip == "10.0.0.5", "private networks are validated; the others never reached")
 
     def test_a_target_that_does_not_speak_http_fails_the_challenge(self):
         with tempfile.TemporaryDirectory() as d:
@@ -230,7 +243,8 @@ class ValidationTest(unittest.TestCase):
                 conn.sendall(b"not http\r\n\r\n")
                 conn.close()
             threading.Thread(target=answer, daemon=True).start()
-            svc = Service(CA.init(Path(d) / "pki", "R"), "http://acme", http_port=srv.getsockname()[1], validate_async=False)
+            svc = Service(CA.init(Path(d) / "pki", "R"), "http://acme", http_port=srv.getsockname()[1], validate_async=False,
+                          allow_local=True)
             svc.state["authz"]["z"] = {"account": "a", "identifier": {"type": "ip", "value": "127.0.0.1"}, "status": "pending",
                                        "token": "t", "challenge_status": "pending", "error": None, "validated": None}
             svc.validate("z", "t.tp")

@@ -17,6 +17,7 @@ import ipaddress
 import json
 import logging
 import secrets
+import socket
 import ssl
 import threading
 import urllib.request
@@ -30,7 +31,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
 from .. import HTTP_IDLE, NAME, __version__, content_length
-from . import CAError, cert_pem, now, write
+from . import CAError, cert_pem, locked, now, write
 
 log = logging.getLogger("pqcsuite.acme")
 ERR = "urn:ietf:params:acme:error:"
@@ -111,6 +112,22 @@ def verify(key, alg, data, sig):
         raise Problem("unauthorized", "the request's signature does not verify", 403) from None
 
 
+def validation_address(host, port, allow_local=False):
+    """The address http-01 validation connects to, resolved once so a second DNS answer cannot redirect it. Loopback,
+    link-local (cloud metadata services live there), multicast and reserved addresses are refused unless `allow_local`:
+    otherwise anyone allowed to order could make the CA probe them. Private networks are allowed, since an internal CA's
+    clients live on them; `allow` patterns and EAB limit who can order."""
+    try:
+        found = {ipaddress.ip_address(i[4][0].split("%")[0]) for i in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)}
+    except (OSError, UnicodeError) as e:
+        raise OSError(f"cannot resolve {host}: {e}") from None
+    for a in found:
+        a = getattr(a, "ipv4_mapped", None) or a
+        if not allow_local and (a.is_loopback or a.is_link_local or a.is_multicast or a.is_unspecified or a.is_reserved):
+            raise OSError(f"{host} resolves to {a}, which this CA does not validate (start it with --allow-local-validation to permit it)")
+    return str(min(found, key=lambda a: a.version))
+
+
 def _iso(t):
     return t.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -118,8 +135,8 @@ def _iso(t):
 class Service:
     """The ACME resources. State lives in `<ca>/acme/state.json`; everything goes through one lock."""
 
-    def __init__(self, ca, base_url, allow=(), require_eab=False, http_port=80, validate_async=True, days=90):
-        self.ca, self.base, self.days = ca, base_url.rstrip("/"), days
+    def __init__(self, ca, base_url, allow=(), require_eab=False, http_port=80, validate_async=True, days=90, allow_local=False):
+        self.ca, self.base, self.days, self.allow_local = ca, base_url.rstrip("/"), days, allow_local
         self.allow, self.require_eab, self.http_port, self.validate_async = list(allow), require_eab, http_port, validate_async
         self.dir = Path(ca.root) / "acme"
         self.lock = threading.RLock()
@@ -244,15 +261,16 @@ class Service:
             inner = json.loads(unb64u(eab["payload"]))
         except (KeyError, ValueError, TypeError):
             raise Problem("malformed", "bad externalAccountBinding") from None
-        keys = eab_keys(self.ca.root)
-        k = keys.get(kid)
-        if not k or k.get("used") or protected.get("alg") != "HS256" or protected.get("url") != self.url("new-account") or inner != jwk:
-            raise Problem("unauthorized", "the external account binding is not valid", 401)
-        mac = hmac.new(unb64u(k["hmac"]), f"{eab['protected']}.{eab['payload']}".encode(), hashlib.sha256).digest()
-        if not hmac.compare_digest(mac, unb64u(eab.get("signature", ""))):
-            raise Problem("unauthorized", "the external account binding is not valid", 401)
-        k["used"] = _iso(now())
-        write(Path(self.ca.root) / "acme" / "eab.json", json.dumps(keys, indent=1).encode(), secret=True)
+        with locked(self.ca.root):
+            keys = eab_keys(self.ca.root)
+            k = keys.get(kid)
+            if not k or k.get("used") or protected.get("alg") != "HS256" or protected.get("url") != self.url("new-account") or inner != jwk:
+                raise Problem("unauthorized", "the external account binding is not valid", 401)
+            mac = hmac.new(unb64u(k["hmac"]), f"{eab['protected']}.{eab['payload']}".encode(), hashlib.sha256).digest()
+            if not hmac.compare_digest(mac, unb64u(eab.get("signature", ""))):
+                raise Problem("unauthorized", "the external account binding is not valid", 401)
+            k["used"] = _iso(now())
+            write(Path(self.ca.root) / "acme" / "eab.json", json.dumps(keys, indent=1).encode(), secret=True)
         return kid
 
     def account_view(self, aid):
@@ -366,11 +384,13 @@ class Service:
 
     def validate(self, aid, key_authz):
         a = self.state["authz"][aid]
-        host = a["identifier"]["value"]
-        host = f"[{host}]" if ":" in host else host
+        name = a["identifier"]["value"]
+        host = f"[{name}]" if ":" in name else name
         url = f"http://{host}:{self.http_port}/.well-known/acme-challenge/{a['token']}"
         try:
-            with FETCH.open(url, timeout=10) as r:
+            ip = validation_address(name, self.http_port, self.allow_local)
+            pinned = f"http://{f'[{ip}]' if ':' in ip else ip}:{self.http_port}/.well-known/acme-challenge/{a['token']}"
+            with FETCH.open(urllib.request.Request(pinned, headers={"Host": f"{host}:{self.http_port}"}), timeout=10) as r:
                 got = r.read(4096).decode(errors="replace").strip()
             ok, detail = got == key_authz, f"{url} answered something else"
         except (OSError, ValueError, http.client.HTTPException) as e:
@@ -448,10 +468,11 @@ def eab_keys(root):
 
 def create_eab(root, note=""):
     """A new external account binding key: give the key id and the HMAC key to one ACME client."""
-    keys = eab_keys(root)
     kid, key = "kid-" + secrets.token_hex(6), b64u(secrets.token_bytes(32))
-    keys[kid] = {"hmac": key, "note": note, "created": _iso(now()), "used": None}
-    write(Path(root) / "acme" / "eab.json", json.dumps(keys, indent=1).encode(), secret=True)
+    with locked(root):
+        keys = eab_keys(root)
+        keys[kid] = {"hmac": key, "note": note, "created": _iso(now()), "used": None}
+        write(Path(root) / "acme" / "eab.json", json.dumps(keys, indent=1).encode(), secret=True)
     return kid, key
 
 

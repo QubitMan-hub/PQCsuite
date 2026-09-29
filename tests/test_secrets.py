@@ -78,6 +78,8 @@ class SecretsTest(unittest.TestCase):
         self.assertEqual([json.loads(line)["event"] for line in audit.splitlines()], ["enroll_refused", "enrolled", "enroll_refused"])
         self.assertNotIn(secret, audit)
         self.assertNotIn(secret.encode(), everything_under(self.d / "pki"))
+        if os.name != "nt":
+            self.assertEqual(os.stat(self.d / "pki" / "est-audit.jsonl").st_mode & 0o077, 0, "the audit log is owner-only")
 
     def test_the_console_token_is_never_logged_or_echoed(self):
         CA.init(self.d / "pki", "Root")
@@ -103,6 +105,8 @@ class SecretsTest(unittest.TestCase):
                     bodies.append(r.read().decode())
             except urllib.error.HTTPError as e:
                 bodies.append(e.read().decode())
+        if os.name != "nt":
+            self.assertEqual(os.stat(self.d / "audit.jsonl").st_mode & 0o077, 0, "the audit log is owner-only")
         for where, text in (("responses", "".join(bodies)), ("log", log.getvalue()), ("audit", (self.d / "audit.jsonl").read_text())):
             with self.subTest(where=where):
                 self.assertNotIn(TOKEN, text)

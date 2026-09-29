@@ -98,6 +98,28 @@ class ESTTest(unittest.TestCase):
                 svc.enroll(csr, headers)
         self.assertEqual(svc.enroll(csr, headers).subject.rfc4514_string(), "CN=db.acme")
 
+    def test_a_crash_while_signing_leaves_the_token_spent(self):
+        import subprocess
+        import sys
+        import textwrap
+        token = est.create_token(self.ca, "crash.acme", "server")
+        child = textwrap.dedent("""
+            import base64, os, sys
+            from unittest import mock
+            from cryptography import x509
+            from pqcsuite.pki import CA, est, generate
+            ca = CA(sys.argv[1])
+            tid, _, secret = sys.argv[2].partition(".")
+            csr = x509.load_der_x509_csr(base64.b64decode(est._csr(generate("ML-DSA-65"), "crash.acme", [])))
+            with mock.patch.object(ca, "sign", side_effect=lambda *a: os._exit(9)):
+                est.Service(ca).enroll(csr, {"authorization": "Basic " + base64.b64encode(f"{tid}:{secret}".encode()).decode()})
+        """)
+        self.assertEqual(subprocess.run([sys.executable, "-c", child, str(self.d / "pki"), token]).returncode, 9)
+        tid, _, secret = token.partition(".")
+        csr = x509.load_der_x509_csr(base64.b64decode(est._csr(generate("ML-DSA-65"), "crash.acme", [])))
+        with self.assertRaisesRegex(est.HTTPError, "already used"):
+            est.Service(self.ca).enroll(csr, {"authorization": "Basic " + base64.b64encode(f"{tid}:{secret}".encode()).decode()})
+
     def test_renewal_cannot_become_someone_else(self):
         token = est.create_token(self.ca, "app.acme", "server")
         est.enroll(self.url, token, "app.acme", [], self.d / "app", self.cafile)

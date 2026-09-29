@@ -21,7 +21,7 @@ from importlib import resources
 from pathlib import Path
 
 from .. import HTTP_IDLE, NAME, __version__, build, content_length, read_toml
-from ..pki import CA, CAError, encrypted
+from ..pki import CA, CAError, append, encrypted
 from ..tls import hostport
 
 log = logging.getLogger("pqcsuite.console")
@@ -66,8 +66,8 @@ class App:
 
     def audit(self, action, detail):
         line = json.dumps({"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "action": action, **detail})
-        with self.lock, open(self.s.audit_log, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+        with self.lock:
+            append(self.s.audit_log, line)
         log.info("console: %s %s", action, detail)
 
     def certificates(self):

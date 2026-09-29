@@ -14,7 +14,7 @@ import threading
 import time
 from dataclasses import dataclass
 
-from .. import JSON, METRICS, build, env_passphrase, explain, read_toml, serve_http, tls
+from .. import JSON, METRICS, build, env_passphrase, explain, file_stamp, read_toml, serve_http, tls
 from . import hostport
 from .server import Server, Stats
 
@@ -127,7 +127,7 @@ class Edge:
             self.port = self.server.port
         else:
             self.watch = [p for p in (r.ca, r.cert, r.key) if p]
-            self.mtimes = [os.stat(p).st_mtime for p in self.watch]
+            self.stamps = [file_stamp(p) for p in self.watch]
             self.ctx = tls.client_context(r.ca, r.cert or None, r.key or None, r.policy, r.passphrase())
             self.listener = socket.create_server(hostport(r.listen, "127.0.0.1"), backlog=128, reuse_port=reuse_port)
             self.port = self.listener.getsockname()[1]
@@ -164,10 +164,10 @@ class Edge:
         """The originate context, rebuilt when its certificate, key or CA changed (renewals need no restart)."""
         r = self.route
         try:
-            mtimes = [os.stat(p).st_mtime for p in self.watch]
-            if mtimes != self.mtimes:
+            stamps = [file_stamp(p) for p in self.watch]
+            if stamps != self.stamps:
                 self.ctx = tls.client_context(r.ca, r.cert or None, r.key or None, r.policy, r.passphrase())
-                self.mtimes = mtimes
+                self.stamps = stamps
                 self.stats.add("reloads")
                 log.info("%s: reloaded certificates", r.name)
         except (tls.TLSError, OSError, ValueError) as e:
