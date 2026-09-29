@@ -9,7 +9,7 @@ So a release can say "passed the defined gates", and nothing more than that.
 
 | Gate | What must pass on the commit |
 |---|---|
-| Correct | Unit tests on Linux and Windows (Python 3.11, 3.13), including the fuzz, property, replay, crash, race, downgrade, recovery and secret-leak tests; the full suite against real nginx, PostgreSQL, Redis, MQTT and SSH on Debian 13 with OpenSSL 3.5; the clinic and bank demos; the website and console in Chromium with accessibility checks; lint |
+| Correct | Unit tests on Linux and Windows (Python 3.11, 3.13) and macOS, including the fuzz, property, replay, crash, race, downgrade, recovery and secret-leak tests; the full suite against real nginx, PostgreSQL, Redis, MQTT and SSH on Debian 13 with OpenSSL 3.5; the clinic and bank demos; the website and console in Chromium with accessibility checks; lint |
 | Secure | pip-audit on runtime and optional dependencies; Trivy on the container image (fixable HIGH/CRITICAL fail unless triaged in `.trivyignore.yaml`); Wolf Pack finds no new high-risk cryptography against `docs/cbom.json`; CodeQL on Python, JavaScript and the workflows |
 | Operational | Helm install in a kind cluster with a post-quantum request through the edge and a CRL fetched from the CA; IPsec and WireGuard with real traffic in network namespaces, including revocation; the Packer template and provisioning on Debian 13 |
 
@@ -31,5 +31,5 @@ Update this list when one of these is done; every release report copies it as it
 | Property-based testing | `tests/test_properties.py` (Hypothesis): Vault round trips and bit flips, HTTP parsing under any network split, DER, base64url, addresses, serial lookup, SAN and JWK parsing |
 | Replay testing | ACME nonces, one-time EST tokens and older CRLs, plus `tests/test_replay.py`: a recorded mutual-TLS session sent again never reaches the application, and TLS 1.3 early data (0-RTT) is never enabled |
 | Performance on production hardware, and under load | Every release measures sustained load on the runner (the "Load" row above); production hardware: [PILOT.md](PILOT.md) part 3 |
-| macOS | The unit and TLS tests run in CI on macOS with Homebrew OpenSSL; Windows and macOS VPN clients are not available |
+| macOS | The unit and TLS tests pass in CI on macOS with Homebrew OpenSSL, a release gate; Windows and macOS VPN clients are not available |
 | Security snapshot comparison between releases (SBOM and CBOM diffs) | Done: each release report lists dependency and cryptographic-asset changes since the previous release |

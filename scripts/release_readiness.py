@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 GATES = {  # gate: [(what it shows, check run name or prefix, how many)]
     "Correct": [("Unit tests, Linux and Windows, Python 3.11 and 3.13", "ci/unit (", 4),
                 ("Full suite with nginx, PostgreSQL, Redis, MQTT, SSH; clinic and bank demos", "ci/tls", 1),
+                ("Unit and TLS tests on macOS with Homebrew OpenSSL", "ci/macos", 1),
                 ("Website and console in Chromium, with accessibility checks", "ci/browser", 1), ("Lint", "ci/lint", 1)],
     "Secure": [("Known vulnerabilities in dependencies (pip-audit)", "ci/audit", 1),
                ("Container image: Trivy, fixable HIGH/CRITICAL", "ci/docker", 1),
