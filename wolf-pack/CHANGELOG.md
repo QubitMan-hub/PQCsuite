@@ -2,7 +2,7 @@
 
 Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Suite repository; its GitHub release carries the wheel and build provenance.
 
-## Unreleased
+## 1.2.1 (29 September 2026)
 
 - **Acxelin look:** the report, the organisation dashboard and the project page use Acxelin Quantum's colours, typeface and logo, in light and dark, like the PQC Suite console. Reports stay single self-contained files (the typeface is embedded; nothing is fetched). Tiers show as coloured labels instead of block marks; the terminal output is unchanged.
 

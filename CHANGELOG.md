@@ -2,11 +2,13 @@
 
 Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; it is published only when every CI and CodeQL job passed on its commit, and its GitHub release carries the wheel, `RELEASE_READINESS.md`, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`), a CycloneDX SBOM, the tested dependency versions and build provenance. From 0.2.0 the container image is published to `ghcr.io/qubitman-hub/pqcsuite`.
 
-## Unreleased
+## 0.2.2 (29 September 2026)
+
+Proof and polish: more of what was not yet validated now runs on every release, every report carries the Acxelin look, and code scanning findings are fixed.
 
 - **More of the "Not yet validated" list done** ([docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)): property-based tests with Hypothesis (`tests/test_properties.py`); replay of a recorded mutual-TLS session, and no TLS 1.3 early data (`tests/test_replay.py`); a soak test (`scripts/soak.py`) that runs for 2 hours every week in CI; sustained load in each release's benchmark; the unit and TLS tests on macOS in CI. Each release report now lists the dependency and cryptographic-asset changes since the previous release. What still needs your own accounts or hardware (cloud images, managed Kubernetes, production hardware, an independent review) is scripted in [docs/PILOT.md](docs/PILOT.md).
 - **Acxelin look for every report:** the readiness report and the compliance evidence report now match the console (colours, typeface, logo, light and dark), and remain single self-contained files.
-- **From code scanning:** the console opened an error instead of the overview for addresses naming a built-in property (`#constructor`); the ACME server's own HTTPS listener accepts TLS 1.3 only (its key exchange stays classical, as SECURITY.md records); request paths in the ACME error log are quoted, so a crafted path cannot forge log lines. CodeQL no longer scans the deliberately weak cryptography that Wolf Pack's benchmark and the sample scans must find.
+- **From code scanning:** the console opened an error instead of the overview for addresses naming a built-in property (`#constructor`); the ACME server's own HTTPS listener accepts TLS 1.3 only (its key exchange stays classical, as SECURITY.md records); line breaks are removed from request paths before the ACME error log records them, so a crafted path cannot forge log lines. CodeQL no longer scans the deliberately weak cryptography that Wolf Pack's benchmark and the sample scans must find.
 - **Fixed:** `readiness scan` did not warn about an untrusted certificate (a private CA, or a TLS-inspecting proxy) on servers without TLS 1.3, the usual classical case.
 
 ## 0.2.1 (29 September 2026)
