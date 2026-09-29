@@ -10,7 +10,7 @@ import threading
 from pathlib import Path
 
 from . import JSON, METRICS, NAME, PEM, ConfigWatch, __version__, env_passphrase, explain, restart, serve_http, tls
-from .pki import ALGORITHMS, CA, CA_ALGORITHMS, CAError, encrypted
+from .pki import ALGORITHMS, CA, CA_ALGORITHMS, REASONS, CAError, encrypted
 from .vault import VaultError
 from .vpn.charon import CharonError
 from .vpn.wireguard import WGError
@@ -165,10 +165,10 @@ def cmd_tls(a):
             while data := conn.recv(timeout=300):
                 conn.sendall(data)
 
-        srv = Server(parse_addr(a.listen), make, echo, watch=[a.cert, a.key, a.ca], crl=a.crl, ca=a.ca, name="serve")
+        srv = Server(tls.hostport(a.listen), make, echo, watch=[a.cert, a.key, a.ca], crl=a.crl, ca=a.ca, name="serve")
         run_until_signal(srv.serve_forever, srv.stop)
         return 0
-    host, port = parse_addr(a.target, "")
+    host, port = tls.hostport(a.target, "")
     ctx = tls.client_context(a.ca, a.cert, a.key, a.policy, env_passphrase(a.key_passphrase_env))
     try:
         conn = tls.connect(host, port, ctx, a.server_name, a.timeout)
@@ -253,7 +253,7 @@ def cmd_edge(a):
     worker = bool(os.environ.get(WORKER))
     shared = a.workers > 1 or worker
     if shared:
-        if any(parse_addr(r.listen)[1] == 0 for r in routes):
+        if any(tls.hostport(r.listen)[1] == 0 for r in routes):
             raise ValueError("--workers needs a fixed listen port, not 0")
         if not sys.platform.startswith("linux"):
             raise ValueError("--workers needs Linux, where the kernel spreads connections over the processes (SO_REUSEPORT)")
@@ -585,11 +585,6 @@ def cmd_report(a):
     return 0 if not s["action"] else 2
 
 
-def parse_addr(s, default_host="0.0.0.0"):
-    from .tls import hostport
-    return hostport(s, default_host)
-
-
 def positive(kind):
     def check(s):
         try:
@@ -623,10 +618,55 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(out)
 
 
+# Help for options many commands share, filled in wherever a command gives none of its own
+HELP = {
+    "key_passphrase_env": "the key's passphrase is in this environment variable",
+    "passphrase_env": "the key's passphrase is in this environment variable (otherwise you are asked)",
+    "sign_key": "the signing certificate's private key",
+    "sign_passphrase_env": "the signing key's passphrase is in this environment variable",
+    "json": "print JSON instead of text",
+    "timeout": "seconds to wait for each connection",
+    "workers": "endpoints scanned at once",
+    "vici": "strongSwan's control socket (default: unix:///var/run/charon.vici)",
+    "interface": "the WireGuard interface (default: wg0)",
+    "san": "another DNS name or IP address the certificate covers (repeatable)",
+    "days": "certificate lifetime in days",
+    "algorithm": "the key's algorithm",
+    "out": "folder to write to",
+    "file": "the Vault file (.pqv)",
+    "source": "the file or folder to encrypt",
+    "serial": "from `ca list`; the first 8 or more hex characters are enough",
+    "kind": "server, client, or site (a VPN gateway: both)",
+    "common_name": "the name it certifies, e.g. web.corp.example",
+    "csr": "the certificate signing request (PEM)",
+    "recipient": "a recipient's .pub file (repeatable)",
+    "no_passphrase": "leave the private key unencrypted",
+    "names": "the DNS names the certificate is for",
+    "server_name": "the name in the server's certificate, if not its host",
+    "html": "also write the report as a web page here",
+    "backups": "a folder of Vault backups to include",
+    "note": "a note to remember whom the key is for",
+    "service": "the service to put behind the edge",
+    "tls_key": "the --tls-cert private key",
+    "ca": "the CA certificate to trust",
+    "key": "the private key",
+    "verbose": "log debugging detail",
+}
+
+
+def explain_options(p):
+    for a in p._actions:
+        if isinstance(a, argparse._SubParsersAction):
+            for c in a.choices.values():
+                explain_options(c)
+        elif a.help is None and a.dest in HELP:
+            a.help = HELP[a.dest]
+
+
 def tls_client_args(p):
     p.add_argument("target", help="host:port")
     p.add_argument("--server-name", help="name the certificate must match (default: host)")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict", help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024 and ML-DSA-87 only")
     p.add_argument("--timeout", type=float, default=10.0)
     p.add_argument("--json", action="store_true")
 
@@ -654,14 +694,21 @@ def parser():
     p = t.add_parser("edge", help="post-quantum TLS in front of any TCP service, or a tunnel to one")
     p.set_defaults(func=cmd_edge)
     p.add_argument("--config", help="TOML file with [[edge]] routes; replaces the flags below")
-    p.add_argument("--mode", choices=["terminate", "originate"], default="terminate")
+    p.add_argument("--mode", choices=["terminate", "originate"], default="terminate",
+                   help="terminate: post-quantum TLS in front of --target; originate: plain local clients reach a remote edge at --target")
     p.add_argument("--listen", default="0.0.0.0:8443", help="host:port (default: every interface, port 8443)")
     p.add_argument("--target", help="upstream host:port (terminate) or remote edge host:port (originate)")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
-    for flag in ("--cert", "--key", "--key-passphrase-env", "--ca", "--crl", "--crl-url", "--server-name", "--metrics"):
-        p.add_argument(flag)
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict", help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024 and ML-DSA-87 only")
+    for flag, text in (("--cert", "the edge's certificate chain (chain.pem)"), ("--key", "its private key (key.pem)"),
+                       ("--key-passphrase-env", "the key's passphrase is in this environment variable"),
+                       ("--ca", "CA certificate that client certificates (terminate) or the remote edge (originate) must chain to"),
+                       ("--crl", "refuse certificates revoked in this CRL file"),
+                       ("--crl-url", "fetch the CRL from here every minute (from `ca publish`), into --crl"),
+                       ("--server-name", "originate: the name in the remote edge's certificate, if not its host"),
+                       ("--metrics", "host:port for /metrics (Prometheus), /healthz and /status, e.g. 127.0.0.1:9100")):
+        p.add_argument(flag, help=text)
     p.add_argument("--fallback-cert", help="with --policy transition: an ECDSA or RSA certificate for browsers that cannot verify ML-DSA")
-    p.add_argument("--fallback-key")
+    p.add_argument("--fallback-key", help="the fallback certificate's private key")
     p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
     p.add_argument("--proxy-protocol", action="store_true", help="send a PROXY v1 header so the upstream sees the client address")
     p.add_argument("--workers", type=int, default=1, help="processes sharing the listen ports, e.g. one per CPU core (Linux)")
@@ -673,7 +720,7 @@ def parser():
     p.add_argument("--out", help="folder to create (default: SERVICE-pqc)")
     p.add_argument("--ca", help="use this existing CA folder instead of creating one")
     p.add_argument("--mtls", action="store_true", help="clients must present a certificate from the CA")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict", help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024 and ML-DSA-87 only")
     p = t.add_parser("serve", help="an echo server, for testing clients")
     p.set_defaults(func=cmd_tls)
     p.add_argument("--listen", default="0.0.0.0:8443", help="host:port (default: every interface, port 8443)")
@@ -683,7 +730,7 @@ def parser():
     p.add_argument("--ca", help="CA that signs client certificates")
     p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
     p.add_argument("--crl", help="refuse revoked client certificates")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict", help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024 and ML-DSA-87 only")
     p = t.add_parser("connect", help="handshake, optionally send a message, print what was negotiated")
     p.set_defaults(func=cmd_tls)
     tls_client_args(p)
@@ -698,14 +745,14 @@ def parser():
     common.add_argument("--dir", default="pki", help="CA folder (default: pki)")
     p = ca.add_parser("init", parents=[common], help="create a root or intermediate CA",
                       epilog='example: pqcsuite ca init --name "Example Root CA" --dir pki')
-    p.add_argument("--name", required=True)
+    p.add_argument("--name", required=True, help="the CA's name, shown in every certificate it issues, e.g. \"Acme PQC Root\"")
     p.add_argument("--algorithm", choices=CA_ALGORITHMS, default="ML-DSA-87", help="SLH-DSA keys need OpenSSL 3.5+")
     p.add_argument("--parent", help="the CA folder that signs this one, making it an intermediate CA")
     p.add_argument("--kms", metavar="KEY_ID", help="keep the CA key in AWS KMS (an ML_DSA_* key); needs boto3")
-    p.add_argument("--kms-region")
+    p.add_argument("--kms-region", help="the KMS key's AWS region (default: from your AWS configuration)")
     p.add_argument("--signer-command", nargs="+", metavar="ARG", help="an HSM tool that reads data on stdin and writes the signature")
     p.add_argument("--signer-public-key", help="PEM public key of the --signer-command key")
-    p.add_argument("--days", type=int, default=3650)
+    p.add_argument("--days", type=int, default=3650, help="the CA certificate's lifetime (default: 3650, ten years)")
     enc = p.add_mutually_exclusive_group()
     enc.add_argument("--encrypt", action="store_true", help=argparse.SUPPRESS)  # the default now; still accepted from older scripts
     enc.add_argument("--no-encrypt", action="store_true",
@@ -729,15 +776,16 @@ def parser():
     p.add_argument("csr")
     p.add_argument("--kind", choices=["server", "client", "site"], required=True)
     p.add_argument("--days", type=int, default=397)
-    p.add_argument("--out", required=True)
+    p.add_argument("--out", required=True, help="the certificate file to write")
     p = ca.add_parser("revoke", parents=[common], help="revoke a certificate and refresh the CRL")
     p.add_argument("serial")
-    p.add_argument("--reason", default="unspecified")
+    p.add_argument("--reason", default="unspecified", choices=["unspecified", *REASONS],
+                   help="recorded in the CRL; keyCompromise when the key was stolen or exposed")
     p = ca.add_parser("crl", parents=[common], help="re-sign the CRL (do this before it expires)")
-    p.add_argument("--days", type=positive(int), default=7)
+    p.add_argument("--days", type=positive(int), default=7, help="how long the CRL is valid (default: 7); re-sign it before then")
     p = ca.add_parser("maintain", parents=[common], help="renew what expires soon and refresh the CRL (run daily)")
-    p.add_argument("--renew-within", type=int, default=30, metavar="DAYS")
-    p.add_argument("--crl-days", type=positive(int), default=7)
+    p.add_argument("--renew-within", type=int, default=30, metavar="DAYS", help="renew certificates expiring within DAYS (default: 30)")
+    p.add_argument("--crl-days", type=positive(int), default=7, help="how long the re-signed CRL is valid (default: 7 days)")
     p = ca.add_parser("list", parents=[common], help="list issued certificates")
     p.add_argument("--expiring", type=int, metavar="DAYS", help="only those expiring within DAYS")
     p.add_argument("--json", action="store_true")
@@ -745,7 +793,7 @@ def parser():
     p.add_argument("kind", choices=["server", "client", "site"])
     p.add_argument("common_name")
     p.add_argument("--san", action="append", default=[])
-    p.add_argument("--hours", type=positive(float), default=24)
+    p.add_argument("--hours", type=positive(float), default=24, help="how long the token can be used (default: 24)")
     p = ca.add_parser("publish", parents=[common], help="serve crl.pem and ca.crt over HTTP, for edges and gateways to follow (crl_url)")
     p.add_argument("--listen", default="0.0.0.0:8080", help="host:port (default: every interface, port 8080)")
     p = ca.add_parser("serve", parents=[common], help="EST enrollment service (RFC 7030) over post-quantum TLS")
@@ -838,24 +886,18 @@ def parser():
         p.add_argument("--sign-cert", help="sign with this CA-issued ML-DSA certificate")
         p.add_argument("--sign-key")
         p.add_argument("--sign-passphrase-env")
-    p = q.add_parser("decrypt", help="decrypt and verify")
-    p.add_argument("file")
-    p.add_argument("-k", "--key", required=True, help="your .key file")
-    p.add_argument("-o", "--out", default=".", metavar="FOLDER",
-                   help="folder to restore into (default: this one); the original file or folder name is kept inside it")
-    p.add_argument("--passphrase-env")
-    p.add_argument("--ca", help="the signer's certificate must chain to this CA")
-    p.add_argument("--crl", help="and must not be revoked")
-    p.add_argument("--signer", help="and must have this common name")
-    p.add_argument("--require-signature", action="store_true")
-    p = q.add_parser("verify", help="restore drill: prove an archive opens with this key and is intact, writing nothing")
-    p.add_argument("file")
-    p.add_argument("-k", "--key", required=True, help="your .key file")
-    p.add_argument("--passphrase-env")
-    p.add_argument("--ca", help="the signer's certificate must chain to this CA")
-    p.add_argument("--crl", help="and must not be revoked")
-    p.add_argument("--signer", help="and must have this common name")
-    p.add_argument("--require-signature", action="store_true")
+    for name, text in (("decrypt", "decrypt and verify"), ("verify", "restore drill: prove an archive opens with this key and is intact, writing nothing")):
+        p = q.add_parser(name, help=text)
+        p.add_argument("file")
+        p.add_argument("-k", "--key", required=True, help="your .key file")
+        if name == "decrypt":
+            p.add_argument("-o", "--out", default=".", metavar="FOLDER",
+                           help="folder to restore into (default: this one); the original file or folder name is kept inside it")
+        p.add_argument("--passphrase-env", metavar="VAR", help="the key's passphrase is in this environment variable (otherwise you are asked)")
+        p.add_argument("--ca", help="the signer's certificate must chain to this CA")
+        p.add_argument("--crl", help="and must not be revoked")
+        p.add_argument("--signer", help="and must have this common name")
+        p.add_argument("--require-signature", action="store_true", help="refuse a file that is not signed")
     p = q.add_parser("share", help="let more recipients open a file, without re-encrypting it")
     p.add_argument("file")
     p.add_argument("-k", "--key", required=True, help="your .key file (you must be able to open the file)")
@@ -900,6 +942,7 @@ def parser():
     p.add_argument("--scan", action="append", default=[], metavar="HOST:PORT", help="an endpoint for readiness scans (repeatable)")
     p.add_argument("--scan-every", type=float, metavar="HOURS", help="scan those endpoints again every HOURS and show what changed")
     p.add_argument("--check-updates", action="store_true", help="show when a newer release is out (asks GitHub once a day)")
+    explain_options(ap)
     return ap
 
 

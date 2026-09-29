@@ -161,6 +161,21 @@ class CLITest(unittest.TestCase):
             self.assertIn("expected a number above 0", err.getvalue(), argv)
         self.assertIn("no CA at", self.fails("console", "--ca", self.d / "nowhere", "--listen", "127.0.0.1:0"))
 
+    def test_every_option_explains_itself(self):
+        import argparse
+        from pqcsuite.cli import parser
+        missing = []
+
+        def walk(p, path):
+            for a in p._actions:
+                if isinstance(a, argparse._SubParsersAction):
+                    for name, sub in a.choices.items():
+                        walk(sub, [*path, name])
+                elif not a.help:
+                    missing.append(" ".join([*path, "/".join(a.option_strings) or a.dest]))
+        walk(parser(), ["pqcsuite"])
+        self.assertEqual(missing, [])
+
     def test_first_steps_are_explained(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
