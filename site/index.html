@@ -150,8 +150,14 @@
             <li>Machines enrol and renew by themselves over EST or ACME</li>
             <li>Renewed certificates load without a restart</li>
           </ul></div>
+          <ol class="flow run" aria-label="Clients connect to the edge over post-quantum TLS; the edge passes plain TCP to your unchanged service">
+            <li><b>Clients</b><span>browsers, apps, partners</span></li>
+            <li class="hop"><span>TLS 1.3 with <i>ML-KEM</i> + <i>ML-DSA</i></span></li>
+            <li class="edge"><b>pqcsuite edge</b><span>post-quantum front door</span></li>
+            <li class="hop"><span>plain TCP</span></li>
+            <li><b>Your service</b><span>nginx, PostgreSQL, Redis, MQTT or any TCP service</span></li>
+          </ol>
           <div class="run"><pre>pqcsuite tls edge --target 127.0.0.1:8080 --cert chain.pem --key key.pem</pre></div>
-          <p class="with run">Works in front of nginx, PostgreSQL, Redis, MQTT brokers and any other TCP service.</p>
         </div>
       </article>
 
