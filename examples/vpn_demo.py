@@ -41,7 +41,7 @@ def charon_path():
 
 def wireguard_ready():
     kernel = Path("/sys/module/wireguard").exists() or shutil.which("modprobe") and sh("modprobe", "wireguard", check=False).returncode == 0
-    return shutil.which("wg") and (kernel or shutil.which("wireguard-go") or os.environ.get("PQCSUITE_WIREGUARD_GO"))
+    return shutil.which("wg") and shutil.which("wg-quick") and (kernel or shutil.which("wireguard-go") or os.environ.get("PQCSUITE_WIREGUARD_GO"))
 
 
 class VPNDemo(Demo):

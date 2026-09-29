@@ -8,6 +8,8 @@ revoked) is removed from the gateway.
 
 Each user (certificate common name) gets a stable address from the pool. A second device with the same certificate replaces
 the first. A client listed under `sites` also routes the subnets behind it, which makes the same gateway a site-to-site hub.
+With `full_tunnel`, clients send all their traffic through the gateway, which forwards it with NAT; their kill switch keeps
+anything from leaving outside the tunnel (see platforms.py).
 """
 import base64
 import ipaddress
@@ -18,7 +20,6 @@ import platform
 import secrets
 import shutil
 import subprocess
-import tempfile
 import threading
 import time
 from collections import Counter
@@ -34,6 +35,7 @@ from ..pki import CAError, follow_crl, write
 from ..tls import hostport
 from ..tls.server import Server
 from .controller import TAG, common_name, read_line
+from .platforms import FULL, WG, WGError, addresses, this_machine
 
 log = logging.getLogger("pqcsuite.wireguard")
 LIVE = {"users", "routes", "dns", "sites", "rotate_minutes"}
@@ -66,57 +68,6 @@ def context(gateway, client, tag, client_public, gateway_public):
     return "|".join((gateway, client, tag, client_public, gateway_public)).encode()
 
 
-class WGError(Exception):
-    pass
-
-
-SECRET = object()
-
-
-class WG:
-    """The `wg` tool, which drives the Linux kernel module and wireguard-go alike. Keys go through an owner-only temp file."""
-
-    def __init__(self, interface, tool="wg"):
-        self.interface, self.tool = interface, tool
-
-    def run(self, *args, secret=None):
-        name = None
-        try:
-            if secret:
-                fd, name = tempfile.mkstemp()
-                with os.fdopen(fd, "w") as f:
-                    f.write(secret + "\n")
-            r = subprocess.run([self.tool, *(name if a is SECRET else a for a in args)], capture_output=True, text=True, timeout=15)
-        except FileNotFoundError:
-            raise WGError(f"the {self.tool} tool is not installed (wireguard-tools)") from None
-        except subprocess.TimeoutExpired:
-            raise WGError(f"wg {args[0]} gave no answer within 15 s") from None
-        finally:
-            if name:
-                os.unlink(name)
-        if r.returncode:
-            raise WGError(f"wg {args[0]}: {r.stderr.strip() or r.returncode}")
-        return r.stdout
-
-    def set_private_key(self, key, listen_port=None):
-        self.run("set", self.interface, "private-key", SECRET, *(["listen-port", str(listen_port)] if listen_port else []), secret=key)
-
-    def set_peer(self, public, psk, allowed_ips, endpoint=None, keepalive=None):
-        extra = (["endpoint", endpoint] if endpoint else []) + (["persistent-keepalive", str(keepalive)] if keepalive else [])
-        self.run("set", self.interface, "peer", public, "preshared-key", SECRET, "allowed-ips", ",".join(allowed_ips), *extra, secret=psk)
-
-    def remove_peer(self, public):
-        self.run("set", self.interface, "peer", public, "remove")
-
-    def peers(self):
-        out = {}
-        for line in self.run("show", self.interface, "dump").splitlines()[1:]:
-            pub, psk, endpoint, allowed, handshake, rx, tx, _ = line.split("\t")
-            out[pub] = {"endpoint": None if endpoint == "(none)" else endpoint, "allowed_ips": allowed.split(","), "psk": psk != "(none)",
-                        "latest_handshake": int(handshake), "rx_bytes": int(rx), "tx_bytes": int(tx)}
-        return out
-
-
 def ensure_interface(name, address, routes=()):
     """Linux: create the WireGuard interface (kernel module, else wireguard-go), give it its address and routes, bring it up."""
     if platform.system() != "Linux":
@@ -135,6 +86,23 @@ def ensure_interface(name, address, routes=()):
         r = ip(*args)
         if r.returncode:
             raise WGError(f"ip {' '.join(args)}: {r.stderr.strip()}")
+
+
+def forward(interface, pool, on=True):
+    """Linux, full tunnel: route clients' traffic onwards, NAT it to the gateway's own address, and let the replies back."""
+    if on:
+        Path("/proc/sys/net/ipv4/ip_forward").write_text("1")
+    rules = [["-t", "nat", "POSTROUTING", "-s", pool, "!", "-o", interface, "-j", "MASQUERADE"], ["FORWARD", "-i", interface, "-j", "ACCEPT"],
+             ["FORWARD", "-o", interface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"]]
+    for rule in rules:
+        table, chain, spec = (rule[:2], rule[2], rule[3:]) if rule[0] == "-t" else ([], rule[0], rule[1:])
+        present = subprocess.run(["iptables", *table, "-C", chain, *spec], capture_output=True).returncode == 0
+        if on and not present:
+            r = subprocess.run(["iptables", *table, "-I", chain, "1", *spec], capture_output=True, text=True)
+            if r.returncode:
+                raise WGError(f"iptables: {r.stderr.strip()}")
+        elif not on and present:
+            subprocess.run(["iptables", *table, "-D", chain, *spec], capture_output=True)
 
 
 @dataclass
@@ -161,6 +129,7 @@ class GatewayConfig:
     rotate_minutes: float = 2.0
     metrics: str = ""
     manage_interface: bool = True
+    full_tunnel: bool = False
 
     @property
     def network(self):
@@ -176,7 +145,7 @@ class GatewayConfig:
             raise ValueError("pool is too small")
         for r in self.routes + [n for v in self.sites.values() for n in v]:
             if ipaddress.ip_network(r).prefixlen == 0:
-                raise ValueError("full-tunnel routes (0.0.0.0/0) are not supported yet; list the networks behind the gateway")
+                raise ValueError("list the networks behind the gateway in routes; for all traffic set full_tunnel = true")
         hostport(self.endpoint)
         hostport(self.keyring_listen)
         if self.crl_url and not self.crl:
@@ -244,8 +213,9 @@ class Gateway:
             self.clients[cn] = {"public": pub, "serial": cert.serial_number, "agreed": time.time(), "address": ip, "tag": tag}
         self.counts["key_agreements"] += 1
         log.info("%s: %s at %s, new PSK %s", cn, "rotated" if old else "connected", ip, tag)
+        routes = FULL if self.cfg.full_tunnel else [str(self.cfg.network)] + self.cfg.routes
         reply = {"ok": True, "address": f"{ip}/{self.cfg.network.prefixlen}", "gateway": self.cfg.name, "gateway_public": self.public,
-                 "endpoint": self.cfg.endpoint, "routes": [str(self.cfg.network)] + self.cfg.routes, "dns": self.cfg.dns,
+                 "endpoint": self.cfg.endpoint, "routes": routes, "dns": self.cfg.dns,
                  "rotate_s": int(self.cfg.rotate_minutes * 60)}
         conn.sendall(json.dumps(reply).encode() + b"\n")
 
@@ -277,6 +247,8 @@ class Gateway:
         c = self.cfg
         if c.manage_interface:
             ensure_interface(c.interface, f"{c.address}/{c.network.prefixlen}", [n for v in c.sites.values() for n in v])
+            if c.full_tunnel:
+                forward(c.interface, c.pool)
         self.wg.set_private_key(self.private, c.listen_port)
         for stale in self.wg.peers():
             self.wg.remove_peer(stale)
@@ -298,6 +270,8 @@ class Gateway:
 
     def shutdown(self):
         self.stop.set()
+        if self.cfg.full_tunnel and self.cfg.manage_interface:
+            forward(self.cfg.interface, self.cfg.pool, on=False)
         if self.crl_follow:
             self.crl_follow.set()
         if self.server:
@@ -338,18 +312,24 @@ class Gateway:
 
 
 class Client:
-    """A laptop or branch: agrees a PSK with the gateway, configures WireGuard, and repeats before the PSK goes stale."""
+    """A laptop or branch: agrees a PSK with the gateway, runs the tunnel with this machine's WireGuard, and repeats before the PSK
+    goes stale. The schedule follows the wall clock, so keys are renewed right after the machine wakes from sleep; a tunnel that
+    stopped working is taken down so the gateway can be reached directly, then brought back with fresh keys."""
 
-    def __init__(self, keyring, folder, interface="wg0", server_name=None, apply=True, config_out=None, key_passphrase=None, wg=None, ca=None):
+    def __init__(self, keyring, folder, interface="wg0", server_name=None, apply=True, config_out=None, key_passphrase=None, ca=None,
+                 tunnel=None, kill_switch=None):
         self.host, self.port = hostport(keyring)
         self.server_name = server_name or self.host
         self.dir = Path(folder)
         self.ca = ca or self.dir / "ca.crt"
         self.name = common_name(x509.load_pem_x509_certificate((self.dir / "cert.pem").read_bytes()))
-        self.interface, self.apply_, self.config_out, self.passphrase = interface, apply, config_out, key_passphrase
-        self.wg = wg or WG(interface)
+        self.apply_, self.config_out, self.passphrase = apply, config_out, key_passphrase
+        if apply and not tunnel:
+            tunnel, kill_switch = this_machine(interface)
+        self.tunnel, self.kill_switch = tunnel, kill_switch
         self.private, self.public = private_key(self.dir / "wireguard.key")
         self.applied, self.stop = None, threading.Event()
+        self.due, self.failures = 0.0, 0
 
     def agree(self):
         ctx = tls.client_context(self.ca, self.dir / "chain.pem", self.dir / "key.pem", "strict", self.passphrase)
@@ -364,11 +344,17 @@ class Client:
 
     def apply(self, reply, psk):
         if self.apply_:
-            if self.applied != reply["address"]:
-                ensure_interface(self.interface, reply["address"], [r for r in reply["routes"] if r != str(ipaddress.ip_interface(reply["address"]).network)])
-                self.wg.set_private_key(self.private)
-                self.applied = reply["address"]
-            self.wg.set_peer(reply["gateway_public"], psk, reply["routes"], reply["endpoint"], 25)
+            shape = {k: reply[k] for k in ("address", "routes", "dns", "endpoint", "gateway_public")}
+            if self.applied != shape or not self.tunnel.up_:
+                self.tunnel.up(wg_quick(self.private, reply | {"routes": self.tunnel.routes(reply["routes"])}, psk))
+                self.applied = shape
+            else:
+                self.tunnel.wg().set_psk(reply["gateway_public"], psk)
+            if "0.0.0.0/0" in reply["routes"]:
+                host, port = hostport(reply["endpoint"])
+                self.kill_switch.on(self.tunnel.device(), (addresses(host), port), (addresses(self.host), self.port))
+            else:
+                self.kill_switch.off()
         if self.config_out:
             write(Path(self.config_out), wg_quick(self.private, reply, psk).encode(), secret=True)
 
@@ -377,22 +363,47 @@ class Client:
         self.apply(reply, psk)
         return reply
 
-    def run(self):
-        backoff = 5
-        while not self.stop.is_set():
+    def quiet(self):
+        """The tunnel is up but WireGuard has not completed a handshake for over three minutes (it does one every two)."""
+        if not (self.apply_ and self.tunnel.up_ and self.applied):
+            return False
+        try:
+            age = self.tunnel.handshake_age(self.applied["gateway_public"])
+        except (WGError, OSError):
+            return False
+        return age is not None and age > 180
+
+    def step(self):
+        """One pass of the loop; returns how long to wait before the next."""
+        if time.time() >= self.due or self.quiet():
             try:
                 reply = self.once()
                 log.info("connected as %s through %s; next key in %ds", reply["address"], reply["endpoint"], reply["rotate_s"])
-                backoff, wait = 5, reply["rotate_s"]
+                self.failures, self.due = 0, time.time() + reply["rotate_s"]
             except (tls.TLSError, WGError, OSError, ValueError, KeyError) as e:
-                log.warning("key agreement failed: %s; retrying in %ds", explain(e), backoff)
-                wait, backoff = backoff, min(backoff * 2, 60)
-            self.stop.wait(wait)
+                self.failures += 1
+                retry = min(5 * 2 ** (self.failures - 1), 60)
+                log.warning("key agreement failed: %s; retrying in %ds", explain(e), retry)
+                if self.apply_ and self.tunnel.up_:
+                    log.warning("taking the tunnel down to reach the gateway directly")
+                    self.tunnel.down()
+                    retry = 1
+                self.due = time.time() + retry
+        return max(0.5, min(5.0, self.due - time.time()))
+
+    def run(self):
+        while not self.stop.is_set():
+            self.stop.wait(self.step())
+
+    def close(self):
+        """Take the tunnel down and lift the kill switch (after a deliberate stop; a crash leaves both, failing closed)."""
+        if self.apply_:
+            self.tunnel.down()
+            self.kill_switch.off()
 
 
 def wg_quick(private, reply, psk):
-    """A wg-quick / WireGuard app configuration. Its PSK is only good until the next rotation, so it is for inspection and
-    for platforms where `pqcsuite vpn connect --config-out` keeps rewriting it."""
+    """A wg-quick / WireGuard for Windows configuration. Its PSK is good until the next rotation, which `vpn connect` sets in place."""
     dns = f"DNS = {', '.join(reply['dns'])}\n" if reply["dns"] else ""
     return (f"[Interface]\nPrivateKey = {private}\nAddress = {reply['address']}\n{dns}\n[Peer]\nPublicKey = {reply['gateway_public']}\n"
             f"PresharedKey = {psk}\nEndpoint = {reply['endpoint']}\nAllowedIPs = {', '.join(reply['routes'])}\nPersistentKeepalive = 25\n")

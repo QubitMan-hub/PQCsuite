@@ -44,6 +44,9 @@ class ConfigTest(unittest.TestCase):
         for bad in ({"routes": ["0.0.0.0/0"]}, {"pool": "10.0.0.0/31"}, {"rotate_minutes": 0.1}, {"sites": {"b": ["nope"]}}):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 self.config(**bad).validate()
+        with self.assertRaisesRegex(ValueError, "full_tunnel = true"):
+            self.config(routes=["0.0.0.0/0"]).validate()
+        self.assertTrue(self.config(full_tunnel=True).validate().full_tunnel)
 
 
 @unittest.skipIf(REASON, REASON)
@@ -89,6 +92,11 @@ class GatewayTest(unittest.TestCase):
         alice.apply(reply2, psk2)
         self.assertIn(f"PresharedKey = {psk2}", (self.d / "alice.conf").read_text())
         self.assertEqual(Gateway(self.cfg, FakeWG()).lease("alice"), "10.99.0.2")
+
+    def test_full_tunnel_sends_everything_through_the_gateway(self):
+        self.gw.cfg.full_tunnel = True
+        reply, _ = self.client("alice").agree()
+        self.assertEqual(reply["routes"], ["0.0.0.0/0", "::/0"], "IPv6 goes into the tunnel too, where the gateway drops it")
 
     def test_sites_route_their_subnets(self):
         b = self.client("branch")
@@ -176,38 +184,44 @@ def sh(*cmd, check=True):
     return subprocess.run(cmd, check=check, capture_output=True, text=True)
 
 
-@unittest.skipUnless(not REASON and wireguard_available(), "needs root, iproute2, wireguard-tools and WireGuard (kernel or PQCSUITE_WIREGUARD_GO)")
-class RemoteAccessTest(unittest.TestCase):
-    """gateway (10.40.0.1, LAN 192.168.10.1) <- laptop (10.40.0.2) over WireGuard with a PSK from ML-DSA mutual TLS."""
+class Namespaces(unittest.TestCase):
+    """Network namespaces joined by veth pairs, a CA, and pqcsuite processes run inside them."""
+    NAMESPACES, TUNNELS = (), ()
 
     def setUp(self):
         self.d = d = Path(tempfile.mkdtemp())
         self.procs = []
         self.addCleanup(self.teardown)
         self.ca = CA.init(d / "pki", "VPN Root")
-        self.ca.issue("vpn.acme", "server", ["10.40.0.1"], out=d / "gw")
+        self.ca.issue("vpn.acme", "server", [self.GATEWAY], out=d / "gw")
         _, self.laptop = self.ca.issue("alice", "client", out=d / "alice")
         (d / "alice" / "ca.crt").write_bytes((d / "pki" / "ca.crt").read_bytes())
         self.ca.crl()
-        sh("ip", "netns", "add", "pqc-wgs")
-        sh("ip", "netns", "add", "pqc-wgc")
-        sh("ip", "link", "add", "pqc-ws", "type", "veth", "peer", "name", "pqc-wc")
-        for ns, dev, addr in (("pqc-wgs", "pqc-ws", "10.40.0.1"), ("pqc-wgc", "pqc-wc", "10.40.0.2")):
-            sh("ip", "link", "set", dev, "netns", ns)
-            sh("ip", "-n", ns, "addr", "add", f"{addr}/24", "dev", dev)
-            sh("ip", "-n", ns, "link", "set", dev, "up")
+        for ns in self.NAMESPACES:
+            sh("ip", "netns", "add", ns)
             sh("ip", "-n", ns, "link", "set", "lo", "up")
-        sh("ip", "-n", "pqc-wgs", "addr", "add", "192.168.10.1/32", "dev", "lo")
+
+    def link(self, a, a_dev, a_addr, b, b_dev, b_addr):
+        sh("ip", "link", "add", a_dev, "type", "veth", "peer", "name", b_dev)
+        for ns, dev, addr in ((a, a_dev, a_addr), (b, b_dev, b_addr)):
+            sh("ip", "link", "set", dev, "netns", ns)
+            sh("ip", "-n", ns, "addr", "add", addr, "dev", dev)
+            sh("ip", "-n", ns, "link", "set", dev, "up")
+
+    def gateway(self, ns, **extra):
+        d = self.d
         (d / "gw.toml").write_text(
-            f'[wireguard]\nname = "vpn.acme"\nendpoint = "10.40.0.1:51820"\nkeyring_listen = "10.40.0.1:7443"\npool = "10.99.0.0/24"\n'
-            f'routes = ["192.168.10.0/24"]\ninterface = "pqc-wgs0"\nrotate_minutes = 0.25\n'
+            f'[wireguard]\nname = "vpn.acme"\nendpoint = "{self.GATEWAY}:51820"\nkeyring_listen = "{self.GATEWAY}:7443"\n'
+            f'interface = "{self.TUNNELS[0]}"\nrotate_minutes = 0.25\n' + "".join(f"{k} = {v}\n" for k, v in extra.items()) +
             f"cert = '{d / 'gw' / 'chain.pem'}'\nkey = '{d / 'gw' / 'key.pem'}'\nca = '{d / 'pki' / 'ca.crt'}'\ncrl = '{d / 'pki' / 'crl.pem'}'\n"
             f"private_key = '{d / 'gw.key'}'\nstate = '{d / 'state.json'}'\n")
-        self.spawn("pqc-wgs", "gateway", "--config", str(d / "gw.toml"), log=d / "gateway.log")
-        self.wait(lambda: sh("ip", "netns", "exec", "pqc-wgs", "wg", "show", "pqc-wgs0", check=False).returncode == 0, "gateway did not start")
+        self.spawn(ns, "gateway", "--config", str(d / "gw.toml"), log=d / "gateway.log")
+        self.wait(lambda: sh("ip", "netns", "exec", ns, "wg", "show", self.TUNNELS[0], check=False).returncode == 0, "gateway did not start")
         time.sleep(0.5)
-        self.spawn("pqc-wgc", "connect", "10.40.0.1:7443", "--cert-dir", str(d / "alice"), "--interface", "pqc-wgc0", "--server-name", "vpn.acme",
-                   log=d / "client.log")
+
+    def connect(self, ns):
+        self.spawn(ns, "connect", f"{self.GATEWAY}:7443", "--cert-dir", str(self.d / "alice"), "--interface", self.TUNNELS[1],
+                   "--server-name", "vpn.acme", log=self.d / "client.log")
 
     def spawn(self, ns, *args, log):
         with open(log, "w") as out:
@@ -221,9 +235,12 @@ class RemoteAccessTest(unittest.TestCase):
                 p.wait(5)
             except subprocess.TimeoutExpired:
                 p.kill()
-        for ns, dev in (("pqc-wgs", "pqc-wgs0"), ("pqc-wgc", "pqc-wgc0")):
-            sh("ip", "-n", ns, "link", "del", dev, check=False)
+        for ns in self.NAMESPACES:
+            for dev in self.TUNNELS:
+                sh("ip", "-n", ns, "link", "del", dev, check=False)
             sh("ip", "netns", "del", ns, check=False)
+        for dev in self.TUNNELS:
+            Path(f"/run/pqcsuite/{dev}.conf").unlink(missing_ok=True)
         shutil.rmtree(self.d, ignore_errors=True)
 
     def wait(self, cond, message, seconds=30):
@@ -235,11 +252,26 @@ class RemoteAccessTest(unittest.TestCase):
         logs = "\n".join(f"--- {f.name}\n" + f.read_text()[-3000:] for f in sorted(self.d.glob("*.log")))
         self.fail(f"{message}\n{logs}")
 
-    def ping(self, target="192.168.10.1"):
-        return sh("ip", "netns", "exec", "pqc-wgc", "ping", "-c", "1", "-W", "1", target, check=False).returncode == 0
+    def ping(self, ns, target):
+        return sh("ip", "netns", "exec", ns, "ping", "-c", "1", "-W", "1", target, check=False).returncode == 0
+
+
+@unittest.skipUnless(not REASON and wireguard_available() and shutil.which("wg-quick"),
+                     "needs root, iproute2, wireguard-tools and WireGuard (kernel or PQCSUITE_WIREGUARD_GO)")
+class RemoteAccessTest(Namespaces):
+    """gateway (10.40.0.1, LAN 192.168.10.1) <- laptop (10.40.0.2) over WireGuard with a PSK from ML-DSA mutual TLS."""
+    NAMESPACES, TUNNELS, GATEWAY = ("pqc-wgs", "pqc-wgc"), ("pqc-wgs0", "pqc-wgc0"), "10.40.0.1"
+
+    def setUp(self):
+        super().setUp()
+        self.link("pqc-wgs", "pqc-ws", "10.40.0.1/24", "pqc-wgc", "pqc-wc", "10.40.0.2/24")
+        sh("ip", "-n", "pqc-wgs", "addr", "add", "192.168.10.1/32", "dev", "lo")
+        self.gateway("pqc-wgs", pool='"10.99.0.0/24"', routes='["192.168.10.0/24"]')
+        self.connect("pqc-wgc")
 
     def test_traffic_rotation_and_revocation(self):
-        self.wait(self.ping, "no traffic through the tunnel")
+        ping = lambda: self.ping("pqc-wgc", "192.168.10.1")
+        self.wait(ping, "no traffic through the tunnel")
         dump = sh("ip", "netns", "exec", "pqc-wgs", "wg", "show", "pqc-wgs0", "preshared-keys").stdout.split()
         self.assertEqual(len(dump), 2)
         self.assertNotEqual(dump[1], "(none)")
@@ -247,13 +279,64 @@ class RemoteAccessTest(unittest.TestCase):
         agreements = lambda: (self.d / "gateway.log").read_text().count("new PSK")
         self.wait(lambda: agreements() >= 2, "the PSK did not rotate", 40)
         self.assertNotEqual(sh("ip", "netns", "exec", "pqc-wgs", "wg", "show", "pqc-wgs0", "preshared-keys").stdout.split()[1], first_psk)
-        self.wait(self.ping, "traffic stopped after the PSK rotated", 20)
+        self.wait(ping, "traffic stopped after the PSK rotated", 20)
+        self.assertFalse(sh("ip", "netns", "exec", "pqc-wgc", "iptables", "-S", "PQCSUITE-KILLSWITCH", check=False).returncode == 0,
+                         "a split tunnel must not block the rest of the laptop's traffic")
 
         self.ca.revoke(self.laptop.serial, "keyCompromise")
         self.wait(lambda: not sh("ip", "netns", "exec", "pqc-wgs", "wg", "show", "pqc-wgs0", "peers").stdout.strip(),
                   "the gateway kept a revoked user", 30)
-        self.assertFalse(self.ping())
+        self.assertFalse(ping())
         self.assertIn("revoked", (self.d / "gateway.log").read_text())
+
+
+@unittest.skipUnless(not REASON and wireguard_available() and shutil.which("wg-quick") and shutil.which("iptables"),
+                     "needs root, iproute2, iptables, wireguard-tools and WireGuard (kernel or PQCSUITE_WIREGUARD_GO)")
+class FullTunnelTest(Namespaces):
+    """laptop (10.41.0.2) -> gateway (10.41.0.1, NAT) -> internet host (198.51.100.2). Without the tunnel the laptop could reach the
+    host directly through the gateway's plain routing, which is what the kill switch must stop."""
+    NAMESPACES, TUNNELS, GATEWAY = ("pqc-ftg", "pqc-ftc", "pqc-fti"), ("pqc-ftg0", "pqc-ftc0"), "10.41.0.1"
+    HOST = "198.51.100.2"
+
+    def setUp(self):
+        super().setUp()
+        # the laptop reaches the gateway only through its default route, as over the internet, not on its own LAN
+        self.link("pqc-ftg", "pqc-fg-c", "10.41.0.1/24", "pqc-ftc", "pqc-fc", "10.41.0.2/32")
+        self.link("pqc-ftg", "pqc-fg-i", "198.51.100.1/24", "pqc-fti", "pqc-fi", "198.51.100.2/24")
+        sh("ip", "-n", "pqc-ftc", "route", "add", "default", "via", "10.41.0.1", "dev", "pqc-fc", "onlink")
+        sh("ip", "-n", "pqc-fti", "route", "add", "10.41.0.0/24", "via", "198.51.100.1")
+        sh("ip", "netns", "exec", "pqc-ftg", "sysctl", "-qw", "net.ipv4.ip_forward=1")
+        self.assertTrue(self.ping("pqc-ftc", self.HOST), "the laptop should reach the host directly before any VPN")
+        self.gateway("pqc-ftg", pool='"10.98.0.0/24"', full_tunnel="true")
+        self.connect("pqc-ftc")
+
+    def through_tunnel(self):
+        return "dev pqc-ftc0" in sh("ip", "netns", "exec", "pqc-ftc", "ip", "route", "get", self.HOST, check=False).stdout
+
+    def test_all_traffic_through_the_tunnel_recovery_and_kill_switch(self):
+        self.wait(lambda: self.through_tunnel() and self.ping("pqc-ftc", self.HOST), "no traffic through the full tunnel")
+        rules = sh("ip", "netns", "exec", "pqc-ftc", "iptables", "-S", "PQCSUITE-KILLSWITCH").stdout
+        self.assertIn("-j REJECT", rules)
+        self.assertIn("-d 10.41.0.1/32 -p tcp -m tcp --dport 7443 -j ACCEPT", rules)
+
+        # the gateway forgets the laptop, as after a long sleep: the laptop takes its tunnel down, agrees keys directly, comes back
+        public = sh("ip", "netns", "exec", "pqc-ftg", "wg", "show", "pqc-ftg0", "peers").stdout.split()[0]
+        sh("ip", "netns", "exec", "pqc-ftg", "wg", "set", "pqc-ftg0", "peer", public, "remove")
+        self.wait(lambda: "taking the tunnel down" in (self.d / "client.log").read_text(), "the laptop did not notice the dead tunnel", 60)
+        self.wait(lambda: self.through_tunnel() and self.ping("pqc-ftc", self.HOST), "the laptop did not come back", 60)
+
+        # the client crashes and the tunnel is gone: the kill switch still stops traffic outside the tunnel
+        self.procs[-1].kill()
+        self.procs[-1].wait(5)
+        env = os.environ | ({"WG_QUICK_USERSPACE_IMPLEMENTATION": os.environ["PQCSUITE_WIREGUARD_GO"],
+                             "WG_I_PREFER_BUGGY_USERSPACE_TO_POLISHED_KMOD": "1"} if os.environ.get("PQCSUITE_WIREGUARD_GO") else {})
+        subprocess.run(["ip", "netns", "exec", "pqc-ftc", "wg-quick", "down", "/run/pqcsuite/pqc-ftc0.conf"], capture_output=True, env=env)
+        self.assertFalse(self.through_tunnel())
+        self.assertFalse(self.ping("pqc-ftc", self.HOST), "traffic left the laptop outside the tunnel")
+        sh("ip", "netns", "exec", "pqc-ftc", sys.executable, "-c", "import socket; socket.create_connection(('10.41.0.1', 7443), 5).close()")
+
+        sh("ip", "netns", "exec", "pqc-ftc", sys.executable, "-m", "pqcsuite", "vpn", "disconnect", "--interface", "pqc-ftc0")
+        self.assertTrue(self.ping("pqc-ftc", self.HOST), "disconnect should lift the kill switch")
 
 
 if __name__ == "__main__":

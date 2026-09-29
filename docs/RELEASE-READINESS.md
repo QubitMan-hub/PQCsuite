@@ -31,5 +31,6 @@ Update this list when one of these is done; every release report copies it as it
 | Property-based testing | `tests/test_properties.py` (Hypothesis): Vault round trips and bit flips, HTTP parsing under any network split, DER, base64url, addresses, serial lookup, SAN and JWK parsing |
 | Replay testing | ACME nonces, one-time EST tokens and older CRLs, plus `tests/test_replay.py`: a recorded mutual-TLS session sent again never reaches the application, and TLS 1.3 early data (0-RTT) is never enabled |
 | Performance on production hardware, and under load | Every release measures sustained load on the runner (the "Load" row above); production hardware: [PILOT.md](PILOT.md) part 3 |
-| macOS | The unit and TLS tests pass in CI on macOS with Homebrew OpenSSL, a release gate; Windows and macOS VPN clients are not available |
+| macOS | The unit and TLS tests pass in CI on macOS with Homebrew OpenSSL, a release gate |
+| VPN clients on Windows and macOS | CI brings a real tunnel up, rotates its key and removes it with WireGuard for Windows and with Homebrew's WireGuard on macOS. Full tunnel, the kill switch and recovery after the gateway forgets a laptop are tested with real traffic on Linux only; on Windows and macOS they have not been run on real laptops. Phones are not supported |
 | Security snapshot comparison between releases (SBOM and CBOM diffs) | Done: each release report lists dependency and cryptographic-asset changes since the previous release |

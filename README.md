@@ -114,14 +114,22 @@ hq.acme.example  ESTABLISHED  CURVE_25519 + ML_KEM_768         PPK yes  up 42s
 
 ### Remote access
 
-Laptops use WireGuard with a pre-shared key from the same ML-DSA mutual TLS key agreement, replaced every 2 minutes and bound to both WireGuard keys:
+Laptops on Linux, Windows and macOS use WireGuard with a pre-shared key from the same ML-DSA mutual TLS key agreement, replaced every 2 minutes and bound to both WireGuard keys:
 
 ```
 pqcsuite vpn gateway --config examples/wireguard-gateway.toml
-sudo pqcsuite vpn connect vpn.acme.example:7443 --cert-dir ~/.pqcsuite/alice
+sudo pqcsuite vpn connect vpn.acme.example:7443 --cert-dir ~/.pqcsuite/alice     # connect now (Windows: an administrator prompt, no sudo)
+sudo pqcsuite vpn install vpn.acme.example:7443 --cert-dir ~/.pqcsuite/alice     # always on: at every start, restarted if it stops
+sudo pqcsuite vpn disconnect                                                      # take it down and lift the kill switch
 ```
 
-Each user keeps one address from the pool. Revoking a user removes them within 15 seconds of the CRL reaching the gateway (`crl_url`: at most a minute later). Why not IKEv2 for laptops: the IKEv2 clients built into Windows, macOS and phones support neither ML-KEM nor PPKs. `vpn connect` configures the interface on Linux only; full-tunnel routing is not supported yet.
+The client drives each platform's own WireGuard: `wg-quick` on Linux, `wg-quick` from Homebrew on macOS (`brew install wireguard-tools`), and WireGuard for Windows as a tunnel service. Keys are renewed in place, without dropping the tunnel, and right after the laptop wakes from sleep; if the gateway has forgotten the laptop meanwhile, the tunnel is taken down, new keys are agreed directly and it comes back.
+
+- **Full tunnel:** with `full_tunnel = true` on the gateway, all of a laptop's traffic goes through the gateway, which forwards it with NAT. IPv6 goes into the tunnel too and is dropped there, so it cannot leak.
+- **Kill switch:** in full-tunnel mode nothing leaves the laptop outside the tunnel except WireGuard's own packets and the key agreement with the gateway: an iptables chain on Linux, a pf anchor on macOS, and WireGuard for Windows' own block on Windows. The Linux and macOS rules stay if the client crashes (it fails closed) and while new keys are agreed after a sleep; `vpn disconnect` lifts them. On Windows the block goes with the tunnel for those few seconds.
+- **DNS:** the gateway's `dns` servers are set on the laptop; with the kill switch, queries to any other server cannot leave.
+
+Each user keeps one address from the pool. Revoking a user removes them within 15 seconds of the CRL reaching the gateway (`crl_url`: at most a minute later). Why not IKEv2 for laptops: the IKEv2 clients built into Windows, macOS and phones support neither ML-KEM nor PPKs. Phones are not supported yet: their WireGuard apps cannot take a new pre-shared key every 2 minutes.
 
 ## Vault
 
@@ -210,5 +218,5 @@ Which attackers the suite stops and which it does not, how revocation behaves wh
 
 First, proving what exists rather than adding to it: an independent security review, deployments in real cloud accounts and on EKS, AKS and GKE, days-long soak tests, and benchmarks on production hardware (the open list is in [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md), and [docs/PILOT.md](docs/PILOT.md) is the script for each). After that:
 
-1. VPN: Windows and macOS clients, and full-tunnel routing, for remote access.
+1. VPN: sign-in with the company's identity provider, per-group access rules and a users page in the console; two gateways with failover; phones.
 2. mTLS: a cert-manager issuer and in-cluster renewal of edge certificates (CRLs already reach edges through `crl_url`); dns-01 for ACME.

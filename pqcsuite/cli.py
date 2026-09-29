@@ -282,7 +282,7 @@ def cmd_edge(a):
 def cmd_vpn(a):
     from .vpn import load_config
     from .vpn.charon import Charon
-    if a.vpn_cmd in ("gateway", "connect"):
+    if a.vpn_cmd in ("gateway", "connect", "disconnect", "install", "uninstall"):
         return cmd_wireguard(a)
     if a.vpn_cmd == "up":
         from .vpn.controller import Controller
@@ -327,12 +327,29 @@ def cmd_wireguard(a):
         if again.is_set():
             restart()
         return 0
+    from .vpn import platforms
+    if a.vpn_cmd == "disconnect":
+        tunnel, kill_switch = platforms.this_machine(a.interface)
+        tunnel.down()
+        kill_switch.off()
+        print(f"{a.interface} is down and nothing is blocked any more")
+        return 0
+    if a.vpn_cmd == "uninstall":
+        print(f"removed {platforms.uninstall()}; the VPN no longer starts with this machine (pqcsuite vpn disconnect takes it down now)")
+        return 0
+    if a.vpn_cmd == "install":
+        argv = [sys.executable, "-m", "pqcsuite", "vpn", "connect", a.keyring, "--cert-dir", str(Path(a.cert_dir).resolve()), "--interface", a.interface]
+        argv += [*(["--ca", str(Path(a.ca).resolve())] if a.ca else []), *(["--server-name", a.server_name] if a.server_name else [])]
+        wg.Client(a.keyring, a.cert_dir, a.interface, a.server_name, apply=False, ca=a.ca).agree()
+        print(f"the gateway accepted this certificate; wrote {platforms.install(argv)}: the VPN now starts with this machine and restarts if it stops")
+        return 0
     c = wg.Client(a.keyring, a.cert_dir, a.interface, a.server_name, not a.no_apply, a.config_out, env_passphrase(a.key_passphrase_env), ca=a.ca)
     if a.once:
         r = c.once()
         print(f"connected as {r['address']} through {r['endpoint']}; routes {', '.join(r['routes'])}; the PSK expires in about {r['rotate_s'] * 3}s")
         return 0
     run_until_signal(c.run, c.stop.set)
+    c.close()
     return 0
 
 
@@ -748,16 +765,22 @@ def parser():
         p.add_argument("--json", action="store_true")
     p = v.add_parser("gateway", help="WireGuard remote-access gateway: address pool, PSK from ML-DSA mutual TLS, rotation, revocation")
     p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/wireguard-gateway.toml)")
-    p = v.add_parser("connect", help="connect this machine to a WireGuard gateway and keep its PSK fresh")
-    p.add_argument("keyring", help="the gateway's key agreement address, host:port")
-    p.add_argument("--cert-dir", required=True, help="folder with cert.pem, chain.pem, key.pem and ca.crt (as written by `ca enroll`)")
-    p.add_argument("--ca", help="trust this CA file instead of CERT_DIR/ca.crt")
+    for name, text in (("connect", "connect this machine (Linux, Windows or macOS) to a WireGuard gateway and keep its PSK fresh"),
+                       ("install", "connect now and at every start of this machine, as a system service")):
+        p = v.add_parser(name, help=text)
+        p.add_argument("keyring", help="the gateway's key agreement address, host:port")
+        p.add_argument("--cert-dir", required=True, help="folder with cert.pem, chain.pem, key.pem and ca.crt (as written by `ca enroll`)")
+        p.add_argument("--ca", help="trust this CA file instead of CERT_DIR/ca.crt")
+        p.add_argument("--interface", default="wg0")
+        p.add_argument("--server-name", help="the gateway's certificate name, if it differs from the keyring host")
+        if name == "connect":
+            p.add_argument("--no-apply", action="store_true", help="do not configure the tunnel (use with --config-out)")
+            p.add_argument("--config-out", help="also write a wg-quick configuration here after every key agreement")
+            p.add_argument("--key-passphrase-env")
+            p.add_argument("--once", action="store_true", help="agree once and exit")
+    p = v.add_parser("disconnect", help="take the tunnel down and lift the kill switch")
     p.add_argument("--interface", default="wg0")
-    p.add_argument("--server-name", help="the gateway's certificate name, if it differs from the keyring host")
-    p.add_argument("--no-apply", action="store_true", help="do not configure the interface (use with --config-out)")
-    p.add_argument("--config-out", help="also write a wg-quick configuration here after every key agreement")
-    p.add_argument("--key-passphrase-env")
-    p.add_argument("--once", action="store_true", help="agree once and exit")
+    v.add_parser("uninstall", help="stop starting the VPN with this machine")
     for c in v.choices.values():
         c.set_defaults(func=cmd_vpn)
 

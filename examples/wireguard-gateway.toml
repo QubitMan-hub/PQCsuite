@@ -6,6 +6,7 @@ endpoint = "vpn.acme.example:51820"     # where clients send WireGuard UDP
 keyring_listen = "0.0.0.0:7443"         # post-quantum mutual TLS key agreement
 pool = "10.99.0.0/24"                   # the gateway is 10.99.0.1; each user keeps one address
 routes = ["192.168.10.0/24"]            # networks behind the gateway, routed through the tunnel
+# full_tunnel = true                    # instead: all of the laptops' traffic, forwarded with NAT; laptops get a kill switch
 dns = ["192.168.10.53"]
 cert = "/etc/pqcsuite/vpn/chain.pem"
 key = "/etc/pqcsuite/vpn/key.pem"

@@ -33,6 +33,28 @@ jobs:
       - name: A second loopback address, as Linux has, for the per-host limit test
         run: sudo ifconfig lo0 alias 127.0.0.2 up
       - run: python -m unittest discover -s tests -v
+      - name: VPN client with Homebrew's WireGuard, a real tunnel brought up, rotated and removed
+        run: |
+          brew install wireguard-tools
+          sudo -E env PQCSUITE_REAL_WIREGUARD=1 "$(command -v python)" -m unittest tests.test_vpn_platforms.RealTunnelTest -v
+  windows-vpn:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: WireGuard for Windows, refused unless WireGuard LLC signed it
+        shell: pwsh
+        run: |
+          choco install wireguard -y --no-progress
+          $sig = Get-AuthenticodeSignature "$env:ProgramFiles\WireGuard\wireguard.exe"
+          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'WireGuard LLC') { throw "wireguard.exe signature: $($sig.Status) $($sig.SignerCertificate.Subject)" }
+      - run: pip install -e ".[test]"
+      - name: VPN client with WireGuard for Windows, a real tunnel service brought up, rotated and removed
+        env:
+          PQCSUITE_REAL_WIREGUARD: "1"
+        run: python -m unittest tests.test_vpn_platforms -v
   tls:
     runs-on: ubuntu-latest
     container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
@@ -148,6 +170,7 @@ jobs:
           sudo modprobe wireguard || true
           sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib python -m unittest tests.test_wireguard -v 2>&1 | tee wg.log
           grep -q "test_traffic_rotation_and_revocation .* ok" wg.log
+          grep -q "test_all_traffic_through_the_tunnel_recovery_and_kill_switch .* ok" wg.log
       - name: VPN demo (branch over IPsec, laptop over WireGuard)
         run: sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib PQCSUITE_STRONGSWAN=/opt/pqc python examples/vpn_demo.py --auto
   kubernetes:
