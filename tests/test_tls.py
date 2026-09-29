@@ -274,6 +274,33 @@ class EdgeTest(unittest.TestCase):
                 got += len(data)
         self.assertEqual(got, size)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "socket buffer sizes are exact on Linux")
+    def test_close_notify_reaches_a_client_that_has_not_read_yet(self):
+        # A payload that just fills the socket buffers left no room for close_notify, and the client saw "unexpected eof"
+        d = Path(tempfile.mkdtemp())
+        ca = CA.init(d / "pki", "Root")
+        srv, _ = ca.issue("localhost", "server", ["127.0.0.1"], out=d / "srv")
+        sctx, cctx = tls.server_context(str(srv / "chain.pem"), str(srv / "key.pem")), tls.client_context(str(d / "pki" / "ca.crt"))
+        ls = socket.create_server(("127.0.0.1", 0))
+        self.addCleanup(ls.close)
+        for size in range(96 << 10, 320 << 10, 8 << 10):
+            def serve():
+                s, _ = ls.accept()
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
+                with sctx.wrap(s, timeout=10) as c:
+                    c.sendall(b"x" * size)
+            t = threading.Thread(target=serve, daemon=True)
+            t.start()
+            raw = socket.create_connection(ls.getsockname())
+            raw.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
+            with cctx.wrap(raw, "localhost", 10) as c:
+                got = len(c.recv())
+                time.sleep(0.2)
+                while data := c.recv():
+                    got += len(data)
+            t.join(10)
+            self.assertEqual(got, size)
+
     @unittest.skipUnless(sys.platform.startswith("linux"), "SO_REUSEPORT spreads connections on Linux only")
     def test_workers_share_the_port_and_the_metrics_add_up(self):
         d = Path(tempfile.mkdtemp())

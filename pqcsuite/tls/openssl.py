@@ -375,11 +375,25 @@ class Connection:
         self.closed = True
         try:
             if self.ssl:
-                lib().SSL_shutdown(self.ssl)
+                self._shutdown()
                 lib().SSL_free(self.ssl)
         finally:
             self.ssl = None
             self.sock.close()
+
+    def _shutdown(self):
+        """Send close_notify, waiting up to 5 s for room when the peer has not read everything yet: without it, the peer cannot
+        tell the end of the data from a cut connection ("unexpected eof")."""
+        L_, deadline = lib(), time.monotonic() + min(self.timeout, 5)
+        while True:
+            L_.ERR_clear_error()
+            r = L_.SSL_shutdown(self.ssl)
+            if r >= 0 or L_.SSL_get_error(self.ssl, r) != WANT_WRITE:
+                break
+            left = deadline - time.monotonic()
+            if left <= 0 or not self._wait(False, left):
+                break
+        L_.ERR_clear_error()
 
     def __enter__(self):
         return self
