@@ -464,6 +464,29 @@ def _decrypt(src, dst_dir, identity, ca, crl, expected_signer, require_signature
             raise
 
 
+def verify(src, identity, ca=None, crl=None, expected_signer=None, require_signature=False):
+    """A restore drill that restores nothing: every chunk decrypts and authenticates, a folder's archive would extract safely,
+    and the signature (if there is one, or if required) verifies. Returns what a restore would produce."""
+    with open(src, "rb") as f:
+        h = read_header(f)
+        gen = chunks(f, h, identity)
+        files = size = 0
+        if h["kind"] == "dir":
+            try:
+                with tarfile.open(fileobj=io.BufferedReader(_ChunkReader(gen)), mode="r|") as tar:
+                    for m in tar:
+                        tarfile.data_filter(m, os.path.abspath("restore"))
+                        files, size = files + m.isfile(), size + m.size
+            except tarfile.TarError as e:
+                raise VaultError(f"the archive would not restore safely: {e}") from None
+            for _ in gen:
+                pass
+        else:
+            files, size = 1, sum(len(pt) for pt in gen)
+        signer = verify_signer(h, ca, crl, expected_signer) if "signer" in h or require_signature or expected_signer else None
+    return {"name": h["name"], "kind": h["kind"], "files": files, "bytes": size, "recipients": len(h["recipients"]), "signed_by": signer}
+
+
 def _remove(p):
     if p.is_dir():
         shutil.rmtree(p, ignore_errors=True)

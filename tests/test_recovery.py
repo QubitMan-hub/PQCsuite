@@ -34,8 +34,11 @@ class RecoveryTest(unittest.TestCase):
             cli("ca", "issue", "--dir", "pki", "client", "mallory", "--out", "mallory", cwd=d)
             mallory = next(r for r in CA(d / "pki").records() if r.common_name == "mallory").serial
             cli("ca", "revoke", "--dir", "pki", mallory, cwd=d)
+            cli("vault", "keygen", "ops", "--no-passphrase", cwd=d)
             cli("vault", "keygen", "offline", "--no-passphrase", cwd=d)
-            cli("vault", "backup", "pki", "--to", "backups", "-r", "offline.pub", cwd=d)
+            cli("vault", "backup", "pki", "--to", "backups", "-r", "ops.pub", "-r", "offline.pub", cwd=d)
+            archive = next((d / "backups").glob("*.pqv"))
+            self.assertIn("nothing was written", cli("vault", "verify", archive, "--key", "offline.key", cwd=d))
 
             shutil.rmtree(d / "pki")
             start = time.monotonic()

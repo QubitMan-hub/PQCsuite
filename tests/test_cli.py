@@ -170,6 +170,48 @@ class CLITest(unittest.TestCase):
         self.assertIn("already exists", self.fails("vault", "encrypt", "f.txt", "-o", "f.pqv", "-r", "ops.pub"))
         self.assertEqual(Path("f.pqv").read_text(), "keep me")
 
+    def test_a_backup_that_one_key_opens_is_refused_unless_asked_for(self):
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.d)
+
+        def run(*argv):
+            with self.assertRaises(SystemExit) as e:
+                main([str(a) for a in argv])
+            self.assertEqual(e.exception.code, 0)
+        with contextlib.redirect_stdout(io.StringIO()):
+            for name in ("ops", "recovery"):
+                run("vault", "keygen", name, "--no-passphrase")
+        Path("data").mkdir()
+        (Path("data") / "a.txt").write_text("records")
+        self.assertIn("recovery key", self.fails("vault", "backup", "data", "--to", "one", "-r", "ops.pub"))
+        self.assertFalse(Path("one").exists() and any(Path("one").iterdir()), "nothing is written when refused")
+        self.assertIn("recovery key", self.fails("vault", "backup", "data", "--to", "one", "-r", "ops.pub", "-r", "ops.pub"))
+        err = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+            run("vault", "backup", "data", "--to", "one", "-r", "ops.pub", "--no-recovery-key")
+            run("vault", "backup", "data", "--to", "two", "-r", "ops.pub", "-r", "recovery.pub")
+            run("vault", "encrypt", "data", "-o", "loose.pqv", "-r", "ops.pub")
+        self.assertIn("only one key", err.getvalue(), "encrypting to one key goes ahead, with a warning")
+
+        archive = next(Path("two").glob("*.pqv"))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            run("vault", "verify", archive, "--key", "recovery.key")
+        self.assertIn("restores data (1 file(s), 7 bytes); every chunk authenticated; opens for 2 key(s)", out.getvalue())
+        self.assertEqual(sorted(p.name for p in Path(".").iterdir() if p.name.startswith("data")), ["data"], "a drill writes nothing")
+        blob = bytearray(archive.read_bytes())
+        blob[-5] ^= 1
+        archive.write_bytes(bytes(blob))
+        self.assertIn("modified", self.fails("vault", "verify", archive, "--key", "recovery.key"))
+
+        from pqcsuite import checks
+        messages = lambda folder: " ".join(m for _, m in checks.backups(folder))
+        self.assertIn("single key", messages("one"), "an archive only one key opens is flagged")
+        self.assertIn("at least two keys", messages("two"))
+        self.assertEqual(checks.backups("empty-folder")[0][0], "fail")
+        os.utime(next(Path("one").glob("*.pqv")), (0, 0))
+        self.assertIn("(more than 2)", messages("one"))
+
 
 if __name__ == "__main__":
     unittest.main()

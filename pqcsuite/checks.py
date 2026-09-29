@@ -1,4 +1,5 @@
-"""Deployment checks for `pqcsuite doctor --ca DIR --config FILE`: each check is (level, message) with level ok, warn or fail."""
+"""Deployment checks for `pqcsuite doctor --ca DIR --config FILE --backups DIR`: each check is (level, message) with level ok,
+warn or fail."""
 import datetime as dt
 import ipaddress
 import os
@@ -67,6 +68,36 @@ def ca(root):
     soon = c.expiring(30)
     out.append(("warn", f"{len(soon)} certificate(s) expire within 30 days: {', '.join(r.common_name for r in soon[:5])} "
                         "(pqcsuite ca maintain renews them)") if soon else ("ok", "no certificate expires within 30 days"))
+    return out
+
+
+def backups(folder, days=2):
+    """Vault archives: each readable, each opened by at least two keys, and the newest of each source recent."""
+    from .vault import VaultError, read_header
+    folder, out = Path(folder), []
+    archives = sorted(folder.glob("*.pqv"))
+    if not archives:
+        return [("fail", f"no Vault archives in {folder}")]
+    newest, lone, broken = {}, [], []
+    for p in archives:
+        try:
+            with open(p, "rb") as f:
+                h = read_header(f)
+        except (VaultError, OSError, KeyError):
+            broken.append(p.name)
+            continue
+        if len({r["id"] for r in h["recipients"]}) < 2:
+            lone.append(p.name)
+        newest[h["name"]] = max(newest.get(h["name"], 0), p.stat().st_mtime)
+    if broken:
+        out.append(("fail", f"{len(broken)} archive(s) in {folder} cannot be read: {', '.join(broken[:5])}"))
+    out.append(("warn", f"{len(lone)} archive(s) open with a single key, so losing it loses them ({', '.join(lone[:3])}): "
+                        "`pqcsuite vault share FILE --key KEY -r recovery.pub` adds a recovery key without re-encrypting")
+               if lone else ("ok", f"every archive in {folder} opens with at least two keys"))
+    for name, mtime in sorted(newest.items()):
+        age = (dt.datetime.now().timestamp() - mtime) / 86400
+        out.append(("warn" if age > days else "ok", f"newest backup of {name} is {age:.1f} days old"
+                    + (f" (more than {days}): is the scheduled backup still running?" if age > days else "")))
     return out
 
 

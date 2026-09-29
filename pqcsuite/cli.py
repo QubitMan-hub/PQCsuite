@@ -74,9 +74,10 @@ def cmd_doctor(a):
             print(f"updates: cannot check: {explain(e) if isinstance(e, OSError) else e}")
         else:
             print(f"updates: {latest['version']} is out: {latest['url']}" if latest and latest["newer"] else f"updates: {__version__} is the newest release")
-    if a.ca or a.config:
+    if a.ca or a.config or a.backups:
         from . import checks
-        results = [r for d in a.ca for r in checks.ca(d)] + [r for f in a.config for r in checks.config(f)]
+        results = ([r for d in a.ca for r in checks.ca(d)] + [r for f in a.config for r in checks.config(f)]
+                   + [r for d in a.backups for r in checks.backups(d)])
         mark = {"ok": "ok  ", "warn": "WARN", "fail": "FAIL"}
         for level, msg in results:
             print(f"{mark[level]}  {msg}")
@@ -398,6 +399,12 @@ def cmd_vault(a):
         print(f"{a.out}.key (keep secret) and {a.out}.pub (share with people who encrypt for you), id {ident.public.id}")
     elif a.vault_cmd in ("encrypt", "backup"):
         rec = [vault.Recipient.load(r) for r in a.recipient]
+        if len({r.id for r in rec}) < 2:
+            lone = (f"only one key can open this {'backup' if a.vault_cmd == 'backup' else 'file'}: lose it (or its passphrase) and the data is "
+                    "gone for good. Add a recovery key kept offline, e.g. -r ops.pub -r recovery.pub")
+            if a.vault_cmd == "backup" and not a.no_recovery_key:
+                raise VaultError(f"{lone}; or pass --no-recovery-key to accept the risk")
+            print(f"warning: {lone}", file=sys.stderr)
         if a.vault_cmd == "encrypt":
             if Path(a.out).exists():
                 raise VaultError(f"{a.out} already exists; choose another -o")
@@ -415,6 +422,13 @@ def cmd_vault(a):
         else:
             print(f"restored {target}; the signature is intact, but nobody checked who issued the signer's certificate "
                   f"({who}). Pass --ca to require one of your CA's certificates.")
+    elif a.vault_cmd == "verify":
+        r = vault.verify(a.file, vault.Identity.load(a.key, passphrase()), a.ca, a.crl, a.signer, a.require_signature)
+        what = f"{r['files']} file(s), {r['bytes']} bytes" if r["kind"] == "dir" else f"{r['bytes']} bytes"
+        print(f"{a.file}: restores {r['name']} ({what}); every chunk authenticated; opens for {r['recipients']} key(s); "
+              + (f"signed by {r['signed_by']}" if r["signed_by"] else "not signed") + "; nothing was written")
+        if r["recipients"] < 2:
+            print("warning: only one key opens it; `pqcsuite vault share` adds a recovery key without re-encrypting", file=sys.stderr)
     elif a.vault_cmd == "share":
         n = vault.add_recipients(a.file, vault.Identity.load(a.key, passphrase()), [vault.Recipient.load(r) for r in a.recipient])
         print(f"{a.file} now opens for {n} recipient(s); the encrypted data was not rewritten")
@@ -537,6 +551,7 @@ def cmd_try(a):
         finally:
             edge.stop(0)
             web.shutdown()
+            web.server_close()
     print("\nThat is the TLS product: post-quantum protection in front of a service that did not change.\n"
           "Next: pqcsuite tls edge --help, and https://qubitman-hub.github.io/PQCsuite/")
     return 0
@@ -612,6 +627,8 @@ def parser():
     p.set_defaults(func=cmd_doctor)
     p.add_argument("--check-updates", action="store_true", help="also ask GitHub whether a newer release is out (the only request it makes)")
     p.add_argument("--ca", action="append", default=[], metavar="DIR", help="check a CA: key protection, CRL freshness, certificates expiring")
+    p.add_argument("--backups", action="append", default=[], metavar="DIR",
+                   help="check a folder of Vault archives: readable, opened by two or more keys, newest recent")
     p.add_argument("--strict", action="store_true", help="warnings fail too (exit 1); a deployment gate")
     p.add_argument("--config", action="append", default=[], metavar="FILE",
                    help="check an edge, VPN, WireGuard or console configuration: it loads, its files exist, nothing weakens it")
@@ -798,6 +815,7 @@ def parser():
         else:
             p.add_argument("--to", required=True, help="folder that holds the archives (sync it to any storage)")
             p.add_argument("--keep", type=int, help="keep only the newest N archives")
+            p.add_argument("--no-recovery-key", action="store_true", help="allow a backup that a single key opens (losing it loses the data)")
         p.add_argument("-r", "--recipient", action="append", required=True, help="recipient .pub (repeatable)")
         p.add_argument("--sign-cert", help="sign with this CA-issued ML-DSA certificate")
         p.add_argument("--sign-key")
@@ -806,6 +824,14 @@ def parser():
     p.add_argument("file")
     p.add_argument("--key", required=True)
     p.add_argument("-o", "--out", default=".", help="folder to restore into; the original file or folder name is kept")
+    p.add_argument("--passphrase-env")
+    p.add_argument("--ca", help="the signer's certificate must chain to this CA")
+    p.add_argument("--crl", help="and must not be revoked")
+    p.add_argument("--signer", help="and must have this common name")
+    p.add_argument("--require-signature", action="store_true")
+    p = q.add_parser("verify", help="restore drill: prove an archive opens with this key and is intact, writing nothing")
+    p.add_argument("file")
+    p.add_argument("--key", required=True)
     p.add_argument("--passphrase-env")
     p.add_argument("--ca", help="the signer's certificate must chain to this CA")
     p.add_argument("--crl", help="and must not be revoked")

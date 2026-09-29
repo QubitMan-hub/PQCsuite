@@ -54,7 +54,7 @@ Clocks matter: a machine whose clock runs ahead treats a CRL as expired early. R
 | Rotate an issuing CA | Create a new intermediate under the root (`ca init --parent ROOT`), issue from it, and let the old one's certificates expire. Clients trust the root, so nothing changes for them. |
 | Rotate the root | Create a new root, add its `ca.crt` to every trust bundle next to the old one, reissue, then remove the old root once nothing chains to it. |
 | Revoke | `ca revoke SERIAL` (console: Revoke). The CRL is re-signed at once; `ca publish` serves it. |
-| Back up | The CA folder (`ca.key`, `ca.crt`, `index.json`, `crl.pem`). Encrypt it with Vault to an offline recipient: `pqcsuite vault backup pki --to backups -r offline.pub`. A KMS or HSM key is backed up by the provider, not by the suite. |
+| Back up | The CA folder (`ca.key`, `ca.crt`, `index.json`, `crl.pem`). Encrypt it with Vault to two keys, one of them kept offline: `pqcsuite vault backup pki --to backups -r ops.pub -r offline.pub` (a backup that one key opens is refused unless `--no-recovery-key`). The backed-up `ca.key` is still encrypted with the CA passphrase, so keep that passphrase where the offline key is kept, for example sealed with it or split between two people; a backup without the passphrase restores a CA nobody can use. Check backups with `pqcsuite doctor --backups DIR` and rehearse a restore with `pqcsuite vault verify ARCHIVE --key offline.key`, which writes nothing. A KMS or HSM key is backed up by the provider, not by the suite. |
 | Destroy | Delete the key file and its backups, or schedule deletion in KMS. Deleting a file does not scrub it from disks or snapshots; use full-disk encryption on machines that hold keys. |
 
 ## Crashes and recovery
@@ -79,5 +79,7 @@ Every file the CA writes is written to a temporary name, flushed to disk and ren
 **If AWS KMS or the HSM is unavailable.** Nothing new can be issued or renewed and the CRL cannot be re-signed. Existing certificates keep working until they expire, and mutual-TLS clients keep working until the CRL copy expires (7 days by default). Restore signing before then, or re-sign earlier with a longer `--crl-days`.
 
 **If the CA machine is lost.** Restore the CA folder from its Vault backup (`pqcsuite vault decrypt`) on a new machine; point `ca publish` and EST at it. Certificates issued since the last backup are missing from `index.json`: revoke them by serial once you have them, or reissue.
+
+**If a Vault key or its passphrase is lost.** Nothing recovers data from a key that no longer exists, which is why every backup is encrypted to at least two keys. Restore with the other key (`vault decrypt … --key offline.key`), make a new key pair, and re-share existing archives to it with `vault share` (the data is not rewritten). Until then those archives open with one key only; `doctor --backups` lists them.
 
 **If the console token leaks.** Restart the console with a new `PQCSUITE_CONSOLE_TOKEN`, then read `console-audit.jsonl` for anything issued or revoked with the old one.

@@ -285,10 +285,12 @@ def main():
             (records / f"{pid}.json").write_text(json.dumps({"patient": pid, "notes": "confidential"}), encoding="utf-8")
         d.step("Nightly backup with Vault",
                "Patient records are kept for decades. Vault encrypts the backup with ML-KEM and signs it with the backup "
-               "job's certificate, so the clinic knows who made it.")
+               "job's certificate, so the clinic knows who made it. Two keys can open it: the one operations uses, and a "
+               "recovery key kept offline, so losing one never loses the records.")
         d.run("vault", "keygen", "clinic-ops", "--no-passphrase")
+        d.run("vault", "keygen", "clinic-recovery", "--no-passphrase")
         d.run("ca", "issue", "client", "backup-bot", "--out", "certs/backup-bot")
-        out = d.run("vault", "backup", "patient-records", "--to", "backups", "-r", "clinic-ops.pub", "--sign-cert", "certs/backup-bot/cert.pem",
+        out = d.run("vault", "backup", "patient-records", "--to", "backups", "-r", "clinic-ops.pub", "-r", "clinic-recovery.pub", "--sign-cert", "certs/backup-bot/cert.pem",
                     "--sign-key", "certs/backup-bot/key.pem", "--keep", "30")
         archive = out.split("backup ", 1)[1].split()[0]
         d.run("vault", "inspect", archive, contains=["ML-KEM-768", "CN=backup-bot"])

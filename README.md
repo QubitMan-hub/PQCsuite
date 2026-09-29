@@ -135,10 +135,15 @@ Each user keeps one address from the pool. Revoking a user removes them within 1
 
 ```
 pqcsuite vault keygen ops                        # ops.key (secret) + ops.pub; scripts add --passphrase-env VAR
-pqcsuite vault backup /var/lib/app --to /backups -r ops.pub --sign-cert bot/cert.pem --sign-key bot/key.pem --keep 14
+pqcsuite vault keygen recovery                   # a second key, kept offline
+pqcsuite vault backup /var/lib/app --to /backups -r ops.pub -r recovery.pub --sign-cert bot/cert.pem --sign-key bot/key.pem --keep 14
+pqcsuite vault verify /backups/app-20260925T161150Z.pqv --key recovery.key      # restore drill: checks everything, writes nothing
 pqcsuite vault decrypt /backups/app-20260925T161150Z.pqv --key ops.key -o /restore --ca pki/ca.crt --signer backup-bot
 pqcsuite vault share file.pqv --key ops.key -r new-admin.pub
+pqcsuite doctor --backups /backups               # every archive readable and opened by two keys, the newest recent
 ```
+
+- **No single point of loss:** a key that is lost, or whose passphrase is forgotten, cannot be recovered, and neither can what only it opens. So `vault backup` refuses an archive that one key opens, unless `--no-recovery-key`; `vault encrypt` warns. Keep the recovery key offline, and rehearse a restore with `vault verify`.
 
 - **Encryption:** the file key is wrapped per recipient with X25519 + ML-KEM-768 (`keygen --cnsa2`: P-384 + ML-KEM-1024); the data is AES-256-GCM in 1 MiB chunks.
 - **Integrity:** modifying, reordering or truncating anything is detected before anything is written. Folders restore with Python's safe `data` filter.
