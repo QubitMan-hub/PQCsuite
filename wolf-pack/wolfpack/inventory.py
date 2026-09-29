@@ -10,7 +10,8 @@ from pathlib import Path
 from . import __version__
 from .alpha import TIERS
 from .elders import CATALOG, HYBRIDS, GROVER, LEGACY, SAFE, SHOR, lookup, pq_from_text
-from .report import CSS, MARK
+from .brand import page, tier
+from .report import MARK
 
 ESTIMATE = {LEGACY: "critical", SHOR: "high", GROVER: "low", SAFE: "ok"}
 ASYMMETRIC = {"pke", "signature", "key-agree", "kem", "other"}
@@ -163,7 +164,7 @@ def html(org, systems, history=()):
     for s in systems:
         r = s["readiness"]
         top = s["assets"][0] if s["assets"] else None
-        rows.append(f"<tr class={r['worst'] or 'ok'}><td class=m>{MARK.get(r['worst'], '')}</td><td>{e(s['name'])}"
+        rows.append(f"<tr class={r['worst'] or 'ok'}><td>{tier(r['worst'])}</td><td>{e(s['name'])}"
                     f"{'<span class=new>estimated</span>' if r['estimated'] else ''}</td>"
                     f"<td>{r['tiers']['critical']}</td><td>{r['tiers']['high']}</td><td>{r['percent']}%</td><td>{'yes' if r['hybrid'] else 'no'}</td>"
                     f"<td>{r['policy_breaches'] or '<span class=dim>0</span>'}</td>"
@@ -172,27 +173,25 @@ def html(org, systems, history=()):
     for fam, where in sorted(usage(systems).items(), key=lambda kv: (min(RANK.get(t, 9) for _, t, _ in kv[1]), -len({n for n, *_ in kv[1]}), kv[0])):
         worst = min((t for _, t, _ in where if t), key=lambda t: RANK[t], default=None)
         names = sorted({n for n, *_ in where})
-        use.append(f"<tr><td class=m>{MARK.get(worst, '')}</td><td>{e(fam)}</td><td>{len(names)}</td><td class=w>{e(', '.join(names))}</td>"
+        use.append(f"<tr><td>{tier(worst)}</td><td>{e(fam)}</td><td>{len(names)}</td><td class=w>{e(', '.join(names))}</td>"
                    f"<td class='w dim'>{e(', '.join(sorted({v for *_, v in where})))}</td></tr>")
     first = sorted(((a, s) for s in systems for a in s["assets"] if a["tier"] in ("critical", "high")),
                    key=lambda x: (RANK[x[0]["tier"]], x[1]["name"], x[0]["name"]))[:25]
-    todo = "".join(f"<tr><td class=m>{MARK[a['tier']]}</td><td>{e(s['name'])}</td><td>{e(a['name'])}</td><td class=w>{e(a['recommendation'])}</td>"
+    todo = "".join(f"<tr><td>{tier(a['tier'])}</td><td>{e(s['name'])}</td><td>{e(a['name'])}</td><td class=w>{e(a['recommendation'])}</td>"
                    f"<td class=dim>{len(a['occurrences'])}</td></tr>" for a, s in first)
     est = [s["name"] for s in systems if s["readiness"]["estimated"]]
-    return f"""<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
-<title>{e(org)}: cryptographic inventory</title><style>{CSS}</style><main>
-<h1>{e(org)}</h1><p class=sub>Organisation cryptographic inventory from {sm['systems']} CBOM(s). Wolf Pack {__version__}.</p>
-<div class=pack><div><span>systems</span><b>{sm['systems']}</b><small>{at['critical']} with a critical finding</small></div>
+    body = f"""<div class=pack><div><span>systems</span><b>{sm['systems']}</b><small>{at['critical']} with a critical finding</small></div>
 <div><span>distinct algorithms</span><b>{sm['algorithms']}</b><small>across all systems</small></div>
 <div><span>quantum-safe asymmetric</span><b>{sm['pq_ready_percent']}%</b><small>of asymmetric algorithms in use</small></div>
 <div><span>systems at high or worse</span><b>{at['critical'] + at['high']}</b><small>{at['high']} high, {at['critical']} critical</small></div></div>
 {trend_html(list(history))}
-<h2>Systems, weakest first</h2><div class=scroll tabindex=0><table><tr><th></th><th>system</th><th>critical</th><th>high</th><th>quantum-safe</th><th>hybrid</th><th>policy</th><th>worst finding → replacement</th></tr>
+<h2>Systems, weakest first</h2><div class=scroll tabindex=0><table><tr><th>tier</th><th>system</th><th>critical</th><th>high</th><th>quantum-safe</th><th>hybrid</th><th>policy</th><th>worst finding → replacement</th></tr>
 {''.join(rows)}</table></div>
-<h2>Migrate first</h2><div class=scroll tabindex=0><table><tr><th></th><th>system</th><th>algorithm</th><th>replacement</th><th>places</th></tr>{todo or '<tr><td colspan=5 class=dim>nothing at high or critical</td></tr>'}</table></div>
-<h2>Where each algorithm is used</h2><div class=scroll tabindex=0><table><tr><th></th><th>algorithm</th><th>systems</th><th>which</th><th>variants</th></tr>{''.join(use)}</table></div>
-<footer>{'Tiers for ' + e(', '.join(est)) + ' are estimated from the algorithm alone: those CBOMs came from another tool or carry no Wolf Pack tiers. ' if est else ''}Each system's own report has the evidence behind every finding.</footer>
-</main></html>"""
+<h2>Migrate first</h2><div class=scroll tabindex=0><table><tr><th>tier</th><th>system</th><th>algorithm</th><th>replacement</th><th>places</th></tr>{todo or '<tr><td colspan=5 class=dim>nothing at high or critical</td></tr>'}</table></div>
+<h2>Where each algorithm is used</h2><div class=scroll tabindex=0><table><tr><th>worst tier</th><th>algorithm</th><th>systems</th><th>which</th><th>variants</th></tr>{''.join(use)}</table></div>"""
+    return page(f"{org}: cryptographic inventory", "Organisation inventory", org,
+                f"Organisation cryptographic inventory from {sm['systems']} CBOM(s).", body,
+                f"{'Tiers for ' + e(', '.join(est)) + ' are estimated from the algorithm alone: those CBOMs came from another tool or carry no Wolf Pack tiers. ' if est else ''}Each system's own report has the evidence behind every finding.")
 
 
 def terminal(org, systems):
@@ -233,7 +232,7 @@ def trend_html(rows):
     axis = (f"<text x={pad} y={h - 8} font-size=11 fill=currentColor>{e(rows[0]['date'])}</text>"
             f"<text x={w - pad} y={h - 8} font-size=11 fill=currentColor text-anchor=end>{e(rows[-1]['date'])}</text>"
             f"<text x=4 y={pad + 4} font-size=11 fill=currentColor>100%</text><text x=4 y={h - pad + 4} font-size=11 fill=currentColor>0%</text>")
-    svg = (f"<svg viewBox='0 0 {w} {h}' role=img aria-label='Share of quantum-safe asymmetric algorithms over time' style='max-width:100%;height:auto'>"
+    svg = (f"<svg class=trend viewBox='0 0 {w} {h}' role=img aria-label='Share of quantum-safe asymmetric algorithms over time' style='max-width:100%;height:auto'>"
            f"<line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke=currentColor stroke-width=1 /><polyline points='{line}' fill=none stroke=currentColor stroke-width=2 />{dots}{axis}</svg>")
     table = "".join(f"<tr><td>{e(r['date'])}</td><td>{r['pq_ready_percent']}%</td><td>{r['critical']}</td><td>{r['high']}</td><td>{r['breaches']}</td></tr>" for r in rows[-12:])
     return (f"<h2>Readiness over time</h2>{svg}<div class=scroll tabindex=0><table><tr><th>date</th><th>quantum-safe</th><th>systems critical</th>"

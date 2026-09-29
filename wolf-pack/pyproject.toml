@@ -19,5 +19,8 @@ wolfpack = "wolfpack.cli:main"
 [tool.setuptools.packages.find]
 include = ["wolfpack*"]
 
+[tool.setuptools.package-data]
+"wolfpack" = ["assets/*"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]

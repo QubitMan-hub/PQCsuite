@@ -2,43 +2,9 @@ from collections import Counter
 from html import escape as e
 
 from . import __version__
+from .brand import page, tier
 
 MARK = {"critical": "■■■■", "high": "■■■□", "medium": "■■□□", "low": "■□□□", "ok": "□□□□"}
-
-CSS = """
-:root{--ink:#000;--paper:#fff;--mid:#6b6b6b;--rule:#d4d4d4}
-@media (prefers-color-scheme:dark){:root{--ink:#f2f2f2;--paper:#0d0d0d;--mid:#9a9a9a;--rule:#333}}
-*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.55 ui-monospace,"Cascadia Mono","JetBrains Mono",Consolas,Menlo,monospace}
-main{max-width:1120px;margin:0 auto;padding:40px 24px 80px}
-h1{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
-h2{font-size:15px;font-weight:700;margin:48px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
-.sub{color:var(--mid);margin:0 0 32px}
-.pack{display:grid;grid-template-columns:repeat(4,1fr);border:2px solid var(--ink)}
-.pack div{padding:16px;border-right:1px solid var(--ink)}.pack div:last-child{border-right:0}
-.pack b{display:block;font-size:30px;line-height:1.1;margin-top:4px}.pack span{color:var(--mid);font-size:12px}
-.pack small{display:block;margin-top:8px;font-size:12px}
-.ready{display:flex;gap:32px;flex-wrap:wrap;margin-top:20px}
-.bar{height:10px;border:1px solid var(--ink);width:260px;margin-top:6px}.bar i{display:block;height:100%;background:var(--ink)}
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:760px}
-th{text-align:left;font-weight:700;font-size:12px;border-bottom:1px solid var(--ink);padding:8px 10px 6px 0}
-td{border-bottom:1px solid var(--rule);padding:9px 10px 9px 0;vertical-align:top}
-tr.critical td:nth-child(3){font-weight:700}
-.m{white-space:nowrap;letter-spacing:1px}.dim{color:var(--mid)}.w{max-width:380px}
-.new{border:1px solid var(--ink);font-size:11px;padding:0 5px;margin-left:6px}
-details{border-bottom:1px solid var(--rule);padding:8px 0}summary{cursor:pointer}
-summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.occ{margin:8px 0 4px 18px;font-size:12px}.occ div{padding:2px 0;color:var(--mid)}.occ code{color:var(--ink)}
-.alert{display:grid;grid-template-columns:90px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--rule)}
-.tag{font-size:11px;border:1px solid var(--ink);padding:1px 6px;display:inline-block}
-.tag.critical{background:var(--ink);color:var(--paper)}
-.yes{font-weight:700}
-.fix{margin:10px 0 6px 18px;font-size:12px}.fix div{padding:3px 0}.fix code{border:1px solid var(--rule);padding:0 4px}
-footer{margin-top:56px;color:var(--mid);font-size:12px}
-@media (max-width:720px){.pack{grid-template-columns:1fr 1fr}.pack div:nth-child(2){border-right:0}.pack div:nth-child(-n+2){border-bottom:1px solid var(--ink)}}
-"""
-
 
 def _ablation(st):
     off = st.get("roles_off")
@@ -96,7 +62,7 @@ def html(r):
     for a in r.assets:
         locs = sorted({s.file for s in a.sightings})
         new = ("<span class=new>new</span>" if a.new_files else "") + ("<span class=new title='only named in an algorithm list or table, not seen in use'>declared</span>" if a.declared else "")
-        rows.append(f"""<tr class="{a.tier}"><td class="m" title="{a.tier}">{MARK[a.tier]}</td><td>{e(a.tier)}</td><td><b>{e(a.variant)}</b>{new}</td>
+        rows.append(f"""<tr class="{a.tier}"><td>{tier(a.tier)}</td><td><b>{e(a.variant)}</b>{new}</td>
 <td class="w">{e(a.why)}</td><td class="w">{e(a.action) or '<span class="dim">none needed</span>'}</td><td>{e(a.exposure)}</td>
 <td>{len(a.sightings)} in {_plural(len(locs), 'place')}</td><td>{a.confidence:.2f}</td></tr>""")
     detail = []
@@ -104,7 +70,7 @@ def html(r):
         occ = "".join(f"<div><code>{e(s.file)}{':' + str(s.line) if s.line else ''}</code> {e(s.evidence)}, {e(s.reason)}<br>{e(s.snippet)}</div>" for s in a.sightings[:60])
         fixes = "".join(f"<div><b>{e(w)}</b>: {_code(f)}</div>" for w, f in a.remedies)
         fixes = f"<div class='fix'><span class=tag>How to fix</span>{fixes}</div>" if fixes else ""
-        detail.append(f"<details><summary><b>{e(a.variant)}</b> <span class='dim'>{e(a.nist)}</span></summary>{fixes}<div class='occ'>{occ}</div></details>")
+        detail.append(f"<details><summary>{tier(a.tier)} <b>{e(a.variant)}</b> <span class='dim'>{e(a.nist)}</span></summary>{fixes}<div class='occ'>{occ}</div></details>")
     alerts = "".join(f"<div class='alert'><span><span class='tag {e(s)}'>{e(s)}</span></span><div>{e(t)}<br><span class='dim'>{e(w)}{'; ' + e(f) if f else ''}</span></div></div>"
                      for s, t, w, f in r.alerts) or "<p class='dim'>No hygiene alerts.</p>"
     libs = "".join(f"<tr><td>{e(l.name)}</td><td>{e(l.ecosystem)}</td><td>{e(l.version) or '<span class=dim>unpinned</span>'}</td>"
@@ -120,11 +86,7 @@ def html(r):
         base = f"<h2>New since baseline</h2><div class='occ' style='margin-left:0'>{items or '<p class=dim>Nothing new since the baseline.</p>'}</div>"
     scanned = st['files_code'] + st['files_config'] + st['files_artifacts'] + st['files_binary']
     pol = policy_html(r.compliance)
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{e(r.project)}: Wolf Pack CBOM</title><style>{CSS}</style></head><body><main>
-<h1>{e(r.project)}</h1>
-<p class="sub">Cryptographic inventory and quantum migration plan. Wolf Pack {__version__}, scanned in {st['seconds']}s.{_ablation(st)}</p>
-<div class="pack">
+    body = f"""<div class="pack">
 <div><span>Elders</span><b>{scanned + st['endpoints']}</b><small>{_plural(scanned, 'file')} and {_plural(st['endpoints'], 'endpoint')} checked against the rule base</small></div>
 <div><span>Scouts</span><b>{st['raw_sightings']}</b><small>raw sightings, noisy by design</small></div>
 <div><span>Den</span><b>{st['accepted']}</b><small>verified; {st['quarantined']} held, {st['rejected']} rejected, {st['suppressed']} suppressed</small></div>
@@ -139,8 +101,8 @@ def html(r):
 {base}
 {pol}
 <h2>Migration queue</h2>
-<div class="scroll" tabindex="0"><table><thead><tr><th></th><th>Tier</th><th>Asset</th><th>Why</th><th>Do this</th><th>Exposure</th><th>Seen</th><th>Conf.</th></tr></thead>
-<tbody>{''.join(rows) or '<tr><td colspan=8 class=dim>No cryptography found.</td></tr>'}</tbody></table></div>
+<div class="scroll" tabindex="0"><table><thead><tr><th>Tier</th><th>Asset</th><th>Why</th><th>Do this</th><th>Exposure</th><th>Seen</th><th>Conf.</th></tr></thead>
+<tbody>{''.join(rows) or '<tr><td colspan=7 class=dim>No cryptography found.</td></tr>'}</tbody></table></div>
 <h2>Hygiene alerts</h2>{alerts}
 <h2>Where each asset lives</h2>{''.join(detail)}
 <h2>Crypto libraries</h2>
@@ -149,9 +111,10 @@ def html(r):
 <h2>Held back by the den</h2>
 <p class="dim">{'; '.join(f'{v} {k}' for k, v in why.most_common())}</p>
 <details><summary>Show {len(q)} sightings that did not enter the CBOM</summary><div class="occ">{quar}</div></details>
-{''.join(f'<p class="dim">{e(n)}</p>' for n in r.notes)}
-<footer>CycloneDX 1.6 CBOM in cbom.json, SARIF 2.1.0 in wolfpack.sarif, full audit trail in findings.json</footer>
-</main></body></html>"""
+{''.join(f'<p class="dim">{e(n)}</p>' for n in r.notes)}"""
+    sub = f"Cryptographic inventory and quantum migration plan, scanned in {st['seconds']}s.{_ablation(st)}"
+    return page(f"{r.project}: Wolf Pack CBOM", "Cryptographic inventory", r.project, e(sub), body,
+                "CycloneDX 1.6 CBOM in cbom.json, SARIF 2.1.0 in wolfpack.sarif, full audit trail in findings.json")
 
 
 def terminal(r):

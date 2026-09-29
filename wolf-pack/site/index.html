@@ -2,45 +2,46 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Wolf Pack CBOM</title>
-<meta name="description" content="Wolf Pack CBOM by QubitMan: a cryptographic inventory and post-quantum migration planner built as a hunting pack.">
+<meta name="description" content="Wolf Pack CBOM by Acxelin Quantum: a cryptographic inventory and post-quantum migration planner built as a hunting pack.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600&family=Roboto:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap">
 <style>
 :root {
-  --page: #f4f5f6;
+  --page: #faf9f5;
   --card: #ffffff;
-  --sunken: #eef0f2;
-  --ink: #141516;
-  --ink-2: #3b3d40;
-  --muted: #6c6f73;
-  --faint: #a4a7ab;
-  --line: #e3e5e7;
-  --line-2: #d2d5d8;
-  --moon: #c9ccd0;
-  --moon-rim: rgba(20, 21, 22, 0.14);
-  --mid: #8d9094;
-  --ink-rgb: 20, 21, 22;
+  --sunken: #f4f1e8;
+  --ink: #2e3c4e;
+  --ink-2: #3f4c59;
+  --muted: #636e78;
+  --faint: #a39e90;
+  --line: #e6e0d2;
+  --line-2: #d6cdb8;
+  --moon: #ffbf00;
+  --moon-rim: rgba(138, 97, 0, 0.35);
+  --mid: #8a6100;
+  --ink-rgb: 46, 60, 78;
   --on-ink: #ffffff;
   --shadow: 0 1px 2px rgba(20, 21, 22, 0.04), 0 6px 20px rgba(20, 21, 22, 0.05);
-  --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --sans: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --display: "Host Grotesk", "Segoe UI", system-ui, sans-serif;
+  --mono: "Roboto Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
   --radius: 12px;
   --ease: 160ms ease;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --page: #0c0d0e; --card: #141517; --sunken: #1a1c1e; --ink: #eceef0; --ink-2: #c3c6ca; --muted: #8f9398; --faint: #5c6065;
-    --line: #25272a; --line-2: #33363a; --moon: #3a3d41; --moon-rim: rgba(236, 238, 240, 0.12); --mid: #6c7075; --ink-rgb: 236, 238, 240;
-    --on-ink: #0c0d0e; --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+    --page: #141a22; --card: #1b232d; --sunken: #212b37; --ink: #eef0f2; --ink-2: #c9ced5; --muted: #8e98a4; --faint: #5d6874;
+    --line: #2d3947; --line-2: #3a4757; --moon: #6b5410; --moon-rim: rgba(255, 207, 77, 0.3); --mid: #ffcf4d; --ink-rgb: 238, 240, 242;
+    --on-ink: #141a22; --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --page: #0c0d0e; --card: #141517; --sunken: #1a1c1e; --ink: #eceef0; --ink-2: #c3c6ca; --muted: #8f9398; --faint: #5c6065;
-  --line: #25272a; --line-2: #33363a; --moon: #3a3d41; --moon-rim: rgba(236, 238, 240, 0.12); --mid: #6c7075; --ink-rgb: 236, 238, 240;
-  --on-ink: #0c0d0e; --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+  --page: #141a22; --card: #1b232d; --sunken: #212b37; --ink: #eef0f2; --ink-2: #c9ced5; --muted: #8e98a4; --faint: #5d6874;
+  --line: #2d3947; --line-2: #3a4757; --moon: #6b5410; --moon-rim: rgba(255, 207, 77, 0.3); --mid: #ffcf4d; --ink-rgb: 238, 240, 242;
+  --on-ink: #141a22; --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
   color-scheme: dark;
 }
 
@@ -52,8 +53,9 @@ body {
   font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; text-underline-offset: 3px; text-decoration-color: var(--line-2); }
-a:hover { text-decoration-color: var(--ink); }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+a:hover { text-decoration-color: var(--moon); }
+h1, h2, h3 { font-family: var(--display); }
+:focus-visible { outline: 2px solid var(--moon); outline-offset: 3px; border-radius: 4px; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 #bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 .wrap { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding-inline: 24px; }
@@ -62,7 +64,7 @@ a:hover { text-decoration-color: var(--ink); }
 /* ---------- top bar ---------- */
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 20px; flex-wrap: wrap; }
 .by { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--muted); font-size: 13px; }
-.by svg { height: 14px; width: auto; }
+.by svg { height: 22px; width: auto; color: var(--ink); }
 .nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .nav a { text-decoration: none; color: var(--muted); font-size: 13.5px; padding: 6px 10px; border-radius: 8px; transition: color var(--ease), background var(--ease); }
 .nav a:hover { color: var(--ink); background: var(--sunken); }
@@ -241,14 +243,8 @@ h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em; tex
 
 /* ---------- footer ---------- */
 footer { display: flex; align-items: center; gap: 20px; padding-block: 56px 64px; margin-top: 24px; border-top: 1px solid var(--line); flex-wrap: wrap; }
-footer .qm { width: 64px; height: 64px; flex: none; }
-.qm .lg-disc { fill: var(--moon); } .qm .lg-rim { stroke: var(--moon-rim); } .qm .lg-line { stroke: var(--ink); }
-.qm .lg-noise circle { fill: var(--page); } .qm .lg-ring { fill: var(--page); stroke: var(--ink); }
-.qm .lg-text { fill: var(--ink); font-family: var(--sans); font-weight: 500; }
 footer p { margin: 0; font-size: 13.5px; color: var(--muted); }
 footer p strong { color: var(--ink); font-weight: 600; }
-footer .sig { margin-left: auto; line-height: 0; }
-footer .sig svg { width: 150px; height: auto; }
 
 .tip { position: fixed; z-index: 10; pointer-events: none; padding: 8px 10px; background: var(--ink); color: var(--on-ink); border-radius: 8px;
   font: 12px/1.45 var(--mono); max-width: 280px; box-shadow: var(--shadow); }
@@ -259,7 +255,7 @@ footer .sig svg { width: 150px; height: auto; }
 <canvas id="bg" aria-hidden="true"></canvas>
 <div class="wrap">
   <header class="bar">
-    <a class="by" href="https://github.com/QubitMan-hub" target="_blank" rel="noopener"><svg id="qm-mark" class="px" role="img" aria-label="QubitMan"></svg><span>presents</span></a>
+    <a class="by" href="https://qubitman-hub.github.io/PQCsuite/"><svg class="acx" viewBox="0 0 537 83" role="img" aria-label="Acxelin Quantum" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#logo-a)"><g clip-path="url(#logo-b)"><path d="M45.727-.055 30.916 34.77 22 29.5l7.014 9.741-4.467 10.504s-6.8 5.958-10.53 9.776C8.708 64.956 1.615 73.43 1.576 73.477L32.367-.055h13.36Z" fill="currentColor"/><path d="M72.598 65.102 53.05 50.13l-2.955-7.071c3.113-2.912 7.072-5.685 10.242-7.71l12.26 29.753ZM57.714 28.984c-3.302 1.384-8.196 3.706-11.268 5.341l-7.67-18.358 3.149-8.038 3.802-8.037 11.987 29.092Z" fill="currentColor"/><path d="M38.603 49.386C29.313 58.439 20.401 69.767 13 83H0c6.503-9.163 18.947-24.965 34.955-37.595l3.648 3.98ZM72.5 27c-8.842 3.01-18.767 8.957-28.515 17.43l-3.82-2.922C49.964 34.57 60.902 29.078 72.5 27ZM62.135 72.045h14L24 31.5l38.135 40.545Z" fill="currentColor"/><path d="M222.015 17.022h3.835c.635 0 1.15.401 1.15.895s-.515.895-1.15.895h-3.835c-.635 0-1.15-.4-1.15-.895 0-.494.515-.895 1.15-.895Z" fill="#8C52FF"/><path d="M198.243 16.895h3.834c.635 0 1.151.4 1.151.894s-.516.895-1.151.895h-3.834c-.635 0-1.15-.4-1.15-.895 0-.494.515-.894 1.15-.894Z" fill="#FF3A3A"/><path d="m199.782 9.792 3.795 2.191c.419.242.555.79.305 1.225-.251.434-.794.59-1.213.348l-3.795-2.191c-.42-.242-.556-.79-.305-1.225.25-.434.794-.59 1.213-.348Z" fill="#4CA626"/><path d="m205.375 4.47 1.917 3.321c.318.55.223 1.2-.211 1.45-.434.251-1.044.009-1.362-.542l-1.917-3.32c-.317-.55-.223-1.2.212-1.45.434-.251 1.044-.008 1.361.542Z" fill="#0B55C4"/><path d="M212.813 2.562v4.382c0 .484-.4.876-.894.876a.885.885 0 0 1-.895-.876V2.562c0-.484.4-.877.895-.877.494 0 .894.393.894.877Z" fill="#FFBF00"/><path d="m220.383 5.312-1.917 3.32c-.318.55-.928.793-1.362.543-.434-.251-.529-.9-.211-1.45l1.917-3.321c.317-.55.927-.793 1.361-.542.435.25.529.9.212 1.45Z" fill="#1F80FF" stroke="#1F80FF" stroke-width="1.543" stroke-linecap="round"/><path d="m225.176 11.11-3.795 2.19c-.419.242-.962.086-1.213-.348-.25-.434-.114-.983.305-1.225l3.795-2.19c.419-.243.963-.087 1.213.348.251.434.114.982-.305 1.224Z" fill="#007A3F"/><circle opacity=".5" cx="212.128" cy="15.848" r="5.883" fill="url(#logo-c)"/><path fill-rule="evenodd" clip-rule="evenodd" d="M213.332 30.979a.833.833 0 0 1 0 1.663h-2.421a.832.832 0 1 1 0-1.664h2.421Zm1.666-2.271a.833.833 0 0 1 0 1.665h-5.751a.832.832 0 1 1 0-1.665h5.751Zm-2.894-19.42c1.943 0 3.806.774 5.18 2.151a7.157 7.157 0 0 1 2.081 5.247 7.561 7.561 0 0 1-2.209 5.217c-1.217 1.221-1.583 3.358-1.594 3.84-.012.48-.651 1.5-1.362 1.5h-3.919c-.931 0-1.636-.262-1.637-1.5 0-1.24-1.065-3.502-1.481-3.745-1.55-1.03-2.292-3.571-2.322-5.312a7.177 7.177 0 0 1 2.084-5.247 7.317 7.317 0 0 1 5.179-2.151Zm-.144 4.568c-.022.052-.702 1.672-1.567 2.613-.766.832-2.538 1.339-2.538 1.339s1.773.694 2.553 1.436c.899.856 1.544 2.533 1.552 2.552 0 0 .281-1.706 1.283-2.552.847-.714 2.509-1.418 2.553-1.436-.035-.011-1.715-.533-2.553-1.34-.967-.93-1.275-2.568-1.283-2.612Zm2.672-2.649c-.011.028-.339.808-.755 1.26-.369.4-1.22.645-1.225.646 0 0 .855.336 1.231.694.434.413.746 1.222.749 1.231 0 0 .136-.823.62-1.231.406-.343 1.201-.681 1.231-.694-.024-.007-.829-.258-1.231-.645-.466-.449-.615-1.238-.62-1.261Z" fill="currentColor"/><path d="M222.627 71.809V35.177h11.542v3.954c2.478-2.407 7.775-3.984 11.017-3.984 4.647 0 8.169 1.499 10.568 4.497 2.398 2.948 3.597 5.383 3.597 10.13v22.035h-11.467V51.198c0-2.349-.574-4.222-1.724-5.621-1.149-1.45-2.873-2.174-5.171-2.174-2.248 0-3.947.75-5.096 2.249-1.15 1.449-1.724 3.297-1.724 5.546v20.61h-11.542ZM206.558 71.809V35.095h11.514v36.714h-11.514ZM190.133 71.809V25.862h11.542V71.81h-11.542ZM167.698 71.809c-11.311 0-18.926-8.354-18.926-19.05 0-8.796 7.615-17.881 19.114-17.881 12.248 0 19.904 9.085 18.664 20.592h-26.235c.334 3.909 4.494 6.347 7.383 6.347 2.89 0 4.736-1.125 5.809-2.83h12.368c-1.892 7.902-10.145 12.822-18.177 12.822Zm-7.383-22.64h14.542c0-2.556-3.282-5.206-7.159-5.206-3.905 0-7.383 2.756-7.383 5.206ZM95.037 71.809c-3.748 0-7.047-.751-9.895-2.253-2.849-1.502-5.098-3.614-6.747-6.335-1.6-2.77-2.399-6.007-2.399-9.715 0-3.567.775-6.71 2.324-9.433 1.55-2.769 3.748-4.927 6.597-6.476 2.849-1.596 6.222-2.394 10.12-2.394 4.398 0 8.246 1.08 11.544 3.239 3.299 2.111 5.523 5.49 6.672 10.136h-12.369c-.5-1.36-1.274-2.37-2.324-3.027-1-.704-2.249-1.055-3.748-1.055-1.649 0-2.998.422-4.048 1.267-1 .844-1.749 1.947-2.249 3.308-.45 1.361-.674 2.84-.674 4.435 0 1.549.225 3.027.674 4.435.5 1.36 1.25 2.464 2.25 3.308 1.049.845 2.398 1.268 4.047 1.268 1.5 0 2.749-.352 3.748-1.056 1.05-.704 1.824-1.713 2.324-3.027h12.369c-.699 2.862-1.899 5.28-3.598 7.25-1.699 1.971-3.798 3.497-6.297 4.576-2.449 1.032-5.222 1.549-8.32 1.549Z" fill="currentColor"/><path d="M128 52.74 115.636 35h-3.606l11.849 17.74L111 72h3.606L128 52.74Z" fill="currentColor"/><path d="M139 52.74 127.308 35h-8.334l11.205 17.74L118 72h8.333L139 52.74Z" fill="currentColor"/><path d="M151 72h-8.333L136 61.862l4.379-6.659L151 72Zm-17.82-19.26-1.56 2.463L130 52.74l1.623-2.464 1.557 2.464Zm7.196-2.465L136 43.635 141.692 35h8.333l-9.649 15.275Z" fill="currentColor"/></g><path d="M326.653 56.644c0 2.086.522 3.788 1.565 5.103 1.044 1.316 2.609 1.974 4.696 1.974 2.086 0 3.651-.658 4.695-1.974 1.043-1.316 1.565-3.017 1.565-5.103v-19.01h10.48v34.492h-10.48v-4.662c-1.179 1.678-2.631 2.948-4.355 3.81-1.724.817-3.607 1.225-5.649 1.225-2.812 0-5.194-.612-7.144-1.837-1.905-1.27-3.358-2.994-4.356-5.172-.952-2.223-1.428-4.74-1.428-7.553V37.633h10.411v19.01Zm41.644-19.53c3.13 0 5.875.59 8.234 1.769 2.404 1.134 4.264 2.79 5.58 4.968 1.315 2.132 1.973 4.718 1.973 7.757v9.086c0 .998.137 1.77.409 2.314.317.544 1.111.816 2.382.816v8.302c-2.178 0-3.993-.136-5.445-.408-1.451-.272-2.676-.772-3.674-1.497-.998-.772-1.906-2.327-2.722-3.779-1.497 1.997-3.266 3.517-5.308 4.56-2.041.998-4.446 1.497-7.213 1.497-1.951 0-3.766-.385-5.444-1.156-1.679-.817-3.04-1.974-4.083-3.47-.998-1.543-1.497-3.404-1.497-5.581 0-2.495.658-4.514 1.973-6.057 1.316-1.587 3.062-2.745 5.24-3.47 2.223-.726 4.651-1.09 7.282-1.09h7.621c0-1.179-.204-2.222-.612-3.13-.409-.906-1.022-1.61-1.838-2.108-.817-.545-1.837-.817-3.062-.817-1.27 0-2.427.272-3.47.817-1.044.544-1.702 1.474-1.974 2.79h-10.14c.182-2.496 1.022-4.628 2.519-6.397 1.497-1.815 3.402-3.222 5.716-4.22 2.359-.998 4.877-1.497 7.553-1.497Zm86.353 19.382c0 2.087.522 3.788 1.565 5.104 1.044 1.315 2.609 1.973 4.696 1.973 2.086 0 3.652-.658 4.695-1.973 1.043-1.316 1.565-3.017 1.565-5.104v-19.01h10.48v34.492h-10.48v-4.663c-1.179 1.679-2.631 2.949-4.355 3.811-1.724.816-3.606 1.225-5.648 1.226-2.812 0-5.194-.613-7.145-1.838-1.905-1.27-3.357-2.995-4.356-5.172-.952-2.223-1.428-4.74-1.428-7.553V37.486h10.411v19.01ZM288.078 36.791c-5.507 1.376-9.586 6.357-9.586 12.29 0 6.996 5.671 12.668 12.667 12.668 6.996 0 12.668-5.672 12.668-12.668 0-5.252-3.196-9.757-7.749-11.677V26.526c10.384 2.254 18.163 11.496 18.163 22.555 0 12.748-10.335 23.082-23.082 23.082-12.748 0-23.081-10.335-23.081-23.082 0-11.702 8.709-21.369 20-22.875v10.585Zm120.563.322c4.219 0 7.417 1.361 9.595 4.083 2.177 2.677 3.266 6.17 3.266 10.48v20.45H411.09V52.969c0-2.132-.521-3.834-1.564-5.104-1.044-1.315-2.61-1.973-4.696-1.973-2.042 0-3.584.68-4.627 2.042-1.044 1.315-1.566 2.994-1.566 5.035v19.157h-10.479v-34.64h10.479v4.527c1.225-1.724 2.677-2.971 4.356-3.742 1.678-.772 3.561-1.158 5.648-1.158Zm27.218.373h6.873v8.643h-6.873v14.224c0 1.135.227 1.907.681 2.315.499.363 1.315.544 2.449.544h3.743v8.914h-5.309c-3.992 0-7.008-.975-9.049-2.926-1.997-1.95-2.995-4.945-2.995-8.982v-14.09h-3.539v-8.642h3.539V26.602h10.48v10.884Zm86.974-.373c2.722 0 5.105.545 7.146 1.634 2.041 1.089 3.607 2.722 4.695 4.9 1.134 2.132 1.701 4.786 1.701 7.961v20.37h-10.411v-19.01c0-2.131-.522-3.788-1.565-4.967-1.043-1.225-2.586-1.837-4.627-1.837-2.087 0-3.652.612-4.695 1.837-.998 1.225-1.497 2.881-1.497 4.968v19.01h-10.481v-19.01c0-2.042-.521-3.675-1.564-4.9-.998-1.27-2.541-1.905-4.628-1.905-2.041 0-3.584.612-4.627 1.837-1.044 1.18-1.566 2.836-1.566 4.968v19.01h-10.479V37.485h10.479v4.255c1.18-1.497 2.586-2.63 4.219-3.402 1.679-.817 3.494-1.226 5.444-1.226 2.133 0 4.243.522 6.33 1.566 2.086 1.043 3.742 2.654 4.966 4.83 1.089-1.723 2.586-3.22 4.492-4.49 1.905-1.27 4.128-1.906 6.668-1.906ZM367.072 57.256c-.907 0-1.747.136-2.518.408-.771.227-1.383.613-1.837 1.157-.453.5-.68 1.202-.68 2.11 0 1.315.431 2.245 1.293 2.79a5.603 5.603 0 0 0 2.858.749c1.315 0 2.518-.273 3.606-.818a7.094 7.094 0 0 0 2.722-2.449c.681-1.043 1.021-2.223 1.021-3.539v-.408h-6.465Z" fill="#FFBF00"/><path d="M288.078 36.791c-5.507 1.376-9.586 6.357-9.586 12.29 0 6.996 5.671 12.668 12.667 12.668 1.932 0 3.762-.434 5.401-1.208l7.63 7.592a22.973 22.973 0 0 1-13.031 4.03c-12.748 0-23.081-10.335-23.081-23.082 0-11.702 8.709-21.369 20-22.875v10.585Z" fill="#2E5BFF"/><path d="M315.237 71.923h-10.968l-16.257-16.087h10.968l16.257 16.087Z" fill="#FFBF00"/><path fill-rule="evenodd" clip-rule="evenodd" d="M301.846 69.541a22.917 22.917 0 0 1-8.118 2.48V61.486c.353-.072.7-.16 1.041-.262l7.077 8.317Z" fill="#FFBF00"/></g><defs><clipPath id="logo-a"><path fill="#fff" d="M0 0h536.776v83H0z"/></clipPath><clipPath id="logo-b"><path fill="#fff" d="M0 0h259v83H0z"/></clipPath><radialGradient id="logo-c" cx="0" cy="0" r="1" gradientTransform="matrix(-.8935 7.74501 -7.74458 -.89266 212.092 14.82)" gradientUnits="userSpaceOnUse"><stop offset=".163" stop-color="#FFD900"/><stop offset="1" stop-color="#FFD900" stop-opacity="0"/></radialGradient></defs></svg><span>presents</span></a>
     <nav class="nav" aria-label="Sections">
       <a href="#why">Why</a><a href="#watch">Watch a hunt</a><a href="#pack">The pack</a><a href="#start">Start</a>
       <button type="button" class="theme" id="theme"><svg class="px-icon" id="theme-icon" aria-hidden="true"></svg><span id="theme-label">dark</span></button>
@@ -381,9 +377,7 @@ wolfpack bench bench\corpus</pre>
   </section>
 
   <footer>
-    <svg class="qm" id="qm-badge" viewBox="0 0 200 200" role="img" aria-label="QubitMan"></svg>
-    <p><strong>Wolf Pack CBOM</strong> 1.0.0<br>Built by QubitMan. Work in progress toward a paper; every number on this page comes from a run you can reproduce.</p>
-    <a class="sig" href="https://github.com/QubitMan-hub" target="_blank" rel="noopener" aria-label="QubitMan on GitHub"><svg id="qm-sig" class="px"></svg></a>
+    <p><strong>Wolf Pack CBOM</strong> 1.2.0<br>By <a href="https://qubitman-hub.github.io/PQCsuite/wolf-pack.html">Acxelin Quantum</a>. Work in progress toward a paper; every number on this page comes from a run you can reproduce.</p>
   </footer>
 </div>
 <div class="tip" id="tip" hidden></div>
@@ -477,8 +471,6 @@ function bitmap(svg, rows, px, { gap = 1, animate = false, step = 8, ripple = fa
 
 bitmap(document.getElementById("title"), text("WOLF PACK"), 10, { gap: 1.5, animate: true, step: 9, ripple: true });
 bitmap(document.getElementById("cbom"), text("CBOM"), 7, { gap: 1, animate: true, step: 12 });
-bitmap(document.getElementById("qm-mark"), text("QubitMan"), 3, { gap: 0 });
-bitmap(document.getElementById("qm-sig"), text("QubitMan"), 6, { gap: 1, ripple: true });
 document.querySelectorAll("svg[data-icon]").forEach((s) => bitmap(s, ICONS[s.dataset.icon], 3, { gap: 0 }));
 
 (function badge() {
@@ -495,18 +487,6 @@ document.querySelectorAll("svg[data-icon]").forEach((s) => bitmap(s, ICONS[s.dat
   }));
 })();
 
-(function qmBadge() {
-  const svg = document.getElementById("qm-badge");
-  const wave = []; for (let x = 50; x <= 150; x++) wave.push(`${x},${(45 - 5 * Math.sin(((x - 50) / 100) * Math.PI * 13)).toFixed(2)}`);
-  const noise = [[53, 50, 2.3], [59, 38, 2.9], [66, 51, 2], [72, 41, 1.8], [79, 48, 2.6], [87, 36, 3.1], [94, 50, 2.2], [101, 40, 1.9], [108, 48, 2.9], [115, 37, 2.1], [121, 50, 1.8], [129, 40, 2.7], [136, 48, 2], [143, 37, 2.4], [148, 49, 1.8]];
-  const tr = ["M60 125 H74 L80 130 H92 L99.5 135.5", "M40 130 H64 L69 134 H84", "M13 137 H30 L35 141 H68 L73 137.5 H100", "M44 146 H66 L71 142 H100", "M52 151 H78 L83 146.5 H94", "M63 156 H85"].map((d) => `<path d="${d}"/>`).join("");
-  svg.innerHTML = `<circle class="lg-disc" cx="100" cy="100" r="97"/><circle class="lg-rim" cx="100" cy="100" r="92.5" fill="none" stroke-width="1"/>
-    <polyline class="lg-line" points="${wave.join(" ")}" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <g class="lg-noise">${noise.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join("")}</g>
-    <text class="lg-text" x="100" y="83" text-anchor="middle" font-size="29">Qubit</text><text class="lg-text" x="100" y="112" text-anchor="middle" font-size="29">Man</text>
-    <circle class="lg-ring" cx="47" cy="92" r="5.5" stroke-width="2.2"/><circle class="lg-ring" cx="153" cy="92" r="5.5" stroke-width="2.2"/>
-    <g class="lg-line" fill="none" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">${tr}<g transform="translate(200 0) scale(-1 1)">${tr}</g></g>`;
-})();
 
 /* ---------- tooltip ---------- */
 const tip = document.getElementById("tip");

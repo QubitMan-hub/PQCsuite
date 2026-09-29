@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
 from .. import explain, read_text, tls
+from ..brand import page
 from ..pki import algorithm_of
 from ..tls import hostport
 from ..tls.openssl import Context
@@ -232,31 +233,23 @@ def summary(results):
 
 def report_html(results, title="Post-quantum readiness"):
     s, e = summary(results), html.escape
+    tone = {"A": "ok", "B": "warn", "C": "bad", "F": "mute"}
     rows = "".join(
-        f"<tr><td>{e(r['target'])}</td><td class=g{r['grade']}>{r['grade']}</td><td>{e(r['negotiated'] or '')}</td>"
+        f"<tr><td class=mono>{e(r['target'])}</td><td><span class='pill {tone[r['grade']]}'>{r['grade']}</span></td><td>{e(r['negotiated'] or '')}</td>"
         f"<td>{e(', '.join(r['accepts']) or (r['error'] or ''))}"
-        f"{'<br><small>also accepts ' + e(' and '.join(r['legacy'])) + ': switch it off</small>' if r.get('legacy') else ''}</td>"
+        f"{'<br><small class=warn>also accepts ' + e(' and '.join(r['legacy'])) + ': switch it off</small>' if r.get('legacy') else ''}</td>"
         f"<td>{e((r['certificate'] or {}).get('key', ''))}<br><small>{e((r['certificate'] or {}).get('issuer', ''))}</small>"
-        f"{'<br><small>not trusted here: a private CA, or a TLS-inspecting proxy in the path (then this row describes the proxy)</small>' if r.get('trusted') is False else ''}</td>"
-        f"<td>{e((r['certificate'] or {}).get('expires', ''))}</td></tr>"
+        f"{'<br><small class=warn>not trusted here: a private CA, or a TLS-inspecting proxy in the path (then this row describes the proxy)</small>' if r.get('trusted') is False else ''}</td>"
+        f"<td class=mono>{e((r['certificate'] or {}).get('expires', ''))}</td></tr>"
         for r in sorted(results, key=lambda r: (r["grade"], r["target"])))
-    legend = "".join(f"<li><b class=g{g}>{g}</b> {e(t)} <span>{s['grades'][g]}</span></li>" for g, t in GRADES.items())
-    now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    return f"""<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
-<title>{e(title)}</title><style>
-:root{{--ink:#15171a;--mute:#6b7076;--line:#e3e5e8;--bg:#fff;--a:#0b6b3a;--b:#6b5a00;--c:#9a3412;--f:#6b7076}}
-@media(prefers-color-scheme:dark){{:root{{--ink:#eceef0;--mute:#9aa0a6;--line:#2a2d31;--bg:#111315;--a:#4ade80;--b:#facc15;--c:#fb923c}}}}
-body{{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}}
-main{{max-width:1080px;margin:0 auto;padding:32px 16px}}h1{{font-size:24px;margin:0 0 4px}}p{{color:var(--mute);margin:0 0 24px}}
-.stats{{display:flex;flex-wrap:wrap;gap:32px;margin-bottom:24px}}.stats b{{display:block;font-size:28px}}.stats span{{color:var(--mute)}}
-ul{{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:6px}}li span{{color:var(--mute);margin-left:6px}}
-.scroll{{overflow-x:auto}}table{{border-collapse:collapse;width:100%;min-width:720px}}th,td{{text-align:left;padding:8px 10px 8px 0;border-bottom:1px solid var(--line)}}
-th{{font-size:12px;color:var(--mute);font-weight:500}}.gA{{color:var(--a);font-weight:700}}.gB{{color:var(--b);font-weight:700}}.gC{{color:var(--c);font-weight:700}}.gF{{color:var(--f);font-weight:700}}
-</style><main><h1>{e(title)}</h1><p>{s['endpoints']} endpoints scanned {now} by pqcsuite</p>
-<div class=stats><div><b>{s['pq_key_exchange']}/{s['endpoints']}</b><span>offer post-quantum key exchange</span></div>
-<div><b>{s['pq_certificates']}</b><span>use ML-DSA certificates</span></div><div><b>{s['cnsa2']}</b><span>meet CNSA 2.0</span></div><div><b>{s['expiring_30d']}</b><span>certificates expire within 30 days</span></div></div>
-<ul>{legend}</ul><div class=scroll><table><thead><tr><th>Endpoint</th><th>Grade</th><th>Negotiated</th><th>Accepted key exchanges</th><th>Certificate key and issuer</th><th>Expires</th></tr></thead>
-<tbody>{rows}</tbody></table></div></main></html>"""
+    legend = "".join(f"<li><span class='pill {tone[g]}'>{g}</span> {e(t)} <small>· {s['grades'][g]}</small></li>" for g, t in GRADES.items())
+    tiles = "".join(f"<div class=tile><span>{label}</span><b>{value}</b></div>" for label, value in (
+        ("post-quantum key exchange", f"{s['pq_key_exchange']}/{s['endpoints']}"), ("ML-DSA certificates", s["pq_certificates"]),
+        ("meet CNSA 2.0", s["cnsa2"]), ("expire within 30 days", s["expiring_30d"])))
+    body = (f"<div class=tiles>{tiles}</div><section class=panel><h2>What the grades mean</h2><ul>{legend}</ul></section>"
+            "<section class=panel><h2>Endpoints</h2><div class=scroll><table><thead><tr><th>Endpoint</th><th>Grade</th><th>Negotiated</th>"
+            f"<th>Accepted key exchanges</th><th>Certificate key and issuer</th><th>Expires</th></tr></thead><tbody>{rows}</tbody></table></div></section>")
+    return page(title, "Readiness assessment", f"{s['endpoints']} endpoints scanned for post-quantum key exchange and certificates.", body)
 
 
 def _join(host, port):

@@ -8,6 +8,8 @@ import datetime as dt
 import html
 import json
 
+from ..brand import page
+
 CNSA2_DEADLINE = {"tls": 2033, "ssh": 2033, "vpn": 2030, "pki": 2033, "backup": 2033}
 CNSA2_CATEGORY = {"tls": "web browsers, servers and cloud services", "ssh": "operating systems and services",
                   "vpn": "traditional networking equipment (VPNs, routers)", "pki": "certificates and signing", "backup": "custom applications and data at rest"}
@@ -93,24 +95,18 @@ def to_html(rep, title="Post-quantum compliance evidence"):
     e = html.escape
     cls = {"ready": "ok", "transition": "warn", "action": "bad"}
     rows = "".join(
-        f"<tr><td>{e(r['kind'])}</td><td>{e(r['name'])}</td><td class={cls[r['status']]}>{e(STATUS[r['status']])}</td><td>{e(r['nist_ir_8547'])}</td>"
+        f"<tr><td>{e(r['kind'])}</td><td>{e(r['name'])}</td><td><span class='pill {cls[r['status']]}'>{e(STATUS[r['status']])}</span></td><td>{e(r['nist_ir_8547'])}</td>"
         f"<td class={'ok' if r['cnsa2'] == 'compliant' else 'warn'}>{e(r['cnsa2'])}<br><small>by {r['cnsa2_deadline']} ({e(CNSA2_CATEGORY[r['kind']])})</small></td>"
         f"<td><small>{e(r['detail'])}</small></td></tr>" for r in sorted(rep["items"], key=lambda r: (list(STATUS).index(r["status"]) * -1, r["kind"], r["name"])))
     s = rep["status"]
-    return f"""<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>{e(title)}</title>
-<style>:root{{--ink:#15171a;--mute:#6b7076;--line:#e3e5e8;--bg:#fff;--ok:#0b6b3a;--warn:#7a5a00;--bad:#9a2412}}
-@media(prefers-color-scheme:dark){{:root{{--ink:#eceef0;--mute:#9aa0a6;--line:#2a2d31;--bg:#111315;--ok:#4ade80;--warn:#facc15;--bad:#fb923c}}}}
-body{{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}}main{{max-width:1180px;margin:0 auto;padding:32px 16px}}
-h1{{font-size:24px;margin:0 0 4px}}p{{color:var(--mute);margin:0 0 20px;max-width:80ch}}.stats{{display:flex;flex-wrap:wrap;gap:32px;margin-bottom:24px}}
-.stats b{{display:block;font-size:28px}}.stats span{{color:var(--mute)}}.scroll{{overflow-x:auto}}table{{border-collapse:collapse;width:100%;min-width:900px}}
-th,td{{text-align:left;padding:8px 10px 8px 0;border-bottom:1px solid var(--line);vertical-align:top}}th{{font-size:12px;color:var(--mute);font-weight:500}}
-small{{color:var(--mute)}}.ok{{color:var(--ok)}}.warn{{color:var(--warn)}}.bad{{color:var(--bad);font-weight:600}}</style>
-<main><h1>{e(title)}</h1><p>Generated {rep['generated']} by pqcsuite. NIST IR 8547 (draft): quantum-vulnerable public-key algorithms deprecated after 2030
-(112-bit) and disallowed after 2035. NSA CNSA 2.0: ML-KEM-1024, ML-DSA-87, AES-256, used exclusively by each category's deadline.</p>
-<div class=stats><div><b>{rep['assets']}</b><span>assets</span></div><div><b class=ok>{s['ready']}</b><span>quantum-safe</span></div>
-<div><b class=warn>{s['transition']}</b><span>with classical fallback</span></div><div><b class=bad>{s['action']}</b><span>need action</span></div>
-<div><b>{rep['cnsa2_compliant']}</b><span>meet CNSA 2.0</span></div></div>
-<div class=scroll><table><thead><tr><th>Type</th><th>Asset</th><th>Status</th><th>NIST IR 8547</th><th>CNSA 2.0</th><th>Evidence</th></tr></thead><tbody>{rows}</tbody></table></div></main></html>"""
+    tiles = "".join(f"<div class=tile><span>{label}</span><b class={tone}>{value}</b></div>" for label, value, tone in (
+        ("assets", rep["assets"], ""), ("quantum-safe", s["ready"], "ok"), ("with classical fallback", s["transition"], "warn"),
+        ("need action", s["action"], "bad"), ("meet CNSA 2.0", rep["cnsa2_compliant"], "")))
+    sub = ("NIST IR 8547 (draft): quantum-vulnerable public-key algorithms deprecated after 2030 (112-bit) and disallowed after 2035. "
+           "NSA CNSA 2.0: ML-KEM-1024, ML-DSA-87, AES-256, used exclusively by each category's deadline.")
+    body = (f"<div class=tiles>{tiles}</div><section class=panel><h2>Every asset</h2><div class=scroll><table><thead><tr><th>Type</th><th>Asset</th>"
+            f"<th>Status</th><th>NIST IR 8547</th><th>CNSA 2.0</th><th>Evidence</th></tr></thead><tbody>{rows}</tbody></table></div></section>")
+    return page(title, "Compliance evidence", sub, body)
 
 
 def to_json(rep):

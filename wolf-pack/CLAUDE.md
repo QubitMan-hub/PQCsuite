@@ -64,7 +64,7 @@ wolfpack/
                  exposure weighting, test demotion, alerts, readiness
   pack.py        Roles (switchboard), hunt (scouts), run (the pipeline), baseline diff
   cbom.py        CycloneDX 1.6 builder (provides, services), SARIF 2.1.0, audit trail
-  report.py      self-contained monochrome HTML report and terminal summary
+  report.py      self-contained HTML report (Acxelin look, from brand.py and assets/) and terminal summary
   image.py       container images (docker save / OCI archive): layers unpacked in order, whiteouts applied
   remedy.py      how to fix each asset where it was found: per-language API, config line, certificate reissue, PQC Suite product
   inventory.py   merge: many systems' CBOMs (any tool) into one organisation inventory, dashboard and merged CBOM
@@ -116,6 +116,7 @@ Tiers: legacy, sub-112-bit, ECB, or MD5/SHA-1 signatures are critical when expos
 6. Keep it simple. Prefer a small, well-tested rule over a framework. Minimal comments; docstrings only where the why is not obvious.
 7. Don't overclaim. Distinguish "implemented in a binary" from "used", "declared support" from "called", and "assumed" (e.g. CRQC year, EC key use) from "observed".
 8. `bench/corpus/certs/signing.key` is a deliberate test private key. It is not a secret. If GitHub secret scanning flags it, dismiss the alert as a test fixture.
+9. HTML the user sees (report, inventory dashboard, project page) is in Acxelin's format: `wolfpack/brand.py` and `wolfpack/assets/`, matching the PQC Suite console. Owner's standing instruction.
 
 ## Adding things
 
