@@ -28,7 +28,8 @@ GATES = {  # gate: [(what it shows, check run name or prefix, how many)]
                ("No new high-risk cryptography (Wolf Pack against docs/cbom.json)", "ci/cbom", 1),
                ("CodeQL: Python, JavaScript, workflows", "codeql/analyze (", 3)],
     "Operational": [("Kubernetes: Helm install in kind, post-quantum request through the edge", "ci/kubernetes", 1),
-                    ("IPsec and WireGuard with real traffic in network namespaces; VPN demo", "ci/vpn", 1),
+                    ("IPsec and WireGuard with real traffic in network namespaces, full tunnel and kill switch; VPN demo", "ci/vpn", 1),
+                    ("VPN client on Windows: a real WireGuard for Windows tunnel brought up, rotated and removed", "ci/windows-vpn", 1),
                     ("Cloud image: Packer template and provisioning on Debian 13", "ci/cloud-image", 1)],
 }
 
