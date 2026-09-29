@@ -32,6 +32,7 @@
       <a href="#products">Products</a>
       <a href="#plan">How we start</a>
       <a href="#grades">Readiness grades</a>
+      <a href="#use">Try it</a>
       <a href="#faq">Questions</a>
       <a class="tool" href="wolf-pack.html">Wolf Pack CBOM</a>
       <a class="btn" href="#contact">Book a free scan</a>
@@ -192,13 +193,14 @@ pqcsuite vpn status</pre></div>
             <li>Scheduled, encrypted backups with retention, stored wherever you keep them today</li>
             <li>Any change to an archive is caught before anything is restored</li>
             <li>Give a colleague access without re-encrypting terabytes</li>
+            <li>Every backup opens with two keys, one kept offline, and a restore drill proves it</li>
           </ul></div>
           <div><h4>Behind the scenes</h4><ul>
             <li>ML-KEM-768 + X25519 per recipient, AES-256-GCM for the data</li>
             <li>A CNSA 2.0 option with ML-KEM-1024 + P-384</li>
             <li>Signed by a certificate from your CA, so you know who made each backup</li>
           </ul></div>
-          <div class="run"><pre>pqcsuite vault backup /var/lib/postgresql --to /backups -r ops.pub --keep 30</pre></div>
+          <div class="run"><pre>pqcsuite vault backup /var/lib/postgresql --to /backups -r ops.pub -r recovery.pub --keep 30</pre></div>
         </div>
       </article>
 
@@ -311,6 +313,39 @@ quantum-safe asymmetric: 1/6 (17%)
     </div>
   </section>
 
+  <section id="use">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Use it yourself</p>
+        <h2>Try it, install it, read how it works</h2>
+        <p>For your engineers. Everything runs on your own machines, and nothing needs an account with us.</p>
+      </div>
+      <div class="ways">
+        <div>
+          <h3>See it work in a minute</h3>
+          <p>With Docker: a certificate authority, the post-quantum edge in front of a web server, and a classical client refused.</p>
+          <pre>docker run --rm ghcr.io/qubitman-hub/pqcsuite</pre>
+        </div>
+        <div>
+          <h3>Install it</h3>
+          <p>Python 3.11 or newer, on Windows, macOS or Linux, from a <a href="https://github.com/QubitMan-hub/PQCsuite/releases">release</a> or a copy of the code. <code>pqcsuite</code> on its own lists every command; <code>doctor</code> says what works on this machine.</p>
+          <pre>pip install .
+pqcsuite doctor</pre>
+        </div>
+        <div>
+          <h3>Read the documentation</h3>
+          <p>Every command explains itself with <code>--help</code>. For the rest:</p>
+          <ul class="doclinks">
+            <li><a href="https://github.com/QubitMan-hub/PQCsuite#install">Install and first steps</a></li>
+            <li><a href="https://github.com/QubitMan-hub/PQCsuite#what-listens-where">What listens on the network, and how to narrow it</a></li>
+            <li><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/THREAT-MODEL.md">Threat model and runbooks</a></li>
+            <li><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md">What changed in each release</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="faq" class="alt">
     <div class="wrap">
       <div class="intro">
@@ -353,6 +388,7 @@ quantum-safe asymmetric: 1/6 (17%)
     <nav aria-label="Footer">
       <div><b>PQC Suite</b><a href="#tls">TLS 1.3 + mTLS</a><a href="#vpn">IPsec VPN</a><a href="#vault">Vault</a><a href="#readiness">Readiness assessment</a><a href="#faq">Questions</a></div>
       <div><b>Also from Acxelin</b><a href="wolf-pack.html">Wolf Pack CBOM</a><span>Finds the cryptography in your code</span><a href="wolf-pack-sample.html">Sample report</a><a href="wolf-pack-inventory.html">Sample dashboard</a></div>
+      <div><b>Documentation</b><a href="https://github.com/QubitMan-hub/PQCsuite#install">Install and first steps</a><a href="https://github.com/QubitMan-hub/PQCsuite#what-listens-where">What listens where</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/THREAT-MODEL.md">Threat model</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md">Changelog</a><a href="https://github.com/QubitMan-hub/PQCsuite/releases">Releases</a><a href="https://github.com/QubitMan-hub/PQCsuite">Source code</a></div>
       <div><b>Contact</b><a href="mailto:info@acxelinquantum.com">info@acxelinquantum.com</a><a href="https://forms.office.com/Pages/ResponsePage.aspx?id=G7il0FYBPk-mQiu5eNm4__Zpyi-xUOBMtEt0p-905AxUME9LMzZFV0JLWEFDMzdJMTM1MzYxSEVORy4u" target="_blank" rel="noopener">Book a call</a></div>
     </nav>
     <small>© 2026 Acxelin Quantum. ML-KEM (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205).</small>

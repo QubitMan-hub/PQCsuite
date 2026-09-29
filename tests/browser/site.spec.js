@@ -79,6 +79,21 @@ test("Wolf Pack is one click from the home page, links back, and opens its sampl
   await expect(page).toHaveURL(/index\.html$/);
 });
 
+test("Try it leads engineers to the tour, the install and the documentation, from every page's footer too", async ({ page }) => {
+  await page.goto(SITE + "index.html");
+  await page.click('#nav a[href="#use"]');
+  await expect(page.locator("#use .ways > div")).toHaveCount(3);
+  await expect(page.locator("#use pre").first()).toHaveText("docker run --rm ghcr.io/qubitman-hub/pqcsuite");
+  // a backup that one key opens is refused by the product, so the site must never show one
+  await expect(page.locator("#vault pre")).toContainText("-r ops.pub -r recovery.pub");
+  for (const name of ["index.html", "wolf-pack.html", "404.html"]) {
+    await page.goto(SITE + name);
+    const docs = page.locator("body > footer nav div", { hasText: "Documentation" }).locator("a");
+    await expect(docs).toHaveCount(6);
+    for (const href of await docs.evaluateAll(as => as.map(a => a.href))) expect(href).toMatch(/^https:\/\/github\.com\/QubitMan-hub\/PQCsuite/);
+  }
+});
+
 test("the Also from Acxelin band opens Wolf Pack", async ({ page }) => {
   await page.goto(SITE + "index.html");
   await page.click("#also >> text=Explore Wolf Pack CBOM");
