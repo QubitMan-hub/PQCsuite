@@ -154,6 +154,8 @@ def general_names(names):
         except ValueError:
             if len(n) > 253 or not HOSTNAME.fullmatch(n):
                 raise CAError(f"{n!r} is not a valid host name or IP address") from None
+            if n.rsplit(".", 1)[-1].isdigit():
+                raise CAError(f"{n!r} looks like an IP address but is not a valid one") from None
             out.append(x509.DNSName(n))
     return out
 
@@ -184,8 +186,9 @@ class CA:
         try:
             signer = signers.from_config(self.root, self.passphrase)
         except (signers.SignerError, OSError, KeyError, ValueError) as e:
-            hint = " (wrong passphrase?)" if self.passphrase and "passphrase" not in str(e) else ""
-            raise CAError(f"cannot open the CA key: {e}{hint}") from None
+            if self.passphrase and ("Incorrect password" in str(e) or "decrypt" in str(e)):
+                raise CAError("cannot open the CA key: wrong passphrase") from None
+            raise CAError(f"cannot open the CA key: {e}") from None
         if signer.spki != _spki(self.cert):
             raise CAError("the CA key does not match ca.crt")
         return signer
@@ -213,6 +216,8 @@ class CA:
             raise CAError(f"a CA already exists at {root}")
         if algorithm not in CA_ALGORITHMS:
             raise CAError(f"unknown algorithm {algorithm}; choose from {', '.join(CA_ALGORITHMS)}")
+        if not 1 <= len(name) <= 64:
+            raise CAError("the CA name must be 1 to 64 characters")
         if parent and parent.cert.extensions.get_extension_for_class(x509.BasicConstraints).value.path_length == 0:
             raise CAError(f"{parent.cert.subject.rfc4514_string()} was created with path length 0 and cannot sign CAs; start a new root")
         root.mkdir(parents=True, exist_ok=True)

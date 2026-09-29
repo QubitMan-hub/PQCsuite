@@ -245,12 +245,15 @@ class Writer(io.RawIOBase):
         self.close()
 
 
+DAMAGED = "the header is damaged, or the file was cut short (an incomplete copy?)"
+
+
 def read_header(f):
     if f.read(len(MAGIC)) != MAGIC:
         raise VaultError("not a pqcsuite vault file")
     head = f.read(4)
     if len(head) < 4:
-        raise VaultError("corrupted header")
+        raise VaultError(DAMAGED)
     (n,) = struct.unpack(">I", head)
     if n > 1 << 24:
         raise VaultError("header too large")
@@ -262,13 +265,13 @@ def read_header(f):
     except (ValueError, UnicodeDecodeError, AttributeError):
         fields = entries = False
     if not (fields and entries and isinstance(h.get("chunk"), int)):
-        raise VaultError("corrupted header")
+        raise VaultError(DAMAGED)
     if h.get("v") not in (1, 2) or h.get("suite") not in SUITES:
         raise VaultError(f"unsupported vault format {h.get('v')}/{h.get('suite')}")
     try:
         unb64(h["nonce"]), unb64(h["id"])
     except ValueError:
-        raise VaultError("corrupted header") from None
+        raise VaultError(DAMAGED) from None
     return h
 
 
@@ -544,6 +547,8 @@ def inspect(path):
 def backup(src, dest_dir, recipients, signer=None, keep=None):
     """A timestamped encrypted archive of `src` in `dest_dir`; with `keep`, only the newest `keep` archives of it remain."""
     src, dest_dir = Path(src), Path(dest_dir)
+    if keep is not None and keep < 1:
+        raise VaultError(f"keep must be at least 1 (the newest archive), not {keep}")
     dest_dir.mkdir(parents=True, exist_ok=True)
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     target = dest_dir / f"{src.name}-{stamp}.pqv"

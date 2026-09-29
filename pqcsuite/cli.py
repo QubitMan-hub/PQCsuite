@@ -63,7 +63,8 @@ def cmd_doctor(a):
         print(f"TLS: {lib.version}, groups {tls.PQC_GROUPS} available")
         broken = False
     except tls.TLSError as e:
-        print(f"TLS: not available: {e}")
+        print(f"TLS: not available: {e}\nVault and the certificate authority work on this machine; the TLS edge, the VPN key agreement "
+              "and readiness scans need the above.")
         broken = True
     fails = warns = 0
     if a.check_updates:
@@ -502,6 +503,7 @@ def cmd_try(a):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from .tls.edge import Edge, Route
     from .tls.openssl import Context
+    tls.lib()  # say at once when this machine's OpenSSL cannot do post-quantum TLS, not halfway through the tour
 
     class Hello(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -568,6 +570,8 @@ def cmd_report(a):
     if a.ca:
         rows += compliance.certificates(app.ca().records())
     targets = scan.load_targets(a.targets)
+    if a.targets and not targets:
+        raise ValueError("no targets in --targets: give host, host:port, ssh://host, or a .txt file with one per line")
     if targets:
         rows += compliance.endpoints(scan.scan(targets, timeout=a.timeout))
     rows += compliance.tunnels(app.tunnels()) + compliance.backups(app.backups())
@@ -585,6 +589,18 @@ def cmd_report(a):
 def parse_addr(s, default_host="0.0.0.0"):
     from .tls import hostport
     return hostport(s, default_host)
+
+
+def positive(kind):
+    def check(s):
+        try:
+            v = kind(s)
+        except ValueError:
+            v = 0
+        if not v > 0:
+            raise argparse.ArgumentTypeError(f"expected a number above 0, got {s!r}")
+        return v
+    return check
 
 
 def run_until_signal(run, stop, reload=None):
@@ -716,10 +732,10 @@ def parser():
     p.add_argument("serial")
     p.add_argument("--reason", default="unspecified")
     p = ca.add_parser("crl", parents=[common], help="re-sign the CRL (do this before it expires)")
-    p.add_argument("--days", type=int, default=7)
+    p.add_argument("--days", type=positive(int), default=7)
     p = ca.add_parser("maintain", parents=[common], help="renew what expires soon and refresh the CRL (run daily)")
     p.add_argument("--renew-within", type=int, default=30, metavar="DAYS")
-    p.add_argument("--crl-days", type=int, default=7)
+    p.add_argument("--crl-days", type=positive(int), default=7)
     p = ca.add_parser("list", parents=[common], help="list issued certificates")
     p.add_argument("--expiring", type=int, metavar="DAYS", help="only those expiring within DAYS")
     p.add_argument("--json", action="store_true")
@@ -727,7 +743,7 @@ def parser():
     p.add_argument("kind", choices=["server", "client", "site"])
     p.add_argument("common_name")
     p.add_argument("--san", action="append", default=[])
-    p.add_argument("--hours", type=float, default=24)
+    p.add_argument("--hours", type=positive(float), default=24)
     p = ca.add_parser("publish", parents=[common], help="serve crl.pem and ca.crt over HTTP, for edges and gateways to follow (crl_url)")
     p.add_argument("--listen", default="0.0.0.0:8080")
     p = ca.add_parser("serve", parents=[common], help="EST enrollment service (RFC 7030) over post-quantum TLS")
@@ -891,6 +907,9 @@ def main(argv=None):
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO, handlers=[h])
     try:
         sys.exit(a.func(a))
+    except BrokenPipeError:  # output piped into head, or a pager closed early
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        sys.exit(1)
     except (CAError, CharonError, WGError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {explain(e)}", file=sys.stderr)
         sys.exit(1)

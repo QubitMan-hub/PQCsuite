@@ -7,3 +7,5 @@ Type=oneshot
 User=pqc
 EnvironmentFile=-/etc/pqcsuite/ca.env
 ExecStart=/opt/pqcsuite/bin/pqcsuite ca maintain --dir /var/lib/pqcsuite/pki
+NoNewPrivileges=yes
+PrivateTmp=yes

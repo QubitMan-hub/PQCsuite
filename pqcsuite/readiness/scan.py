@@ -257,12 +257,21 @@ def _join(host, port):
 
 
 def load_targets(items):
-    targets = []
+    """Targets from the command line and from .txt or .lst files, all checked before any is scanned."""
+    targets, bad = [], []
     for item in items:
-        if item.endswith(".txt") or item.endswith(".lst"):
-            targets += [l.split("#")[0].strip() for l in read_text(item).splitlines() if l.split("#")[0].strip()]
-        else:
-            targets.append(item)
+        lines = [(f"{item}:{n}", l.split("#")[0].strip()) for n, l in enumerate(read_text(item).splitlines(), 1)] \
+            if item.endswith((".txt", ".lst")) else [(None, item)]
+        for where, t in lines:
+            if not t:
+                continue
+            try:
+                endpoint(t)
+                targets.append(t)
+            except ValueError:
+                bad.append(f"{where}: {t!r}" if where else repr(t))
+    if bad:
+        raise ValueError("not a host, host:port or ssh://host: " + ", ".join(bad[:10]) + (f" and {len(bad) - 10} more" if len(bad) > 10 else ""))
     return targets
 
 

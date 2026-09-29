@@ -122,8 +122,10 @@ def config(path):
     from .vpn.wireguard import load_gateway
     try:
         doc = read_toml(path)
-    except (OSError, ValueError) as e:
-        return [("fail", f"{path}: {e}")]
+    except OSError as e:
+        return [("fail", f"{path}: {e.strerror or e}")]
+    except ValueError as e:
+        return [("fail", str(e))]
     kind = next((k for k in ("edge", "site", "wireguard", "console") if k in doc), None)
     if not kind:
         return [("fail", f"{path}: no [[edge]], [site], [wireguard] or [console] section")]

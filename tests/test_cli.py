@@ -149,7 +149,16 @@ class CLITest(unittest.TestCase):
         empty = self.d / "hosts.txt"
         empty.write_text("# nothing yet\n")
         self.assertIn("no targets", self.fails("readiness", "scan", empty))
+        self.assertIn("no targets", self.fails("readiness", "report", "--targets", empty))
         self.assertIn("nothing to report on", self.fails("readiness", "report"))
+        typo = self.d / "typo.txt"
+        typo.write_text("bank.example\nbad host # typo\n")
+        self.assertIn(f"{typo}:2: 'bad host'", self.fails("readiness", "scan", "ok.example", typo))
+        for argv in (("ca", "crl", "--days", "0"), ("ca", "maintain", "--crl-days", "-1"), ("ca", "token", "server", "web", "--hours", "0")):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+                main([*argv, "--dir", str(self.d / "nowhere")])
+            self.assertIn("expected a number above 0", err.getvalue(), argv)
         self.assertIn("no CA at", self.fails("console", "--ca", self.d / "nowhere", "--listen", "127.0.0.1:0"))
 
     def test_bundles_never_invent_a_ca_or_leave_half_a_folder(self):

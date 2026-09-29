@@ -61,6 +61,10 @@ class OpenSSLUnavailable(TLSError):
     pass
 
 
+EASIEST = ("Easiest: use the container image, which has it (docker run --rm ghcr.io/qubitman-hub/pqcsuite, then your command), "
+           "or Debian 13 or Ubuntu 25.04+, whose OpenSSL is new enough.")
+
+
 def _names(stem):
     """Library file names to try, newest first. PQCSUITE_OPENSSL points at a directory holding a specific build."""
     system = platform.system()
@@ -83,8 +87,8 @@ def _load(stem):
             return ctypes.CDLL(n, mode=getattr(ctypes, "RTLD_GLOBAL", 0))
         except OSError:
             continue
-    raise OpenSSLUnavailable(f"could not load lib{stem} (tried {', '.join(names) or 'nothing on PATH'}); install OpenSSL 3.5+ "
-                             "or set PQCSUITE_OPENSSL to the folder that holds it")
+    raise OpenSSLUnavailable(f"OpenSSL 3.5+ was not found (tried {', '.join(names) or 'nothing on PATH'}). {EASIEST} "
+                             "Or install OpenSSL 3.5+ and set PQCSUITE_OPENSSL to the folder that holds it.")
 
 
 class _Lib:
@@ -94,9 +98,10 @@ class _Lib:
         crypto.OpenSSL_version_num.restype = ctypes.c_ulong
         self.version = crypto.OpenSSL_version(0).decode()
         if crypto.OpenSSL_version_num() < MIN_VERSION:
-            hint = (" This process already uses that OpenSSL (Linux loads one per process); start Python with "
-                    "LD_LIBRARY_PATH pointing at an OpenSSL 3.5+ lib folder.") if platform.system() == "Linux" else ""
-            raise OpenSSLUnavailable(f"{self.version} is too old: ML-KEM and ML-DSA in TLS need OpenSSL 3.5 or newer.{hint}")
+            hint = (" Or, with OpenSSL 3.5+ installed elsewhere, start pqcsuite with LD_LIBRARY_PATH set to its lib folder "
+                    "(PQCSUITE_OPENSSL cannot help here: this process has already loaded the system OpenSSL).") if platform.system() == "Linux" else \
+                   " Or install OpenSSL 3.5+ and set PQCSUITE_OPENSSL to the folder that holds it."
+            raise OpenSSLUnavailable(f"this machine's {self.version} is too old: post-quantum TLS needs OpenSSL 3.5 or newer. {EASIEST}{hint}")
         ssl = _load("ssl")
         for lib_, table in ((crypto, PROTOTYPES["crypto"]), (ssl, PROTOTYPES["ssl"])):
             for name, args, res in table:
@@ -115,12 +120,19 @@ def lib():
     return _lib
 
 
+PLAIN = {"no start line": "not the expected kind of PEM file (certificate and key swapped?)", "no such file": "file not found",
+         "No such file or directory": "file not found", "bad decrypt": "wrong passphrase",
+         "key values mismatch": "this key does not belong to this certificate"}
+
+
 def errors(default="unknown OpenSSL error"):
-    """Drain OpenSSL's error queue into one readable message."""
+    """Drain OpenSSL's error queue into one readable message, in plain words where the reason is a common one."""
     L_, out, buf = lib(), [], ctypes.create_string_buffer(256)
     while code := L_.ERR_get_error():
         L_.ERR_error_string_n(code, buf, len(buf))
-        out.append(buf.value.decode(errors="replace").split(":", 4)[-1])
+        reason = buf.value.decode(errors="replace").split(":", 4)[-1]
+        if not reason.endswith(" lib"):
+            out.append(PLAIN.get(reason, reason))
     return "; ".join(dict.fromkeys(out)) or default
 
 
@@ -197,7 +209,7 @@ class Context:
         finally:
             L_.BIO_free(bio)
         if not pkey:
-            raise TLSError(f"cannot read private key {path}: {errors()} (wrong passphrase?)")
+            raise TLSError(f"cannot read private key {path}: {errors()}" + ("" if passphrase else " (if it is encrypted, give its passphrase)"))
         try:
             self._check(L_.SSL_CTX_use_PrivateKey(self.ptr, pkey), f"use private key {path}")
             self._check(L_.SSL_CTX_check_private_key(self.ptr), f"match private key {path} to its certificate")
