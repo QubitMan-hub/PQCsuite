@@ -55,16 +55,15 @@ def cmd_doctor(a):
     import cryptography
     from cryptography.hazmat.backends.openssl.backend import backend
     print(f"{NAME} {__version__}, Python {sys.version.split()[0]}")
-    print(f"cryptography {cryptography.__version__} with {backend.openssl_version_text()}: certificate authority ready")
+    print(f"CA and Vault: ready (cryptography {cryptography.__version__}, with its own {backend.openssl_version_text()})")
     try:
         lib = tls.lib()
         ctx = tls.client_context(verify=False)
         ctx.close()
-        print(f"TLS: {lib.version}, groups {tls.PQC_GROUPS} available")
+        print(f"TLS edge, VPN key agreement and readiness scans: ready (this machine's {lib.version}; groups {tls.PQC_GROUPS})")
         broken = False
     except tls.TLSError as e:
-        print(f"TLS: not available: {e}\nVault and the certificate authority work on this machine; the TLS edge, the VPN key agreement "
-              "and readiness scans need the above.")
+        print(f"TLS edge, VPN key agreement and readiness scans: not available: {e}")
         broken = True
     fails = warns = 0
     if a.check_updates:
@@ -637,7 +636,7 @@ def parser():
     ap.add_argument("--version", action="version", version=f"{NAME} {__version__}")
     ap.add_argument("--log-json", action="store_true", help="structured JSON logs")
     ap.add_argument("-v", "--verbose", action="store_true")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub = ap.add_subparsers(dest="cmd")
     p = sub.add_parser("doctor", help="check that this machine can run everything",
                        epilog="exit codes: 0 safe, 1 warnings (with --strict), 2 unsafe configuration, 3 broken installation")
     p.set_defaults(func=cmd_doctor)
@@ -656,7 +655,7 @@ def parser():
     p.set_defaults(func=cmd_edge)
     p.add_argument("--config", help="TOML file with [[edge]] routes; replaces the flags below")
     p.add_argument("--mode", choices=["terminate", "originate"], default="terminate")
-    p.add_argument("--listen", default="0.0.0.0:8443")
+    p.add_argument("--listen", default="0.0.0.0:8443", help="host:port (default: every interface, port 8443)")
     p.add_argument("--target", help="upstream host:port (terminate) or remote edge host:port (originate)")
     p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
     for flag in ("--cert", "--key", "--key-passphrase-env", "--ca", "--crl", "--crl-url", "--server-name", "--metrics"):
@@ -677,7 +676,7 @@ def parser():
     p.add_argument("--policy", choices=list(tls.POLICIES), default="strict")
     p = t.add_parser("serve", help="an echo server, for testing clients")
     p.set_defaults(func=cmd_tls)
-    p.add_argument("--listen", default="0.0.0.0:8443")
+    p.add_argument("--listen", default="0.0.0.0:8443", help="host:port (default: every interface, port 8443)")
     p.add_argument("--cert", required=True, help="chain.pem")
     p.add_argument("--key", required=True)
     p.add_argument("--key-passphrase-env")
@@ -697,7 +696,8 @@ def parser():
     ca = sub.add_parser("ca", help="TLS 1.3 + mTLS: the post-quantum certificate authority, EST and ACME").add_subparsers(dest="ca_cmd", required=True)
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--dir", default="pki", help="CA folder (default: pki)")
-    p = ca.add_parser("init", parents=[common], help="create a root or intermediate CA")
+    p = ca.add_parser("init", parents=[common], help="create a root or intermediate CA",
+                      epilog='example: pqcsuite ca init --name "Example Root CA" --dir pki')
     p.add_argument("--name", required=True)
     p.add_argument("--algorithm", choices=CA_ALGORITHMS, default="ML-DSA-87", help="SLH-DSA keys need OpenSSL 3.5+")
     p.add_argument("--parent", help="the CA folder that signs this one, making it an intermediate CA")
@@ -711,13 +711,15 @@ def parser():
     enc.add_argument("--no-encrypt", action="store_true",
                      help=f"leave the CA key unencrypted (by default it is encrypted, passphrase from {CA_PASS_ENV} or a prompt)")
     for name in ("issue", "renew"):
-        p = ca.add_parser(name, parents=[common], help="issue a key and certificate" if name == "issue" else "new key and certificate, same names")
+        p = ca.add_parser(name, parents=[common], help="issue a key and certificate" if name == "issue" else "new key and certificate, same names",
+                          epilog="example: pqcsuite ca issue server web.corp.example --dir pki --out web" if name == "issue" else
+                          "example: pqcsuite ca renew 3f9a1c2e7b --dir pki --out web (serials from `ca list`)")
         if name == "issue":
             p.add_argument("kind", choices=["server", "client", "site"], help="site: a VPN gateway (server and client)")
-            p.add_argument("common_name")
+            p.add_argument("common_name", help="the name it certifies: a host name such as web.corp.example, or a person or device")
             p.add_argument("--san", action="append", default=[], help="DNS name or IP (repeatable; servers default to the common name)")
         else:
-            p.add_argument("serial")
+            p.add_argument("serial", help="from `ca list`; the first 8 or more hex characters are enough")
         p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-65" if name == "issue" else None,
                        help=None if name == "issue" else "default: the algorithm of the certificate being renewed")
         p.add_argument("--days", type=int, default=397)
@@ -745,9 +747,9 @@ def parser():
     p.add_argument("--san", action="append", default=[])
     p.add_argument("--hours", type=positive(float), default=24)
     p = ca.add_parser("publish", parents=[common], help="serve crl.pem and ca.crt over HTTP, for edges and gateways to follow (crl_url)")
-    p.add_argument("--listen", default="0.0.0.0:8080")
+    p.add_argument("--listen", default="0.0.0.0:8080", help="host:port (default: every interface, port 8080)")
     p = ca.add_parser("serve", parents=[common], help="EST enrollment service (RFC 7030) over post-quantum TLS")
-    p.add_argument("--listen", default="0.0.0.0:9443")
+    p.add_argument("--listen", default="0.0.0.0:9443", help="host:port (default: every interface, port 9443)")
     p.add_argument("--cert", required=True, help="the service's own server chain.pem")
     p.add_argument("--key", required=True)
     p.add_argument("--key-passphrase-env")
@@ -827,7 +829,7 @@ def parser():
         p = q.add_parser(name, help="encrypt a file or folder" if name == "encrypt" else "timestamped encrypted archive, with retention")
         p.add_argument("source")
         if name == "encrypt":
-            p.add_argument("-o", "--out", required=True)
+            p.add_argument("-o", "--out", required=True, help="the encrypted file to write, e.g. report.pdf.pqv")
         else:
             p.add_argument("--to", required=True, help="folder that holds the archives (sync it to any storage)")
             p.add_argument("--keep", type=int, help="keep only the newest N archives")
@@ -838,8 +840,9 @@ def parser():
         p.add_argument("--sign-passphrase-env")
     p = q.add_parser("decrypt", help="decrypt and verify")
     p.add_argument("file")
-    p.add_argument("--key", required=True)
-    p.add_argument("-o", "--out", default=".", help="folder to restore into; the original file or folder name is kept")
+    p.add_argument("-k", "--key", required=True, help="your .key file")
+    p.add_argument("-o", "--out", default=".", metavar="FOLDER",
+                   help="folder to restore into (default: this one); the original file or folder name is kept inside it")
     p.add_argument("--passphrase-env")
     p.add_argument("--ca", help="the signer's certificate must chain to this CA")
     p.add_argument("--crl", help="and must not be revoked")
@@ -847,7 +850,7 @@ def parser():
     p.add_argument("--require-signature", action="store_true")
     p = q.add_parser("verify", help="restore drill: prove an archive opens with this key and is intact, writing nothing")
     p.add_argument("file")
-    p.add_argument("--key", required=True)
+    p.add_argument("-k", "--key", required=True, help="your .key file")
     p.add_argument("--passphrase-env")
     p.add_argument("--ca", help="the signer's certificate must chain to this CA")
     p.add_argument("--crl", help="and must not be revoked")
@@ -855,7 +858,7 @@ def parser():
     p.add_argument("--require-signature", action="store_true")
     p = q.add_parser("share", help="let more recipients open a file, without re-encrypting it")
     p.add_argument("file")
-    p.add_argument("--key", required=True, help="your key (you must be able to open the file)")
+    p.add_argument("-k", "--key", required=True, help="your .key file (you must be able to open the file)")
     p.add_argument("-r", "--recipient", action="append", required=True)
     p.add_argument("--passphrase-env")
     p = q.add_parser("inspect", help="who can open a file and who signed it")
@@ -901,7 +904,12 @@ def parser():
 
 
 def main(argv=None):
-    a = parser().parse_args(argv)
+    ap = parser()
+    a = ap.parse_args(argv)
+    if not a.cmd:
+        ap.print_help()
+        print(f"\nNew here? `{NAME} try` runs a one-minute tour; `{NAME} doctor` checks this machine.")
+        sys.exit(0)
     h = logging.StreamHandler()
     h.setFormatter(JSONFormatter() if a.log_json else logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO, handlers=[h])

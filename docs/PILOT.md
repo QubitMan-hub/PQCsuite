@@ -17,7 +17,7 @@ packer build -only=googlecompute.pqcsuite -var gcp_project=... deploy/packer    
 Start a small VM from the image, then on it:
 
 ```
-pqcsuite doctor                                  # TLS: OpenSSL 3.5..., exit 0
+pqcsuite doctor                                  # "... ready (this machine's OpenSSL 3.5...)", exit 0
 pqcsuite try                                     # post-quantum in, classical out
 sudo systemctl status strongswan-pqc             # the VPN units are installed
 ```

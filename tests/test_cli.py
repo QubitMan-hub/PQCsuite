@@ -161,6 +161,20 @@ class CLITest(unittest.TestCase):
             self.assertIn("expected a number above 0", err.getvalue(), argv)
         self.assertIn("no CA at", self.fails("console", "--ca", self.d / "nowhere", "--listen", "127.0.0.1:0"))
 
+    def test_first_steps_are_explained(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
+            main([])
+        self.assertEqual(e.exception.code, 0)
+        self.assertIn("pqcsuite try", out.getvalue())
+        cfg = self.d / "edge.toml"
+        cfg.write_text('[[route]]\nlisten = "0.0.0.0:443"\n')
+        self.assertIn("found [[route]]", self.fails("tls", "edge", "--config", cfg))
+        import sys
+        from unittest import mock
+        with mock.patch.dict(sys.modules, {"vici": None}):
+            self.assertIn('pip install "pqcsuite[vpn]"', self.fails("vpn", "check"))
+
     def test_bundles_never_invent_a_ca_or_leave_half_a_folder(self):
         self.assertIn("no CA at", self.fails("tls", "bundle", "nginx", "--host", "web.example", "--ca", self.d / "typo", "--out", self.d / "b1"))
         self.assertFalse((self.d / "typo").exists())

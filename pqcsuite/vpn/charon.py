@@ -16,7 +16,10 @@ class CharonError(Exception):
 
 
 def connect(uri):
-    import vici
+    try:
+        import vici
+    except ImportError:
+        raise CharonError('the site-to-site VPN needs its extra: pip install "pqcsuite[vpn]"') from None
     u = urlparse(uri)
     try:
         if u.scheme == "unix":

@@ -1,4 +1,4 @@
-"""PQCready bundles: a common service behind the post-quantum edge, generated as a Docker Compose project in one command."""
+"""Bundles: a common service behind the post-quantum edge, generated as a Docker Compose project in one command."""
 import os
 import shutil
 from pathlib import Path
