@@ -69,7 +69,7 @@ Every file the CA writes is written to a temporary name, flushed to disk and ren
 1. Stop the CA (EST, ACME, console) so nothing more is issued from it.
 2. Create a new root on a clean machine, preferably in KMS or an HSM: `pqcsuite ca init --dir pki-new --name "…" --kms KEY`, or with an encrypted key file (the default).
 3. Put the new `ca.crt` in every trust bundle (edges, VPN gateways, clients) and remove the old one. Until it is removed, the old CA can still vouch for anyone.
-4. Reissue every server, client and site certificate from the new CA (`ca enroll` with new tokens, or `ca issue`).
+4. Reissue every server, client and site certificate from the new CA (`ca enroll` with new tokens, or `ca issue`), each into a new folder (`--out`), then point the service at it: the old key and certificate stay in place until the switch, and neither command writes over an existing key.
 5. Re-encrypt Vault archives only if their recipients' keys were also exposed; the CA key does not open archives.
 
 **If an issuing (intermediate) CA is compromised.** Revoke it in its parent (`ca revoke` on the root's folder), publish the root's CRL, create a new intermediate, reissue from it.

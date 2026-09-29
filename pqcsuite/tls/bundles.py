@@ -31,6 +31,10 @@ def create(service, out, host, ca_dir=None, require_client_cert=False, policy="s
     s, out = SERVICES[service], Path(out)
     if (out / "docker-compose.yml").exists():
         raise CAError(f"{out} already has a bundle")
+    taken = [n for n in ("edge.toml", "README.txt", "ca.key.KEEP-OFFLINE", "mosquitto.conf", "passwd", "edge", *([] if ca_dir else ["pki"]))
+             if (out / n).exists()]
+    if taken:
+        raise CAError(f"{out} already has {', '.join(taken)}; give the bundle a new folder (--out) so nothing there is replaced")
     general_names([host])
     ca = CA(ca_dir, passphrase) if ca_dir else None
     fresh = not out.exists()

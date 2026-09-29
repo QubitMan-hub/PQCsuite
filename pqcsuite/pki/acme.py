@@ -538,6 +538,8 @@ def make_csr(names, out, algorithm="ML-DSA-65", passphrase=None):
     csr = (x509.CertificateSigningRequestBuilder().subject_name(x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, names[0])]))
            .add_extension(x509.SubjectAlternativeName(general_names(names)), critical=False).sign(key, None))
     out = Path(out)
+    if (out / "key.pem").exists():
+        raise CAError(f"{out} already holds a key; choose another --out, so that key and whatever certificate uses it are kept")
     write(out / "key.pem", key_pem(key, passphrase), secret=True)
     write(out / "csr.pem", csr.public_bytes(serialization.Encoding.PEM))
     write(out / "csr.der", csr.public_bytes(serialization.Encoding.DER))

@@ -39,6 +39,12 @@ class ESTTest(unittest.TestCase):
         self.assertIn(b"PRIVATE KEY", (self.d / "web1" / "key.pem").read_bytes())
         with self.assertRaisesRegex(CAError, "401.*already used"):
             est.enroll(self.url, token, "web1.acme", [], self.d / "again", self.cafile)
+        key = (self.d / "web1" / "key.pem").read_bytes()
+        second = est.create_token(self.ca, "web1.acme", "server")
+        with self.assertRaisesRegex(CAError, "already holds a key.*--renew"):
+            est.enroll(self.url, second, "web1.acme", [], self.d / "web1", self.cafile)
+        self.assertEqual((self.d / "web1" / "key.pem").read_bytes(), key)
+        est.enroll(self.url, second, "web1.acme", [], self.d / "web1b", self.cafile)  # the refused attempt did not spend the token
         log = (self.d / "pki" / "est-audit.jsonl").read_text()
         self.assertIn('"enrolled"', log)
 

@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 
 from pqcsuite.pki.acme import Service, b64u, create_eab, make_csr, serve
-from pqcsuite.pki import CA, check_revocation
+from pqcsuite.pki import CA, CAError, check_revocation
 
 try:
     import josepy as jose
@@ -94,7 +94,10 @@ class ACMETest(unittest.TestCase):
         return client.ClientV2(client.ClientV2.get_directory(self.url + "/directory", net), net), key
 
     def obtain(self, c, key, names):
-        csr = (make_csr(names, self.d / names[0]) / "csr.pem").read_bytes()
+        out = Path(tempfile.mkdtemp(dir=self.d)) / names[0]  # a new key per order, as a renewal makes
+        csr = (make_csr(names, out) / "csr.pem").read_bytes()
+        with self.assertRaisesRegex(CAError, "already holds a key"):
+            make_csr(names, out)
         order = c.new_order(csr)
         for authz in order.authorizations:
             chall = next(ch for ch in authz.body.challenges if isinstance(ch.chall, challenges.HTTP01))

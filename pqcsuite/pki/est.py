@@ -210,6 +210,8 @@ def _save(out, key, certs, ca_cert, passphrase):
 
 def enroll(url, token, common_name, names=(), out=".", ca=None, algorithm="ML-DSA-65", passphrase=None, server_name=None):
     """First enrollment with a one-time token. Writes key.pem, cert.pem, chain.pem and ca.crt into `out`."""
+    if (Path(out) / "key.pem").exists():
+        raise CAError(f"{out} already holds a key; renew it with 'ca enroll URL --renew {out}', or choose another --out")
     ca_cert = x509.load_pem_x509_certificate(Path(ca).read_bytes())
     key = generate(algorithm)
     tid, _, secret = token.partition(".")

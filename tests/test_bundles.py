@@ -47,6 +47,16 @@ class BundleTest(unittest.TestCase):
             self.assertFalse((Path(d) / "web").exists())
             self.assertTrue((create("nginx", Path(d) / "web", "web.corp", ca_dir=ca.root, passphrase=b"pw") / "edge" / "key.pem").exists())
 
+    def test_a_folder_with_other_files_is_never_written_over(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "app"
+            out.mkdir()
+            (out / "README.txt").write_text("ours")
+            with self.assertRaisesRegex(CAError, "already has README.txt"):
+                create("nginx", out, "web.corp")
+            self.assertEqual((out / "README.txt").read_text(), "ours")
+            self.assertEqual(sorted(p.name for p in out.iterdir()), ["README.txt"])
+
 
 if __name__ == "__main__":
     unittest.main()
