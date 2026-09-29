@@ -44,7 +44,7 @@ The CA and Vault work everywhere. TLS and the VPN key agreement need **OpenSSL 3
 | Platform | How to get it |
 |---|---|
 | Debian 13, Ubuntu 25.04+ | Already the system OpenSSL |
-| Docker | `docker build -t pqcsuite .` (Debian 13 base) |
+| Docker | `docker run --rm ghcr.io/qubitman-hub/pqcsuite` (Debian 13 base; `docker build -t pqcsuite .` for the latest code) |
 | Windows | Install OpenSSL 3.5+ and put its `bin` on `PATH`, or set `PQCSUITE_OPENSSL` to that folder |
 | Older Linux | Build OpenSSL 3.5 and run with `LD_LIBRARY_PATH=/path/to/openssl/lib` |
 
@@ -194,7 +194,7 @@ The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts
 
 ## Releases
 
-A tag `vX.Y.Z` releases the suite and `wolf-pack-vX.Y.Z` releases Wolf Pack: push the tag, or open Actions → release → Run workflow and type it, and the workflow creates the tag on the branch's latest commit. Before tagging, set the version in the package's `pyproject.toml` (for the suite also `__version__` and the Helm chart's `version` and `appVersion`) and rename its changelog's "Unreleased" section to `## X.Y.Z`; the release workflow refuses a tag that does not match. A suite release is published only when every CI and CodeQL job passed on its commit ([docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)). Each GitHub release carries the wheel and signed build provenance (`gh attestation verify FILE --repo QubitMan-hub/PQCsuite`); a suite release also carries `RELEASE_READINESS.md`, the CBOM, a CycloneDX SBOM and the tested dependency versions, and publishes the image `ghcr.io/qubitman-hub/pqcsuite:X.Y.Z`.
+A tag `vX.Y.Z` releases the suite and `wolf-pack-vX.Y.Z` releases Wolf Pack: push the tag, or open Actions → release → Run workflow and type it, and the workflow creates the tag on the branch's latest commit. Before tagging, set the version in the package's `pyproject.toml` (for the suite also `__version__`, the Helm chart's `version` and `appVersion`, and the Packer template's `version`) and rename its changelog's "Unreleased" section to `## X.Y.Z`; the release workflow refuses a tag that does not match. A suite release is published only when every CI and CodeQL job passed on its commit ([docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)). Each GitHub release carries the wheel and signed build provenance (`gh attestation verify FILE --repo QubitMan-hub/PQCsuite`); a suite release also carries `RELEASE_READINESS.md`, the CBOM, a CycloneDX SBOM and the tested dependency versions, and publishes the image `ghcr.io/qubitman-hub/pqcsuite:X.Y.Z`.
 
 ## Limits
 

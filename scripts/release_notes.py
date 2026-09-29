@@ -17,6 +17,9 @@ def notes(folder, version):
     chart = root / "deploy" / "helm" / "pqcsuite" / "Chart.yaml"
     if chart.exists() and f'appVersion: "{version}"' not in chart.read_text(encoding="utf-8"):
         raise SystemExit(f"the tag says {version} but {chart.relative_to(root)} has another appVersion (the image the chart installs)")
+    packer = root / "deploy" / "packer" / "pqcsuite.pkr.hcl"
+    if packer.exists() and f'default = "{version}"' not in packer.read_text(encoding="utf-8"):
+        raise SystemExit(f"the tag says {version} but {packer.relative_to(root)} names another version (the cloud images' label)")
     text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
     m = re.search(rf"^## {re.escape(version)}\b[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
     if not m or not m.group(1).strip():

@@ -3,6 +3,7 @@ import os
 import shutil
 from pathlib import Path
 
+from .. import __version__
 from ..pki import CA, CAError, general_names, write
 
 EDGE_UID = 10001
@@ -55,7 +56,7 @@ def _create(service, s, out, host, ca, ca_dir, require_client_cert, policy):
                               f'listen = "0.0.0.0:{s["public"]}"\ntarget = "{service}:{s["port"]}"\npolicy = "{policy}"\n'
                               f'cert = "/edge/chain.pem"\nkey = "/edge/key.pem"\nca = "/pki/ca.crt"\n{mtls}').encode())
     lines = ["# " + service + " behind the post-quantum edge. Only the edge is published; the service is not reachable from outside.",
-             "# Build the edge image once: docker build -t pqcsuite:latest <path to pqcsuite>", "services:",
+             "services:",
              f"  {service}:", f"    image: {s['image']}", "    restart: unless-stopped"]
     if s.get("env"):
         lines += ["    environment:"] + [f'      {k}: "{v}"' for k, v in s["env"].items()]
@@ -66,7 +67,7 @@ def _create(service, s, out, host, ca, ca_dir, require_client_cert, policy):
         volumes += ["      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro", "      - ./passwd:/mosquitto/config/passwd:ro"]
     if volumes:
         lines += ["    volumes:"] + volumes
-    lines += ["  edge:", "    image: pqcsuite:latest", '    command: ["tls", "edge", "--config", "/etc/pqcsuite/edge.toml"]',
+    lines += ["  edge:", f"    image: ghcr.io/qubitman-hub/pqcsuite:{__version__}", '    command: ["tls", "edge", "--config", "/etc/pqcsuite/edge.toml"]',
               "    restart: unless-stopped", f"    depends_on: [{service}]", f'    ports: ["{s["public"]}:{s["public"]}"]', "    volumes:",
               "      - ./edge.toml:/etc/pqcsuite/edge.toml:ro", "      - ./edge:/edge:ro",
               f"      - {Path(ca_dir).resolve().as_posix() if ca_dir else './pki'}:/pki:ro"]

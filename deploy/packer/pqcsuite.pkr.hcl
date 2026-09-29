@@ -11,7 +11,7 @@ packer {
 
 variable "version" {
   type    = string
-  default = "0.1.0"
+  default = "0.2.1"
 }
 variable "aws_region" {
   type    = string

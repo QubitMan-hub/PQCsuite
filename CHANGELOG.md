@@ -5,6 +5,7 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 ## Unreleased
 
 - **More of the "Not yet validated" list done** ([docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)): property-based tests with Hypothesis (`tests/test_properties.py`); replay of a recorded mutual-TLS session, and no TLS 1.3 early data (`tests/test_replay.py`); a soak test (`scripts/soak.py`) that runs for 2 hours every week in CI; sustained load in each release's benchmark; the unit and TLS tests on macOS in CI. Each release report now lists the dependency and cryptographic-asset changes since the previous release. What still needs your own accounts or hardware (cloud images, managed Kubernetes, production hardware, an independent review) is scripted in [docs/PILOT.md](docs/PILOT.md).
+- **Fixed:** `readiness scan` did not warn about an untrusted certificate (a private CA, or a TLS-inspecting proxy) on servers without TLS 1.3, the usual classical case.
 
 ## 0.2.1 (29 September 2026)
 

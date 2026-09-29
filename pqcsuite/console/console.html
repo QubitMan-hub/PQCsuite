@@ -281,7 +281,7 @@ const RENDER = {
       (s.last ? `<div class="panel"><h2>${s.last.summary.pq_key_exchange}/${s.last.summary.endpoints} offer post-quantum key exchange, ${s.last.summary.pq_certificates} use ML-DSA certificates</h2>${table(
         ["Grade", "Endpoint", "Negotiated", "Accepted", "Certificate", "Expires"],
         s.last.endpoints.slice().sort((a, b) => a.grade.localeCompare(b.grade)).map((r) => [pill(r.grade, grade[r.grade]), { mono: r.target }, r.negotiated || r.error || "",
-          r.accepts.join(", "), (r.certificate || {}).key || "", { mono: (r.certificate || {}).expires || "" }]), "")}</div>` : "");
+          r.accepts.join(", "), ((r.certificate || {}).key || "") + (r.trusted === false ? " (not trusted here: a private CA or a TLS-inspecting proxy)" : ""), { mono: (r.certificate || {}).expires || "" }]), "")}</div>` : "");
     $("#scan").onsubmit = async (e) => { e.preventDefault();
       try { await api("scan", { targets: new FormData(e.target).get("targets") }); } catch (x) { $("#scanmsg").textContent = x.message; return; }
       clearInterval(poll);

@@ -69,16 +69,9 @@ class ScanTest(unittest.TestCase):
 
 @unittest.skipIf(REASON, REASON)
 class LegacyTest(unittest.TestCase):
-    def test_tls_1_0_and_1_1_are_reported(self):
+    def serve(self, ctx):
         import ssl
         import threading
-        d = Path(tempfile.mkdtemp())
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(*rsa_cert(d))
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            ctx.minimum_version = ssl.TLSVersion.TLSv1
-        ctx.set_ciphers("ALL:@SECLEVEL=0")
         srv = socket.create_server(("127.0.0.1", 0))
         self.addCleanup(srv.close)
 
@@ -93,9 +86,29 @@ class LegacyTest(unittest.TestCase):
                 except (OSError, ssl.SSLError):
                     c.close()
         threading.Thread(target=serve, daemon=True).start()
-        r = scan.probe(f"127.0.0.1:{srv.getsockname()[1]}", timeout=3)
+        return f"127.0.0.1:{srv.getsockname()[1]}"
+
+    def test_tls_1_0_and_1_1_are_reported(self):
+        import ssl
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(*rsa_cert(Path(tempfile.mkdtemp())))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            ctx.minimum_version = ssl.TLSVersion.TLSv1
+        ctx.set_ciphers("ALL:@SECLEVEL=0")
+        r = scan.probe(self.serve(ctx), timeout=3)
         self.assertEqual(r["legacy"], ["TLSv1.0", "TLSv1.1"])
         self.assertIn("switch it off", scan.report_html([r]))
+
+    def test_a_tls_1_2_only_server_is_checked_for_trust_too(self):
+        import ssl
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(*rsa_cert(Path(tempfile.mkdtemp())))
+        ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+        r = scan.probe(self.serve(ctx), timeout=3)
+        self.assertEqual((r["grade"], r["negotiated"]), ("C", "TLSv1.2"))
+        self.assertIs(r["trusted"], False, "the proxy warning must cover servers without TLS 1.3, the usual classical case")
+        self.assertIn("TLS-inspecting proxy", scan.report_html([r]), "the shared report carries the warning too")
 
 
 @unittest.skipIf(REASON, REASON)

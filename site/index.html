@@ -134,7 +134,7 @@
         <h2>Four products, one certificate authority</h2>
         <p>Each one works on its own. Together they share identities, revocation and one report for your auditors.</p>
       </div>
-      <p class="ca"><b>Your certificate authority</b><span>An ML-DSA root, with its key in a file, AWS KMS or an HSM. What each product takes from it:</span></p>
+      <p class="ca"><b>Your certificate authority</b><span>An ML-DSA root, with its key encrypted in a file, in AWS KMS or in an HSM. What each product takes from it:</span></p>
       <nav class="jump" aria-label="The four products">
         <a href="#tls"><span>Traffic</span><b>TLS 1.3 + mTLS</b><code>pqcsuite tls</code><small>Server and client certificates</small></a>
         <a href="#vpn"><span>Tunnels</span><b>IPsec VPN</b><code>pqcsuite vpn</code><small>Gateway identities and revocation</small></a>
@@ -153,6 +153,7 @@
           <div><h4>Behind the scenes</h4><ul>
             <li>Machines enrol and renew by themselves over EST or ACME</li>
             <li>Renewed certificates load without a restart</li>
+            <li>Revocations and configuration changes reach running edges by themselves</li>
           </ul></div>
           <ol class="flow run" aria-label="Clients connect to the edge over post-quantum TLS; the edge passes plain TCP to your unchanged service">
             <li><b>Clients</b><span>browsers, apps, partners</span></li>
@@ -318,6 +319,7 @@ quantum-safe asymmetric: 1/6 (17%)
         <details><summary>Will our website still work in browsers?</summary><p>Yes. Browsers already use the post-quantum key exchange, but they cannot check ML-DSA certificates yet. In transition mode the edge gives them a normal ECDSA or RSA certificate and gives ML-DSA to every client that can use it, on the same port.</p></details>
         <details><summary>What if one of the new algorithms turns out to be weak?</summary><p>Every connection combines a classical algorithm with a post-quantum one, so an attacker has to break both. If either holds, your data stays protected.</p></details>
         <details><summary>Where do our keys live?</summary><p>On your systems, or in your own AWS KMS or HSM. We never hold your keys, and nothing depends on a service we run.</p></details>
+        <details><summary>How do we know a release works?</summary><p>A release is published only after every automated test passes on it: real applications, hostile conditions, security scans and a Kubernetes install. Each one carries a <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/RELEASE-READINESS.md">readiness record</a> listing what was tested, a list of its dependencies (SBOM) and of its cryptography (CBOM), and what has not been validated yet, such as an independent security review.</p></details>
         <details><summary>Is it FIPS 140-3 validated?</summary><p>Not yet. It uses the FIPS 203, 204 and 205 algorithms through OpenSSL 3.5, but the product has not been through FIPS 140-3 validation.</p></details>
       </div>
     </div>

@@ -191,6 +191,7 @@ def probe(target, server_name=None, timeout=8.0):
         out["negotiated"], out["accepts"], out["grade"] = version, [version], "C"
         out["certificate"] = _cert_info(cert)
         out["legacy"] = _old_versions(host, port, server_name or host, timeout)
+        out["trusted"] = _trusted(host, port, server_name or host, timeout)
         return out
     out["certificate"] = _cert_info(cert)
     for g in PQ + CLASSICAL:
@@ -235,7 +236,8 @@ def report_html(results, title="Post-quantum readiness"):
         f"<tr><td>{e(r['target'])}</td><td class=g{r['grade']}>{r['grade']}</td><td>{e(r['negotiated'] or '')}</td>"
         f"<td>{e(', '.join(r['accepts']) or (r['error'] or ''))}"
         f"{'<br><small>also accepts ' + e(' and '.join(r['legacy'])) + ': switch it off</small>' if r.get('legacy') else ''}</td>"
-        f"<td>{e((r['certificate'] or {}).get('key', ''))}<br><small>{e((r['certificate'] or {}).get('issuer', ''))}</small></td>"
+        f"<td>{e((r['certificate'] or {}).get('key', ''))}<br><small>{e((r['certificate'] or {}).get('issuer', ''))}</small>"
+        f"{'<br><small>not trusted here: a private CA, or a TLS-inspecting proxy in the path (then this row describes the proxy)</small>' if r.get('trusted') is False else ''}</td>"
         f"<td>{e((r['certificate'] or {}).get('expires', ''))}</td></tr>"
         for r in sorted(results, key=lambda r: (r["grade"], r["target"])))
     legend = "".join(f"<li><b class=g{g}>{g}</b> {e(t)} <span>{s['grades'][g]}</span></li>" for g, t in GRADES.items())
