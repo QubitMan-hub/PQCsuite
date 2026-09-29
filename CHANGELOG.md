@@ -1,10 +1,10 @@
 # Changelog
 
-Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; its GitHub release carries the wheel, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`) and build provenance.
+Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; it is published only when every CI and CodeQL job passed on its commit, and its GitHub release carries the wheel, `RELEASE_READINESS.md`, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`), a CycloneDX SBOM, the tested dependency versions and build provenance. From 0.2.0 the container image is published to `ghcr.io/qubitman-hub/pqcsuite`.
 
-## Unreleased
+## 0.2.0 (29 September 2026)
 
-Changes on the customer's side now reach running services by themselves.
+Safer defaults, proof under failure, and releases that show what they passed. Changes on the customer's side (revocations, configuration) now reach running services by themselves; the CA key is encrypted by default and kept out of network-facing services; three external reviews were checked against the code and what held up is fixed.
 
 - **Try it in one minute:** `pqcsuite try` (or `docker run --rm pqcsuite try`) runs a self-contained tour: a CA, the post-quantum edge in front of a plain web server, a post-quantum client that gets through and a classical one that is refused. Suite releases now publish the container image to `ghcr.io/qubitman-hub/pqcsuite` (the image the Helm chart installs), with build provenance, and refuse a tag that differs from the chart's `appVersion`.
 - **Helm: encrypted keys and no root in the network-facing services.** The chart now makes a root and an issuing CA under it; EST, ACME, the CRL publisher, the console and maintenance each mount only the folders they use, never the root, and only the first-start container gets the root's passphrase. Passphrases the chart generates are kept across upgrades. `ca.issuingSecret` takes an issuing CA made offline under your own root, so no root key is in the cluster. Existing installations keep their CA folder as it is.
