@@ -16,11 +16,10 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 With [Docker Desktop](https://www.docker.com/products/docker-desktop/) running, in any terminal (PowerShell, Command Prompt, macOS or Linux):
 
 ```
-docker build -t pqcsuite https://github.com/QubitMan-hub/PQCsuite.git#main
-docker run --rm pqcsuite try
+docker run --rm ghcr.io/qubitman-hub/pqcsuite try
 ```
 
-The first command builds the suite into an image (a few minutes, once). The second creates a certificate authority, puts the post-quantum edge in front of an ordinary web server, fetches a page through it with X25519MLKEM768 and an ML-DSA certificate, and shows a classical-only client being refused. Nothing is left behind. From the first release that publishes the image, `docker run --rm ghcr.io/qubitman-hub/pqcsuite try` skips the build.
+It creates a certificate authority, puts the post-quantum edge in front of an ordinary web server, fetches a page through it with X25519MLKEM768 and an ML-DSA certificate, and shows a classical-only client being refused. Nothing is left behind. The image is the one each release publishes (`ghcr.io/qubitman-hub/pqcsuite:X.Y.Z`, with signed build provenance); to try the latest code instead, `docker build -t pqcsuite https://github.com/QubitMan-hub/PQCsuite.git#main` and `docker run --rm pqcsuite try`.
 
 ## Install
 
