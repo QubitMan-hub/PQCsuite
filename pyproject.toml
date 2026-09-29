@@ -19,7 +19,8 @@ Changelog = "https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 vpn = ["vici>=6.0"]
 kms = ["boto3>=1.35"]
-test = ["acme>=4", "certbot>=4; sys_platform != 'win32'", "hypothesis>=6.100"]
+test = ["hypothesis>=6.100"]
+integration = ["acme>=4", "certbot>=4; sys_platform != 'win32'"]  # the ACME tests against certbot's client
 
 [project.scripts]
 pqcsuite = "pqcsuite.cli:main"
@@ -29,6 +30,9 @@ include = ["pqcsuite*"]
 
 [tool.setuptools.package-data]
 "pqcsuite.console" = ["console.html"]
+
+[tool.distutils.build]
+build_base = "dist/.build"  # keeps `pip wheel .` from leaving build/ in the source tree
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "wolf-pack/tests"]

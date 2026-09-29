@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install -e ".[test]"
+      - run: pip install -e ".[test,integration]"
       - run: python -m unittest discover -s tests -v
   macos:
     runs-on: macos-latest
@@ -29,7 +29,7 @@ jobs:
           python-version: "3.13"
       - name: OpenSSL 3.5+ from Homebrew, so the TLS tests run too
         run: brew install openssl@3 && echo "PQCSUITE_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
-      - run: pip install -e ".[test]" && pqcsuite doctor && pqcsuite try
+      - run: pip install -e ".[test,integration]" && pqcsuite doctor && pqcsuite try
       - name: A second loopback address, as Linux has, for the per-host limit test
         run: sudo ifconfig lo0 alias 127.0.0.2 up
       - run: python -m unittest discover -s tests -v
@@ -50,7 +50,7 @@ jobs:
           choco install wireguard -y --no-progress
           $sig = Get-AuthenticodeSignature "$env:ProgramFiles\WireGuard\wireguard.exe"
           if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'WireGuard LLC') { throw "wireguard.exe signature: $($sig.Status) $($sig.SignerCertificate.Subject)" }
-      - run: pip install -e ".[test]"
+      - run: pip install -e ".[test,integration]"
       - name: VPN client with WireGuard for Windows, a real tunnel service brought up, rotated and removed
         env:
           PQCSUITE_REAL_WIREGUARD: "1"
@@ -64,7 +64,7 @@ jobs:
         run: |
           apt-get update && apt-get install -y --no-install-recommends openssl curl nginx postgresql redis-server redis-tools \
             mosquitto mosquitto-clients openssh-server
-      - run: pip install -e ".[test]" && pqcsuite doctor
+      - run: pip install -e ".[test,integration]" && pqcsuite doctor
       - run: python -m unittest discover -s tests -v
       - run: python examples/clinic_demo.py --auto
       - run: python examples/bank_demo.py --auto

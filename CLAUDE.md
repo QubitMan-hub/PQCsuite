@@ -27,7 +27,7 @@ Prove, simplify, benchmark and validate; don't add features unless the owner ask
 ## Commands
 
 ```
-pip install -e ".[test]"
+pip install -e ".[test,integration]"     # integration: certbot and acme, for the ACME tests; leave it out for a lighter setup
 python -m unittest discover -s tests -v
 python -m pytest                          # suite and wolf-pack/ tests together, from the root
 ruff check .                              # lint (config in pyproject.toml), CI runs it

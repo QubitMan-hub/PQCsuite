@@ -24,7 +24,7 @@ try:
     from acme import challenges, client, errors, messages
     REASON = None
 except ImportError:
-    REASON = "needs the acme package (pip install acme)"
+    REASON = "needs the acme package (pip install -e .[integration])"
 
 
 class Challenges(BaseHTTPRequestHandler):
