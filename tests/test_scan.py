@@ -56,6 +56,8 @@ class ScanTest(unittest.TestCase):
         self.assertEqual(by[f"127.0.0.1:{ports['A']}"]["certificate"]["key"], "ML-DSA-65")
         self.assertEqual(by[f"127.0.0.1:{ports['C']}"]["certificate"]["key"], "RSA-2048")
         self.assertEqual(by[f"127.0.0.1:{ports['B']}"]["negotiated"], "X25519MLKEM768")
+        self.assertIs(by[f"127.0.0.1:{ports['C']}"]["trusted"], False, "a certificate no trust store knows is flagged")
+        self.assertNotIn("trusted", by[f"127.0.0.1:{ports['A']}"], "ML-DSA certificates are not judged by a classical trust store")
         s = scan.summary(results)
         self.assertEqual((s["pq_key_exchange"], s["pq_certificates"], s["expiring_30d"]), (2, 2, 1))
         self.assertFalse(any(r["cnsa2"] for r in results))

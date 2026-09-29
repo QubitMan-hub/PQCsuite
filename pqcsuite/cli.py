@@ -223,8 +223,15 @@ def cmd_scan(a):
         print(f"{r['grade']}  {r['target']:32} {r['negotiated'] or r['error'] or '':24} {cert.get('key', ''):14} {cert.get('expires', '')}")
         if r.get("legacy"):
             print(f"   {'':32} also accepts {' and '.join(r['legacy']).replace('TLSv', 'TLS ')}: switch them off")
+        if r.get("trusted") is False:
+            print(f"   {'':32} certificate not trusted here ({cert.get('issuer', '?')}): a private CA, or a TLS-inspecting proxy "
+                  "in the path, in which case these results describe the proxy; scan from outside that network")
     s = scan.summary(results)
     print(f"\n{s['pq_key_exchange']}/{s['endpoints']} offer post-quantum key exchange; {s['pq_certificates']} use ML-DSA certificates")
+    print("".join(f"\n  {g}  {scan.GRADES[g]}" for g in scan.GRADES if s["grades"][g]))
+    if s["grades"]["C"] or s["grades"]["B"]:
+        print("\nNext: put the post-quantum edge in front of each C (pqcsuite tls edge --help; policy transition keeps browsers working),\n"
+              "then scan again. For a report to share: add --html readiness.html")
     return 0 if s["pq_key_exchange"] == s["endpoints"] else 2
 
 

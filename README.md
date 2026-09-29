@@ -16,10 +16,18 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 With [Docker Desktop](https://www.docker.com/products/docker-desktop/) running, in any terminal (PowerShell, Command Prompt, macOS or Linux):
 
 ```
-docker run --rm ghcr.io/qubitman-hub/pqcsuite try
+docker run --rm ghcr.io/qubitman-hub/pqcsuite
 ```
 
-It creates a certificate authority, puts the post-quantum edge in front of an ordinary web server, fetches a page through it with X25519MLKEM768 and an ML-DSA certificate, and shows a classical-only client being refused. Nothing is left behind. The image is the one each release publishes (`ghcr.io/qubitman-hub/pqcsuite:X.Y.Z`, with signed build provenance); to try the latest code instead, `docker build -t pqcsuite https://github.com/QubitMan-hub/PQCsuite.git#main` and `docker run --rm pqcsuite try`.
+It creates a certificate authority, puts the post-quantum edge in front of an ordinary web server, fetches a page through it with X25519MLKEM768 and an ML-DSA certificate, and shows a classical-only client being refused. Nothing is left behind.
+
+Then check your own sites, with each grade explained and the next step:
+
+```
+docker run --rm ghcr.io/qubitman-hub/pqcsuite readiness scan www.your-company.com api.your-company.com
+```
+
+Scan from outside your company network: a TLS-inspecting proxy answers in the site's place, and the scanner says so when the certificate it sees is not trusted. The image is the one each release publishes (`ghcr.io/qubitman-hub/pqcsuite:X.Y.Z`, with signed build provenance); to try the latest code instead, `docker build -t pqcsuite https://github.com/QubitMan-hub/PQCsuite.git#main` and `docker run --rm pqcsuite`.
 
 ## Install
 

@@ -41,8 +41,12 @@ test("phone menu opens, closes on a link, and the section marker follows on desk
 test("copy buttons copy the command", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto(SITE + "index.html");
+  await page.setViewportSize({ width: 390, height: 900 });
   await page.locator(".copy").first().click();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^pqcsuite tls edge/);
+  // the command wraps on a phone, but what is copied is still one line
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("docker run --rm ghcr.io/qubitman-hub/pqcsuite");
+  await page.locator("#tls .copy").click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^pqcsuite tls edge --target \S+ --cert chain\.pem --key key\.pem$/);
 });
 
 test("the finder suggests steps and sends own-code questions to Wolf Pack", async ({ page }) => {

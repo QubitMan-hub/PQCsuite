@@ -12,4 +12,5 @@ USER pqc
 WORKDIR /srv
 EXPOSE 8443 9100
 ENTRYPOINT ["pqcsuite"]
-CMD ["tls", "edge", "--config", "/etc/pqcsuite/edge.toml"]
+# with no arguments, the one-minute tour; deployments name their command (tls edge --config ..., as the Helm chart does)
+CMD ["try"]

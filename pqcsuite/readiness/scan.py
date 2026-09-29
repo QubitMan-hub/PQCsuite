@@ -63,6 +63,19 @@ def _legacy(host, port, server_name, timeout):
         return s.version(), x509.load_der_x509_certificate(der) if der else None
 
 
+def _trusted(host, port, server_name, timeout):
+    """Whether this machine's trust store accepts the certificate for this name (None when that cannot be told). A public site
+    that is not trusted usually means a TLS-inspecting proxy answered instead, as inside many company networks."""
+    import ssl
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as raw, ssl.create_default_context().wrap_socket(raw, server_hostname=server_name):
+            return True
+    except ssl.SSLCertVerificationError:
+        return False
+    except (OSError, ValueError):
+        return None
+
+
 def _old_versions(host, port, server_name, timeout):
     """TLS 1.0 and 1.1, which should be off everywhere; each is tried on its own."""
     import ssl
@@ -192,6 +205,8 @@ def probe(target, server_name=None, timeout=8.0):
     cert_key = (out["certificate"] or {}).get("key")
     out["cnsa2"] = bool(out["accepts"]) and set(out["accepts"]) <= CNSA2_GROUPS and cert_key == "ML-DSA-87"
     out["legacy"] = _old_versions(host, port, server_name or host, timeout)
+    if not cert_key or not cert_key.startswith("ML-DSA"):
+        out["trusted"] = _trusted(host, port, server_name or host, timeout)
     return out
 
 

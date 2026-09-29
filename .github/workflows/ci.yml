@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: docker build -t pqcsuite:ci . && docker run --rm pqcsuite:ci doctor && docker run --rm pqcsuite:ci try
+      - run: docker build -t pqcsuite:ci . && docker run --rm pqcsuite:ci doctor && docker run --rm pqcsuite:ci
       - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)
         env:
           TRIVY: "0.74.0"

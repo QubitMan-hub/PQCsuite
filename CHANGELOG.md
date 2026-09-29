@@ -2,6 +2,10 @@
 
 Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; it is published only when every CI and CodeQL job passed on its commit, and its GitHub release carries the wheel, `RELEASE_READINESS.md`, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`), a CycloneDX SBOM, the tested dependency versions and build provenance. From 0.2.0 the container image is published to `ghcr.io/qubitman-hub/pqcsuite`.
 
+## Unreleased
+
+- **Easier to try and to check your own sites:** `docker run --rm ghcr.io/qubitman-hub/pqcsuite` with no arguments runs the one-minute tour (deployments name their command, as the Helm chart does). `readiness scan` explains each grade it gives and the next step, and warns when a classical certificate is not trusted by the scanning machine: a private CA, or a TLS-inspecting proxy answering in the site's place, as inside many company networks. The website and README show both one-line commands; long commands wrap beside their copy button instead of running under it.
+
 ## 0.2.0 (29 September 2026)
 
 Safer defaults, proof under failure, and releases that show what they passed. Changes on the customer's side (revocations, configuration) now reach running services by themselves; the CA key is encrypted by default and kept out of network-facing services; three external reviews were checked against the code and what held up is fixed.

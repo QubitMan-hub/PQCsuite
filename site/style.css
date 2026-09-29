@@ -93,6 +93,9 @@ code, .mono { font-family: var(--mono); }
 .hero .lead { font-size: 19px; max-width: 34em; }
 .hero .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; margin-top: 30px; }
 .hero .fine { margin-top: 18px; font-size: 14px; color: var(--muted); }
+.hero .try { display: grid; gap: 8px; margin-top: 28px; max-width: 560px; }
+.hero .try p { font-size: 14px; color: var(--muted); }
+.hero .try pre { margin: 0; padding: 13px 80px 13px 16px; background: #26313c; color: #f4efe2; border-radius: 8px; font: 13.5px/1.6 var(--mono); overflow-x: auto; }
 
 .report { background: var(--paper); border: 1px solid var(--rule); border-radius: 12px; box-shadow: 0 1px 0 var(--rule), 0 18px 40px -24px rgba(46, 60, 78, .35); overflow: hidden; }
 .report header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--rule); }
@@ -188,6 +191,7 @@ section { padding-block: 104px 0; }
 .product ul li::before { content: ""; position: absolute; left: 0; top: .62em; width: 7px; height: 7px; background: var(--amber); }
 .product .run { grid-column: 1 / -1; }
 .product pre, .ways pre, .settings pre { margin: 0; padding: 14px 16px; background: #26313c; color: #f4efe2; border-radius: 8px; font: 13.5px/1.6 var(--mono); overflow-x: auto; }
+.product .with { font-size: 15px; color: var(--muted); }
 .flow { display: grid; grid-template-columns: 1fr minmax(96px, .7fr) 1fr minmax(96px, .7fr) 1fr; align-items: center; }
 .flow li { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); min-width: 0; }
 .flow li b { font: 500 15px/1.3 var(--display); color: var(--ink); }
@@ -205,7 +209,7 @@ section { padding-block: 104px 0; }
   .flow li.hop::after { left: 9px; right: auto; top: auto; bottom: -2px; border: 6px solid transparent; border-top: 8px solid var(--ink); border-bottom: 0; }
 }
 .code { position: relative; min-width: 0; }
-.code pre { padding-right: 76px; }
+.code pre { padding-right: 76px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .copy { position: absolute; top: 8px; right: 8px; font: 500 12px/1 var(--text); letter-spacing: .02em; color: #f4efe2; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .18); border-radius: 6px; padding: 7px 10px; cursor: pointer; transition: background .15s, border-color .15s; }
 .copy:hover { background: rgba(255, 191, 0, .18); border-color: var(--amber); }
 

@@ -52,6 +52,10 @@
           <a class="link" href="#products">See the four products</a>
         </div>
         <p class="fine">The scan grades your public TLS and SSH endpoints and tells you what to fix first.</p>
+        <div class="try">
+          <p>Or watch it work on your own computer in a minute, with <a href="https://www.docker.com/products/docker-desktop/">Docker</a>:</p>
+          <pre>docker run --rm ghcr.io/qubitman-hub/pqcsuite</pre>
+        </div>
       </div>
       <figure class="report" aria-label="Example readiness report">
         <header><b>Readiness report</b><span>example, 4 endpoints</span></header>
@@ -209,7 +213,8 @@ pqcsuite vpn status</pre></div>
             <li>Maps each finding to NIST IR 8547 and CNSA 2.0 dates</li>
             <li>HTML to share, JSON for your own tools</li>
           </ul></div>
-          <div class="run"><pre>pqcsuite readiness scan hosts.txt --html readiness.html</pre></div>
+          <div class="run"><pre>docker run --rm ghcr.io/qubitman-hub/pqcsuite readiness scan www.your-company.com</pre></div>
+          <p class="with run">Grade your own sites now; each grade comes with what to do next. Scan from outside your company network, where no proxy answers in the site's place.</p>
         </div>
       </article>
     </div>
