@@ -8,7 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import release_readiness as rr  # noqa: E402
 
 BENCH = {f"tls_handshake_{g}": {"median_ms": 1, "p95_ms": 2} for g in ("X25519MLKEM768", "X25519")} | {
-    "ca_issue_ML-DSA-65": {"median_ms": 1}, "vault_64MiB": {"encrypt_MiB_s": 1, "decrypt_MiB_s": 1}}
+    "ca_issue_ML-DSA-65": {"median_ms": 1}, "vault_64MiB": {"encrypt_MiB_s": 1, "decrypt_MiB_s": 1},
+    "load": {"clients": 32, "seconds": 10, "connections_per_s": 400, "median_ms": 70, "p99_ms": 90, "errors": 0}}
 EVIDENCE = {"tests": "1 run", "fuzz_tests": 1, "hostile_tests": 1, "openssl": "OpenSSL 3.5", "python": "3.13", "sbom_components": 1,
             "benchmark": BENCH}
 
@@ -38,12 +39,27 @@ class GateTest(unittest.TestCase):
                 self.assertIn("must not be released", text)
 
 
+class SinceTest(unittest.TestCase):
+    def test_new_dependencies_and_new_cryptography_are_listed(self):
+        from unittest import mock
+        sbom = lambda **v: {"components": [{"name": n, "version": x} for n, x in v.items()]}
+        cbom = lambda *names: {"components": [{"name": n, "type": "cryptographic-asset"} for n in names]}
+        old = {"-sbom.json": sbom(cryptography="49.0", cffi="2.0", pqcsuite="0.1"), "-cbom.json": cbom("RSA", "ML-DSA")}
+        with mock.patch.object(rr, "previous", return_value={"tag_name": "v1.0.0"}), \
+                mock.patch.object(rr, "asset", side_effect=lambda rel, suffix: old[suffix]):
+            text = rr.since("v1.1.0", sbom(cryptography="50.0", pycparser="3.0", pqcsuite="0.2"), cbom("ML-DSA", "DES"))
+        self.assertIn("+ pycparser 3.0; - cffi 2.0; cryptography 49.0 to 50.0", text)
+        self.assertIn("+ DES; - RSA", text)
+        self.assertNotIn("pqcsuite", text)
+        with mock.patch.object(rr, "previous", return_value=None):
+            self.assertIn("First release", rr.since("v1.0.0", {}, {}))
+
 class BaseImageTest(unittest.TestCase):
     def test_every_build_and_ci_container_uses_the_pinned_python_base(self):
         root = Path(__file__).resolve().parent.parent
         base = re.search(r"^ARG BASE=(\S+)$", (root / "Dockerfile").read_text(), re.M).group(1)
         self.assertRegex(base, r"@sha256:[0-9a-f]{64}$", "the base image is pinned by digest")
-        for f in ("docker/vpn-gateway.Dockerfile", ".github/workflows/ci.yml", ".github/workflows/release.yml"):
+        for f in ("docker/vpn-gateway.Dockerfile", ".github/workflows/ci.yml", ".github/workflows/release.yml", ".github/workflows/soak.yml"):
             with self.subTest(f):
                 uses = re.findall(r"python:3\.\d+-slim-\w+(?:@sha256:[0-9a-f]{64})?", (root / f).read_text())
                 self.assertTrue(uses)

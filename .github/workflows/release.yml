@@ -73,7 +73,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python scripts/release_readiness.py report "$TAG" "$GITHUB_SHA" evidence.json dist/RELEASE_READINESS.md
+          python scripts/release_readiness.py report "$TAG" "$GITHUB_SHA" evidence.json dist/RELEASE_READINESS.md \
+            sbom.json "dist/pqcsuite-${TAG#v}-cbom.json"
           cp sbom.json "dist/pqcsuite-${TAG#v}-sbom.json" && cp constraints.txt "dist/pqcsuite-${TAG#v}-constraints.txt"
           printf '\n\nThis release passed the gates in RELEASE_READINESS.md, which also lists what is not validated yet.\n' >> notes.md
       - name: Publish the container image (the one the Helm chart and `docker run ... pqcsuite try` use)

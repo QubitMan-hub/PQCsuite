@@ -13,7 +13,7 @@ dependencies = ["cryptography>=49"]
 [project.optional-dependencies]
 vpn = ["vici>=6.0"]
 kms = ["boto3>=1.35"]
-test = ["acme>=4", "certbot>=4; sys_platform != 'win32'"]
+test = ["acme>=4", "certbot>=4; sys_platform != 'win32'", "hypothesis>=6.100"]
 
 [project.scripts]
 pqcsuite = "pqcsuite.cli:main"

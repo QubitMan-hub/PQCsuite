@@ -2,9 +2,9 @@
 
     python scripts/release_readiness.py evidence evidence.json SBOM.json
         runs the suite and the benchmark on this machine and records the results
-    python scripts/release_readiness.py report TAG SHA evidence.json RELEASE_READINESS.md
+    python scripts/release_readiness.py report TAG SHA evidence.json RELEASE_READINESS.md [SBOM.json CBOM.json]
         waits for the commit's CI and CodeQL jobs (GitHub API: GH_TOKEN, GITHUB_REPOSITORY), writes the report and exits 1
-        unless every required job passed
+        unless every required job passed; with this release's SBOM and CBOM, it also lists what changed since the last one
 
 What is not validated yet is copied from docs/RELEASE-READINESS.md, so the report never implies more than was checked.
 """
@@ -61,12 +61,50 @@ def runs(sha, wait_s=2700):
         time.sleep(30)
 
 
+def previous(tag):
+    """The suite release before `tag`, or None."""
+    v = lambda t: tuple(map(int, t[1:].split(".")))
+    older = [r for r in api("releases?per_page=50") if re.fullmatch(r"v\d+\.\d+\.\d+", r["tag_name"]) and not r["draft"] and v(r["tag_name"]) < v(tag)]
+    return max(older, key=lambda r: v(r["tag_name"]), default=None)
+
+
+def asset(release, suffix):
+    a = next((a for a in release["assets"] if a["name"].endswith(suffix)), None)
+    if a:
+        with urllib.request.urlopen(a["browser_download_url"], timeout=30) as r:
+            return json.loads(r.read())
+
+
+def since(tag, sbom, cbom):
+    """What changed in the dependencies (SBOM) and in the cryptography found in the code (CBOM) since the previous release."""
+    prev = previous(tag)
+    if not prev:
+        return "First release with a readiness record; nothing to compare with."
+    lines = ["| | Since " + prev["tag_name"] + " |", "|---|---|"]
+    old = asset(prev, "-sbom.json")
+    if old:
+        deps = lambda d: {c["name"]: c.get("version", "") for c in d.get("components", []) if c["name"] != "pqcsuite"}
+        a, b = deps(old), deps(sbom)
+        change = [f"+ {n} {b[n]}" for n in sorted(b.keys() - a.keys())] + [f"- {n} {a[n]}" for n in sorted(a.keys() - b.keys())] + [
+            f"{n} {a[n]} to {b[n]}" for n in sorted(a.keys() & b.keys()) if a[n] != b[n]]
+        lines.append(f"| Dependencies (SBOM) | {'; '.join(change) or 'no change'} |")
+    else:
+        lines.append(f"| Dependencies (SBOM) | {prev['tag_name']} has no SBOM to compare with |")
+    old = asset(prev, "-cbom.json")
+    if old:
+        crypto = lambda d: {c["name"] for c in d.get("components", [])}
+        a, b = crypto(old), crypto(cbom)
+        change = [f"+ {n}" for n in sorted(b - a)] + [f"- {n}" for n in sorted(a - b)]
+        lines.append(f"| Cryptography in the code (CBOM) | {'; '.join(change) or 'no change'} |")
+    return "\n".join(lines)
+
+
 def outstanding():
     text = (ROOT / "docs" / "RELEASE-READINESS.md").read_text(encoding="utf-8")
     return re.search(r"^## Not yet validated\n(.*?)(?=^## |\Z)", text, re.M | re.S).group(1).strip()
 
 
-def report(tag, sha, evidence, latest):
+def report(tag, sha, evidence, latest, changes=""):
     lines, ok = [], True
     for gate, checks in GATES.items():
         lines += [f"\n### {gate}\n", "| Check | Jobs | Result |", "|---|---|---|"]
@@ -110,6 +148,11 @@ Commit `{sha}`, checked {dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} UTC.
 | TLS handshake, X25519 + ML-DSA-65 (classical key exchange) | {hs('X25519')} |
 | Issue an ML-DSA-65 certificate | {b['ca_issue_ML-DSA-65']['median_ms']} ms median |
 | Vault, 64 MiB | encrypt {b['vault_64MiB']['encrypt_MiB_s']} MiB/s, decrypt {b['vault_64MiB']['decrypt_MiB_s']} MiB/s |
+| Load: {b['load']['clients']} clients for {b['load']['seconds']} s, one process | {b['load']['connections_per_s']} new post-quantum connections/s, median {b['load']['median_ms']} ms, p99 {b['load']['p99_ms']} ms, {b['load']['errors']} errors |
+
+### Changes since the previous release
+
+{changes or "Not compared (no SBOM and CBOM given)."}
 
 ## Not yet validated
 
@@ -141,10 +184,16 @@ def evidence(out, sbom):
 if __name__ == "__main__":
     if sys.argv[1:2] == ["evidence"] and len(sys.argv) == 4:
         sys.exit(0 if evidence(*sys.argv[2:]) else 1)
-    if sys.argv[1:2] != ["report"] or len(sys.argv) != 6:
+    if sys.argv[1:2] != ["report"] or len(sys.argv) not in (6, 8):
         raise SystemExit(__doc__)
-    tag, sha, ev, out = sys.argv[2:]
-    ok, text = report(tag, sha, json.loads(Path(ev).read_text()), runs(sha))
+    tag, sha, ev, out = sys.argv[2:6]
+    changes = ""
+    if len(sys.argv) == 8:
+        try:
+            changes = since(tag, *(json.loads(Path(f).read_text()) for f in sys.argv[6:8]))
+        except (OSError, ValueError, KeyError) as e:  # a missing comparison is reported, it does not block the release
+            changes = f"Not compared: {e}"
+    ok, text = report(tag, sha, json.loads(Path(ev).read_text()), runs(sha), changes)
     Path(out).write_text(text, encoding="utf-8")
     print(text)
     sys.exit(0 if ok else 1)

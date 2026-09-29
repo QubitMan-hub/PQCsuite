@@ -2,6 +2,10 @@
 
 Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; it is published only when every CI and CodeQL job passed on its commit, and its GitHub release carries the wheel, `RELEASE_READINESS.md`, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`), a CycloneDX SBOM, the tested dependency versions and build provenance. From 0.2.0 the container image is published to `ghcr.io/qubitman-hub/pqcsuite`.
 
+## Unreleased
+
+- **More of the "Not yet validated" list done** ([docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)): property-based tests with Hypothesis (`tests/test_properties.py`); replay of a recorded mutual-TLS session, and no TLS 1.3 early data (`tests/test_replay.py`); a soak test (`scripts/soak.py`) that runs for 2 hours every week in CI; sustained load in each release's benchmark; the unit and TLS tests on macOS in CI. Each release report now lists the dependency and cryptographic-asset changes since the previous release. What still needs your own accounts or hardware (cloud images, managed Kubernetes, production hardware, an independent review) is scripted in [docs/PILOT.md](docs/PILOT.md).
+
 ## 0.2.1 (29 September 2026)
 
 - **Easier to try and to check your own sites:** `docker run --rm ghcr.io/qubitman-hub/pqcsuite` with no arguments runs the one-minute tour (deployments name their command, as the Helm chart does). `readiness scan` explains each grade it gives and the next step, and warns when a classical certificate is not trusted by the scanning machine: a private CA, or a TLS-inspecting proxy answering in the site's place, as inside many company networks. The website and README show both one-line commands; long commands wrap beside their copy button instead of running under it.

@@ -20,6 +20,17 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: pip install -e ".[test]"
       - run: python -m unittest discover -s tests -v
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: OpenSSL 3.5+ from Homebrew, so the TLS tests run too
+        run: brew install openssl@3 && echo "PQCSUITE_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
+      - run: pip install -e ".[test]" && pqcsuite doctor && pqcsuite try
+      - run: python -m unittest discover -s tests -v
   tls:
     runs-on: ubuntu-latest
     container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b

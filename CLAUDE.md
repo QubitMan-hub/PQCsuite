@@ -21,7 +21,7 @@ Acxelin PQC Suite (working name `pqcsuite`, `NAME` in `pqcsuite/__init__.py`) is
 
 ## Current mode
 
-Prove, simplify, benchmark and validate; don't add features unless the owner asks for one. Releases go through the gates in `docs/RELEASE-READINESS.md` (`scripts/release_readiness.py`); when an item on its "Not yet validated" list is done, update that list.
+Prove, simplify, benchmark and validate; don't add features unless the owner asks for one. Releases go through the gates in `docs/RELEASE-READINESS.md` (`scripts/release_readiness.py`); when an item on its "Not yet validated" list is done, update that list. The items that need accounts or hardware are scripted in `docs/PILOT.md`; `scripts/soak.py` and `scripts/benchmark.py` are the long-run and load checks.
 
 ## Commands
 

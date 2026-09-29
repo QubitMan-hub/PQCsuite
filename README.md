@@ -208,7 +208,7 @@ Which attackers the suite stops and which it does not, how revocation behaves wh
 
 ## Roadmap
 
-First, proving what exists rather than adding to it: an independent security review, deployments in real cloud accounts and on EKS, AKS and GKE, soak tests, and benchmarks on production hardware (the open list is in [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)). After that:
+First, proving what exists rather than adding to it: an independent security review, deployments in real cloud accounts and on EKS, AKS and GKE, days-long soak tests, and benchmarks on production hardware (the open list is in [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md), and [docs/PILOT.md](docs/PILOT.md) is the script for each). After that:
 
 1. VPN: Windows and macOS clients, and full-tunnel routing, for remote access.
 2. mTLS: a cert-manager issuer and in-cluster renewal of edge certificates (CRLs already reach edges through `crl_url`); dns-01 for ACME.

@@ -26,10 +26,37 @@ def timed(fn, rounds):
     return {"median_ms": round(statistics.median(out), 3), "p95_ms": round(sorted(out)[int(len(out) * .95) - 1], 3), "rounds": rounds}
 
 
+def load(port, ctx, seconds, clients):
+    """`clients` threads opening post-quantum connections back to back for `seconds`: new connections a second, latency, errors."""
+    import threading
+    times, errors, stop = [], [], time.monotonic() + seconds
+
+    def worker():
+        while time.monotonic() < stop:
+            start = time.perf_counter()
+            try:
+                with tls.connect("127.0.0.1", port, ctx, "localhost", 10):
+                    pass
+                times.append((time.perf_counter() - start) * 1000)
+            except (tls.TLSError, OSError):
+                errors.append(1)
+    threads = [threading.Thread(target=worker) for _ in range(clients)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    times.sort()
+    return {"clients": clients, "seconds": seconds, "connections_per_s": round(len(times) / seconds), "errors": len(errors),
+            "median_ms": round(statistics.median(times), 2), "p99_ms": round(times[int(len(times) * .99) - 1], 2)}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--rounds", type=int, default=200)
-    rounds = ap.parse_args().rounds
+    ap.add_argument("--load-seconds", type=int, default=10)
+    ap.add_argument("--clients", type=int, default=32)
+    a = ap.parse_args()
+    rounds = a.rounds
     d = Path(tempfile.mkdtemp())
     ca = CA.init(d / "pki", "Bench Root")
     srv, _ = ca.issue("localhost", "server", ["127.0.0.1"], out=d / "srv")
@@ -47,6 +74,7 @@ def main():
                     assert c.info()["group"].lower() == name.lower()
             handshake()
             results[f"tls_handshake_{name}"] = timed(handshake, rounds)
+        results["load"] = load(s.port, tls.client_context(cafile), a.load_seconds, a.clients)
     finally:
         s.stop(1)
     results["ca_issue_ML-DSA-65"] = timed(lambda: ca.issue("bench.test", "server"), max(10, rounds // 10))
