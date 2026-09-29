@@ -11,6 +11,17 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 
 `pqcsuite console` shows all four on one page. The website is in `site/` and is published to https://qubitman-hub.github.io/PQCsuite/ by `.github/workflows/pages.yml` on every change to it; `python site/publish.py https://YOUR-ADDRESS/ dist` copies it into `dist` with the absolute addresses that link previews and search engines need (canonical links, preview images, `sitemap.xml`, `robots.txt`). Wolf Pack CBOM, the separate cryptography inventory scanner, is in [`wolf-pack/`](wolf-pack/README.md). `pqcsuite` is a working name (`NAME` in `pqcsuite/__init__.py`).
 
+## Try it in one minute
+
+With [Docker Desktop](https://www.docker.com/products/docker-desktop/) running, in any terminal (PowerShell, Command Prompt, macOS or Linux):
+
+```
+docker build -t pqcsuite https://github.com/QubitMan-hub/PQCsuite.git#main
+docker run --rm pqcsuite try
+```
+
+The first command builds the suite into an image (a few minutes, once). The second creates a certificate authority, puts the post-quantum edge in front of an ordinary web server, fetches a page through it with X25519MLKEM768 and an ML-DSA certificate, and shows a classical-only client being refused. Nothing is left behind. From the first release that publishes the image, `docker run --rm ghcr.io/qubitman-hub/pqcsuite try` skips the build.
+
 ## Install
 
 Python 3.11+.

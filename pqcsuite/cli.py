@@ -457,6 +457,67 @@ def cmd_enroll(a):
     return 0
 
 
+def cmd_try(a):
+    """A self-contained tour, nothing to set up: a CA, a plain web server, the post-quantum edge in front of it, a
+    post-quantum client that gets through and a classical one that does not. Everything lives in a temporary folder."""
+    import tempfile
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from .tls.edge import Edge, Route
+    from .tls.openssl import Context
+
+    class Hello(BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = b"Hello from a web server that knows nothing about post-quantum cryptography\n"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+    logging.getLogger(NAME).setLevel(logging.ERROR)
+    step = lambda n, text: print(f"\n{n}. {text}")
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        step(1, "A private certificate authority (ML-DSA-87 root) issues the edge an ML-DSA-65 certificate.")
+        ca = CA.init(d / "pki", "Try Root")
+        ca.issue("localhost", "server", ["127.0.0.1"], out=d / "edge")
+        web = ThreadingHTTPServer(("127.0.0.1", 0), Hello)
+        threading.Thread(target=web.serve_forever, daemon=True).start()
+        step(2, f"An ordinary web server starts on 127.0.0.1:{web.server_address[1]}. It has no post-quantum support.")
+        edge = Edge(Route("try", "terminate", "127.0.0.1:0", f"127.0.0.1:{web.server_address[1]}", cert=str(d / "edge" / "chain.pem"),
+                          key=str(d / "edge" / "key.pem"))).start()
+        try:
+            step(3, f"The pqcsuite edge starts in front of it on 127.0.0.1:{edge.port}, accepting post-quantum clients only.")
+            step(4, "A post-quantum client asks for the page through the edge:")
+            with tls.connect("127.0.0.1", edge.port, tls.client_context(d / "pki" / "ca.crt"), "localhost", 10) as c:
+                c.sendall(b"GET / HTTP/1.0\r\n\r\n")
+                reply = b""
+                while chunk := c.recv(timeout=10):
+                    reply += chunk
+                info = c.info()
+            print(f"   key exchange  {info['group']}   (post-quantum: X25519 combined with ML-KEM-768)")
+            print(f"   certificate   {info['peer_key']}   (post-quantum signature)")
+            page = reply.split(b"\r\n\r\n", 1)[-1].decode().strip()
+            print(f"   page          {page}")
+            step(5, "A client that only knows classical key exchange (X25519) tries the same:")
+            # wolfpack:ignore (a classical client on purpose: the tour shows the edge refusing it)
+            classical = Context(False, "X25519", None, tls.CIPHERSUITES, None, None, None, str(d / "pki" / "ca.crt"), True)
+            try:
+                tls.connect("127.0.0.1", edge.port, classical, "localhost", 10).close()
+                print("   it got through, which it should not have")
+                return 1
+            except (tls.TLSError, OSError):
+                print("   refused, as it should be: no connection falls back to a key exchange a future quantum computer could break")
+            classical.close()
+        finally:
+            edge.stop(0)
+            web.shutdown()
+    print("\nThat is the TLS product: post-quantum protection in front of a service that did not change.\n"
+          "Next: pqcsuite tls edge --help, and https://qubitman-hub.github.io/PQCsuite/")
+    return 0
+
+
 def cmd_report(a):
     from .readiness import compliance
     from .readiness import scan
@@ -531,6 +592,8 @@ def parser():
     p.add_argument("--config", action="append", default=[], metavar="FILE",
                    help="check an edge, VPN, WireGuard or console configuration: it loads, its files exist, nothing weakens it")
 
+    p = sub.add_parser("try", help="a one-minute tour: the post-quantum edge in front of a web server, nothing to set up")
+    p.set_defaults(func=cmd_try)
     t = sub.add_parser("tls", help="TLS 1.3 + mTLS: post-quantum edge, server and client").add_subparsers(dest="tls_cmd", required=True)
     p = t.add_parser("edge", help="post-quantum TLS in front of any TCP service, or a tunnel to one")
     p.set_defaults(func=cmd_edge)

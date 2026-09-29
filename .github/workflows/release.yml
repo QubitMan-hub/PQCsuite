@@ -42,6 +42,7 @@ jobs:
       attestations: write
       checks: read
       actions: read
+      packages: write
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
@@ -75,6 +76,24 @@ jobs:
           python scripts/release_readiness.py report "$TAG" "$GITHUB_SHA" evidence.json dist/RELEASE_READINESS.md
           cp sbom.json "dist/pqcsuite-${TAG#v}-sbom.json" && cp constraints.txt "dist/pqcsuite-${TAG#v}-constraints.txt"
           printf '\n\nThis release passed the gates in RELEASE_READINESS.md, which also lists what is not validated yet.\n' >> notes.md
+      - name: Publish the container image (the one the Helm chart and `docker run ... pqcsuite try` use)
+        id: image
+        if: needs.evidence.result == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          image=ghcr.io/qubitman-hub/pqcsuite
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          docker build -t "$image:${TAG#v}" -t "$image:latest" .
+          docker push "$image:${TAG#v}" && docker push "$image:latest"
+          echo "digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image:${TAG#v}" | cut -d@ -f2)" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: steps.image.outcome == 'success'
+        with:
+          subject-name: ghcr.io/qubitman-hub/pqcsuite
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/*

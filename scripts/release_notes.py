@@ -14,6 +14,9 @@ def notes(folder, version):
     declared = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
     if declared != version:
         raise SystemExit(f"the tag says {version} but {folder}/pyproject.toml says {declared}")
+    chart = root / "deploy" / "helm" / "pqcsuite" / "Chart.yaml"
+    if chart.exists() and f'appVersion: "{version}"' not in chart.read_text(encoding="utf-8"):
+        raise SystemExit(f"the tag says {version} but {chart.relative_to(root)} has another appVersion (the image the chart installs)")
     text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
     m = re.search(rf"^## {re.escape(version)}\b[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
     if not m or not m.group(1).strip():

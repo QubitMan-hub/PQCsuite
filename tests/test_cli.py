@@ -115,6 +115,15 @@ class CLITest(unittest.TestCase):
         self.assertIn(b"ENCRYPTED", (self.d / "enc" / "ca.key").read_bytes())
         self.assertNotIn(b"ENCRYPTED", (self.d / "plain" / "ca.key").read_bytes())
 
+    @unittest.skipIf(REASON, REASON)
+    def test_the_one_minute_tour_shows_post_quantum_in_and_classical_out(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
+            main(["try"])
+        self.assertEqual(e.exception.code, 0, out.getvalue())
+        for seen in ("X25519MLKEM768", "ML-DSA-65", "knows nothing about post-quantum", "refused, as it should be"):
+            self.assertIn(seen, out.getvalue())
+
     def test_config_files_name_what_is_missing_or_wrong(self):
         cfg = self.d / "c.toml"
         cfg.write_text('[[edge]]\nname = "a"\nlisten = "127.0.0.1:0"\n')
