@@ -208,9 +208,22 @@ sudo python examples/vpn_demo.py        # a branch over IPsec and a laptop over 
 
 A clinic's patient portal, old records server, a doctor's laptop and nightly backups, in about a minute: readiness grades, Wolf Pack on the clinic's code (when `wolfpack` is installed: `pip install ./wolf-pack`), the portal behind post-quantum mutual TLS, a stolen laptop cut off, a signed Vault backup, a tampered backup refused, and the evidence report. `bank_demo.py` tells the story for a bank: a partner payment API behind post-quantum mutual TLS, a card switch's line protocol tunnelled unchanged, 3DES and RSA-1024 found in legacy code, a compromised branch cut off, a statement archive shared with an auditor and protected against edits. `vpn_demo.py` builds headquarters, a branch and a laptop in network namespaces: the branch joins over IPsec with X25519 + ML-KEM-768 and a post-quantum PPK, the laptop over WireGuard with a key agreed over ML-DSA mutual TLS, and revoking either certificate cuts it off (it needs root, and strongSwan 6.0.2+ or WireGuard). CI runs all three on every change.
 
-## Contributing
+## Documentation
 
-Tests, the website and releases: [CONTRIBUTING.md](CONTRIBUTING.md).
+| Where | What it covers |
+|---|---|
+| This README | Installing the suite and using each product |
+| `pqcsuite COMMAND --help` | Every option of every command, most with an example |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each release, and what is on `main` but not released yet |
+| [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) | Which attackers the suite stops and which it does not, revocation when things fail, the key lifecycle, and runbooks for a compromised or lost key |
+| [SECURITY.md](SECURITY.md) | Reporting a vulnerability, and every classical algorithm in the code and why it is there |
+| [docs/SECURITY-REVIEW.md](docs/SECURITY-REVIEW.md) | The brief for an independent security review: assets, trust boundaries, what to test |
+| [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md) | What every release must pass, and what has not been validated yet |
+| [docs/PILOT.md](docs/PILOT.md) | Step-by-step checks that need your own cloud accounts or hardware |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Working on the suite: tests, the website and releases |
+| [wolf-pack/README.md](wolf-pack/README.md) | Wolf Pack CBOM, the cryptography inventory scanner |
+
+`tests/test_docs.py` checks, on every change, that every command and option quoted here, in `docs/`, in the examples and on the website exists, and that every link between them leads somewhere.
 
 ## Limits
 

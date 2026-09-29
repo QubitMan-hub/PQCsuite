@@ -21,6 +21,8 @@ With pytest installed, `python -m pytest` at the repository root runs these and 
 
 CI also lints with `ruff check .`, runs the website and console in Chromium with axe accessibility checks (`tests/browser`: `npm install`, `npx playwright install chromium`, `npx playwright test`), and scans `pqcsuite/` with Wolf Pack against the reviewed inventory in `docs/cbom.json`.
 
+`tests/test_docs.py` keeps the documentation honest: a command or option quoted in the README, `docs/`, the examples or the website that the CLI does not have, or a link that leads nowhere, fails the build. Fix the documentation, or the product, in the same change.
+
 The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts real applications behind the products and checks them with independent clients: nginx (OpenSSL 3.5 command line and curl), PostgreSQL, Redis and MQTT through edge tunnels, EST enrollment, a vault backup with tampering, and readiness grades; each is skipped when the application is missing. CI also runs two IPsec sites and a WireGuard gateway in network namespaces with real traffic, installs the Helm chart in a kind cluster, and runs the image's provisioning script on Debian 13.
 
 `pip wheel . -w dist` builds the wheel; setuptools works in `dist/.build`, so no `build/` folder is left in the source tree.
