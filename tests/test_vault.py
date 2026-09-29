@@ -35,6 +35,15 @@ class VaultTest(unittest.TestCase):
             self.assertEqual(target.read_bytes(), self.data)
         self.assertNotIn(self.data[:64], f.read_bytes())
 
+    def test_output_paths_are_explained(self):
+        with self.assertRaisesRegex(VaultError, "the folder .*nowhere does not exist"):
+            vault.encrypt(self.d / "db.dump", self.d / "nowhere" / "db.pqv", [self.alice.public])
+        f = self.enc()
+        (self.d / "taken").write_text("ours")
+        with self.assertRaisesRegex(VaultError, "taken is a file: give the folder"):
+            vault.decrypt(f, self.d / "taken", self.alice)
+        self.assertEqual((self.d / "taken").read_text(), "ours")
+
     def test_other_keys_cannot_open(self):
         with self.assertRaisesRegex(VaultError, "not encrypted for this key"):
             vault.decrypt(self.enc(), self.d / "x", self.eve)

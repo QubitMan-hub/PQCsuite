@@ -370,6 +370,8 @@ class UpdatesTest(unittest.TestCase):
         self.assertEqual(latest_release(url), {"version": "0.10.0", "url": "b", "newer": True})
         self.assertEqual(latest_release(self.serve([{"tag_name": "v0.1.0", "html_url": "a"}]))["newer"], False)
         self.assertIsNone(latest_release(self.serve([])))
+        with self.assertRaisesRegex(ValueError, "must start with http"):
+            latest_release("file:///etc/passwd")
         with self.assertRaises(ValueError):
             latest_release(self.serve({"message": "Not Found"}))
         with self.assertRaises(OSError):

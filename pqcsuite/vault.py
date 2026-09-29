@@ -370,6 +370,8 @@ def load_signer(cert_path, key_path, passphrase=None):
 def encrypt(src, dst, recipients, signer=None):
     """Encrypt a file or a whole folder (as a tar stream) to `dst`, which appears only once complete and on disk."""
     src, dst = Path(src), Path(dst)
+    if not dst.parent.is_dir():
+        raise VaultError(f"cannot write {dst}: the folder {dst.parent} does not exist")
     tmp = dst.with_name(dst.name + ".part")
     try:
         with open(tmp, "wb") as out:
@@ -421,6 +423,8 @@ class _ChunkReader(io.RawIOBase):
 def decrypt(src, dst_dir, identity, ca=None, crl=None, expected_signer=None, require_signature=False):
     """Decrypt into `dst_dir`. Nothing is left behind unless every chunk and, when required, the signature verify."""
     dst_dir = Path(dst_dir)
+    if dst_dir.exists() and not dst_dir.is_dir():
+        raise VaultError(f"{dst_dir} is a file: give the folder to restore into (the archive's own file name is used inside it)")
     created = not dst_dir.exists()
     try:
         return _decrypt(src, dst_dir, identity, ca, crl, expected_signer, require_signature)

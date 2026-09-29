@@ -192,8 +192,11 @@ def latest_release(url=None, timeout=10):
     mirror inside your network). None when there is none. Nothing calls this unless asked to."""
     import http.client
     import urllib.request
+    url = url or os.environ.get("PQCSUITE_RELEASES_URL") or RELEASES
+    if not url.startswith(("http://", "https://")):
+        raise ValueError(f"the releases address must start with http:// or https://, not {url!r}")
     try:
-        with urllib.request.urlopen(url or os.environ.get("PQCSUITE_RELEASES_URL") or RELEASES, timeout=timeout) as r:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
             data = json.loads(r.read(5 << 20))
     except http.client.HTTPException as e:
         raise OSError(f"the releases address did not answer in HTTP: {e!r}") from None
