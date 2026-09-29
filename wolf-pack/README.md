@@ -12,7 +12,7 @@ Project site: [`site/index.html`](site/index.html), a single self-contained page
 cd wolf-pack
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"          # gives you the `wolfpack` command
+pip install .                    # gives you the `wolfpack` command (to work on Wolf Pack itself: pip install -e ".[dev]")
 
 py -m wolfpack scan C:\path\to\repo
 py -m wolfpack scan C:\path\to\repo --tls api.example.com:443 --ssh bastion.example.com

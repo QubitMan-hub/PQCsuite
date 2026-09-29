@@ -9,7 +9,7 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 | **Vault** | Quantum-safe encryption for files, folders and backups | `pqcsuite vault` |
 | **Readiness assessment** | TLS and SSH endpoint grades, and compliance evidence for NIST IR 8547 and CNSA 2.0 | `pqcsuite readiness` |
 
-`pqcsuite console` shows all four on one page. The website is in `site/` and is published to https://qubitman-hub.github.io/PQCsuite/ by `.github/workflows/pages.yml` on every change to it; `python site/publish.py https://YOUR-ADDRESS/ dist` copies it into `dist` with the absolute addresses that link previews and search engines need (canonical links, preview images, `sitemap.xml`, `robots.txt`). Wolf Pack CBOM, the separate cryptography inventory scanner, is in [`wolf-pack/`](wolf-pack/README.md). `pqcsuite` is a working name (`NAME` in `pqcsuite/__init__.py`).
+`pqcsuite console` shows all four on one page. Wolf Pack CBOM, the separate cryptography inventory scanner, is in [`wolf-pack/`](wolf-pack/README.md). The website is https://qubitman-hub.github.io/PQCsuite/; working on the suite itself (tests, website, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Try it in one minute
 
@@ -31,13 +31,16 @@ Scan from outside your company network: a TLS-inspecting proxy answers in the si
 
 ## Install
 
-Python 3.11+.
+Python 3.11+, on Windows, macOS or Linux. In a clone of this repository, or with the wheel from a [release](https://github.com/QubitMan-hub/PQCsuite/releases) (`pip install pqcsuite-X.Y.Z-py3-none-any.whl`):
 
 ```
-pip install -e .            # add [vpn] on IPsec gateways
-pqcsuite doctor
+pip install .                  # on IPsec gateways: pip install ".[vpn]"; AWS KMS keys: ".[kms]"
+pqcsuite                       # every command, and where to start
+pqcsuite doctor                # what works on this machine
 pqcsuite doctor --ca pki --config edge.toml   # preflight: CA key protection, CRL freshness, expiring certificates, risky settings
 ```
+
+Every command explains itself with `--help`, and most show an example (`pqcsuite ca issue --help`).
 
 The CA and Vault work everywhere. TLS and the VPN key agreement need **OpenSSL 3.5 or newer**:
 
@@ -49,6 +52,18 @@ The CA and Vault work everywhere. TLS and the VPN key agreement need **OpenSSL 3
 | Older Linux | Build OpenSSL 3.5 and run with `LD_LIBRARY_PATH=/path/to/openssl/lib` |
 
 Config and target files can be written with any editor, Notepad and PowerShell included: UTF-8 with or without a byte-order mark, or UTF-16.
+
+### What listens where
+
+| Command | Listens on by default | Serves |
+|---|---|---|
+| `tls edge`, `tls serve` | every interface, port 8443 | post-quantum TLS; mutual TLS where configured |
+| `ca serve` (EST) | every interface, port 9443 | enrollment over post-quantum TLS: a one-time token, or the current certificate to renew; the CA certificate itself is public |
+| `ca publish` | every interface, port 8080 | the CRL and the CA certificate over plain HTTP: both are public by design |
+| `ca acme` | this machine only, 127.0.0.1:14000 | ACME; put it behind the edge or set `--listen` |
+| `console` | this machine only, 127.0.0.1:8900 | the dashboard, with a bearer token |
+
+The edge, EST and the CRL publisher are there for other machines to reach, so they listen on every interface (`0.0.0.0`): anything that can route to the machine can connect to them. To narrow that, give `--listen` one address (`--listen 10.0.0.5:8443`, or `127.0.0.1:8443` for this machine only) or `listen` in the configuration file, and firewall the ports. The console and ACME stay on this machine unless you say otherwise, and `pqcsuite doctor --config console.toml` warns when the console listens beyond it.
 
 ## TLS 1.3 + mTLS
 
@@ -193,21 +208,9 @@ sudo python examples/vpn_demo.py        # a branch over IPsec and a laptop over 
 
 A clinic's patient portal, old records server, a doctor's laptop and nightly backups, in about a minute: readiness grades, Wolf Pack on the clinic's code (when `wolfpack` is installed: `pip install ./wolf-pack`), the portal behind post-quantum mutual TLS, a stolen laptop cut off, a signed Vault backup, a tampered backup refused, and the evidence report. `bank_demo.py` tells the story for a bank: a partner payment API behind post-quantum mutual TLS, a card switch's line protocol tunnelled unchanged, 3DES and RSA-1024 found in legacy code, a compromised branch cut off, a statement archive shared with an auditor and protected against edits. `vpn_demo.py` builds headquarters, a branch and a laptop in network namespaces: the branch joins over IPsec with X25519 + ML-KEM-768 and a post-quantum PPK, the laptop over WireGuard with a key agreed over ML-DSA mutual TLS, and revoking either certificate cuts it off (it needs root, and strongSwan 6.0.2+ or WireGuard). CI runs all three on every change.
 
-## Tests
+## Contributing
 
-```
-python -m unittest discover -s tests -v
-```
-
-With pytest installed, `python -m pytest` at the repository root runs these and Wolf Pack's tests together. The suite needs `cryptography` 49 or newer (for ML-KEM and ML-DSA); an older one stops every test at import with a message saying so.
-
-CI also lints with `ruff check .`, runs the website and console in Chromium with axe accessibility checks (`tests/browser`: `npm install`, `npx playwright install chromium`, `npx playwright test`), and scans `pqcsuite/` with Wolf Pack against the reviewed inventory in `docs/cbom.json`.
-
-The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts real applications behind the products and checks them with independent clients: nginx (OpenSSL 3.5 command line and curl), PostgreSQL, Redis and MQTT through edge tunnels, EST enrollment, a vault backup with tampering, and readiness grades; each is skipped when the application is missing. CI also runs two IPsec sites and a WireGuard gateway in network namespaces with real traffic, installs the Helm chart in a kind cluster, and runs the image's provisioning script on Debian 13.
-
-## Releases
-
-A tag `vX.Y.Z` releases the suite and `wolf-pack-vX.Y.Z` releases Wolf Pack: push the tag, or open Actions → release → Run workflow and type it, and the workflow creates the tag on the branch's latest commit. Before tagging, set the version in the package's `pyproject.toml` (for the suite also `__version__`, the Helm chart's `version` and `appVersion`, and the Packer template's `version`) and rename its changelog's "Unreleased" section to `## X.Y.Z`; the release workflow refuses a tag that does not match. A suite release is published only when every CI and CodeQL job passed on its commit ([docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)). Each GitHub release carries the wheel and signed build provenance (`gh attestation verify FILE --repo QubitMan-hub/PQCsuite`); a suite release also carries `RELEASE_READINESS.md`, the CBOM, a CycloneDX SBOM and the tested dependency versions, and publishes the image `ghcr.io/qubitman-hub/pqcsuite:X.Y.Z`.
+Tests, the website and releases: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Limits
 

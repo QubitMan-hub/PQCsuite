@@ -770,7 +770,7 @@ def parser():
     p.add_argument("--key-passphrase-env")
     p = ca.add_parser("acme", parents=[common], help="ACME (RFC 8555) service: ML-DSA certificates for clients that take a CSR (certbot --csr)")
     p.set_defaults(func=cmd_acme)
-    p.add_argument("--listen", default="127.0.0.1:14000")
+    p.add_argument("--listen", default="127.0.0.1:14000", help="host:port (default: this machine only, port 14000)")
     p.add_argument("--base-url", help="the URL clients use, e.g. https://acme.corp.example (default from --listen)")
     p.add_argument("--allow", action="append", default=[], help="names or patterns this CA issues for, e.g. '*.corp.example' (repeatable)")
     p.add_argument("--require-eab", action="store_true", help="clients need an external account binding key (see `ca eab`)")

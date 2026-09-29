@@ -226,7 +226,7 @@ def load_config(path):
         routes.append(build(Route, {"name": f"edge{i + 1}", **e}, f"edge #{i + 1}"))
     if not routes:
         other = ", ".join(f"[[{k}]]" if isinstance(v, list) else f"[{k}]" for k, v in doc.items() if k != "edge" and isinstance(v, (dict, list)))
-        raise ValueError(f"{path} has no [[edge]] sections" + (f" (found {other}; each port the edge listens on is an [[edge]] table)" if other else ""))
+        raise ValueError(f"{path} has no [[edge]] sections" + (f" (found {other}; each route is an [[edge]] table: a port the edge listens on and where its traffic goes)" if other else ""))
     names = [r.name for r in routes]
     if len(set(names)) != len(names):
         raise ValueError(f"{path}: route names must be unique")
