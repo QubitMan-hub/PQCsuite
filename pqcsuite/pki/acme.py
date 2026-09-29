@@ -525,7 +525,7 @@ def serve(service, listen, tls_cert=None, tls_key=None):
     httpd.service = service
     if tls_cert:
         ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_3
         ctx.load_cert_chain(tls_cert, tls_key)
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
     return httpd

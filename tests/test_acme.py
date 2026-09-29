@@ -48,6 +48,32 @@ def start(httpd, test):
     return httpd.server_address[1]
 
 
+class HTTPSListenerTest(unittest.TestCase):
+    def test_the_https_listener_takes_tls_1_3_only(self):
+        import ssl
+        d = Path(tempfile.mkdtemp())
+        key = ec.generate_private_key(ec.SECP256R1())
+        name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "localhost")])
+        now = dt.datetime.now(dt.timezone.utc)
+        cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key()).serial_number(1)
+                .not_valid_before(now).not_valid_after(now + dt.timedelta(days=1)).sign(key, hashes.SHA256()))
+        (d / "c.pem").write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+        (d / "k.pem").write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+        httpd = serve(Service(CA.init(d / "pki", "Root"), "https://localhost"), "127.0.0.1:0", str(d / "c.pem"), str(d / "k.pem"))
+        port = start(httpd, self)
+
+        def get(version):
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
+            ctx.minimum_version = ctx.maximum_version = version
+            with socket.create_connection(("127.0.0.1", port), timeout=5) as raw, ctx.wrap_socket(raw) as s:
+                s.sendall(b"GET /directory HTTP/1.0\r\n\r\n")
+                return s.recv(200)
+        self.assertTrue(get(ssl.TLSVersion.TLSv1_3).startswith(b"HTTP/1.0 200"))
+        with self.assertRaises(ssl.SSLError):
+            get(ssl.TLSVersion.TLSv1_2)
+
+
 @unittest.skipIf(REASON, REASON)
 class ACMETest(unittest.TestCase):
     def setUp(self):
