@@ -13,7 +13,7 @@ jobs:
   evidence:
     if: startsWith(inputs.tag || github.ref_name, 'v')
     runs-on: ubuntu-latest
-    container: python:3.13-slim-trixie
+    container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: The suite, the benchmark and an SBOM, on Debian 13 with OpenSSL 3.5 and real applications

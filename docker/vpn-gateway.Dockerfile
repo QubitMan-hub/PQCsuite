@@ -1,6 +1,6 @@
 # VPN gateway: strongSwan 6.1.0 (the release that fixes CVE-2026-78133 and CVE-2026-78135) built against Debian 13's OpenSSL 3.5,
 # plus the pqcsuite controller. Run with --network host --cap-add NET_ADMIN (IPsec lives in the host kernel).
-ARG BASE=python:3.13-slim-trixie
+ARG BASE=python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
 FROM ${BASE} AS build
 ARG STRONGSWAN=6.1.0
 # the tarball's SHA-256; change it together with STRONGSWAN

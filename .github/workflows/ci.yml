@@ -22,7 +22,7 @@ jobs:
       - run: python -m unittest discover -s tests -v
   tls:
     runs-on: ubuntu-latest
-    container: python:3.13-slim-trixie
+    container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Real applications for the scenario tests
@@ -178,7 +178,7 @@ jobs:
         run: kubectl get pods -A; kubectl describe pods; kubectl logs -l app.kubernetes.io/instance=pqc --all-containers --tail 100
   cloud-image:
     runs-on: ubuntu-24.04
-    container: debian:trixie
+    container: debian:trixie@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c   # a stand-in for the Debian 13 VM; update by hand
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Packer template

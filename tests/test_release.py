@@ -1,4 +1,5 @@
 """The release gate: a release is refused when any required job failed, is missing or was skipped."""
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -35,6 +36,18 @@ class GateTest(unittest.TestCase):
                 ok, text = rr.report("v1.0.0", "abc", EVIDENCE, runs)
                 self.assertFalse(ok)
                 self.assertIn("must not be released", text)
+
+
+class BaseImageTest(unittest.TestCase):
+    def test_every_build_and_ci_container_uses_the_pinned_python_base(self):
+        root = Path(__file__).resolve().parent.parent
+        base = re.search(r"^ARG BASE=(\S+)$", (root / "Dockerfile").read_text(), re.M).group(1)
+        self.assertRegex(base, r"@sha256:[0-9a-f]{64}$", "the base image is pinned by digest")
+        for f in ("docker/vpn-gateway.Dockerfile", ".github/workflows/ci.yml", ".github/workflows/release.yml"):
+            with self.subTest(f):
+                uses = re.findall(r"python:3\.\d+-slim-\w+(?:@sha256:[0-9a-f]{64})?", (root / f).read_text())
+                self.assertTrue(uses)
+                self.assertEqual(set(uses), {base}, f"{f} must use the same pinned base as the Dockerfile")
 
 
 if __name__ == "__main__":

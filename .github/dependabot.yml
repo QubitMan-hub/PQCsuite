@@ -8,3 +8,7 @@ updates:
     directories: ["/", "/wolf-pack"]
     schedule:
       interval: weekly
+  - package-ecosystem: docker
+    directories: ["/", "/docker"]
+    schedule:
+      interval: weekly
