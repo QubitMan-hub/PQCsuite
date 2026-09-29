@@ -511,7 +511,7 @@ def serve(service, listen, tls_cert=None, tls_key=None):
             except Problem as p:
                 self.respond(p.status, {"type": ERR + p.kind, "detail": p.detail, "status": p.status}, {"Content-Type": "application/problem+json"})
             except Exception:
-                log.exception("%s %r failed", self.command, self.path)
+                log.exception("%s %s failed", self.command, self.path.replace("\r", "").replace("\n", ""))
                 self.respond(500, {"type": ERR + "serverInternal", "detail": "internal error; see the server's log", "status": 500},
                              {"Content-Type": "application/problem+json"})
 
