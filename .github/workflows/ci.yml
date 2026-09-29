@@ -30,6 +30,8 @@ jobs:
       - name: OpenSSL 3.5+ from Homebrew, so the TLS tests run too
         run: brew install openssl@3 && echo "PQCSUITE_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
       - run: pip install -e ".[test]" && pqcsuite doctor && pqcsuite try
+      - name: A second loopback address, as Linux has, for the per-host limit test
+        run: sudo ifconfig lo0 alias 127.0.0.2 up
       - run: python -m unittest discover -s tests -v
   tls:
     runs-on: ubuntu-latest
