@@ -24,6 +24,9 @@ def schemas():
 
 
 def main(path):
+    if not Path(path).is_file():
+        print(f"{path} not found: run `wolfpack scan PATH` first, or give the CBOM to check")
+        return 1
     s = schemas()
     reg = Registry()
     for n, doc in s.items():

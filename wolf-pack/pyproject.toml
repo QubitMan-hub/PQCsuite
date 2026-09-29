@@ -24,3 +24,5 @@ include = ["wolfpack*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+testpaths = ["tests"]
+norecursedirs = ["corpus", ".*", "build", "dist", "*.egg", "venv", "node_modules"]

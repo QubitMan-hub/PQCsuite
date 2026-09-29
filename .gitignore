@@ -1,15 +1,36 @@
+# Python and tool caches
 __pycache__/
 *.pyc
 .venv/
+venv/
 *.egg-info/
 /build/
 /dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.coverage
+
+# Keys, certificates, secrets and customer data made while trying the suite
 /pki/
 *.pem
 *.key
 !tests/**/*.pem
-.coverage
+.env
+.env.*
+*.pqv
+*.part
+wolfpack-out/
+
+# the Wolf Pack corpus holds deliberate test keys and weak code
 !wolf-pack/bench/corpus/**
+
+# browser tests
 node_modules/
 test-results/
 playwright-report/
+
+# operating systems
+.DS_Store
+Thumbs.db

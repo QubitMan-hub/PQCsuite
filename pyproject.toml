@@ -32,6 +32,8 @@ include = ["pqcsuite*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "wolf-pack/tests"]
+# the Wolf Pack corpus is deliberately weak code to scan, never tests to run
+norecursedirs = ["corpus", ".*", "build", "dist", "*.egg", "venv", "node_modules"]
 pythonpath = ["wolf-pack"]
 
 [tool.ruff]
