@@ -511,7 +511,7 @@ def serve(service, listen, tls_cert=None, tls_key=None):
             except Problem as p:
                 self.respond(p.status, {"type": ERR + p.kind, "detail": p.detail, "status": p.status}, {"Content-Type": "application/problem+json"})
             except Exception:
-                log.exception("%s %s failed", self.command, self.path)
+                log.exception("%s %r failed", self.command, self.path)
                 self.respond(500, {"type": ERR + "serverInternal", "detail": "internal error; see the server's log", "status": 500},
                              {"Content-Type": "application/problem+json"})
 
@@ -525,6 +525,7 @@ def serve(service, listen, tls_cert=None, tls_key=None):
     httpd.service = service
     if tls_cert:
         ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.load_cert_chain(tls_cert, tls_key)
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
     return httpd

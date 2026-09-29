@@ -51,6 +51,17 @@ test("overview tiles open their pages; certificates are listed; Wolf Pack sits o
   await expect(page.locator("#view h1")).toHaveText("Wolf Pack CBOM");
 });
 
+test("an address naming a built-in property opens the overview, not an error", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", e => errors.push(e.message));
+  await signIn(page);
+  for (const name of ["constructor", "toString", "__proto__"]) {
+    await page.evaluate(n => (location.hash = n), name);
+    await expect(page.locator("nav a[aria-current]")).toHaveAttribute("data-view", "overview");
+  }
+  expect(errors).toEqual([]);
+});
+
 test("no serious accessibility problems on the console pages", async ({ page }) => {
   await signIn(page);
   for (const view of ["overview", "certificates", "wolfpack"]) {

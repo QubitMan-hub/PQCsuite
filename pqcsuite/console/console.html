@@ -154,7 +154,7 @@ function shell() {
 
 let timer = null, poll = null;
 function route() {
-  const view = (location.hash.slice(1) in VIEWS) ? location.hash.slice(1) : "overview";
+  const view = Object.hasOwn(VIEWS, location.hash.slice(1)) ? location.hash.slice(1) : "overview";
   document.querySelectorAll("nav a").forEach((a) => a.dataset.view === view ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
   $("nav a[aria-current]").scrollIntoView({ block: "nearest", inline: "nearest" });
   clearInterval(timer); clearInterval(poll);

@@ -1,0 +1,4 @@
+# Deliberately weak cryptography that Wolf Pack's benchmark and the website's sample scans must find; not product code
+paths-ignore:
+  - wolf-pack/bench/corpus
+  - examples/wolfpack-sample

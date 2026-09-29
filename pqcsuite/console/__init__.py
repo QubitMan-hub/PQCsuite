@@ -10,7 +10,6 @@ import http.client
 import json
 import logging
 import os
-import re
 import secrets
 import threading
 import time
@@ -277,7 +276,7 @@ def page():
 
 def policy(html):
     """The page's one inline script is allowed by its hash, so no other script can run even if markup were ever injected."""
-    script = re.search(rb"<script>(.*?)</script>", html, re.S).group(1)
+    script = html.split(b"<script>", 1)[1].split(b"</script>", 1)[0]
     digest = base64.b64encode(hashlib.sha256(script).digest()).decode()
     return f"default-src 'self'; img-src 'self' data:; font-src data:; style-src 'self' 'unsafe-inline'; script-src 'sha256-{digest}'; frame-ancestors 'none'"
 
