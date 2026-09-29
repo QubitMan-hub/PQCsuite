@@ -32,4 +32,5 @@ Update this list when one of these is done; every release report copies it as it
 | Replay testing | Covered for ACME nonces and one-time EST tokens only; nothing broader |
 | Performance on production hardware, and under load | Only the runner benchmark above |
 | macOS | Not tested; Windows and macOS VPN clients are not available |
+| Container base images pinned by digest | Not yet: the images build from the `python:3.13-slim-trixie` tag, so a rebuild can pick up a newer base |
 | Security snapshot comparison between releases (SBOM and CBOM diffs) | The files are published per release; nothing compares them yet |

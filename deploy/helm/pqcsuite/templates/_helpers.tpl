@@ -13,12 +13,16 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{ .Release.Name }}-ca.{{ .Release.Namespace }}.svc
 {{- end }}
 
+{{- /* The issuing CA's passphrase; the root's is only ever given to the init container. */}}
 {{- define "pqcsuite.caEnv" -}}
-{{- if .Values.ca.passphraseSecret }}
 - name: PQCSUITE_CA_PASSPHRASE
   valueFrom:
     secretKeyRef:
-      name: {{ .Values.ca.passphraseSecret }}
+      name: {{ .Values.ca.passphraseSecret | default (printf "%s-ca-passphrase" .Release.Name) }}
       key: passphrase
 {{- end }}
+
+{{- /* One folder of the data volume: services see only what they use, never the root CA. */}}
+{{- define "pqcsuite.dataMount" -}}
+- {name: data, mountPath: /data/{{ .dir }}, subPath: {{ .dir }}{{ if .ro }}, readOnly: true{{ end }}}
 {{- end }}

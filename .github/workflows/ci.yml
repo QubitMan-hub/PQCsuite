@@ -104,14 +104,19 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /opt/pqc
-          key: openssl-3.5.4-strongswan-6.1.0-v1
+          key: openssl-3.5.4-strongswan-6.1.0-v2
       - name: Build OpenSSL 3.5 and strongSwan 6.1
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update && sudo apt-get install -y build-essential libgmp-dev pkg-config
-          curl -fsSL https://github.com/openssl/openssl/releases/download/openssl-3.5.4/openssl-3.5.4.tar.gz | tar xz
+          # OpenSSL's hash is the one openssl.org publishes; strongSwan's GitHub release has none, so its hash is pinned from the
+          # first download and guards against the file changing since
+          curl -fsSL -o openssl.tgz https://github.com/openssl/openssl/releases/download/openssl-3.5.4/openssl-3.5.4.tar.gz
+          curl -fsSL -o strongswan.tbz https://github.com/strongswan/strongswan/releases/download/6.1.0/strongswan-6.1.0.tar.bz2
+          printf '%s  %s\n' 967311f84955316969bdb1d8d4b983718ef42338639c621ec4c34fddef355e99 openssl.tgz \
+            fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4 strongswan.tbz | sha256sum -c -
+          tar xzf openssl.tgz && tar xjf strongswan.tbz
           (cd openssl-3.5.4 && ./Configure --prefix=/opt/pqc --libdir=lib shared no-tests && make -j4 && sudo make install_sw)
-          curl -fsSL https://github.com/strongswan/strongswan/releases/download/6.1.0/strongswan-6.1.0.tar.bz2 | tar xj
           cd strongswan-6.1.0 && PKG_CONFIG_PATH=/opt/pqc/lib/pkgconfig CPPFLAGS=-I/opt/pqc/include LDFLAGS="-L/opt/pqc/lib -Wl,-rpath,/opt/pqc/lib" \
             ./configure --prefix=/opt/pqc --disable-defaults --enable-openssl --enable-ml --enable-vici --enable-swanctl --enable-charon \
             --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce --enable-hmac \
@@ -141,6 +146,8 @@ jobs:
           kind create cluster --wait 120s
           docker build -t pqcsuite:ci . && kind load docker-image pqcsuite:ci
           helm lint --strict deploy/helm/pqcsuite
+          helm lint --strict deploy/helm/pqcsuite --set ca.issuingSecret=issuing --set ca.passphraseSecret=issuing-pass
+          helm template t deploy/helm/pqcsuite --set ca.issuingSecret=issuing | grep -q "secretName: issuing"
       - name: Install the CA
         run: helm install pqc deploy/helm/pqcsuite --set image.repository=pqcsuite --set image.tag=ci --set image.pullPolicy=Never --wait --timeout 240s
       - name: Issue an edge certificate in the cluster and put the edge in front of a web app
@@ -149,7 +156,7 @@ jobs:
           kubectl expose deployment web --port 80 --target-port 8080
           ca() { kubectl exec pqc-ca-0 -c maintain -- "$@"; }
           ca pqcsuite ca issue --dir /data/pki server pqc-edge.default.svc --san pqc-edge --out /data/issued/edge
-          mkdir edge && for f in chain.pem key.pem; do ca cat /data/issued/edge/$f > edge/$f; done && ca cat /data/pki/ca.crt > edge/ca.crt
+          mkdir edge && for f in chain.pem key.pem; do ca cat /data/issued/edge/$f > edge/$f; done && ca cat /data/pki/chain.pem > edge/ca.crt
           kubectl create secret generic edge-tls --from-file=edge/
           helm upgrade pqc deploy/helm/pqcsuite --reuse-values --set edge.enabled=true --set 'edge.routes[0].name=web' \
             --set 'edge.routes[0].port=8443' --set 'edge.routes[0].target=web:80' \
@@ -158,8 +165,14 @@ jobs:
           kubectl logs deploy/pqc-edge | grep "CRL from http://pqc-ca.default.svc:8080/crl.pem saved"
       - name: Post-quantum request through the edge
         run: |
-          kubectl cp deploy/k8s/smoke.py pqc-ca-0:/data/smoke.py -c maintain
-          kubectl exec pqc-ca-0 -c maintain -- python /data/smoke.py pqc default
+          kubectl cp deploy/k8s/smoke.py pqc-ca-0:/data/issued/smoke.py -c maintain
+          kubectl exec pqc-ca-0 -c maintain -- python /data/issued/smoke.py pqc default
+      - name: The CA key is encrypted, the services cannot see the root, and the root is an offline-style parent
+        run: |
+          kubectl exec pqc-ca-0 -c maintain -- sh -c 'grep -q ENCRYPTED /data/pki/ca.key && test ! -e /data/root && test -f /data/pki/root.crt'
+          kubectl exec pqc-ca-0 -c acme -- sh -c 'test ! -e /data/root && test ! -e /data/issued && test -z "$ROOT_PASSPHRASE"'
+          kubectl exec pqc-ca-0 -c maintain -- pqcsuite doctor --ca /data/pki | tee doctor.txt
+          ! grep -q "not encrypted" doctor.txt
       - name: Diagnostics
         if: failure()
         run: kubectl get pods -A; kubectl describe pods; kubectl logs -l app.kubernetes.io/instance=pqc --all-containers --tail 100
@@ -171,7 +184,8 @@ jobs:
       - name: Packer template
         run: |
           apt-get update && apt-get install -y curl unzip sudo
-          curl -fsSL -o packer.zip https://releases.hashicorp.com/packer/1.14.1/packer_1.14.1_linux_amd64.zip && unzip -q packer.zip -d /usr/local/bin
+          curl -fsSL -o packer.zip https://releases.hashicorp.com/packer/1.14.1/packer_1.14.1_linux_amd64.zip
+          echo "b9c39b150fd856c6a6ab1639acc01a181d85033f4e0dc6c9ef87bbb692a59c31  packer.zip" | sha256sum -c - && unzip -q packer.zip -d /usr/local/bin
           packer init deploy/packer && packer fmt -check deploy/packer
           packer validate -var gcp_project=ci -var azure_subscription_id=00000000-0000-0000-0000-000000000000 deploy/packer
       - name: The image's provisioning script on Debian 13 (systemctl stubbed; no systemd in a container)

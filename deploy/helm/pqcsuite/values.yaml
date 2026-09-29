@@ -7,8 +7,17 @@ ca:
   enabled: true
   name: "Acme PQC Root"
   algorithm: ML-DSA-87
-  # Secret with key "passphrase": encrypts the CA key on the volume. Empty leaves it unencrypted (pqcsuite doctor warns).
+  # Secret with key "passphrase" for the issuing CA's key, which is always encrypted. Empty: the chart makes one with a
+  # random passphrase (<release>-ca-passphrase), kept on upgrade and uninstall.
   passphraseSecret: ""
+  # The issuing CA that EST, ACME and the console sign with. Empty: the chart creates a root and an issuing CA under it on
+  # first start; the root's key stays on the volume, mounted by no service, its passphrase in <release>-ca-root-passphrase.
+  # For production, make the issuing CA offline under a root that never touches the cluster:
+  #   pqcsuite ca init --dir root --name "Acme Root"                       (offline, or --kms / --signer-command)
+  #   pqcsuite ca init --dir issuing --name "Acme Issuing" --parent root
+  #   kubectl create secret generic acme-issuing --from-file=issuing/        (and put its passphrase in passphraseSecret)
+  # and name that Secret here.
+  issuingSecret: ""
   storage:
     size: 1Gi
     storageClass: ""

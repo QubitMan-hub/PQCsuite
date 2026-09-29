@@ -3,8 +3,11 @@
 ARG BASE=python:3.13-slim-trixie
 FROM ${BASE} AS build
 ARG STRONGSWAN=6.1.0
+# the tarball's SHA-256; change it together with STRONGSWAN
+ARG STRONGSWAN_SHA256=fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev libgmp-dev pkg-config curl bzip2 ca-certificates \
- && curl -fsSL https://github.com/strongswan/strongswan/releases/download/${STRONGSWAN}/strongswan-${STRONGSWAN}.tar.bz2 | tar xj -C /tmp \
+ && curl -fsSL -o /tmp/ss.tbz https://github.com/strongswan/strongswan/releases/download/${STRONGSWAN}/strongswan-${STRONGSWAN}.tar.bz2 \
+ && echo "${STRONGSWAN_SHA256}  /tmp/ss.tbz" | sha256sum -c - && tar xjf /tmp/ss.tbz -C /tmp \
  && cd /tmp/strongswan-${STRONGSWAN} \
  && ./configure --prefix=/opt/strongswan --sysconfdir=/etc --disable-defaults --enable-openssl --enable-ml --enable-vici --enable-swanctl \
       --enable-charon --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce \

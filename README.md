@@ -148,7 +148,7 @@ Pages: overview, TLS 1.3 edges, mTLS certificates (issue, revoke, renew), IPsec 
 ## Deploy
 
 - **Docker:** `Dockerfile` (edge and tools) and `docker/vpn-gateway.Dockerfile`.
-- **Kubernetes:** `deploy/helm/pqcsuite` runs the CA (EST, ACME, daily maintenance, optional console) and edge gateways; `deploy/k8s/sidecar.yaml` shows the edge as a sidecar. Edge certificates come from a Secret you create.
+- **Kubernetes:** `deploy/helm/pqcsuite` runs the CA (EST, ACME, daily maintenance, optional console) and edge gateways. EST, ACME and the console sign with an issuing CA whose key is always encrypted; they never see a root key. By default the chart makes the root and the issuing CA on first start and mounts the root into no service; for production, make the issuing CA offline under your own root and give it to the chart (`ca.issuingSecret`), so no root key is in the cluster at all; `deploy/k8s/sidecar.yaml` shows the edge as a sidecar. Edge certificates come from a Secret you create.
 - **Cloud images:** `deploy/packer` builds a Debian 13 image for AWS, Azure and GCP with OpenSSL 3.5, strongSwan 6.1.0, WireGuard and systemd units that start when their configuration exists. Not yet built in a real cloud account.
 
 ## Demo

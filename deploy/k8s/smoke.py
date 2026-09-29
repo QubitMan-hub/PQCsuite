@@ -9,7 +9,7 @@ from pqcsuite.tls.http import HTTPError, request
 
 release, namespace = sys.argv[1], sys.argv[2]
 edge = f"{release}-edge.{namespace}.svc"
-ctx = tls.client_context("/data/pki/ca.crt")
+ctx = tls.client_context("/data/pki/root.crt")
 deadline = time.monotonic() + 60
 while True:
     try:

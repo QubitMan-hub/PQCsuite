@@ -1,7 +1,7 @@
 {{- if .Values.ca.enabled }}
 CA: {{ .Release.Name }}-ca in {{ .Release.Namespace }} (key and index on the "data" volume).
-  Root certificate for your clients:
-    kubectl -n {{ .Release.Namespace }} exec {{ .Release.Name }}-ca-0 -c maintain -- cat /data/pki/ca.crt > ca.crt
+  Root certificate for your clients (the CA chain, for servers that check revocation: /data/pki/chain.pem):
+    kubectl -n {{ .Release.Namespace }} exec {{ .Release.Name }}-ca-0 -c maintain -- cat /data/pki/root.crt > ca.crt
   {{- if .Values.ca.est.enabled }}
   EST: https://{{ include "pqcsuite.caHost" . }}:{{ .Values.ca.est.port }}/.well-known/est (post-quantum TLS)
     token: kubectl -n {{ .Release.Namespace }} exec {{ .Release.Name }}-ca-0 -c maintain -- pqcsuite ca token --dir /data/pki server NAME

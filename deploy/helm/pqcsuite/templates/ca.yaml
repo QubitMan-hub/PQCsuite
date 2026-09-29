@@ -53,7 +53,16 @@ spec:
           command: ["sh", "-ec"]
           args:
             - |
-              test -f /data/pki/ca.crt || pqcsuite ca init --dir /data/pki --name "$CA_NAME" --algorithm {{ .Values.ca.algorithm }} {{ if not .Values.ca.passphraseSecret }}--no-encrypt{{ end }}
+              mkdir -p /data/root /data/pki /data/est /data/issued /data/console
+              if [ ! -f /data/pki/ca.crt ]; then
+              {{- if .Values.ca.issuingSecret }}
+                cp -L /issuing/* /data/pki/ && chmod 600 /data/pki/ca.key
+                pqcsuite ca list --dir /data/pki > /dev/null
+              {{- else }}
+                PQCSUITE_CA_PASSPHRASE="$ROOT_PASSPHRASE" pqcsuite ca init --dir /data/root --name "$CA_NAME" --algorithm {{ .Values.ca.algorithm }}
+                PQCSUITE_PARENT_CA_PASSPHRASE="$ROOT_PASSPHRASE" pqcsuite ca init --dir /data/pki --name "$CA_NAME Issuing" --parent /data/root --algorithm {{ .Values.ca.algorithm }}
+              {{- end }}
+              fi
               {{- if .Values.ca.est.enabled }}
               test -f /data/est/chain.pem || pqcsuite ca issue --dir /data/pki server {{ $host }} --san {{ .Release.Name }}-ca --out /data/est
               {{- end }}
@@ -62,8 +71,16 @@ spec:
             - name: CA_NAME
               value: {{ .Values.ca.name | quote }}
             {{- include "pqcsuite.caEnv" . | nindent 12 }}
+            {{- if not .Values.ca.issuingSecret }}
+            - name: ROOT_PASSPHRASE
+              valueFrom:
+                secretKeyRef: {name: {{ .Release.Name }}-ca-root-passphrase, key: passphrase}
+            {{- end }}
           volumeMounts:
             - {name: data, mountPath: /data}
+            {{- if .Values.ca.issuingSecret }}
+            - {name: issuing, mountPath: /issuing, readOnly: true}
+            {{- end }}
       containers:
         - name: crl
           image: {{ include "pqcsuite.image" . }}
@@ -75,7 +92,7 @@ spec:
           readinessProbe:
             httpGet: {path: /crl.pem, port: crl}
           volumeMounts:
-            - {name: data, mountPath: /data, readOnly: true}
+            {{- include "pqcsuite.dataMount" (dict "dir" "pki" "ro" true) | nindent 12 }}
           resources: {{- toYaml .Values.ca.resources | nindent 12 }}
         {{- if .Values.ca.est.enabled }}
         - name: est
@@ -89,7 +106,8 @@ spec:
           readinessProbe:
             tcpSocket: {port: est}
           volumeMounts:
-            - {name: data, mountPath: /data}
+            {{- include "pqcsuite.dataMount" (dict "dir" "pki") | nindent 12 }}
+            {{- include "pqcsuite.dataMount" (dict "dir" "est" "ro" true) | nindent 12 }}
           resources: {{- toYaml .Values.ca.resources | nindent 12 }}
         {{- end }}
         {{- if .Values.ca.acme.enabled }}
@@ -116,7 +134,7 @@ spec:
           readinessProbe:
             httpGet: {path: /directory, port: acme}
           volumeMounts:
-            - {name: data, mountPath: /data}
+            {{- include "pqcsuite.dataMount" (dict "dir" "pki") | nindent 12 }}
           resources: {{- toYaml .Values.ca.resources | nindent 12 }}
         {{- end }}
         - name: maintain
@@ -128,13 +146,14 @@ spec:
             - while true; do pqcsuite ca maintain --dir /data/pki --renew-within {{ .Values.ca.maintain.renewWithinDays }} --crl-days {{ .Values.ca.maintain.crlDays }}; sleep {{ .Values.ca.maintain.everySeconds }}; done
           env: {{- include "pqcsuite.caEnv" . | nindent 12 }}
           volumeMounts:
-            - {name: data, mountPath: /data}
+            {{- include "pqcsuite.dataMount" (dict "dir" "pki") | nindent 12 }}
+            {{- include "pqcsuite.dataMount" (dict "dir" "issued") | nindent 12 }}
         {{- if .Values.ca.console.enabled }}
         - name: console
           image: {{ include "pqcsuite.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
-          workingDir: /data
+          workingDir: /data/console
           args: ["console", "--ca", "/data/pki", "--listen", "0.0.0.0:{{ .Values.ca.console.port }}"{{ if .Values.edge.enabled }}, "--edge", "http://{{ .Release.Name }}-edge.{{ .Release.Namespace }}.svc:{{ .Values.edge.metricsPort }}"{{ end }}]
           env:
             {{- include "pqcsuite.caEnv" . | nindent 12 }}
@@ -146,8 +165,14 @@ spec:
           ports:
             - {name: console, containerPort: {{ .Values.ca.console.port }}}
           volumeMounts:
-            - {name: data, mountPath: /data}
+            {{- include "pqcsuite.dataMount" (dict "dir" "pki") | nindent 12 }}
+            {{- include "pqcsuite.dataMount" (dict "dir" "console") | nindent 12 }}
         {{- end }}
+      {{- if .Values.ca.issuingSecret }}
+      volumes:
+        - name: issuing
+          secret: {secretName: {{ .Values.ca.issuingSecret }}, defaultMode: 0400}
+      {{- end }}
   volumeClaimTemplates:
     - metadata:
         name: data

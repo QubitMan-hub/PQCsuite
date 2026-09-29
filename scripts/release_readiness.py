@@ -99,6 +99,7 @@ Commit `{sha}`, checked {dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} UTC.
 | OpenSSL | 3.5 or newer for TLS; {e['openssl']} here |
 | SBOM | `pqcsuite-{tag.lstrip('v')}-sbom.json`, CycloneDX, {e['sbom_components']} components |
 | CBOM | `pqcsuite-{tag.lstrip('v')}-cbom.json` (Wolf Pack) |
+| Tested dependency versions | `pqcsuite-{tag.lstrip('v')}-constraints.txt`: `pip install -c` it to install exactly what this release was tested with |
 | Build provenance | GitHub attestation on every release file |
 
 ### Performance on the GitHub runner (loopback, indicative only)
