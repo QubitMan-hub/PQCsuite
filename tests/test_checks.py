@@ -79,6 +79,9 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(find(checks.config(self.write('[[edge]]\nmode = "sideways"\nlisten = "x:1"\ntarget = "y:2"\n')), "mode"), "fail")
         self.assertEqual(find(checks.config(self.write('[console]\nlisten = "0.0.0.0:8900"\n')), "plain HTTP"), "warn")
         self.assertIsNone(find(checks.config(self.write('[console]\nlisten = "127.0.0.1:8900"\n')), "plain HTTP"))
+        wrong = checks.config(self.write(f'[console]\nca = "{(self.d / "typo").as_posix()}"\nbackups = ["{(self.d / "gone").as_posix()}"]\n'))
+        self.assertEqual(find(wrong, "holds no CA"), "fail")
+        self.assertEqual(find(wrong, "does not exist"), "warn")
         self.assertEqual(find(checks.config(self.write('[nothing]\n')), "no [[edge]]"), "fail")
 
 

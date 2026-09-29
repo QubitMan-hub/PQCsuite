@@ -162,4 +162,7 @@ def config(path):
             local = False
         if not local:
             out.append(("warn", f"{path} [console]: listens on {host} over plain HTTP; keep it on localhost or put the edge in front"))
+        if c.get("ca") and not (Path(c["ca"]) / "ca.crt").exists():
+            out.append(("fail", f"{path} [console]: ca = {c['ca']} holds no CA (no ca.crt), so the console will not start"))
+        out += [("warn", f"{path} [console]: backups folder {b} does not exist") for b in c.get("backups", []) if not Path(b).is_dir()]
     return out
