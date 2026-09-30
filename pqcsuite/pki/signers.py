@@ -21,7 +21,7 @@ from . import CAError
 
 DER = serialization.Encoding.DER
 NIST_SIG = "2.16.840.1.101.3.4.3."
-SLH_DSA = [f"SLH-DSA-{h}-{b}{v}" for h in ("SHA2", "SHAKE") for b in (128, 192, 256) for v in "sf"]
+SLH_DSA: list[str] = [f"SLH-DSA-{h}-{b}{v}" for h in ("SHA2", "SHAKE") for b in (128, 192, 256) for v in "sf"]
 OIDS = {"ML-DSA-44": NIST_SIG + "17", "ML-DSA-65": NIST_SIG + "18", "ML-DSA-87": NIST_SIG + "19"} | {
     a: NIST_SIG + str(20 + i) for i, a in enumerate(SLH_DSA)}
 

@@ -42,8 +42,13 @@ def build(cls, d, where, **extra):
         if not ok:
             kind = {str: "text in quotes", int: "a whole number", float: "a number", bool: "true or false", list: "a list", dict: "a table"}
             raise ValueError(f"{where}: {k} must be {kind.get(t, t.__name__)}, not {v!r}")
-        if t is float and not math.isfinite(v):
-            raise ValueError(f"{where}: {k} must be a finite number, not {v!r}")
+        if t is float:
+            try:
+                finite = math.isfinite(v)
+            except OverflowError:
+                finite = False
+            if not finite:
+                raise ValueError(f"{where}: {k} must be a finite number, not {v!r}")
     return cls(**d, **extra)
 
 

@@ -12,6 +12,7 @@
 - Recent history already improves key overwrite protection, error messages, doctor checks, and documentation; preserve those changes.
 
 ## Completed
+- Final pass reproduced a renewal/revocation race: renewal read status outside the CA lock. The read/check/issue now share the reentrant lock; deterministic regression passes (44 focused tests passed).
 - Vault CLI inspection and compliance evidence identify unverified headers; signature verification without `--ca` explicitly says the issuer is unchecked. Trust-message regression and CLI/compliance/docs tests: 20 passed.
 - Input hardening: controlled HTTP errors for oversized/ambiguous body lengths; finite numeric configuration and integer/boolean distinction; bounded Vault signature lengths. 80 focused tests and 4,051 subtests passed.
 - Website publishing refuses source/ancestor/symlink/unrelated output paths and preserves extra files on repeated builds; URLs are escaped. Wolf Pack reports and published samples have embedded favicons. Full browser suite: 26 passed. Site/docs/Wolf Pack tests: 95 passed, 7 subtests passed.
@@ -25,6 +26,7 @@
 - Backup headers only claim a suite and signer: console labels them unverified and directs users to `vault verify`. Display CA algorithms from API data (including SLH-DSA), not a hardcoded label.
 
 ## Needs Attention
+- Docker image build is blocked by network policy at `registry-1.docker.io`; GitHub API at `api.github.com` also returns Forbidden. Native Git reads still work. Browser checks use installed `/usr/bin/chromium` because Playwright download hosts are denied.
 - Independent cryptographic review, real cloud/managed Kubernetes deployments, days-long soak, and VPN checks on real laptops remain release limitations (see `docs/RELEASE-READINESS.md`).
 
 ## Do Not Duplicate

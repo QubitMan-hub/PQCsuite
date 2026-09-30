@@ -34,7 +34,7 @@ CA_ALGORITHMS = list(PUBLIC) + signers.SLH_DSA
 REASONS = {r.value: r for r in x509.ReasonFlags if r not in (x509.ReasonFlags.unspecified, x509.ReasonFlags.remove_from_crl)}
 
 
-_THREAD_LOCKS = {}
+_THREAD_LOCKS: dict[str, threading.Lock] = {}
 _HELD = threading.local()
 
 
@@ -383,10 +383,11 @@ class CA:
     def renew(self, serial, days=397, algorithm=None, out=None, passphrase=None):
         """A new key and certificate with the same name, SANs and (unless `algorithm` is given) algorithm; the old one stays
         valid until it expires or is revoked."""
-        r = self.find(serial)
-        if r.status == "revoked":
-            raise CAError(f"{r.serial} is revoked; issue a new certificate instead of renewing it")
-        return self.issue(r.common_name, r.kind, r.names, days, algorithm or r.algorithm, out, passphrase, replace=True)
+        with locked(self.root):
+            r = self.find(serial)
+            if r.status == "revoked":
+                raise CAError(f"{r.serial} is revoked; issue a new certificate instead of renewing it")
+            return self.issue(r.common_name, r.kind, r.names, days, algorithm or r.algorithm, out, passphrase, replace=True)
 
     def maintain(self, renew_within=30, crl_days=7, algorithm=None):
         """Re-sign the CRL, and renew certificates expiring within `renew_within` days into the folder they were issued to, where

@@ -9,12 +9,13 @@ import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest import mock
 
 from cryptography import x509
 
 from pqcsuite import tls
 from pqcsuite.console import App, Settings
-from pqcsuite.pki import CA, verify_crl
+from pqcsuite.pki import CA, CAError, locked, verify_crl
 from pqcsuite.tls.server import Server
 from tests.helpers import REASON
 
@@ -82,6 +83,32 @@ class RaceTest(unittest.TestCase):
             else:
                 self.assertIn("revoked", str(renewed.exception()), "a renewal after the revocation must be refused")
             self.assertIn(rec.serial, listed(self.root))
+
+    def test_renewal_waiting_for_the_ca_lock_cannot_bypass_a_revocation(self):
+        _, record = self.ca.issue("blocked.test", "server")
+        read, started = threading.Event(), threading.Event()
+        original = self.ca.find
+
+        def observe(serial):
+            result = original(serial)
+            if threading.current_thread() is not threading.main_thread():
+                read.set()
+            return result
+
+        def renew():
+            started.set()
+            return self.ca.renew(record.serial)
+
+        with mock.patch.object(self.ca, "find", side_effect=observe), ThreadPoolExecutor(1) as pool:
+            with locked(self.root):
+                pending = pool.submit(renew)
+                self.assertTrue(started.wait(5))
+                read_before_lock = read.wait(0.25)
+                self.ca.revoke(record.serial)
+            with self.assertRaisesRegex(CAError, "revoked"):
+                pending.result(5)
+        self.assertFalse(read_before_lock, "renewal must read revocation state while holding the CA lock")
+        self.assertEqual(len(self.ca.records()), 1, "no replacement certificate may be issued after revocation")
 
     def test_two_console_administrators_at_once(self):
         app = App(Settings(ca=str(self.root), audit_log=str(self.d / "audit.jsonl")), token="t")
