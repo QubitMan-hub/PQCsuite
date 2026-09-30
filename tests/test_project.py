@@ -58,3 +58,71 @@ def test_failure_is_retryable_without_source_in_api_error(tmp_path):
             time.sleep(.01)
     assert 'PRIVATE_SENTINEL' not in app.project_status()['error']
     assert not app.project_status()['running']
+
+
+def test_repository_registration_is_scoped_and_idempotent(tmp_path):
+    approved=tmp_path/'approved'; approved.mkdir()
+    repo=approved/'safe'; repo.mkdir()
+    outside=tmp_path/'private'; outside.mkdir()
+    (approved/'link').symlink_to(outside, target_is_directory=True)
+    app=App(Settings(repository_directory=str(approved), audit_log=str(tmp_path/'audit.jsonl')), token='test')
+    for name in ('../private', str(outside), 'link', '.hidden', 'safe/child', 'safe\\child', '', None):
+        with pytest.raises(ValueError):
+            app.register_project({'name':name})
+    assert app.project_status()['available']==['safe']
+    assert app.register_project({'name':'safe'})=={'project':0}
+    assert app.register_project({'name':'safe'})=={'project':0}
+    assert app.project_status()['projects']==[{'id':0,'name':'safe'}]
+    assert 'last' not in app.project_status(brief=True)
+
+
+def test_history_concurrent_writers_and_console_restart(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    from pqcsuite.project import read_history
+    history=tmp_path/'history.json'
+    def record(i):
+        append_history(history, {'project':str(i),'finished':i,'summary':{'crypto_assets':i}})
+    with ThreadPoolExecutor(max_workers=8) as workers:
+        list(workers.map(record,range(40)))
+    assert {r['project'] for r in read_history(history)}=={str(i) for i in range(40)}
+    app=App(Settings(project_history=str(history)), token='test')
+    assert len(app.project_status()['history'])==40
+
+
+def test_bad_history_does_not_discard_successful_scan(tmp_path):
+    fixture(tmp_path)
+    history=tmp_path/'history.json'; history.write_text('{')
+    result=scan(tmp_path, out=tmp_path/"pqcsuite-out", history=history)
+    assert json.loads((tmp_path/"pqcsuite-out/assessment.json").read_text())["notes"] == result["notes"]
+    assert result['summary']['resolved_calls']==1
+    assert any('History could not be saved' in n for n in result['notes'])
+    assert history.read_text()=='{'
+
+
+def test_history_read_limit_and_private_lock_symlink(tmp_path):
+    from pqcsuite.project import read_history
+    history=tmp_path/'history.json'; history.write_bytes(b' '*1_000_001)
+    with pytest.raises(ValueError, match='1 MB'):
+        read_history(history)
+    outside=tmp_path/'private'; outside.write_text('UNCHANGED')
+    (tmp_path/'.history.json.lock').symlink_to(outside)
+    if os.name != 'nt':
+        with pytest.raises(OSError):
+            append_history(history, {'project':'a','finished':1,'summary':{}})
+        assert outside.read_text()=='UNCHANGED'
+
+
+def test_history_updates_are_preserved_across_processes(tmp_path):
+    import subprocess
+    import sys
+    from pqcsuite.project import read_history
+    history=tmp_path/'history.json'
+    script='from pqcsuite.project import append_history; import sys; [append_history(sys.argv[1], {"project":sys.argv[2]+"-"+str(i), "finished":i, "summary":{}}) for i in range(20)]'
+    children=[subprocess.Popen([sys.executable,'-c',script,str(history),str(i)]) for i in range(3)]
+    try:
+        assert [child.wait(timeout=30) for child in children]==[0,0,0]
+        assert len({r['project'] for r in read_history(history)})==60
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill(); child.wait()

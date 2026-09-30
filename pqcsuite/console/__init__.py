@@ -37,6 +37,7 @@ class Settings:
     backups: list = field(default_factory=list)
     project_roots: list = field(default_factory=list)
     project_history: str = ""
+    repository_directory: str = ""
     scan_targets: list = field(default_factory=list)
     scan_every_hours: float = 0.0
     check_updates: bool = False
@@ -59,6 +60,7 @@ class App:
         self.latest, self.latest_checked = None, 0.0
         self.lock = threading.Lock()
         self.projects = [Path(p).resolve() for p in settings.project_roots]
+        self.repository_directory = Path(settings.repository_directory).resolve() if settings.repository_directory else None
         self.project_scan = {"running": False, "stage": "", "last": None, "error": None}
 
     def ca(self):
@@ -215,6 +217,8 @@ class App:
             ("GET", "/api/remote"): lambda: self.remote_users(),
             ("GET", "/api/backups"): lambda: self.backups(),
             ("GET", "/api/projects"): self.project_status,
+            ("GET", "/api/projects/status"): lambda: self.project_status(brief=True),
+            ("POST", "/api/projects/register"): lambda: self.register_project(body),
             ("POST", "/api/projects/scan"): lambda: self.start_project(body),
             ("GET", "/api/scan"): lambda: {"running": self.scanning, "last": self.last_scan, "error": self.scan_error, "targets": self.s.scan_targets,
                                            "every_hours": self.s.scan_every_hours},
@@ -260,10 +264,42 @@ class App:
         self.audit("maintain", {"renewed": [r.serial for r in renewed]})
         return {"renewed": [r.common_name for r in renewed], "skipped": [r.common_name for r in skipped]}
 
-    def project_status(self):
+    def project_status(self, brief=False):
         with self.lock:
             state = dict(self.project_scan)
-        return state | {"projects": [{"id": i, "name": p.name} for i, p in enumerate(self.projects)]}
+            projects = [{"id": i, "name": p.name} for i, p in enumerate(self.projects)]
+        if brief:
+            return {k: state[k] for k in ("running", "stage", "error")}
+        available, directory_error = [], None
+        if self.repository_directory:
+            try:
+                available = sorted(p.name for p in self.repository_directory.iterdir() if not p.name.startswith(".") and p.is_dir() and not p.is_symlink())[:200]
+            except OSError:
+                directory_error = "The approved repository folder is unavailable. Ask its administrator to check access."
+        history, history_error = [], None
+        if self.s.project_history:
+            from ..project import read_history
+            try:
+                history = read_history(self.s.project_history)
+            except (OSError, ValueError):
+                history_error = "History is unavailable; check the configured history file."
+        return state | {"projects": projects, "available": available, "directory_error": directory_error, "history": history, "history_error": history_error}
+
+    def register_project(self, body):
+        name = body.get("name")
+        root = self.repository_directory
+        if not root or not isinstance(name, str) or not name or len(name) > 255 or Path(name).name != name or name.startswith(".") or "/" in name or "\\" in name:
+            raise ValueError("Choose a repository inside the administrator-approved folder")
+        candidate = root / name
+        path = candidate.resolve()
+        if candidate.is_symlink() or not path.is_relative_to(root) or not path.is_dir():
+            raise ValueError("Choose an existing repository folder; symlinks and outside paths are not accepted")
+        with self.lock:
+            if path not in self.projects:
+                self.projects.append(path)
+            index = self.projects.index(path)
+        self.audit("project-register", {"project_id": index})
+        return {"project": index}
 
     def start_project(self, body):
         from ..project import scan, scanner

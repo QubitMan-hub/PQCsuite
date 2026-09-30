@@ -222,9 +222,33 @@ test('one registered project scan shows real crypto callers and exports private 
   await row.locator('summary').click();
   await expect(row).toContainText('keys.py#make');
   await expect(row).toContainText('service.py#checkout');
+  await page.locator('#project-advanced summary').click();
   const pending=page.waitForEvent('download'); await page.click('#project-graph');
   const download=await pending; expect(download.suggestedFilename()).toBe('pqcsuite-code-relationships.json');
   const data=JSON.parse(require('fs').readFileSync(await download.path(),'utf8'));
   expect(data.calls.some(c=>c.target==='keys.py#make')).toBe(true);
   expect(JSON.stringify(data)).not.toContain('65537');
+});
+
+
+test('add an approved repository and scan TypeScript without manually importing a CBOM', async ({page}) => {
+  await signIn(page); await page.evaluate(() => (location.hash='readiness'));
+  await page.selectOption('#project-add select','web-api'); await page.click('#project-add button');
+  await expect(page.locator('#project-scan select')).toContainText('web-api');
+  await page.locator('#project-scan select').selectOption({label:'web-api (#2)'});
+  await page.click('#project-scan button'); await expect(page.locator('#project-message')).toHaveText('Complete');
+  await expect(page.locator('#project-results')).toContainText('SHA-256');
+  const row=page.locator('#project-results tbody tr').filter({hasText:'SHA-256'}).first(); await row.locator('summary').click();
+  await expect(row).toContainText('api.ts#checkout');
+  await page.locator('#project-advanced summary').click(); await expect(page.locator('#project-advanced')).toContainText('TypeScript');
+  await expect(page.getByText('Previous local scans',{exact:true})).toBeVisible();
+});
+
+
+test('an approved parent with no registered projects starts with Add repository', async ({page}) => {
+  await page.route('**/api/projects', r=>r.fulfill({json:{running:false,stage:'',error:null,last:null,projects:[],available:['local-api'],history:[]}}));
+  await signIn(page); await page.evaluate(()=>(location.hash='readiness'));
+  await expect(page.locator('#view h2').first()).toHaveText('Repository readiness');
+  await expect(page.locator('#project-add')).toBeVisible();
+  await expect(page.locator('#view')).toContainText('Choose an available repository above');
 });

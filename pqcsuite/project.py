@@ -4,16 +4,16 @@ import time
 from collections import Counter
 from pathlib import Path
 
-from .pki import write
+from .storage import write, locked
 
 
 def scanner():
     try:
-        from wolfpack import pack, cli
+        from wolfpack import pack, report
         from wolfpack.crawler import CodeCrawler  # noqa: F401
     except ImportError:
         raise ValueError("Project scanning needs the current Wolf Pack. From the checkout run: pip install ./wolf-pack '.[scan]'") from None
-    return pack, cli
+    return pack, report
 
 
 def scan(path, out=None, history=None, progress=None):
@@ -22,7 +22,7 @@ def scan(path, out=None, history=None, progress=None):
     root = Path(path).resolve()
     if not root.is_dir():
         raise ValueError("Choose an existing project folder")
-    pack, cli = scanner()
+    pack, report = scanner()
     notify("Analyzing source and cryptography")
     from wolfpack.scouts import Scope
     excluded = []
@@ -45,7 +45,8 @@ def scan(path, out=None, history=None, progress=None):
     graph = result.relationships
     assessment = {"project": root.name, "finished": time.time(), "assets": assets, "notes": result.notes,
                   "summary": {"crypto_assets": len(assets), "priorities": dict(Counter(a["tier"] for a in assets)),
-                              "python_files": graph["files_analyzed"], "functions": sum(s["kind"] == "function" for s in graph["symbols"]),
+                              "python_files": graph.get("languages", {}).get("Python", 0), "languages": graph.get("languages", {}), "coverage_gaps": graph.get("skipped", {}),
+                              "migration_candidates": sum(a["tier"] in {"critical", "high"} and not a["test_only"] and not a["declared"] for a in assets), "functions": sum(s["kind"] == "function" for s in graph["symbols"]),
                               "resolved_calls": sum(bool(c["target"]) for c in graph["calls"]), "calls": len(graph["calls"]),
                               "libraries": result.stats["libraries"], "seconds": result.stats["seconds"], "graph_limited": graph["limited"]},
                   "evidence_boundary": "Static source evidence is not runtime protection or proof of business ownership.",
@@ -53,21 +54,37 @@ def scan(path, out=None, history=None, progress=None):
     if out:
         folder = Path(out)
         folder.mkdir(mode=0o700, parents=True, exist_ok=True)
-        cli.write_results(folder, root.name, result)
-        write(folder / "assessment.json", json.dumps(assessment, indent=2).encode(), secret=True)
+        report.write_results(folder, root.name, result)
     if history:
-        append_history(history, assessment)
+        try:
+            append_history(history, assessment)
+        except (OSError, ValueError):
+            assessment["notes"].append("History could not be saved; check the configured history file. Scan evidence remains available.")
+    if out:
+        write(folder / "assessment.json", json.dumps(assessment, indent=2).encode(), secret=True)
     notify("Complete")
     return assessment
 
 
-def append_history(path, assessment):
-    """Persist bounded summaries only: no source snippets or full graphs in the history."""
+def read_history(path):
     f = Path(path)
-    if f.exists() and f.stat().st_size > 1_000_000:
+    if not f.exists():
+        return []
+    with f.open("rb") as source:
+        raw = source.read(1_000_001)
+    if len(raw) > 1_000_000:
         raise ValueError("Scan history exceeds the 1 MB limit")
-    rows = json.loads(f.read_text()) if f.exists() else []
-    if not isinstance(rows, list):
-        raise ValueError("Scan history must contain a JSON list")
-    rows = rows[-99:] + [{k: assessment[k] for k in ("project", "finished", "summary")}]
-    write(f, json.dumps(rows, indent=2).encode(), secret=True)
+    rows = json.loads(raw)
+    if not isinstance(rows, list) or any(not isinstance(row, dict) or not isinstance(row.get("project"), str)
+                                        or type(row.get("finished")) not in {int, float} or not 0 <= row["finished"] <= 2**53 or not isinstance(row.get("summary"), dict) for row in rows):
+        raise ValueError("Scan history must contain project/time/summary records")
+    return [{k: row[k] for k in ("project", "finished", "summary")} for row in rows[-100:]]
+
+
+def append_history(path, assessment):
+    """Persist bounded summaries under the same shared lock used for atomic CA state updates."""
+    f = Path(path).absolute()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    with locked(f.parent, "." + f.name + ".lock"):
+        rows = read_history(f)[-99:] + [{k: assessment[k] for k in ("project", "finished", "summary")}]
+        write(f, json.dumps(rows, indent=2).encode(), secret=True)

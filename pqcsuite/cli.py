@@ -454,8 +454,10 @@ def cmd_project_scan(a):
     import webbrowser
     from .project import scan
     result = scan(a.path, a.out, a.history, lambda stage: print(stage, file=sys.stderr))
+    for note in result["notes"]:
+        print(f"Warning: {note}", file=sys.stderr)
     summary = result["summary"]
-    print(f"{result['project']}: {summary['crypto_assets']} cryptographic assets, {summary['functions']} Python functions, "
+    print(f"{result['project']}: {summary['crypto_assets']} cryptographic assets, {summary['functions']} functions, "
           f"{summary['resolved_calls']}/{summary['calls']} statically resolved calls")
     print(f"Open {Path(a.out) / 'report.html'}; assessment.json and relationships.json contain migration evidence")
     if a.open:
@@ -477,6 +479,8 @@ def cmd_console(a):
     s.project_roots += a.project
     if a.project_history:
         s.project_history = a.project_history
+    if a.repositories:
+        s.repository_directory = a.repositories
     if a.scan_every is not None:
         s.scan_every_hours = a.scan_every
     s.check_updates = s.check_updates or a.check_updates
@@ -970,6 +974,7 @@ def parser():
     p.add_argument("--backups", action="append", default=[], help="folder of vault archives (repeatable)")
     p.add_argument("--scan", action="append", default=[], metavar="HOST:PORT", help="an endpoint for readiness scans (repeatable)")
     p.add_argument("--project", action="append", default=[], help="allow scanning this local project folder (repeatable; no source upload)")
+    p.add_argument("--repositories", help="administrator-approved parent folder for Add repository in the console")
     p.add_argument("--project-history", help="persist bounded project scan summaries to this private JSON file")
     p.add_argument("--scan-every", type=float, metavar="HOURS", help="scan those endpoints again every HOURS and show what changed")
     p.add_argument("--check-updates", action="store_true", help="show when a newer release is out (asks GitHub once a day)")

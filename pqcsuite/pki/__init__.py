@@ -1,17 +1,15 @@
 """A post-quantum certificate authority: ML-DSA or SLH-DSA roots, intermediate CAs, server and client certificates, revocation
 and CRLs. The CA key can live in a file, in AWS KMS, or behind any HSM signing tool (see signers.py)."""
-import contextlib
 import datetime as dt
 import functools
 import ipaddress
 import json
-import os
 import re
-import secrets
 import threading
-import time
 from dataclasses import dataclass
 from pathlib import Path
+
+from ..storage import locked as locked, shared as shared, write as write, append as append
 
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
@@ -32,38 +30,6 @@ USAGE = {"server": [ExtendedKeyUsageOID.SERVER_AUTH], "client": [ExtendedKeyUsag
          "site": [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]}
 CA_ALGORITHMS = list(PUBLIC) + signers.SLH_DSA
 REASONS = {r.value: r for r in x509.ReasonFlags if r not in (x509.ReasonFlags.unspecified, x509.ReasonFlags.remove_from_crl)}
-
-
-_THREAD_LOCKS: dict[str, threading.Lock] = {}
-_HELD = threading.local()
-
-
-@contextlib.contextmanager
-def locked(root):
-    """Serialise changes to one CA across threads and processes (the CLI, the console and the enrollment server may share it).
-    Re-entrant within a thread, so a revocation can re-sign the CRL before anyone else sees the new index."""
-    key = str(Path(root).resolve())
-    held = _HELD.__dict__.setdefault("roots", set())
-    if key in held:
-        yield
-        return
-    tl = _THREAD_LOCKS.setdefault(key, threading.Lock())
-    with tl, open(Path(root) / ".lock", "a+b") as f:
-        held.add(key)
-        if os.name == "nt":
-            import msvcrt
-            f.seek(0)
-            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(f, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            held.discard(key)
-            if os.name == "nt":
-                f.seek(0)
-                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 @dataclass
@@ -107,41 +73,6 @@ def encrypted(path):
 
 def cert_pem(cert):
     return cert.public_bytes(serialization.Encoding.PEM)
-
-
-def shared(action, tries=40):
-    """Windows refuses to open or replace a file while another thread has it open (a CRL being read while its new copy is
-    swapped in); such a clash lasts milliseconds, so try again briefly. Elsewhere this runs `action` once."""
-    for n in range(tries):
-        try:
-            return action()
-        except PermissionError:
-            if os.name != "nt" or n == tries - 1:
-                raise
-            time.sleep(0.025)
-
-
-def write(path, data, secret=False):
-    """Write atomically; secret files are created owner-only."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{secrets.token_hex(12)}.tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600 if secret else 0o644)
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        shared(lambda: os.replace(tmp, path))
-    except BaseException:
-        tmp.unlink(missing_ok=True)
-        raise
-
-
-def append(path, line):
-    """Add one line to a log that only its owner can read (audit logs name identities and administrative actions)."""
-    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
-    with os.fdopen(fd, "ab") as f:
-        f.write(line.encode() + b"\n")
 
 
 HOSTNAME = re.compile(r"(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?", re.I)
