@@ -450,6 +450,19 @@ def cmd_bundle(a):
     return 0
 
 
+def cmd_project_scan(a):
+    import webbrowser
+    from .project import scan
+    result = scan(a.path, a.out, a.history, lambda stage: print(stage, file=sys.stderr))
+    summary = result["summary"]
+    print(f"{result['project']}: {summary['crypto_assets']} cryptographic assets, {summary['functions']} Python functions, "
+          f"{summary['resolved_calls']}/{summary['calls']} statically resolved calls")
+    print(f"Open {Path(a.out) / 'report.html'}; assessment.json and relationships.json contain migration evidence")
+    if a.open:
+        webbrowser.open((Path(a.out) / "report.html").resolve().as_uri())
+    return 0
+
+
 def cmd_console(a):
     from .console import App, Settings, serve
     s = Settings.load(a.config) if a.config else Settings()
@@ -461,6 +474,9 @@ def cmd_console(a):
     s.wireguard += a.wireguard
     s.backups += a.backups
     s.scan_targets += a.scan
+    s.project_roots += a.project
+    if a.project_history:
+        s.project_history = a.project_history
     if a.scan_every is not None:
         s.scan_every_hours = a.scan_every
     s.check_updates = s.check_updates or a.check_updates
@@ -936,6 +952,13 @@ def parser():
     p.add_argument("--json")
     p.add_argument("--timeout", type=float, default=8.0)
 
+    p = sub.add_parser("scan", help="scan a local project: code relationships, cryptographic inventory and migration priorities")
+    p.set_defaults(func=cmd_project_scan)
+    p.add_argument("path", nargs="?", default=".", help="project folder (default: current folder)")
+    p.add_argument("--out", default="pqcsuite-out", help="private local reports folder")
+    p.add_argument("--open", action="store_true", help="open the completed offline report")
+    p.add_argument("--history", help="keep the last 100 scan summaries in this local JSON file")
+
     p = sub.add_parser("console", help="one dashboard for all four products")
     p.set_defaults(func=cmd_console)
     p.add_argument("--config", help="TOML with a [console] section")
@@ -946,6 +969,8 @@ def parser():
     p.add_argument("--wireguard", action="append", default=[], help="a WireGuard gateway's metrics address (repeatable)")
     p.add_argument("--backups", action="append", default=[], help="folder of vault archives (repeatable)")
     p.add_argument("--scan", action="append", default=[], metavar="HOST:PORT", help="an endpoint for readiness scans (repeatable)")
+    p.add_argument("--project", action="append", default=[], help="allow scanning this local project folder (repeatable; no source upload)")
+    p.add_argument("--project-history", help="persist bounded project scan summaries to this private JSON file")
     p.add_argument("--scan-every", type=float, metavar="HOURS", help="scan those endpoints again every HOURS and show what changed")
     p.add_argument("--check-updates", action="store_true", help="show when a newer release is out (asks GitHub once a day)")
     explain_options(ap)

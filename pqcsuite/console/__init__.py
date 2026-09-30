@@ -35,6 +35,8 @@ class Settings:
     vpn: list = field(default_factory=list)
     wireguard: list = field(default_factory=list)
     backups: list = field(default_factory=list)
+    project_roots: list = field(default_factory=list)
+    project_history: str = ""
     scan_targets: list = field(default_factory=list)
     scan_every_hours: float = 0.0
     check_updates: bool = False
@@ -56,6 +58,8 @@ class App:
         self.last_scan, self.scanning, self.scan_error = None, False, None
         self.latest, self.latest_checked = None, 0.0
         self.lock = threading.Lock()
+        self.projects = [Path(p).resolve() for p in settings.project_roots]
+        self.project_scan = {"running": False, "stage": "", "last": None, "error": None}
 
     def ca(self):
         if not self.s.ca:
@@ -210,6 +214,8 @@ class App:
             ("GET", "/api/tunnels"): lambda: self.tunnels(),
             ("GET", "/api/remote"): lambda: self.remote_users(),
             ("GET", "/api/backups"): lambda: self.backups(),
+            ("GET", "/api/projects"): self.project_status,
+            ("POST", "/api/projects/scan"): lambda: self.start_project(body),
             ("GET", "/api/scan"): lambda: {"running": self.scanning, "last": self.last_scan, "error": self.scan_error, "targets": self.s.scan_targets,
                                            "every_hours": self.s.scan_every_hours},
             ("POST", "/api/certificates/issue"): lambda: self.issue(body),
@@ -253,6 +259,40 @@ class App:
         renewed, skipped = self.ca().maintain()
         self.audit("maintain", {"renewed": [r.serial for r in renewed]})
         return {"renewed": [r.common_name for r in renewed], "skipped": [r.common_name for r in skipped]}
+
+    def project_status(self):
+        with self.lock:
+            state = dict(self.project_scan)
+        return state | {"projects": [{"id": i, "name": p.name} for i, p in enumerate(self.projects)]}
+
+    def start_project(self, body):
+        from ..project import scan, scanner
+        i = body.get("project")
+        if type(i) is not int or not 0 <= i < len(self.projects):
+            raise ValueError("Choose a project registered with --project; arbitrary filesystem paths are not accepted")
+        scanner()  # Explain missing optional capability before acknowledging a job.
+        with self.lock:
+            if self.project_scan["running"]:
+                raise ValueError("A project scan is already running")
+            self.project_scan.update(running=True, stage="Preparing project", error=None)
+        def progress(stage):
+            with self.lock:
+                self.project_scan["stage"] = stage
+        def work():
+            try:
+                result = scan(self.projects[i], history=self.s.project_history or None, progress=progress)
+                with self.lock:
+                    self.project_scan["last"] = result
+            except Exception:
+                # Source-sensitive analysis errors are not logged with source/exception contents.
+                with self.lock:
+                    self.project_scan["error"] = "Project scan failed. Check folder permissions, source syntax and the configured history file; retry from the CLI for diagnostics."
+            finally:
+                with self.lock:
+                    self.project_scan["running"] = False
+        threading.Thread(target=work, daemon=True, name="project-scan").start()
+        self.audit("project-scan", {"project_id": i})
+        return {"started": i}
 
     def start_scan(self, b):
         raw = b.get("targets", "")

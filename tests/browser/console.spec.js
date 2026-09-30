@@ -185,6 +185,7 @@ test('CBOM import stays local, escapes content, preserves prior data on invalid 
   let mutations=0;page.on('request',r=>{if(r.method()==='POST')mutations++;});await signIn(page);
   await page.evaluate(()=>(location.hash='readiness'));
   const bom={bomFormat:'CycloneDX',components:[{type:'cryptographic-asset',name:'<img src=x onerror=alert(1)>',properties:[{name:'wolfpack:tier',value:'high'},{name:'wolfpack:recommendation',value:'Upgrade RSA usage'}],evidence:{occurrences:[{location:'src/login.py'}]}}]};
+  await page.getByText('Advanced: review a CBOM from another scanner', {exact:true}).click();
   await page.setInputFiles('#inventory-file',{name:'cbom.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(bom))});
   await expect(page.locator('#inventory-message')).toContainText('1 cryptographic assets loaded locally');
   await expect(page.locator('#inventory-results')).toContainText('<img src=x');await expect(page.locator('#inventory-results img')).toHaveCount(0);expect(mutations).toBe(0);
@@ -209,4 +210,21 @@ test('an actual local assessment retains its targets for the next scan', async (
   await expect(page.locator('#endpoint-count')).toHaveText('1 of 1 endpoints');
   await expect(page.locator('textarea[name=targets]')).toHaveValue('127.0.0.1:1');
   await expect(page.locator('#endpoint-results')).toContainText('Unreachable');
+});
+
+
+test('one registered project scan shows real crypto callers and exports private relationship evidence', async ({page}) => {
+  await signIn(page); await page.evaluate(() => (location.hash='readiness'));
+  await page.click('#project-scan button');
+  await expect(page.locator('#project-count')).toContainText('assets');
+  await expect(page.locator('#project-message')).toHaveText('Complete');
+  const row=page.locator('#project-results tbody tr').filter({hasText:'RSA'}).first();
+  await row.locator('summary').click();
+  await expect(row).toContainText('keys.py#make');
+  await expect(row).toContainText('service.py#checkout');
+  const pending=page.waitForEvent('download'); await page.click('#project-graph');
+  const download=await pending; expect(download.suggestedFilename()).toBe('pqcsuite-code-relationships.json');
+  const data=JSON.parse(require('fs').readFileSync(await download.path(),'utf8'));
+  expect(data.calls.some(c=>c.target==='keys.py#make')).toBe(true);
+  expect(JSON.stringify(data)).not.toContain('65537');
 });

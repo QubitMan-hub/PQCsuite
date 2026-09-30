@@ -10,6 +10,10 @@ run = lambda *a: subprocess.run([sys.executable, "-m", "pqcsuite", *a], check=Tr
 run("ca", "init", "--dir", "ca", "--name", "Browser Test Root", "--no-encrypt")
 for kind, name, days in [("server", "api.example.test", "397"), ("client", "operator", "397"), ("server", "old.example.test", "10")]:
     run("ca", "issue", "--dir", "ca", kind, name, "--out", name, "--days", days)
+project = d / "payments-api"
+project.mkdir()
+(project / "keys.py").write_text("from cryptography.hazmat.primitives.asymmetric import rsa\ndef make():\n return rsa.generate_private_key(public_exponent=65537, key_size=2048)\n")
+(project / "service.py").write_text("from keys import make\ndef checkout():\n return make()\n")
 os.environ["PQCSUITE_CONSOLE_TOKEN"] = "browser-test"
 os.chdir(d)  # audit output belongs to this disposable fixture, not the checkout
-os.execv(sys.executable, [sys.executable, "-m", "pqcsuite", "console", "--ca", str(d / "ca"), "--listen", "127.0.0.1:8900"])
+os.execv(sys.executable, [sys.executable, "-m", "pqcsuite", "console", "--ca", str(d / "ca"), "--listen", "127.0.0.1:8900", "--project", str(project)])
