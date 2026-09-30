@@ -347,7 +347,9 @@ def cmd_wireguard(a):
     c = wg.Client(a.keyring, a.cert_dir, a.interface, a.server_name, not a.no_apply, a.config_out, env_passphrase(a.key_passphrase_env), ca=a.ca)
     if a.once:
         r = c.once()
-        print(f"connected as {r['address']} through {r['endpoint']}; routes {', '.join(r['routes'])}; the PSK expires in about {r['rotate_s'] * 3}s")
+        print(f"key agreement confirmed for {r['address']} through {r['endpoint']}; routes {', '.join(r['routes'])}; "
+              f"{'no tunnel activated (--no-apply)' if a.no_apply else 'tunnel configured; verify a WireGuard handshake'}; "
+              f"the PSK expires in about {r['rotate_s'] * 3}s; --once does not keep keys fresh")
         return 0
     run_until_signal(c.run, c.stop.set)
     c.close()
@@ -853,7 +855,7 @@ def parser():
     p = v.add_parser("gateway", help="WireGuard remote-access gateway: address pool, PSK from ML-DSA mutual TLS, rotation, revocation")
     p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/wireguard-gateway.toml)")
     for name, text in (("connect", "connect this machine (Linux, Windows or macOS) to a WireGuard gateway and keep its PSK fresh"),
-                       ("install", "connect now and at every start of this machine, as a system service")):
+                       ("install", "check gateway access and install a service that connects at machine startup")):
         p = v.add_parser(name, help=text)
         p.add_argument("keyring", help="the gateway's key agreement address, host:port")
         p.add_argument("--cert-dir", required=True, help="folder with cert.pem, chain.pem, key.pem and ca.crt (as written by `ca enroll`)")

@@ -28,6 +28,19 @@ class CLITest(unittest.TestCase):
         self.assertNotIn("Traceback", err.getvalue())
         return err.getvalue()
 
+    def test_vpn_diagnostic_agreement_does_not_claim_a_connection(self):
+        from unittest.mock import patch
+        out = io.StringIO()
+        with patch("pqcsuite.vpn.wireguard.Client") as client, contextlib.redirect_stdout(out):
+            client.return_value.once.return_value = {"address": "10.0.0.2", "endpoint": "gateway:51820", "routes": ["10.0.0.0/24"], "rotate_s": 120}
+            with self.assertRaises(SystemExit) as result:
+                main(["vpn", "connect", "gateway:7443", "--cert-dir", "client", "--once", "--no-apply"])
+            self.assertEqual(result.exception.code, 0)
+        self.assertIn("no tunnel activated", out.getvalue())
+        self.assertIn("--once does not keep keys fresh", out.getvalue())
+        self.assertNotIn("connected as", out.getvalue())
+        self.assertFalse(client.call_args.args[4])
+
     def test_json_logs_keep_the_traceback(self):
         import json
         import logging
