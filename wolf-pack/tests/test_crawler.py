@@ -67,7 +67,7 @@ def test_nonpython_and_malformed_sources_keep_existing_detectors(tmp_path):
     (tmp_path / 'broken.py').write_text('def broken(')
     (tmp_path / 'code.js').write_text('const crypto = require("crypto"); crypto.createHash("sha256");')
     result = pack.run(tmp_path, 'mixed')
-    assert result.relationships['files_analyzed'] == 0
+    assert result.relationships['languages'].get('Python', 0) == 0
     assert any(a.algo == 'SHA-256' for a in result.assets)
     assert any('could not be parsed' in n for n in result.notes)
 
@@ -105,3 +105,33 @@ def test_git_fsmonitor_is_not_executed_during_source_discovery(tmp_path):
     (tmp_path/'safe.py').write_text('import hashlib')
     assert list(iter_files(tmp_path))
     assert not (tmp_path/'EXECUTED').exists()
+
+
+def test_same_line_default_is_not_reported_as_a_function_body_use(tmp_path):
+    (tmp_path/'default.py').write_text('import hashlib\ndef api(x=hashlib.md5()): return x')
+    result=pack.run(tmp_path,'default')
+    assert not any('code_impact' in a.params for a in result.assets)
+
+
+def test_module_objects_are_not_resolved_as_callable_functions(tmp_path):
+    (tmp_path/'helper.py').write_text('x=1')
+    (tmp_path/'api.py').write_text('import helper\ndef run(): helper()')
+    result=pack.run(tmp_path,'module')
+    assert all(c['target'] is None for c in result.relationships['calls'])
+
+
+def test_python_package_reexports_preserve_crypto_caller_chain(tmp_path):
+    (tmp_path/'keys').mkdir()
+    (tmp_path/'keys/crypto.py').write_text('import hashlib\ndef digest(): return hashlib.sha256()')
+    (tmp_path/'keys/__init__.py').write_text('from .crypto import digest as sign')
+    (tmp_path/'api.py').write_text('from keys import sign\ndef payment(): return sign()')
+    r=pack.run(tmp_path,'public-api')
+    assert any(c['target']=='keys/crypto.py#digest' for c in r.relationships['calls'])
+    asset=next(a for a in r.assets if a.algo=='SHA-256' and a.params.get('code_impact'))
+    assert asset.params['code_impact']['callers']==['api.py#payment']
+
+
+def test_cyclic_python_reexports_stay_unresolved(tmp_path):
+    (tmp_path/'a.py').write_text('from b import helper')
+    (tmp_path/'b.py').write_text('from a import helper\ndef run(): helper()')
+    assert all(c['target'] is None for c in pack.run(tmp_path,'cycle').relationships['calls'])

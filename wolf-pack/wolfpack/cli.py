@@ -1,5 +1,4 @@
 import argparse
-import json
 import shutil
 import sys
 import tempfile
@@ -9,9 +8,10 @@ from pathlib import Path
 
 from cryptography.utils import CryptographyDeprecationWarning
 
-from . import __version__, pack, cbom, report, image, inventory, compliance
+from . import __version__, pack, report, image, inventory, compliance
 from .alpha import Horizon, TIERS
 from .pack import ROLES
+from .report import write_results
 from .scouts import Scope
 
 SETTINGS = {"exclude": list, "include_vendor": bool, "tls": list, "ssh": list, "shelf_life": (int, float), "migration": (int, float),
@@ -194,20 +194,3 @@ def settings(path, root):
         if not isinstance(v, SETTINGS[k]) or (SETTINGS[k] is list and not all(isinstance(x, str) for x in v)):
             sys.exit(f"wolfpack: {f}: {k} has the wrong type")
     return cfg
-
-
-def write_results(out, name, r):
-    """Publish complete individual artifacts atomically from private staging."""
-    payloads = {
-        "cbom.json": json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2),
-        "wolfpack.sarif": json.dumps(cbom.sarif(r.assets, r.alerts), indent=2),
-        "findings.json": json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness, "compliance": r.compliance}, indent=2, default=str),
-        "relationships.json": json.dumps(r.relationships, indent=2),
-        "report.html": report.html(r),
-    }
-    with tempfile.TemporaryDirectory(prefix=".wolfpack-", dir=out) as staging:
-        for filename, value in payloads.items():
-            temporary = Path(staging) / filename
-            temporary.write_text(value, encoding="utf-8")
-            temporary.chmod(0o600)
-            temporary.replace(out / filename)

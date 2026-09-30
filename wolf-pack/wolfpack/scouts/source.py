@@ -229,7 +229,7 @@ def string_scout(path, lang, strings, lines, sink, base_ctx, docs, concat=True):
             _emit(sink, path, lang, line, lines, a, dict(p, literal=val), "string", "strings", c)
 
 
-def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, names=True, concat=True, cross_file=True, symbols=True, on_python=None):
+def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, names=True, concat=True, cross_file=True, symbols=True, on_python=None, on_source=None):
     lang = LANGS.get(p.suffix.lower())
     if not lang:
         return False
@@ -237,6 +237,8 @@ def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, nam
     if text is None:
         return False
     path = rel(root, p)
+    if on_source:
+        on_source(path, text, lang)
     base = {"test"} if is_test(path) else set()
     lines = text.splitlines()
     code, comments, strings, docs = split(text, lang)
@@ -266,10 +268,10 @@ def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, nam
     return True
 
 
-def scan(root, scope=False, constants=True, cross_file=True, unparsed=None, names=True, concat=True, symbols=True, on_python=None):
+def scan(root, scope=False, constants=True, cross_file=True, unparsed=None, names=True, concat=True, symbols=True, on_python=None, on_source=None):
     """`unparsed` collects Python files this interpreter cannot parse (newer syntax); only their strings and comments are read."""
     sink, n = [], 0
     shared = shared_constants(root, scope) if constants and cross_file else ((), {})
     for p in iter_files(root, scope):
-        n += scan_file(root, p, sink, constants, shared, unparsed, names, concat, cross_file, symbols, on_python)
+        n += scan_file(root, p, sink, constants, shared, unparsed, names, concat, cross_file, symbols, on_python, on_source)
     return sink, n

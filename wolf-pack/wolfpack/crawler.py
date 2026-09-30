@@ -25,10 +25,59 @@ class CodeCrawler:
         self.files = 0
         self.limited = False
         self.uncertain_lines = defaultdict(set)
+        self.languages = defaultdict(int)
+        self.skipped = defaultdict(int)
+        self.parsers = {}
+        self.aliases = []
+
+    def add_symbol(self, path, module, name, kind, line, end_line, **extra):
+        if len(self.symbols) >= LIMIT_SYMBOLS:
+            self.limited = True
+            return
+        self.symbols.append({"id": path + "#" + name, "file": path, "module": module, "name": name or module,
+                             "kind": kind, "line": line, "end_line": end_line, **extra})
+
+    def add_call(self, path, source, line, callee, candidate):
+        if len(self.calls) >= LIMIT_CALLS:
+            self.limited = True
+            return
+        self.calls.append({"source": path + "#" + source, "file": path, "line": line, "callee": callee, "candidate": candidate})
+
+    def add_import(self, path, source, module, line):
+        if len(self.imports) >= LIMIT_CALLS:
+            self.limited = True
+            return
+        self.imports.append({"file": path, "source": path + "#" + source, "module": module, "line": line})
+
+    def add_alias(self, family, alias, target):
+        if len(self.aliases) >= LIMIT_CALLS:
+            self.limited = True
+            return
+        self.aliases.append({"family": family, "alias": alias, "target": target})
+
+    def observe_source(self, path, text, language):
+        if language not in {"js", "python"}:
+            self.skipped[language + " (no relationship adapter)"] += 1
+        if language == "js":
+            from .crawler_web import observe
+            sizes = (len(self.symbols), len(self.calls), len(self.imports), len(self.aliases), self.files, dict(self.languages))
+            try:
+                observe(self, path, text)
+            except RecursionError:
+                ns, nc, ni, na, self.files, languages = sizes
+                del self.symbols[ns:]
+                del self.calls[nc:]
+                del self.imports[ni:]
+                del self.aliases[na:]
+                self.languages = defaultdict(int, languages)
+                self.uncertain_lines.pop(path, None)
+                self.skipped["Web syntax (analysis depth limit)"] += 1
+                self.limited = True
 
     def observe(self, path, tree):
         """Called with the very AST the existing cryptographic detector uses."""
         self.files += 1
+        self.languages["Python"] += 1
         module = path.removesuffix(".py").replace("/", ".").removesuffix(".__init__")
         if module == "__init__":
             module = ""
@@ -68,19 +117,20 @@ class CodeCrawler:
 
         class Visitor(ast.NodeVisitor):
             def __init__(self):
-                self.stack = [("", bindings(tree.body), "module")]
+                names = bindings(tree.body)
+                for name, target in names.items():
+                    if target and not target.startswith("@"):
+                        crawler.add_alias("Python", module + "." + name, target)
+                self.stack = [("", names, "module")]
                 self.add("", "module", tree)
             def add(self, qual, kind, node, **extra):
-                if len(crawler.symbols) >= LIMIT_SYMBOLS:
-                    crawler.limited = True
-                    return
-                crawler.symbols.append({"id": path + "#" + qual, "file": path, "module": module, "name": qual or module,
-                                        "kind": kind, "line": getattr(node, "lineno", 1), "end_line": getattr(node, "end_lineno", 10**9), **extra})
+                crawler.add_symbol(path, module, qual, kind, getattr(node, "lineno", 1), getattr(node, "end_lineno", 10**9), language="Python", **extra)
             def visit_FunctionDef(self, node):
                 qual = ".".join(x for x in (self.stack[-1][0], node.name) if x)
                 self.add(qual, "function", node, body_line=node.body[0].lineno if node.body else node.lineno)
                 # Decorators/defaults execute in the defining scope, not the function.
                 for n in node.decorator_list + node.args.defaults + [n for n in node.args.kw_defaults if n is not None]:
+                    crawler.uncertain_lines[path].update(range(n.lineno, n.end_lineno + 1))
                     self.visit(n)
                 params = [a.arg for a in node.args.posonlyargs + node.args.args + node.args.kwonlyargs]
                 params += [a.arg for a in (node.args.vararg, node.args.kwarg) if a]
@@ -107,10 +157,7 @@ class CodeCrawler:
             def visit_ImportFrom(self, node):
                 self.record_import(node, "." * node.level + (node.module or ""))
             def record_import(self, node, name):
-                if len(crawler.imports) >= LIMIT_CALLS:
-                    crawler.limited = True
-                    return
-                crawler.imports.append({"file": path, "source": path + "#" + self.stack[-1][0], "module": name, "line": node.lineno})
+                crawler.add_import(path, self.stack[-1][0], name, node.lineno)
             def visit_Call(self, node):
                 if len(crawler.calls) >= LIMIT_CALLS:
                     crawler.limited = True
@@ -128,23 +175,43 @@ class CodeCrawler:
                             elif bound:
                                 candidate = bound + ("." + tail if tail else "")
                             break
-                crawler.calls.append({"source": path + "#" + self.stack[-1][0], "file": path, "line": node.lineno,
-                                      "callee": name or "dynamic call", "candidate": candidate})
+                crawler.add_call(path, self.stack[-1][0], node.lineno, name or "dynamic call", candidate)
                 self.generic_visit(node)
         Visitor().visit(tree)
 
     def finish(self, assets):
         names = defaultdict(list)
+        families = {s["file"]: "Python" if s.get("language", "Python") == "Python" else "web" for s in self.symbols}
+        symbols = {s["id"]: s for s in self.symbols}
         for symbol in self.symbols:
+            if symbol["kind"] == "module":
+                continue
             canonical = symbol["module"] + ("." + symbol["name"] if symbol["kind"] != "module" else "")
-            names[canonical].append(symbol["id"])
+            names[families[symbol["file"]], canonical].append(symbol["id"])
+            for alias in symbol.get("aliases", []):
+                names[families[symbol["file"]], symbol["module"] + "." + alias].append(symbol["id"])
             if canonical.startswith("src."):
-                names[canonical[4:]].append(symbol["id"])
+                names[families[symbol["file"]], canonical[4:]].append(symbol["id"])
+        aliases = defaultdict(list)
+        for alias in self.aliases:
+            aliases[alias["family"], alias["alias"]].append(alias["target"])
+        def resolve(family, candidate, trail=()):
+            if candidate in trail:
+                return []
+            if len(trail) >= 20:
+                self.limited = True
+                return []
+            matches = list(names.get((family, candidate), []))
+            for target in aliases.get((family, candidate), []):
+                matches.extend(resolve(family, target, trail + (candidate,)))
+            return matches
         callers = defaultdict(set)
         calls = []
         for raw in self.calls:
             call = {k: v for k, v in raw.items() if k != "candidate"}
-            matches = names.get(raw["candidate"], [])
+            matches = resolve(families.get(raw["file"], "Python"), raw["candidate"])
+            if families.get(raw["file"]) == "web":
+                matches = [m for m in matches if symbols[m]["file"] == raw["file"] or symbols[m].get("exported")]
             call["reference"] = raw["candidate"] or None
             call["target"] = matches[0] if len(matches) == 1 else None
             call["confidence"] = "observed static reference" if call["target"] else "unresolved; inspect dispatch"
@@ -173,10 +240,11 @@ class CodeCrawler:
                             break
             if owners:
                 asset.params["code_impact"] = {"functions": sorted(owners), "callers": sorted(affected - owners),
+                                             "modules": sorted({symbols[s]["module"] for s in affected if s in symbols}),
                                              "limited": bool(pending), "basis": "static references; runtime reachability and business ownership are not established"}
-        return {"version": 1, "language": "Python", "files_analyzed": self.files, "symbols": self.symbols,
-                "calls": calls, "imports": self.imports, "limited": self.limited,
-                "limitations": ["Python AST only; other languages keep their existing crypto detectors.",
+        return {"version": 1, "language": ", ".join(sorted(self.languages)) or "Python", "languages": dict(self.languages), "skipped": dict(self.skipped), "files_analyzed": self.files, "symbols": self.symbols,
+                "calls": calls, "imports": self.imports, "aliases": self.aliases, "limited": self.limited,
+                "limitations": ["Python AST and optional JavaScript/TypeScript syntax trees; other languages retain crypto detectors without call graphs.",
                                 "Dynamic dispatch, wildcard imports, callbacks and runtime reassignment require manual review.",
                                 "No source snippets, argument values, docstrings or runtime execution are included."]}
 

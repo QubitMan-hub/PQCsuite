@@ -1,7 +1,10 @@
+import json
+import tempfile
+from pathlib import Path
 from collections import Counter
 from html import escape as e
 
-from . import __version__
+from . import __version__, cbom
 from .brand import page, tier
 
 MARK = {"critical": "■■■■", "high": "■■■□", "medium": "■■□□", "low": "■□□□", "ok": "□□□□"}
@@ -192,3 +195,19 @@ INTERACTIVE = """<script>
   draw();
 })();
 </script>"""
+
+def write_results(out, name, r):
+    """Publish complete individual artifacts atomically from private staging."""
+    payloads = {
+        "cbom.json": json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2),
+        "wolfpack.sarif": json.dumps(cbom.sarif(r.assets, r.alerts), indent=2),
+        "findings.json": json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness, "compliance": r.compliance}, indent=2, default=str),
+        "relationships.json": json.dumps(r.relationships, indent=2),
+        "report.html": html(r),
+    }
+    with tempfile.TemporaryDirectory(prefix=".wolfpack-", dir=out) as staging:
+        for filename, value in payloads.items():
+            temporary = Path(staging) / filename
+            temporary.write_text(value, encoding="utf-8")
+            temporary.chmod(0o600)
+            temporary.replace(out / filename)
