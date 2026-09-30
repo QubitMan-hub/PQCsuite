@@ -122,6 +122,7 @@ class App:
         return out
 
     def run_scan(self, targets):
+        targets = list(targets)
         from ..readiness import scan
         with self.lock:
             if self.scanning:
@@ -136,7 +137,7 @@ class App:
                            for r in results if self.last_scan and before.get(r["target"]) != r["grade"]]
                 for c in changes:
                     log.warning("readiness: %s went from %s to %s", c["target"], c["before"] or "not scanned", c["after"])
-                self.last_scan = {"finished": time.time(), "summary": scan.summary(results), "endpoints": results, "changes": changes}
+                self.last_scan = {"finished": time.time(), "targets": targets, "summary": scan.summary(results), "endpoints": results, "changes": changes}
             except Exception as e:
                 log.exception("readiness scan failed")
                 self.scan_error = f"the scan failed: {e}"
@@ -182,20 +183,21 @@ class App:
         out = {"product": NAME, "version": __version__, "update": self.update()}
         try:
             certs = self.certificates()["certificates"]
-            out["certificates"] = {"valid": sum(c["status"] == "valid" for c in certs), "revoked": sum(c["status"] == "revoked" for c in certs),
-                                   "expiring_30d": sum(c["status"] == "valid" and c["days_left"] <= 30 for c in certs)}
+            out["certificates"] = {"valid": sum(c["status"] == "valid" and c["days_left"] >= 0 for c in certs), "revoked": sum(c["status"] == "revoked" for c in certs),
+                                   "expiring_30d": sum(c["status"] == "valid" and 0 <= c["days_left"] <= 30 for c in certs)}
         except CAError as e:
             out["certificates"] = {"error": str(e)}
         edges = self.edges()
         out["edges"] = {"routes": sum("error" not in e for e in edges), "unreachable": sum("error" in e for e in edges),
                         "active": sum(e.get("active", 0) for e in edges), "handshakes": sum(e.get("handshakes", 0) for e in edges),
                         "failed": sum(e.get("handshake_failed", 0) for e in edges)}
-        tun = [t for t in self.tunnels() if "error" not in t]
-        users = [u for u in self.remote_users() if "error" not in u]
+        tunnels, remote = self.tunnels(), self.remote_users()
+        tun = [t for t in tunnels if "error" not in t]
+        users = [u for u in remote if "error" not in u]
         out["vpn"] = {"tunnels": len(tun), "quantum_safe": sum(t["state"] == "ESTABLISHED" and t["ppk"] and "ML_KEM" in t["key_exchange"] for t in tun),
-                      "remote_users": len(users), "remote_online": sum(time.time() - u.get("latest_handshake", 0) < 180 for u in users)}
+                      "unreachable": sum("error" in t for t in tunnels + remote), "remote_users": len(users), "remote_online": sum(time.time() - u.get("latest_handshake", 0) < 180 for u in users)}
         b = [x for x in self.backups() if "error" not in x]
-        out["backups"] = {"count": len(b), "latest": b[0]["created"] if b else None, "signed": sum(bool(x["signed_by"]) for x in b)}
+        out["backups"] = {"count": len(b), "latest": max(x["created"] for x in b) if b else None, "signed": sum(bool(x["signed_by"]) for x in b)}
         out["readiness"] = self.last_scan["summary"] | {"changes": len(self.last_scan.get("changes", [])),
                                                         "finished": self.last_scan["finished"]} if self.last_scan else None
         return out

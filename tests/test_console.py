@@ -92,7 +92,20 @@ class ConsoleTest(unittest.TestCase):
         self.assertEqual(o["certificates"]["valid"], 0)
         self.assertEqual(o["edges"]["unreachable"], 1)
         self.assertEqual(o["backups"]["count"], 1)
-        self.assertEqual(o["vpn"], {"tunnels": 0, "quantum_safe": 0, "remote_users": 0, "remote_online": 0})
+        self.assertEqual(o["vpn"], {"tunnels": 0, "quantum_safe": 0, "unreachable": 0, "remote_users": 0, "remote_online": 0})
+
+    def test_overview_distinguishes_expiry_unreachable_vpn_and_latest_backup(self):
+        from unittest.mock import patch
+        with patch.object(self.app, "certificates", return_value={"certificates": [
+            {"status": "valid", "days_left": -1}, {"status": "valid", "days_left": 10}, {"status": "revoked", "days_left": 90}]}), \
+             patch.object(self.app, "tunnels", return_value=[{"error": "offline"}]), \
+             patch.object(self.app, "remote_users", return_value=[{"error": "offline"}]), \
+             patch.object(self.app, "backups", return_value=[{"created": "2025-01-01", "signed_by": None}, {"created": "2026-01-01", "signed_by": None}]):
+            o = self.app.overview()
+        self.assertEqual(o["certificates"], {"valid": 1, "revoked": 1, "expiring_30d": 1})
+        self.assertEqual(o["vpn"]["unreachable"], 2)
+        self.assertEqual(o["vpn"]["quantum_safe"], 0)
+        self.assertEqual(o["backups"]["latest"], "2026-01-01")
 
     def test_issue_and_revoke_are_audited(self):
         _, _, r = self.call("/api/certificates/issue", {"kind": "server", "common_name": "api.acme", "names": "10.0.0.5", "days": 90})

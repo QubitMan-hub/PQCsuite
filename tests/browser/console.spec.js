@@ -156,3 +156,57 @@ test("a customer can issue and revoke a real certificate", async ({ page }) => {
   await expect(row).toContainText("revoked");
   await expect(page.locator("#issued")).toContainText("CRL has been refreshed");
 });
+
+const assessment = { running: false, targets: [], every_hours: 0, error: null,
+  last: { finished: 1000000000, changes: [], summary: { endpoints: 4, pq_key_exchange: 2, pq_certificates: 1, expiring_30d: 1, grades: { A: 1, B: 1, C: 1, F: 1 } }, endpoints: [
+    { target: 'legacy.test:443', protocol: 'tls', grade: 'C', negotiated: 'X25519', accepts: ['X25519'], trusted: false, legacy: ['TLSv1.0'], certificate: { key: 'RSA-2048', quantum_safe: false, days_left: 12 } },
+    { target: 'hybrid.test:443', protocol: 'tls', grade: 'B', negotiated: 'X25519MLKEM768', accepts: ['X25519MLKEM768', 'X25519'], certificate: { key: 'ECDSA', quantum_safe: false } },
+    { target: 'strict.test:443', protocol: 'tls', grade: 'A', negotiated: 'MLKEM768', accepts: ['MLKEM768'], certificate: { key: 'ML-DSA-65', quantum_safe: true } },
+    { target: '=offline.test:443', protocol: 'tls', grade: 'F', error: 'connection refused', negotiated: null, accepts: [], certificate: null },
+  ] },
+};
+test('readiness filters real observations, explains evidence and exports safe CSV and complete JSON', async ({ page }) => {
+  await page.route('**/api/scan', r => r.fulfill({ json: assessment })); await signIn(page);
+  await page.evaluate(() => (location.hash = 'readiness'));
+  await expect(page.locator('#endpoint-count')).toHaveText('4 of 4 endpoints');
+  await expect(page.locator('#endpoint-results tbody tr').first()).toContainText('legacy.test');
+  await page.selectOption('#endpoint-grade', 'C'); await page.click('#endpoint-results summary');
+  for (const message of ['Upgrade TLS','Certificate trust failed','Disable legacy protocols','Renew and verify']) await expect(page.locator('#endpoint-results')).toContainText(message);
+  await page.fill('#endpoint-search', 'missing'); await expect(page.locator('#endpoint-results')).toContainText('No endpoints match');
+  await page.fill('#endpoint-search', ''); await page.selectOption('#endpoint-grade', 'F');
+  const csvDownload = page.waitForEvent('download'); await page.click('#scan-csv'); const c = await csvDownload;
+  const contents = require('fs').readFileSync(await c.path(), 'utf8');
+  expect(contents).toContain("'=offline.test:443"); expect(contents).not.toContain('legacy.test');
+  const jsonDownload = page.waitForEvent('download'); await page.click('#scan-json'); const j = await jsonDownload;
+  expect(JSON.parse(require('fs').readFileSync(await j.path(), 'utf8'))).toEqual(assessment.last);
+  expect((await new AxeBuilder({ page }).analyze()).violations.filter(v => ['serious', 'critical'].includes(v.impact))).toEqual([]);
+});
+test('CBOM import stays local, escapes content, preserves prior data on invalid input and clears on logout', async ({page}) => {
+  let mutations=0;page.on('request',r=>{if(r.method()==='POST')mutations++;});await signIn(page);
+  await page.evaluate(()=>(location.hash='readiness'));
+  const bom={bomFormat:'CycloneDX',components:[{type:'cryptographic-asset',name:'<img src=x onerror=alert(1)>',properties:[{name:'wolfpack:tier',value:'high'},{name:'wolfpack:recommendation',value:'Upgrade RSA usage'}],evidence:{occurrences:[{location:'src/login.py'}]}}]};
+  await page.setInputFiles('#inventory-file',{name:'cbom.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(bom))});
+  await expect(page.locator('#inventory-message')).toContainText('1 cryptographic assets loaded locally');
+  await expect(page.locator('#inventory-results')).toContainText('<img src=x');await expect(page.locator('#inventory-results img')).toHaveCount(0);expect(mutations).toBe(0);
+  await page.fill('#inventory-search','missing');await expect(page.locator('#inventory-results')).toContainText('No assets match');await page.fill('#inventory-search','');
+  await page.setInputFiles('#inventory-file',{name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{}')});
+  await expect(page.locator('#inventory-message')).toContainText('Expected a CycloneDX');await expect(page.locator('#inventory-results')).toContainText('Upgrade RSA usage');
+  await page.click('#logout');await page.fill('#tok','browser-test');await page.click('form.login button');await expect(page.locator('#inventory-results')).toContainText('Load cbom.json');
+});
+test('VPN distinguishes missing telemetry and incomplete PQ protection', async ({page}) => {
+  await page.route('**/api/tunnels',r=>r.fulfill({json:[{source:'unix:///charon',error:'gateway unavailable'}]}));await signIn(page);await page.evaluate(()=>(location.hash='vpn'));
+  await expect(page.locator('.metrics')).toContainText('Unknown');await expect(page.locator('#view')).toContainText('does not connect this browser');
+  await page.unroute('**/api/tunnels');await page.route('**/api/tunnels',r=>r.fulfill({json:[{peer:'branch',state:'ESTABLISHED',key_exchange:'X25519',ppk:false,established_s:60,children:[]}]}));
+  await page.evaluate(()=>(location.hash='readiness'));await expect(page.locator('#view h1')).toHaveText('Readiness');await page.evaluate(()=>(location.hash='vpn'));
+  await expect(page.locator('.metrics')).toContainText('Review required');await expect(page.locator('.metrics')).toContainText('0/1');
+});
+
+test('an actual local assessment retains its targets for the next scan', async ({page}) => {
+  await signIn(page);
+  await page.evaluate(() => (location.hash = 'readiness'));
+  await page.fill('textarea[name=targets]', '127.0.0.1:1');
+  await page.click('#scan button');
+  await expect(page.locator('#endpoint-count')).toHaveText('1 of 1 endpoints');
+  await expect(page.locator('textarea[name=targets]')).toHaveValue('127.0.0.1:1');
+  await expect(page.locator('#endpoint-results')).toContainText('Unreachable');
+});
