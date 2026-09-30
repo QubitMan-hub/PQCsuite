@@ -69,7 +69,10 @@ def html(r):
     for index, a in enumerate(r.assets):
         occ = "".join(f"<div><code>{e(s.file)}{':' + str(s.line) if s.line else ''}</code> {e(s.evidence)}, {e(s.reason)}<br>{e(s.snippet)}</div>" for s in a.sightings[:60])
         fixes = "".join(f"<div><b>{e(w)}</b>: {_code(f)}</div>" for w, f in a.remedies)
-        fixes = f"<div class='fix'><span class=tag>How to fix</span>{fixes}</div>" if fixes else ""
+        impact = a.params.get("code_impact")
+        context = ("<div class='fix'><b>Static migration impact</b><p>Functions: " + e(", ".join(impact["functions"])) +
+                   "</p><p>Callers: " + e(", ".join(impact["callers"]) or "none resolved") + "</p><p class=dim>" + e(impact["basis"]) + "</p></div>") if impact else ""
+        fixes = context + f"<div class='fix'><span class=tag>How to fix</span>{fixes}</div>" if fixes else context
         detail.append(f"""<details id="asset-{index}"><summary>{tier(a.tier)} <b>{e(a.variant)}</b> <span class='dim'>{e(a.nist)}</span></summary>{fixes}<div class='occ'>{occ}</div></details>""")
     alerts = "".join(f"<div class='alert'><span><span class='tag {e(s)}'>{e(s)}</span></span><div>{e(t)}<br><span class='dim'>{e(w)}{'; ' + e(f) if f else ''}</span></div></div>"
                      for s, t, w, f in r.alerts) or "<p class='dim'>No hygiene alerts.</p>"
@@ -120,7 +123,7 @@ def html(r):
 {''.join(f'<p class="dim">{e(n)}</p>' for n in r.notes)}""" + INTERACTIVE
     sub = f"Cryptographic inventory and quantum migration plan, scanned in {st['seconds']}s.{_ablation(st)}"
     return page(f"{r.project}: Wolf Pack CBOM", "Cryptographic inventory", r.project, e(sub), body,
-                "CycloneDX 1.6 CBOM in cbom.json, SARIF 2.1.0 in wolfpack.sarif, full audit trail in findings.json")
+                "CycloneDX 1.6 CBOM in cbom.json, SARIF 2.1.0 in wolfpack.sarif, full audit trail in findings.json, static code relationships in relationships.json")
 
 
 def terminal(r):

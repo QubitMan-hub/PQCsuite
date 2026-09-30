@@ -123,12 +123,12 @@ def main(argv=None):
     if any(policy.get(k) for k in ("profiles", "forbid", "min_bits", "require_hybrid")):
         r.compliance = compliance.evaluate(r.assets, r.endpoints, policy)
     try:
-        _write(out, name, r)
+        write_results(out, name, r)
     except OSError as e:
         sys.exit(f"wolfpack: cannot write to {out}: {e}")
     if not a.quiet:
         print(report.terminal(r))
-        print(f"\nwrote {out / 'cbom.json'}, {out / 'report.html'}, {out / 'wolfpack.sarif'}, {out / 'findings.json'}")
+        print(f"\nwrote {out / 'cbom.json'}, {out / 'report.html'}, {out / 'wolfpack.sarif'}, {out / 'findings.json'}, {out / 'relationships.json'}")
     if a.fail_on_policy and r.compliance and not r.compliance["passed"]:
         if not a.quiet:
             print(f"\nfailing: {r.compliance['overdue']} policy rule(s) already broken")
@@ -196,8 +196,18 @@ def settings(path, root):
     return cfg
 
 
-def _write(out, name, r):
-    (out / "cbom.json").write_text(json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2), encoding="utf-8")
-    (out / "wolfpack.sarif").write_text(json.dumps(cbom.sarif(r.assets, r.alerts), indent=2), encoding="utf-8")
-    (out / "findings.json").write_text(json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness, "compliance": r.compliance}, indent=2, default=str), encoding="utf-8")
-    (out / "report.html").write_text(report.html(r), encoding="utf-8")
+def write_results(out, name, r):
+    """Publish complete individual artifacts atomically from private staging."""
+    payloads = {
+        "cbom.json": json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2),
+        "wolfpack.sarif": json.dumps(cbom.sarif(r.assets, r.alerts), indent=2),
+        "findings.json": json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness, "compliance": r.compliance}, indent=2, default=str),
+        "relationships.json": json.dumps(r.relationships, indent=2),
+        "report.html": report.html(r),
+    }
+    with tempfile.TemporaryDirectory(prefix=".wolfpack-", dir=out) as staging:
+        for filename, value in payloads.items():
+            temporary = Path(staging) / filename
+            temporary.write_text(value, encoding="utf-8")
+            temporary.chmod(0o600)
+            temporary.replace(out / filename)

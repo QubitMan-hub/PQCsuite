@@ -1,6 +1,7 @@
 import os
 import re
-from dataclasses import dataclass
+import subprocess
+from dataclasses import dataclass, field, replace
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from ..elders import CATALOG
 from ..model import Sighting
 
 SKIP_DIRS = {".git", ".hg", ".svn", "node_modules", "vendor", "venv", ".venv", "env", "__pycache__", "dist", "build", "target", ".tox",
-             "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "wolfpack-out"}
+             "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "wolfpack-out", "pqcsuite-out"}
 TEST_PARTS = {"test", "tests", "unit", "spec", "specs", "__tests__", "testdata", "test_data", "fixtures", "mocks", "examples", "example", "samples", "sample", "demo",
               "bench", "benches", "benchmark", "benchmarks", "browsertest", "test-classes"}
 TEST_DIR = re.compile(r"(?:^|[._-])(?:unit|integration|functional|i)?tests?(?:net\d+|core)?$")
@@ -23,6 +24,7 @@ class Scope:
     vendor: bool = False
     exclude: tuple = ()
     only: frozenset | None = None
+    files: tuple | None = field(default=None, compare=False, repr=False)
 
     def excluded(self, relpath):
         name = relpath.rsplit("/", 1)[-1]
@@ -34,21 +36,51 @@ def iter_files(root, scope=Scope(), max_bytes=MAX_BYTES, skip=None):
     skip = SKIP_DIRS if skip is None else skip
     root = Path(root)
     if root.is_file():
-        yield root
+        if not root.is_symlink():
+            yield root
         return
+    if scope.files is not None:
+        for p, size in scope.files:
+            folders = p.relative_to(root).parts[:-1]
+            if size <= max_bytes and (scope.vendor or not set(folders) & skip):
+                yield p
+        return
+    # Git supplies its own ignore semantics (including tracked files), without parsing patterns ourselves.
+    allowed = None
+    try:
+        result = subprocess.run(["git", "-c", "core.fsmonitor=false", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "."],
+                                capture_output=True, timeout=15)
+        if result.returncode == 0:
+            allowed = set(result.stdout.decode("utf-8", "surrogateescape").split("\0"))
+    except (OSError, subprocess.TimeoutExpired):
+        pass
     for d, dirs, files in os.walk(root):
         here = Path(d).relative_to(root).as_posix()
         at = "" if here == "." else here + "/"
-        dirs[:] = sorted(x for x in dirs if (scope.vendor or x not in skip) and not scope.excluded(at + x))
+        dirs[:] = sorted(x for x in dirs if not (Path(d) / x).is_symlink() and (scope.vendor or x not in skip) and not scope.excluded(at + x))
         for f in sorted(files):
+            if allowed is not None and at + f not in allowed and not scope.vendor:
+                continue
             if scope.excluded(at + f) or scope.only is not None and at + f not in scope.only:
                 continue
             p = Path(d) / f
             try:
-                if p.stat().st_size <= max_bytes:
+                if not p.is_symlink() and p.stat().st_size <= max_bytes:
                     yield p
             except OSError:
                 continue
+
+
+def snapshot(root, scope=False):
+    """Enumerate once per scan; keep only paths/sizes, never customer source contents."""
+    scope = scope if isinstance(scope, Scope) else Scope(bool(scope))
+    entries = []
+    for p in iter_files(root, scope, max_bytes=float("inf"), skip=SKIP_DIRS - BUILD_DIRS):
+        try:
+            entries.append((p, p.stat().st_size))
+        except OSError:
+            continue
+    return replace(scope, files=tuple(entries))
 
 
 def oversized(root, scope=Scope()):

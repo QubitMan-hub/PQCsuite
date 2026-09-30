@@ -279,11 +279,13 @@ class PyScout(ast.NodeVisitor):
         return lookup(name) or parse_transformation(name)[0]
 
 
-def scan_python(path, src, constants=True):
+def scan_python(path, src, constants=True, on_tree=None):
     try:
         tree = ast.parse(src)
-    except (SyntaxError, ValueError):
+    except (SyntaxError, ValueError, RecursionError):
         return None
+    if on_tree:
+        on_tree(path, tree)
     s = PyScout(path, src, constants)
     s.visit(tree)
     return s.out

@@ -30,7 +30,7 @@ py -m wolfpack bench bench\corpus                            # full pack plus on
 py -m unittest discover -s tests
 ```
 
-Output lands in `wolfpack-out\`. `cbom.json` is the CycloneDX 1.6 CBOM, validated against the official schema. `report.html` is a self-contained report that works offline. `wolfpack.sarif` is SARIF 2.1.0 for GitHub code scanning. `findings.json` is the full audit trail, including everything the den rejected and why.
+Output lands in `wolfpack-out\`. `cbom.json` is the CycloneDX 1.6 CBOM, validated against the official schema. `report.html` is a self-contained report that works offline. `wolfpack.sarif` is SARIF 2.1.0 for GitHub code scanning. `findings.json` is the full audit trail, including everything the den rejected and why. `relationships.json` records bounded Python AST symbols, imports and static call references without source snippets or argument values. The offline report and CBOM attach supported functions and callers to crypto findings. Dynamic dispatch remains unresolved; static references do not prove runtime reachability.
 
 `wolfpack merge` takes CBOMs from many scans, or from other tools such as CBOMkit, and writes one organisation inventory to `wolfpack-inventory\`:
 

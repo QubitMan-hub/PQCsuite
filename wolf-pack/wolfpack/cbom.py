@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import PurePosixPath
 
 from . import __version__
+from .crawler import impact_property
 from .elders import CATALOG, classical_bits, quantum_level
 
 MODES = {"ecb", "cbc", "ccm", "gcm", "cfb", "ofb", "ctr"}
@@ -28,7 +29,7 @@ def _occ(s):
 def algorithm_component(a):
     c = CATALOG[a.algo]
     ev = {"occurrences": [_occ(s) for s in a.sightings[:200]]}
-    props = _props(tier=a.tier, risk_score=a.score, confidence=a.confidence, exposure=a.exposure, nist_status=a.nist,
+    props = _props(tier=a.tier, risk_score=a.score, confidence=a.confidence, exposure=a.exposure, nist_status=a.nist, code_impact=impact_property(a),
                    rationale=a.why, recommendation=a.action, test_only=a.test_only or None,
                    policy="; ".join(a.policy) or None, usage="declared" if a.declared else "used",
                    remediation=" | ".join(f"{w}: {f}" for w, f in a.remedies)[:1500] or None)

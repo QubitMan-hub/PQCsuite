@@ -7,7 +7,8 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 from . import den, alpha, remedy
-from .scouts import MAX_BYTES, source, config, artifacts, deps, tls, binary, implementations, params, capture, carried_hashes, oversized
+from .crawler import CodeCrawler
+from .scouts import MAX_BYTES, source, config, artifacts, deps, tls, binary, implementations, params, capture, carried_hashes, oversized, snapshot
 
 SCOUTS = ("source", "implementations", "config", "artifacts", "binary")
 
@@ -64,6 +65,7 @@ class Hunt:
     files: dict
     notes: list = field(default_factory=list)
     endpoints: list = field(default_factory=list)
+    crawler: CodeCrawler = field(default_factory=CodeCrawler)
 
 
 def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=(), captures=()):
@@ -71,7 +73,7 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=(), captu
     h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
     if roles.source:
         unparsed = []
-        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed, roles.names, roles.concat, roles.symbols)
+        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed, roles.names, roles.concat, roles.symbols, h.crawler.observe)
         h.sightings += s
         if unparsed:
             h.notes.append(f"{len(unparsed)} Python file(s) could not be parsed by this Python ({sys.version.split()[0]}): newer syntax, or not "
@@ -135,6 +137,7 @@ class Result:
     endpoints: list = field(default_factory=list)
     baseline: str = ""
     compliance: dict = field(default_factory=dict)
+    relationships: dict = field(default_factory=dict)
 
 
 def load_baseline(path):
@@ -150,6 +153,7 @@ def load_baseline(path):
 
 def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(), scope=False, ssh_targets=(), baseline=None, captures=()):
     t0 = time.time()
+    scope = snapshot(root, scope)
     horizon = horizon or alpha.Horizon()
     h = hunt(root, roles, scope, tls_targets, ssh_targets, captures)
     lines = den.Lines(root)
@@ -171,6 +175,7 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
         seen = load_baseline(baseline)
         for a in assets:
             a.new_files = sorted({s.file.split("!")[0] for s in a.sightings if (a.variant, s.file.split("!")[0]) not in seen})
+    relationships = h.crawler.finish(assets)
     al = alpha.alerts(h.artifacts, h.libraries, sightings, stores)
     verdicts = Counter(s.verdict for s in sightings)
     stats = {"files_code": h.files["source"], "files_config": h.files["config"], "files_artifacts": h.files["artifacts"], "files_binary": h.files["binary"],
@@ -178,4 +183,4 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
              **{v: verdicts[v] for v in ("accepted", "quarantined", "rejected", "suppressed")},
              "promoted_on_second_look": sum(looks.values()), "second_look": looks, "held_as_formats": held, "trails_followed": trails, "roles_off": roles.off,
              "seconds": round(time.time() - t0, 2), "horizon": vars(horizon) | {"years_to_crqc": horizon.z}}
-    return Result(project, sightings, assets, h.artifacts, h.libraries, al, alpha.readiness(assets), stats, h.notes, h.endpoints, str(baseline or ""))
+    return Result(project, sightings, assets, h.artifacts, h.libraries, al, alpha.readiness(assets), stats, h.notes, h.endpoints, str(baseline or ""), relationships=relationships)

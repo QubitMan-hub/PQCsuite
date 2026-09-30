@@ -199,3 +199,8 @@ Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3
   - It now joins that variant when the file has exactly one variant of the algorithm (`den.assets`).
   - Sightings and the bench are unchanged. Across 54 roots, assets went from 722 to 718, and counts moved to the specific variants.
 - **Site demo:** the "Watch a hunt" demo shows `site/demo/app.py` and the real output of `wolfpack hunt site/demo`. `test_site_demo_matches_the_pack` fails if the page drifts from what the pack reports on that file.
+
+
+## Code Crawler integration (unreleased 1.3.0)
+
+The repository-level `docs/CODE-CRAWLER.md` documents shared file enumeration, reused Python ASTs, bounded static migration relationships, private unified project scans, evidence limits and pinned real-project measurements. The 163-pair development regression corpus and every ablation match the preceding `8c81743` source; official CBOM schema validation has zero errors. This is not a new accuracy claim or a new detector heuristic. See root `AGENT_HANDOFF.md` for final validation and remaining product work.

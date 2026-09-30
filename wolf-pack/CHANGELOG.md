@@ -2,7 +2,10 @@
 
 Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Suite repository; its GitHub release carries the wheel and build provenance.
 
-## Unreleased
+## 1.3.0 (unreleased)
+
+- Code Crawler reuses Python ASTs for bounded static symbols/imports/calls and migration impact; unresolved dispatch stays explicit. `relationships.json` joins offline reports and CBOM impact metadata.
+- One git-aware file snapshot feeds scouts, preserves binary build directories, skips symlinks and disables Git filesystem-monitor hooks. Artifact writes use private atomic staging.
 
 - Offline reports now search/filter/sort the migration queue, link assets to evidence/remediation, and export filtered CSV with spreadsheet-formula protection. Reports remain readable without JavaScript; website samples use the same functionality.
 
