@@ -1,5 +1,7 @@
 import datetime as dt
+import os
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -7,7 +9,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-from pqcsuite.pki import CA, CAError, check_revocation, generate
+from pqcsuite.pki import CA, CAError, check_revocation, generate, write
 
 
 class CATest(unittest.TestCase):
@@ -40,6 +42,22 @@ class CATest(unittest.TestCase):
         self.assertFalse(cert.extensions.get_extension_for_class(x509.BasicConstraints).value.ca)
         self.assertEqual((out / "chain.pem").read_bytes().count(b"BEGIN CERTIFICATE"), 2)
         self.assertEqual(rec.algorithm, "ML-DSA-65")
+
+    def test_atomic_key_write_preserves_a_preexisting_temporary_symlink(self):
+        victim = self.root / "keep"
+        victim.write_bytes(b"keep this")
+        path = self.root / "new.key"
+        old_tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+        try:
+            old_tmp.symlink_to(victim)
+        except (OSError, NotImplementedError):
+            self.skipTest("cannot create symlinks here")
+        write(path, b"private key", secret=True)
+        self.assertEqual(victim.read_bytes(), b"keep this")
+        self.assertTrue(old_tmp.is_symlink())
+        self.assertEqual(path.read_bytes(), b"private key")
+        if os.name != "nt":
+            self.assertEqual(path.stat().st_mode & 0o077, 0)
 
     def test_site_certificate_serves_and_connects(self):
         out, rec = self.ca.issue("hq.acme", "site", ["203.0.113.10"])

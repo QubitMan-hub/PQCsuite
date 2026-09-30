@@ -7,6 +7,7 @@ import ipaddress
 import json
 import os
 import re
+import secrets
 import threading
 import time
 from dataclasses import dataclass
@@ -123,8 +124,8 @@ def shared(action, tries=40):
 def write(path, data, secret=False):
     """Write atomically; secret files are created owner-only."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0), 0o600 if secret else 0o644)
+    tmp = path.with_name(f".{path.name}.{secrets.token_hex(12)}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600 if secret else 0o644)
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)

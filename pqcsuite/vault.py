@@ -24,6 +24,7 @@ import re
 import shutil
 import struct
 import tarfile
+import tempfile
 from pathlib import Path
 
 from cryptography import x509
@@ -372,9 +373,10 @@ def encrypt(src, dst, recipients, signer=None):
     src, dst = Path(src), Path(dst)
     if not dst.parent.is_dir():
         raise VaultError(f"cannot write {dst}: the folder {dst.parent} does not exist")
-    tmp = dst.with_name(dst.name + ".part")
+    fd, temporary = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".part", dir=dst.parent)
+    tmp = Path(temporary)
     try:
-        with open(tmp, "wb") as out:
+        with os.fdopen(fd, "wb") as out:
             w = Writer(out, recipients, src.name, "dir" if src.is_dir() else "file", signer)
             if src.is_dir():
                 with tarfile.open(fileobj=w, mode="w|", format=tarfile.GNU_FORMAT) as tar:
@@ -442,28 +444,31 @@ def _decrypt(src, dst_dir, identity, ca, crl, expected_signer, require_signature
         if name in ("", ".", "..") or "\0" in name:
             raise VaultError("the archive names no usable file name")
         dst_dir.mkdir(parents=True, exist_ok=True)
-        staging = dst_dir / f".pqv-partial-{os.urandom(6).hex()}"
+        staging = Path(tempfile.mkdtemp(prefix=".pqv-partial-", dir=dst_dir))
+        payload = staging / name
         try:
             gen = chunks(f, h, identity)
             if h["kind"] == "dir":
-                staging.mkdir()
                 with tarfile.open(fileobj=io.BufferedReader(_ChunkReader(gen)), mode="r|") as tar:
                     tar.extractall(staging, filter="data")
                 for _ in gen:
                     pass
             else:
-                with open(staging, "wb") as out:
+                fd = os.open(payload, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
+                with os.fdopen(fd, "wb") as out:
                     for pt in gen:
                         out.write(pt)
             signer = None
             if "signer" in h or require_signature or expected_signer:
                 signer = verify_signer(h, ca, crl, expected_signer)
             target = dst_dir / name
-            if target.exists():
+            if os.path.lexists(target):
                 raise VaultError(f"{target} already exists")
-            if h["kind"] == "dir" and not (staging / name).is_dir():
+            if h["kind"] == "dir" and (payload.is_symlink() or not payload.is_dir()):
                 raise VaultError("the archive does not contain the folder it names")
-            os.replace(staging / name if h["kind"] == "dir" else staging, target)
+            if h["kind"] == "dir":
+                payload.chmod(0o700)
+            os.replace(payload, target)
             _remove(staging)
             return target, signer
         except Exception:
@@ -522,9 +527,10 @@ def add_recipients(path, identity, recipients):
         if h["v"] >= 2:
             h["mac"] = _recipients_mac(dek, h["recipients"])
         header = json.dumps(h).encode()
-        tmp = path.with_name(path.name + ".part")
+        fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".part", dir=path.parent)
+        tmp = Path(temporary)
         try:
-            with open(tmp, "wb") as out:
+            with os.fdopen(fd, "wb") as out:
                 out.write(MAGIC + struct.pack(">I", len(header)) + header)
                 while block := f.read(CHUNK):
                     out.write(block)

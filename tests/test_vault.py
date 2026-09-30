@@ -44,6 +44,60 @@ class VaultTest(unittest.TestCase):
             vault.decrypt(f, self.d / "taken", self.alice)
         self.assertEqual((self.d / "taken").read_text(), "ours")
 
+    def test_temporary_archive_names_never_follow_a_preexisting_symlink(self):
+        victim = self.d / "keep.txt"
+        victim.write_text("keep this")
+        temporary = self.d / "out.pqv.part"
+        try:
+            temporary.symlink_to(victim)
+        except (OSError, NotImplementedError):
+            self.skipTest("cannot create symlinks here")
+        f = self.enc()
+        self.assertEqual(victim.read_text(), "keep this")
+        self.assertTrue(temporary.is_symlink())
+        vault.add_recipients(f, self.alice, [self.bob.public])
+        self.assertEqual(victim.read_text(), "keep this")
+        self.assertTrue(temporary.is_symlink())
+        self.assertEqual(vault.decrypt(f, self.d / "restore", self.bob)[0].read_bytes(), self.data)
+
+    @unittest.skipIf(os.name == "nt", "POSIX permissions")
+    def test_plaintext_is_owner_only_during_and_after_restore(self):
+        previous_umask = os.umask(0o022)
+        self.addCleanup(os.umask, previous_umask)
+        f = self.enc()
+        original = vault.chunks
+
+        def inspect_staging(*args):
+            for chunk in original(*args):
+                parts = list((self.d / "restore").glob(".pqv-partial-*"))
+                self.assertEqual(len(parts), 1)
+                self.assertEqual(parts[0].stat().st_mode & 0o077, 0)
+                for p in parts[0].rglob("*") if parts[0].is_dir() else ():
+                    if p.is_file():
+                        self.assertEqual(p.stat().st_mode & 0o077, 0)
+                yield chunk
+
+        with mock.patch.object(vault, "chunks", side_effect=inspect_staging):
+            target, _ = vault.decrypt(f, self.d / "restore", self.alice)
+        self.assertEqual(target.stat().st_mode & 0o077, 0)
+        src = self.d / "folder"
+        src.mkdir()
+        (src / "private.txt").write_bytes(self.data)
+        target, _ = vault.decrypt(self.enc(src="folder"), self.d / "restore-dir", self.alice)
+        self.assertEqual(target.stat().st_mode & 0o077, 0)
+
+    def test_restore_preserves_a_dangling_destination_symlink(self):
+        f = self.enc()
+        out = self.d / "restore"
+        out.mkdir()
+        try:
+            (out / "db.dump").symlink_to(out / "missing")
+        except (OSError, NotImplementedError):
+            self.skipTest("cannot create symlinks here")
+        with self.assertRaisesRegex(VaultError, "already exists"):
+            vault.decrypt(f, out, self.alice)
+        self.assertTrue((out / "db.dump").is_symlink())
+
     def test_other_keys_cannot_open(self):
         with self.assertRaisesRegex(VaultError, "not encrypted for this key"):
             vault.decrypt(self.enc(), self.d / "x", self.eve)
