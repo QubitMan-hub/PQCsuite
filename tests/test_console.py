@@ -77,6 +77,15 @@ class ConsoleTest(unittest.TestCase):
             s.sendall(b"POST /api/scan HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer t0ken\r\nContent-Length: -1\r\n\r\n")
             self.assertIn(b"400", s.recv(200).split(b"\r\n")[0])
 
+    def test_ambiguous_and_oversized_body_lengths_get_an_error_response(self):
+        import socket
+        for headers in (b"Content-Length: " + b"9" * 5000, b"Content-Length: 0\r\nContent-Length: 1",
+                        b"Content-Length: 0\r\nTransfer-Encoding: chunked", b"Content-Length:"):
+            with self.subTest(headers=headers[:60]), socket.create_connection(self.httpd.server_address, timeout=5) as s:
+                s.sendall(b"POST /api/scan HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer t0ken\r\n" + headers + b"\r\n\r\n")
+                self.assertIn(b"400", s.recv(200).split(b"\r\n")[0])
+        self.assertEqual(self.call("/api/overview")[0], 200)
+
     def test_overview_reports_every_area(self):
         _, headers, o = self.call("/api/overview")
         self.assertEqual(headers["Cache-Control"], "no-store")

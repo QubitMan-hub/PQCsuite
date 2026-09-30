@@ -130,6 +130,11 @@ class CLITest(unittest.TestCase):
         self.assertIn("missing mode, target", self.fails("tls", "edge", "--config", cfg))
         cfg.write_text('[[edge]]\nmode = "terminate"\nlisten = "127.0.0.1:0"\ntarget = "127.0.0.1:1"\nmax_connections = "lots"\n')
         self.assertIn("max_connections must be a whole number", self.fails("tls", "edge", "--config", cfg))
+        cfg.write_text('[[edge]]\nmode = "terminate"\nlisten = "127.0.0.1:0"\ntarget = "127.0.0.1:1"\nmax_connections = true\n')
+        self.assertIn("max_connections must be a whole number", self.fails("tls", "edge", "--config", cfg))
+        for number in ("nan", "inf", "-inf"):
+            cfg.write_text(f'[[edge]]\nmode = "terminate"\nlisten = "127.0.0.1:0"\ntarget = "127.0.0.1:1"\nidle_timeout = {number}\n')
+            self.assertIn("idle_timeout must be a finite number", self.fails("tls", "edge", "--config", cfg))
         cfg.write_text('[site]\nname = "x"\n')
         self.assertIn("[site]: missing address", self.fails("vpn", "up", "--config", cfg))
         cfg.write_text('[wireguard]\nname = "x"\n')

@@ -223,6 +223,23 @@ class VaultTest(unittest.TestCase):
         with self.assertRaisesRegex(VaultError, "expected CN=backup-server"):
             vault.decrypt(f2, self.d / "e", self.alice, ca=self.d / "pki" / "ca.crt", expected_signer="backup-server")
 
+    def test_signature_length_is_bounded_before_reading_the_trailer(self):
+        ca = CA.init(self.d / "pki", "Root")
+        out, _ = ca.issue("archive-job", "client")
+        f = self.enc(signer=vault.load_signer(out / "cert.pem", out / "key.pem"))
+        raw = f.read_bytes()
+        start = raw.rindex(vault.SIG_MAGIC) + len(vault.SIG_MAGIC)
+        for length in (0, 1 << 17, (1 << 32) - 1):
+            with self.subTest(length=length):
+                f.write_bytes(raw[:start] + struct.pack(">I", length) + raw[start + 4:])
+                with self.assertRaisesRegex(VaultError, "corrupted signature length"):
+                    vault.verify(f, self.alice)
+        for size in range(4):
+            with self.subTest(size=size):
+                f.write_bytes(raw[:start + size])
+                with self.assertRaisesRegex(VaultError, "signature was modified or truncated"):
+                    vault.verify(f, self.alice)
+
     def test_signature_cannot_be_stripped_or_faked(self):
         ca = CA.init(self.d / "pki", "Root")
         out, rec = ca.issue("backup-server", "client")

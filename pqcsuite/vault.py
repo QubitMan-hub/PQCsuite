@@ -314,7 +314,12 @@ def chunks(f, h, identity):
             break
     trailer = f.read(4)
     if trailer == SIG_MAGIC:
-        (n,) = struct.unpack(">I", f.read(4).rjust(4, b"\0"))
+        length = f.read(4)
+        if len(length) != 4:
+            raise VaultError("the signature was modified or truncated")
+        (n,) = struct.unpack(">I", length)
+        if not 0 < n <= 1 << 16:  # all ML-DSA signatures fit; never trust a four-byte allocation request
+            raise VaultError("corrupted signature length")
         sig = f.read(n)
         if len(sig) != n or f.read(1):
             raise VaultError("the signature was modified or truncated")

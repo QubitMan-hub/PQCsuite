@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import re
 import socket
@@ -36,9 +37,13 @@ def build(cls, d, where, **extra):
         t = fields[k].type
         t = {"str": str, "int": int, "float": float, "bool": bool, "list": list, "dict": dict}.get(t, t)
         ok = isinstance(v, (int, float)) and not isinstance(v, bool) if t is float else isinstance(v, t) if isinstance(t, type) else True
+        if t is int and isinstance(v, bool):
+            ok = False
         if not ok:
             kind = {str: "text in quotes", int: "a whole number", float: "a number", bool: "true or false", list: "a list", dict: "a table"}
             raise ValueError(f"{where}: {k} must be {kind.get(t, t.__name__)}, not {v!r}")
+        if t is float and not math.isfinite(v):
+            raise ValueError(f"{where}: {k} must be a finite number, not {v!r}")
     return cls(**d, **extra)
 
 
@@ -123,8 +128,11 @@ def serve_http(address, routes):
 def content_length(headers):
     """An HTTP request's body length, or None unless the header is a plain non-negative number (int() would accept "-1",
     and reading -1 bytes reads until the client stops sending)."""
-    v = headers.get("Content-Length") or "0"
-    return int(v) if v.isascii() and v.isdigit() else None
+    values = headers.get_all("Content-Length", []) if hasattr(headers, "get_all") else [headers.get("Content-Length", "0")]
+    if len(values) > 1 or headers.get("Transfer-Encoding"):
+        return None
+    v = values[0] if values else "0"
+    return int(v) if 0 < len(v) <= 20 and v.isascii() and v.isdigit() else None
 
 
 def file_stamp(path):

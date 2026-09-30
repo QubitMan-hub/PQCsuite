@@ -172,7 +172,7 @@ class ACMETest(unittest.TestCase):
 
     def test_bad_content_length_is_refused_at_once(self):
         import socket
-        for length, status in ((b"-1", b"400"), (b"abc", b"400"), (b"99999999", b"413")):
+        for length, status in ((b"-1", b"400"), (b"abc", b"400"), (b"99999999", b"413"), (b"9" * 5000, b"400")):
             with socket.create_connection(self.httpd.server_address, timeout=5) as s:
                 s.sendall(b"POST /acme/new-account HTTP/1.1\r\nHost: x\r\nContent-Length: " + length + b"\r\n\r\n")
                 self.assertIn(status, s.recv(200).split(b"\r\n")[0], length)
