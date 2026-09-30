@@ -45,10 +45,13 @@ class ComplianceTest(unittest.TestCase):
         self.assertEqual([by[n]["cnsa2"].split(" ")[0] for n in ("weak-ike", "weak-esp")], ["needs", "needs"])
         self.assertEqual((by["lapsed"]["status"], by["lapsed"]["cnsa2"]), ("action", "needs ML-DSA-87"))
         self.assertEqual((by["f"]["cnsa2"], by["f"]["cnsa2_deadline"]), ("compliant", 2033))
+        self.assertIn("unverified header", by["f"]["detail"])
+        self.assertIs(by["f"]["evidence"]["authenticated"], False)
         rep = compliance.report(rows)
         self.assertEqual(rep["cnsa2_compliant"], 4)
         page = compliance.to_html(rep)
         self.assertIn("need action", page)
+        self.assertIn("Backup classifications describe unverified headers", page)
         self.assertNotIn("<script", page)
 
 

@@ -255,6 +255,30 @@ class CLITest(unittest.TestCase):
         os.utime(next(Path("one").glob("*.pqv")), (0, 0))
         self.assertIn("(more than 2)", messages("one"))
 
+    def test_vault_metadata_and_signature_trust_are_distinguished(self):
+        import json
+        from pqcsuite import vault
+        me = vault.Identity.generate()
+        me.save(self.d / "me.key", None)
+        (self.d / "data.txt").write_text("private records")
+        archive = self.d / "signed.pqv"
+        vault.encrypt(self.d / "data.txt", archive, [me.public], vault.load_signer(self.srv / "cert.pem", self.srv / "key.pem"))
+
+        def run(*args):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as result:
+                main([str(a) for a in args])
+            self.assertEqual(result.exception.code, 0)
+            return out.getvalue()
+
+        self.assertIn("integrity and the claimed signer are unverified", run("vault", "inspect", archive))
+        self.assertEqual(json.loads(run("vault", "inspect", archive, "--json"))["signed_by"], "CN=localhost")
+        untrusted = run("vault", "verify", archive, "--key", self.d / "me.key")
+        self.assertIn("certificate issuer was not checked", untrusted)
+        self.assertIn("Pass --ca", untrusted)
+        trusted = run("vault", "verify", archive, "--key", self.d / "me.key", "--ca", self.ca.root / "ca.crt")
+        self.assertNotIn("issuer was not checked", trusted)
+
 
 if __name__ == "__main__":
     unittest.main()

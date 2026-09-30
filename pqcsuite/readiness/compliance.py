@@ -80,8 +80,9 @@ def backups(items):
         if "error" in b:
             continue
         cnsa = "ML-KEM-1024" in b["suite"]
-        out.append(_row("backup", b["name"], f"{b['kind']} created {b['created'][:10]}, {b['suite']}, signed by {b['signed_by'] or 'nobody'}", "ready",
-                        "post-quantum key encapsulation (FIPS 203)", "compliant" if cnsa else "needs recipients made with `vault keygen --cnsa2`", {"file": b.get("file")}))
+        out.append(_row("backup", b["name"], f"unverified header: {b['kind']} created {b['created'][:10]}, {b['suite']}, claimed signer {b['signed_by'] or 'none'}", "ready",
+                        "post-quantum key encapsulation (FIPS 203)", "compliant" if cnsa else "needs recipients made with `vault keygen --cnsa2`",
+                        {"file": b.get("file"), "authenticated": False}))
     return out
 
 
@@ -103,7 +104,8 @@ def to_html(rep, title="Post-quantum compliance evidence"):
         ("assets", rep["assets"], ""), ("quantum-safe", s["ready"], "ok"), ("with classical fallback", s["transition"], "warn"),
         ("need action", s["action"], "bad"), ("meet CNSA 2.0", rep["cnsa2_compliant"], "")))
     sub = ("NIST IR 8547 (draft): quantum-vulnerable public-key algorithms deprecated after 2030 (112-bit) and disallowed after 2035. "
-           "NSA CNSA 2.0: ML-KEM-1024, ML-DSA-87, AES-256, used exclusively by each category's deadline.")
+           "NSA CNSA 2.0: ML-KEM-1024, ML-DSA-87, AES-256, used exclusively by each category's deadline. "
+           "Backup classifications describe unverified headers; authenticate archives with vault verify and a recipient key before relying on their integrity or signer.")
     body = (f"<div class=tiles>{tiles}</div><section class=panel><h2>Every asset</h2><div class=scroll><table><thead><tr><th>Type</th><th>Asset</th>"
             f"<th>Status</th><th>NIST IR 8547</th><th>CNSA 2.0</th><th>Evidence</th></tr></thead><tbody>{rows}</tbody></table></div></section>")
     return page(title, "Compliance evidence", sub, body)

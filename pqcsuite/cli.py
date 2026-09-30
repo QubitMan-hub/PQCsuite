@@ -427,6 +427,8 @@ def cmd_vault(a):
         what = f"{r['files']} file(s), {r['bytes']} bytes" if r["kind"] == "dir" else f"{r['bytes']} bytes"
         print(f"{a.file}: restores {r['name']} ({what}); every chunk authenticated; opens for {r['recipients']} key(s); "
               + (f"signed by {r['signed_by']}" if r["signed_by"] else "not signed") + "; nothing was written")
+        if r["signed_by"] and not a.ca:
+            print("The signature is intact; the signer's certificate issuer was not checked. Pass --ca to require your CA.")
         if r["recipients"] < 2:
             print("warning: only one key opens it; `pqcsuite vault share` adds a recovery key without re-encrypting", file=sys.stderr)
     elif a.vault_cmd == "share":
@@ -434,6 +436,8 @@ def cmd_vault(a):
         print(f"{a.file} now opens for {n} recipient(s); the encrypted data was not rewritten")
     elif a.vault_cmd == "inspect":
         show(vault.inspect(a.file), a.json)
+        if not a.json:
+            print("Header metadata only: integrity and the claimed signer are unverified. Use `vault verify` with a recipient key.")
     return 0
 
 

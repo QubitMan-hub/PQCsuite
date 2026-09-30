@@ -12,6 +12,7 @@
 - Recent history already improves key overwrite protection, error messages, doctor checks, and documentation; preserve those changes.
 
 ## Completed
+- Vault CLI inspection and compliance evidence identify unverified headers; signature verification without `--ca` explicitly says the issuer is unchecked. Trust-message regression and CLI/compliance/docs tests: 20 passed.
 - Input hardening: controlled HTTP errors for oversized/ambiguous body lengths; finite numeric configuration and integer/boolean distinction; bounded Vault signature lengths. 80 focused tests and 4,051 subtests passed.
 - Website publishing refuses source/ancestor/symlink/unrelated output paths and preserves extra files on repeated builds; URLs are escaped. Wolf Pack reports and published samples have embedded favicons. Full browser suite: 26 passed. Site/docs/Wolf Pack tests: 95 passed, 7 subtests passed.
 - Console: four browser regressions reproduced before fixes; all 13 console tests passed on system Chromium, including mobile/dark mode, accessibility, and real certificate issue/revoke. Python console/secret/docs tests: 15 passed, 6 subtests passed.
