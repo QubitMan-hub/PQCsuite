@@ -204,3 +204,8 @@ Unseen real code: pyjwt 2.9.0, node-jsonwebtoken 9.0.2, age 1.2.1 and paramiko 3
 ## Code Crawler integration (unreleased 1.3.0)
 
 The repository-level `docs/CODE-CRAWLER.md` documents shared file enumeration, reused Python ASTs, bounded static migration relationships, private unified project scans, evidence limits and pinned real-project measurements. The 163-pair development regression corpus and every ablation match the preceding `8c81743` source; official CBOM schema validation has zero errors. This is not a new accuracy claim or a new detector heuristic. See root `AGENT_HANDOFF.md` for final validation and remaining product work.
+
+
+## Optional web ASTs and scoped repository onboarding
+
+The 1.3.0 checkout now has optional Tree-sitter JavaScript/TypeScript adapters feeding the same graph index and impact walk as Python. Package/CommonJS aliases preserve supported public-entrypoint caller chains. Base dependency behavior and crypto detectors remain intact; unsupported/deep/malformed syntax reports gaps. Root `docs/CODE-CRAWLER.md` and `AGENT_HANDOFF.md` contain pinned seven-project runs, regression/privacy/failure checks, source audit, scoped Add repository and remaining limits. CI uses pytest and enables optional parser fixtures. No native parser requirement was added to the base package.

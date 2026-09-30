@@ -7,17 +7,17 @@ How to work on the suite itself: a development install, the tests, the website a
 Python 3.11+, from a clone:
 
 ```
-pip install -e ".[test,integration]"   # [test]: hypothesis; [integration]: certbot and acme, for the ACME tests (leave it out for a lighter setup)
+pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]"   # [test]: hypothesis; [integration]: certbot and acme, for the ACME tests (leave it out for a lighter setup)
 pqcsuite doctor
 ```
 
 ## Tests
 
 ```
-python -m unittest discover -s tests -v
+python -m pytest -q
 ```
 
-With pytest installed, `python -m pytest` at the repository root runs these and Wolf Pack's tests together. The suite needs `cryptography` 49 or newer (for ML-KEM and ML-DSA); an older one stops every test at import with a message saying so.
+The shared pytest runner at the repository root runs these and Wolf Pack's tests together, including project onboarding and optional JavaScript/TypeScript AST fixtures. The base runtime remains independent of the test and web-parser extras. The suite needs `cryptography` 49 or newer (for ML-KEM and ML-DSA); an older one stops every test at import with a message saying so.
 
 CI also lints with `ruff check .`, runs the website and console in Chromium with axe accessibility checks (`tests/browser`: `npm install`, `npx playwright install chromium`, `npx playwright test`), and scans `pqcsuite/` with Wolf Pack against the reviewed inventory in `docs/cbom.json`.
 

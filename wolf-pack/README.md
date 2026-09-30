@@ -2,9 +2,11 @@
 
 A zero-setup scanner that inventories the cryptography in a codebase, its compiled artifacts and its live TLS and SSH endpoints, writes a CycloneDX 1.6 CBOM, and ranks what to migrate first for the post-quantum transition.
 
-Pure Python, one dependency (`cryptography`), runs on Windows, macOS and Linux with Python 3.11 or newer. Python code is parsed with the running interpreter, so scan with the project's Python or newer: files it cannot parse are named in the report (the Docker image and GitHub Action use 3.14).
+Base installation: Python code, one required dependency (`cryptography`), runs on Windows, macOS and Linux with Python 3.11 or newer. Python code is parsed with the running interpreter, so scan with the project's Python or newer: files it cannot parse are named in the report (the Docker image and GitHub Action use 3.14).
 
 Project site: [`site/index.html`](site/index.html), a single self-contained page. Open it locally, or serve it with GitHub Pages from the `site/` folder.
+
+Optional web relationships use maintained Tree-sitter bindings and JavaScript/TypeScript grammars: install `pip install ".[crawler]"` from this folder. This adds three optional parser dependencies; the base package and existing crypto detectors remain usable without them. Unsupported or invalid syntax reports a relationship coverage gap. Python package re-exports and direct CommonJS export aliases feed the shared graph; dynamic dispatch remains unresolved.
 
 ## Quick start (PowerShell)
 
@@ -30,7 +32,7 @@ py -m wolfpack bench bench\corpus                            # full pack plus on
 py -m unittest discover -s tests
 ```
 
-Output lands in `wolfpack-out\`. `cbom.json` is the CycloneDX 1.6 CBOM, validated against the official schema. `report.html` is a self-contained report that works offline. `wolfpack.sarif` is SARIF 2.1.0 for GitHub code scanning. `findings.json` is the full audit trail, including everything the den rejected and why. `relationships.json` records bounded Python AST symbols, imports and static call references without source snippets or argument values. The offline report and CBOM attach supported functions and callers to crypto findings. Dynamic dispatch remains unresolved; static references do not prove runtime reachability.
+Output lands in `wolfpack-out\`. `cbom.json` is the CycloneDX 1.6 CBOM, validated against the official schema. `report.html` is a self-contained report that works offline. `wolfpack.sarif` is SARIF 2.1.0 for GitHub code scanning. `findings.json` is the full audit trail, including everything the den rejected and why. `relationships.json` records bounded Python and optional JavaScript/TypeScript syntax-tree symbols, imports and static call references without source snippets or argument values. The offline report and CBOM attach supported functions and callers to crypto findings. Dynamic dispatch remains unresolved; static references do not prove runtime reachability.
 
 `wolfpack merge` takes CBOMs from many scans, or from other tools such as CBOMkit, and writes one organisation inventory to `wolfpack-inventory\`:
 

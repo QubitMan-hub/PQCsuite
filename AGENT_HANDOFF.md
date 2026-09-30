@@ -1,5 +1,16 @@
 # Agent handoff
 
+## Latest follow-up — shared relationships and customer onboarding
+
+- Extended the shared graph/impact engine with optional JavaScript/TypeScript Tree-sitter adapters, Python package re-exports and direct CommonJS aliases. Supported callers now include affected module evidence. Missing parsers, malformed/deep syntax and unsupported languages expose coverage gaps while retaining crypto findings.
+- Added scoped **Add repository → Scan → Review exposure → Fix**. Admins select `--repositories`; customers can add only immediate child names. Traversal, outside paths and symlinks are rejected. Default results focus on production assets; coverage, tests/declarations and exports are advanced. Wolf Pack's console page links directly to this workflow.
+- Extracted existing private writes/retries/locks to `pqcsuite.storage` with PKI compatibility imports; history now supports competing threads/processes, bounded reads, restart visibility and errors that do not discard successful scans. One report writer replaces CLI coupling. Polling uses small job status payloads.
+- CI now installs optional parser fixtures and runs pytest, correcting unittest discovery that did not execute function-style crawler/project tests. Targeted privileged checks remain unchanged. Base packages keep one required runtime dependency each; optional web relationships add three native parser dependencies.
+- Validation: full Python suite 359 passed, 12 prerequisite skips, 4,431 subtests passed; final targeted integration/regression checks passed. Browser suite: 35 passed, including scoped onboarding, real Python/TypeScript scans, cold-start onboarding, evidence/history/exports and existing mobile/accessibility coverage. Both wheels built and installed; base scanning without parsers and web scanning with parser extras both succeeded. Ruff, basic mypy (60 source files), pip check, doctor, corpus regression/ablations, CBOM baseline and schema (0 errors), repeatable publishing and direct parser dependency vulnerability audit passed.
+- Seven pinned public repositories scanned statically (Python/JS/TS/Go). Node JSON Web Token exposed a directory-import bug, fixed with a fixture. Public-repository counts are performance/processing evidence, not precision/recall claims. The complete repository was rescanned outside the checkout, including intentional weak fixtures/catalogs. See `docs/CODE-CRAWLER.md` for measurements, limits, cleanup decisions and remaining release work.
+- Static unused checking found no confirmed dead callable; required context-manager parameters were preserved. Existing config/binary/unsupported-language and argument-flow detectors remain necessary; do not remove them as alleged duplicates. This adds capabilities and reduces coupling, not net source lines.
+- Claude Code's active state remains unknown. Repeated local status/diff and origin/main checks showed no overlapping work beyond base `10e9deb`. No worktree, PR, force push, credential changes or protection bypass.
+
 ## Latest pass — Code Crawler and minimal workflow
 
 - Added shared discovery and Python AST relationships, connected to accepted Wolf Pack findings, CBOM and offline reports. Existing detector results/tiers remain unchanged on all development-corpus ablations.

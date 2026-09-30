@@ -16,14 +16,14 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 From a source checkout, install the scanner alongside the suite:
 
 ```sh
-pip install ./wolf-pack '.[scan]'
+pip install './wolf-pack[crawler]' '.[scan-web]'
 pqcsuite scan ./payments-api --out pqcsuite-out --open
-pqcsuite console --project ./payments-api --project-history project-history.json
+pqcsuite console --repositories ./repositories --project-history project-history.json
 ```
 
-The Readiness page provides **Scan project**, priorities, affected functions and static callers, plus downloadable evidence. The CLI writes an offline report, CBOM, SARIF, audit findings, code relationships and assessment JSON. Unified scans omit source snippets and raw source literals. Optional history keeps the last 100 summaries locally.
+The Readiness page provides **Add repository → Scan project → Review exposure → Know what to fix**. Repository selection stays inside the administrator-approved local parent folder. Priorities, affected modules/functions/callers and scan history appear together; parser coverage, test-only findings and exports are in advanced views. The CLI writes an offline report, CBOM, SARIF, audit findings, code relationships and assessment JSON. Unified scans omit source snippets and raw source literals. Optional history keeps the last 100 summaries locally.
 
-Python relationships reuse Wolf Pack's existing AST; other languages retain their crypto detectors. Dynamic dispatch and business ownership require review. Source stays on your machine and is never executed by the scan. See [Code Crawler](docs/CODE-CRAWLER.md) for evidence limits and measured validation. Wolf Pack 1.3.0 here is checkout code; install from the checkout until that release is published.
+Python relationships reuse Wolf Pack's existing AST. Optional JavaScript/TypeScript syntax trees feed the same graph and impact engine; other languages retain their crypto detectors with explicit relationship gaps. Dynamic dispatch and business ownership require review. Source stays on your machine and is never executed by the scan. See [Code Crawler](docs/CODE-CRAWLER.md) for evidence limits and measured validation. Wolf Pack 1.3.0 here is checkout code; install from the checkout until that release is published.
 
 ## Try it in one minute
 

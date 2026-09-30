@@ -1,70 +1,67 @@
-# Code Crawler and one project scan
+# Code Crawler and repository readiness
 
-Run from the checkout with Python 3.11+ (use the project's interpreter or newer):
+From a source checkout:
 
 ```sh
-pip install ./wolf-pack '.[scan]'
+pip install './wolf-pack[crawler]' '.[scan-web]'
 pqcsuite scan ./payments-api --out pqcsuite-out --open
-pqcsuite console --project ./payments-api --project-history project-history.json
+pqcsuite console --repositories ./repositories --project-history project-history.json
 ```
 
-Wolf Pack 1.3.0 is the scanner version in this checkout. It has not been published by this change. A base PQCsuite installation keeps scanning optional and gives an installation message when the capability is missing.
+The administrator selects a local parent folder once. Customers choose **Add repository**, scan, review exposure and migration candidates, then inspect the affected modules and recommended action. Only immediate child folder names are accepted; absolute paths, traversal, hidden names and symlinks are rejected. `--project PATH` remains available for individual authorized folders. Registration is local to the running console; source folders are not cloned, installed, uploaded or executed.
 
-The console's Readiness page puts **Scan project** first when folders are registered. Pick a folder and scan once. The result shows crypto assets, priorities, supported functions/callers, evidence limits and completion time. Search and filter the migration queue; inspect a finding's affected code. Assessment and relationship JSON can be downloaded. Endpoint probing remains a separate explicit action, because a source finding cannot establish the state of a deployed endpoint.
+The default queue focuses on accepted production assets. Advanced views expose test-only/declared assets, language/file coverage, unresolved calls and JSON downloads. History summaries survive console restarts. Source findings and endpoint observations remain distinct evidence; no code-to-deployment mapping or universal readiness score is invented.
 
-## Pipeline and evidence
+Wolf Pack 1.3.0 is checkout code, unreleased by this change. For a base Python-only installation use `./wolf-pack` and `.[scan]`. Web relationships add three optional dependencies: Tree-sitter plus JavaScript/TypeScript grammars, with native bindings. No new required runtime dependency was added to either package.
 
-One file snapshot feeds the existing Wolf Pack scouts. Python ASTs already parsed by the crypto detector also feed Code Crawler; there is no second Python parser or new runtime dependency. Accepted findings are attached to enclosing function bodies. Supported lexical and cross-module references provide reverse caller chains. Names, relative locations, imports, class bases, symbols and references form `relationships.json`.
+## One shared pipeline
 
-Direct definitions, aliases, conventional `src` layouts, relative imports, nested functions and async functions are supported. Parameter/reassignment shadowing, duplicate definitions, wildcard imports, anonymous callbacks and dynamic method dispatch remain unresolved. Default argument and decorator expressions are not attributed to the function body. Other languages retain Wolf Pack's existing detectors but do not get Python relationship coverage. A static chain is evidence of a source reference, not proof of runtime reachability, business ownership or protection.
+One file snapshot feeds existing Wolf Pack detectors. Python crypto discovery shares its AST with Code Crawler; JavaScript/TypeScript source already read by the scanner feeds optional syntax-tree adapters. Both adapters normalize into one symbol/import/call/alias index and one reverse impact walk. The existing crypto detectors still establish algorithms, confidence, tier and remediation; graph context adds supported functions, callers and modules. This avoids building a second crypto scanner.
 
-Traversal skips vendor/cache/output folders and symlinks and honors Git's tracked-file/ignore rules. Git filesystem-monitor hooks are disabled. If Git is unavailable or the folder is not a repository, the ordinary directory/exclusion rules apply; standalone `.gitignore` parsing is not provided. Default source input size remains 2 MB per file. Compiled artifacts retain their existing separate size/build-directory rules. Oversized/unparseable source is reported by existing scanner notes.
+Files → modules → classes → functions → calls/imports → crypto evidence → migration action. Dependency references and Python package re-exports/direct CommonJS aliases preserve supported public-entrypoint chains. Caller references establish source relationships, not runtime reachability or business ownership. Real method dispatch, proxies, ES export-star/barrel chains, callbacks and arbitrary computed expressions require review. Constructors and inheritance are not expanded into runtime dispatch graphs.
 
-Graphs cap symbols at 20,000, calls/imports at 100,000 each, and each reverse impact walk at 500 symbols. Partial graph/impact flags remain visible. The file snapshot stores paths and sizes only. Fresh scans intentionally reread source: no persistent customer-source cache or uncertain invalidation scheme was added. Scan cost still includes file detection and AST parsing; these limits do not impose a whole-project CPU/time quota.
+Malformed optional-parser syntax and analysis-depth failures retain existing crypto findings while reporting a relationship gap. Missing optional parsers retain the base scan and explicit missing-language counts. Unsupported languages such as Go, C/C++, Java and Rust keep their existing detectors, with no relationship adapter claimed.
 
-## Privacy, exports and history
+Traversal honors Git ignore/tracked rules, default exclusions and explicit scope, disables Git filesystem-monitor hooks, and skips symlinks. Compiled artifacts retain their distinct build-folder/size handling. Without Git the regular directory/exclusion rules apply; standalone `.gitignore` parsing is not provided. Source size remains 2 MB per file. Graph limits are 20,000 symbols, 100,000 calls/imports/aliases each, 20 alias hops, and 500 symbols per reverse caller walk. Limits/cycles do not establish complete reachability. There is no persistent source cache or whole-project time/memory quota.
 
-No project code is executed, uploaded, or sent to an AI service. Unified scans remove source snippets and raw source literals before writing reports. The standalone `wolfpack` audit retains its existing detailed findings behavior. Algorithm names, key sizes and other security parameters remain available for assessment. Even sanitized results contain file/symbol names and certificate or dependency metadata: treat them as private.
+## Shared storage and privacy
 
-CLI output includes `report.html`, `cbom.json`, `wolfpack.sarif`, `findings.json`, `relationships.json` and `assessment.json`. Individual files are published atomically with owner-only permissions on POSIX; this is not a transaction across the entire output folder. User-selected output/history paths inside the scan root are excluded from that scan. The default `pqcsuite-out` is excluded across ordinary scans.
+Private atomic writes, Windows sharing retries and reentrant process/thread locks live in `pqcsuite.storage`, reused by CA state and project history. Existing PKI imports remain compatible. History append/read uses a named lock, bounded reads and the last 100 project/time/summary records, preventing competing writers from losing records. Invalid history does not discard a successful scan. The console reads persisted summaries and reports history errors separately.
 
-Optional history stores the last 100 project/time/summary records, caps input at 1 MB, and uses private atomic writes. Keep one writer per history file; cross-process history merging is not implemented. Full console results remain in memory and clear with process restart; history is an operator artifact, not a fleet database or identity/RBAC system. Browsers can request only administrator-registered folder IDs. Scans have real stage messages, no fabricated percentage or automatic endpoint probes.
+Individual reports are written atomically, with owner-only POSIX permissions; this is not a transaction over the complete folder. Unified exports remove source snippets and raw source literals; algorithm names, key sizes, certificate/dependency metadata and symbol/file names remain assessment evidence and should be treated as private. Standalone Wolf Pack retains its forensic audit behavior. Output/history paths inside a project are excluded from that scan. Progress polling fetches small job status instead of repeatedly transferring full graphs.
 
-## Measured validation
+One report writer now serves both CLIs without making the suite load Wolf Pack's command parser. Offline reports, CBOM, SARIF, raw findings, relationship JSON and unified assessment JSON retain their formats/functionality. Fleet identity/RBAC and a shared fleet database remain separate work.
 
-Pinned public repositories were cloned and scanned statically; their code and dependencies were not executed or installed. These are single runs on the prepared Linux/Python 3.12 host, not universal performance claims. Peak RSS includes the Python process and existing scanner.
+## Validation and accuracy boundaries
 
-| Project and commit | Python files | Functions | Resolved / observed calls | Crypto assets | Seconds | Peak RSS KiB |
-|---|---:|---:|---:|---:|---:|---:|
-| Paramiko `142f593e40ad767c5e3556cbace66dc84589620c` | 70 | 1,446 | 930 / 7,773 | 45 | 1.45 | 40,752 |
-| ItsDangerous `672971d66a2ef9f85151e53283113f33d642dabd` | 15 | 115 | 59 / 372 | 5 | 0.10 | 26,908 |
-| PyJWT `b5bd6fe6d7ac0370ba90557c7a1e3d50a9414572` | 26 | 545 | 604 / 2,853 | 19 | 0.62 | 36,600 |
-| CryptoJS `ac34a5a584337b33a2e567f50d96819a96ac44bf` | 0 | 0 | 0 / 0 | 17 | 0.52 | 27,392 |
+Pinned public projects were cloned and scanned statically. Their code and dependencies were not executed or installed. These are single Linux/Python 3.12 runs, not universal performance/accuracy claims. RSS includes the interpreter and existing scanner.
 
-No graph cap was hit. Real-repository counts measure successful processing, not precision/recall: these projects have no complete independent call/crypto truth labels. Existing Wolf Pack benchmark/held-out tooling remains the path to a labeled accuracy study. CryptoJS explicitly demonstrates language limits rather than claiming a complete graph.
+| Project and commit | AST files by language | Functions | Resolved / observed calls | Crypto assets | Seconds | Peak RSS KiB |
+|---|---|---:|---:|---:|---:|---:|
+| node-jsonwebtoken `b924272f29192e12926b5414546f7c5bfcc9579d` | JavaScript: 46 | 30 | 59 / 370 | 18 | 0.42 | 28772 |
+| paramiko `142f593e40ad767c5e3556cbace66dc84589620c` | Python: 70 | 1446 | 1114 / 7773 | 45 | 1.51 | 39868 |
+| jose `55c959fd16852462498b0d82c52c4eca07d48f26` | JavaScript: 17, TypeScript: 122 | 371 | 753 / 2513 | 42 | 1.71 | 37480 |
+| itsdangerous `672971d66a2ef9f85151e53283113f33d642dabd` | Python: 15 | 115 | 59 / 372 | 5 | 0.11 | 25784 |
+| pyjwt `b5bd6fe6d7ac0370ba90557c7a1e3d50a9414572` | Python: 26 | 545 | 647 / 2853 | 19 | 0.79 | 35364 |
+| golang-jwt `73c870b18e68b6e654b2b03f485aa3c9fab32cea` | no supported AST files | 0 | 0 / 0 | 17 | 0.29 | 25836 |
+| crypto-js `ac34a5a584337b33a2e567f50d96819a96ac44bf` | JavaScript: 105 | 6 | 3 / 117 | 17 | 0.62 | 28004 |
 
-Focused fixtures verify RSA wrappers across modules, ECDSA, ECDH, AES, SHA, TLS and ML-KEM impact, aliases/relative/nested/async references, shadowing, ambiguous definitions, deferred expressions, malformed/mixed-language files, Git ignores, binary retention, hook suppression, private exports, registered API paths, bounded history and retryable errors. Browser validation includes a real project scan and graph download alongside existing console and mobile/accessibility tests.
+All seven runs completed. Go intentionally has no AST relationships; CryptoJS anonymous wrappers also limit relationships despite valid parsing. Shell files in ItsDangerous/Jose explicitly report unsupported relationship coverage. There is no independent complete truth set for these repositories, so their counts do not establish precision or recall. Existing labeled/held-out tooling remains available for accuracy studies.
 
-### Detector regression baseline
+Focused fixtures cover RSA/ECC/ECDSA/ECDH/AES/SHA/TLS/ML-KEM, aliases, Python package and CommonJS re-exports, ES imports/default exports, TypeScript arrows, classes, parameter shadowing, private exports, cycles, deferred expressions, directory/dotted imports, malformed/deep syntax, missing parsers, Git ignores/hooks, private artifacts, scope restrictions, concurrent history and retryable failures. Browser tests exercise actual Python and TypeScript scans, scoped Add repository, advanced evidence and exports, history, mobile layouts and accessibility.
 
-The 163-pair development corpus is a regression fixture, deliberately tuned on. Its numbers are not real-world accuracy evidence. Baseline source was exported from `8c81743`; all 20 full/ablation configurations matched after this change.
+The 163-pair development corpus is a tuned regression fixture, not real-world accuracy evidence. Every full/ablation configuration matches the previous classifier results: full-pack FP/FN remain 0/0. Full Python validation: 359 passed, 12 prerequisite skips, plus final focused regressions. Browser validation covers 35 cases, including cold-start onboarding. Both built wheels were installed in an isolated environment: the base package scanned JavaScript with explicit missing-parser coverage, then parser extras enabled TypeScript relationships. Ruff, basic mypy (60 source files), pip check, doctor, production CBOM baseline and repeatable publishing passed. A targeted vulnerability audit of the three installed parser dependencies found no known vulnerabilities. Official CycloneDX 1.6 schema validation reports zero errors. CI now runs pytest and provisions optional parser fixtures; previous unittest discovery did not execute function-style crawler/project tests. Existing targeted privileged protocol checks remain intact.
 
-| Development fixture check | Before | After |
-|---|---:|---:|
-| Full-pack false positives | 0 | 0 |
-| Full-pack false negatives | 0 | 0 |
-| Full-pack precision / recall / F1 | 1 / 1 / 1 | 1 / 1 / 1 |
+## Whole-repository audit and minimal complexity
 
-Official CycloneDX 1.6 validation reported zero schema errors on the unified scan CBOM. Full Python validation passed 339 tests with 12 prerequisite skips; all 33 browser tests passed. Both built wheels were installed into a fresh virtual environment and the local project CLI ran successfully there. Ruff, basic mypy (58 source files), dependency consistency, doctor, the existing CBOM baseline gate and repeatable site publishing passed.
+The final repository scan is kept outside the checkout. It includes intentional weak examples, detector corpora, tests and catalogs; its findings are evidence for review, not automatically production vulnerabilities. Existing reviewed `docs/cbom.json` baseline gating is also checked against production `pqcsuite`.
 
-## Minimal-code audit
+Static unused-symbol checking found only unused exception parameters required by context-manager interfaces, not confirmed dead callables. They were retained. Unused imports and CLI/report coupling were removed. Storage implementation moved once, with compatibility imports, instead of adding a separate history-locking framework. Source adapters share graph resolution and impact; existing regex/config/binary detectors remain necessary for their supported inputs and were preserved.
 
-Compared with `8c81743`, production source in `pqcsuite`, `wolf-pack/wolfpack`, `site` and `scripts` grows from 70 to 72 files, 61 to 63 Python files and 12,867 to about 13,250 nonblank lines. The feature adds two focused modules rather than a framework. Initial wheels grow from 166,656 to 171,051 bytes (suite) and 132,851 to about 137,002 bytes (scanner). Each package still has one direct required runtime dependency; the suite adds the existing scanner as an optional extra.
+Current source measurement: 74 production source files; 65 Python files; 13603 nonblank production lines. Previous pass: 72 source files, 63 Python files and about 13,250 nonblank lines. New AST and onboarding capabilities add code; this is a complexity/consolidation improvement, not a claimed net line-count reduction. Embedded offline assets and independently packaged branding copies remain intentional. Required runtime dependencies remain one per package; parser/testing extras are explicit.
 
-The simplification is fewer duplicated responsibilities: one directory enumeration per scan, one Python AST shared with the existing detector, one report writer reused by both CLIs, and one customer project action instead of scan/export/manual-CBOM-import. Cryptographic implementations, protocol adapters and standalone forensic exports remain intact. No artificial line-count reduction or security-sensitive rewrites were used. Embedded assets in offline reports and separate package/site distributions are intentional, not dead duplicates.
+## Remaining release work
 
-## Remaining work
+Additional language AST adapters, verified runtime/deployment mapping, cancellation/whole-project quotas, signed desktop installers, fleet identity/RBAC and external fleet storage remain open. Privileged real VPNs, cloud/Kubernetes, long-duration reliability and independent security review require their real environments. This change does not claim market superiority or completion of those release gates.
 
-Language-specific graphs beyond Python, verified deployment/workflow mapping, signed desktop installers, shared fleet storage/RBAC, cancellation/resource quotas and independent security review remain separate work. Privileged VPN dataplane, live cloud/Kubernetes and long-duration reliability validation require their real environments. This change does not establish market superiority or eliminate those release gates.
-
-Repository workflow skill: [PQCsuite project scan](../.agents/skills/pqcsuite-project-scan/SKILL.md).
+Repository workflow: [project scan skill](../.agents/skills/pqcsuite-project-scan/SKILL.md).

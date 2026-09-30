@@ -81,3 +81,9 @@ Four products sharing one ML-DSA certificate authority.
 - Shared, git-aware file enumeration and reused Python ASTs avoid repeated discovery and parsing.
 - Private unified exports, bounded summary history, registered console folders, real progress, and offline relationship evidence.
 - Python-only static relationship coverage is explicit; dynamic dispatch and business ownership remain review tasks.
+
+### Shared crawler and customer workflow follow-up (unreleased)
+
+- Optional JavaScript/TypeScript syntax trees share the Python graph/impact engine; supported package/export aliases preserve public API caller chains.
+- Scoped Add repository, a production-focused migration queue, advanced coverage/exports, durable summary history and lightweight progress polling.
+- Shared storage/locking and report writing replace CLI/CA coupling; existing interfaces remain compatible. CI uses pytest for function-style crawler fixtures.
