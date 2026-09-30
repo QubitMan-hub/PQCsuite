@@ -46,7 +46,11 @@ summary:focus-visible,.scroll:focus-visible{outline:2px solid var(--accent);outl
 .fix{margin:10px 0 6px;font-size:12.5px}.fix div{padding:3px 0}.fix code{background:var(--sunken);border-radius:4px;padding:0 4px}
 svg.trend{color:var(--accent-text)}
 footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);color:var(--mute);font-size:12px}
-@media print{body{background:#fff}.scroll,details,.pack div{break-inside:avoid}}
+[hidden]{display:none!important}.tools{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:14px 0}
+.tools label{display:grid;gap:4px;color:var(--ink-2);font-size:12px}.tools input,.tools select,.tools button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-width:100%}
+.tools button{background:var(--accent);color:#111;cursor:pointer}.tools [role=status]{color:var(--mute);font-size:12px}
+a{color:var(--ink);text-underline-offset:3px}input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
+@media print{.tools{display:none!important}body{background:#fff}.scroll,details,.pack div{break-inside:avoid}}
 """
 
 

@@ -4,6 +4,8 @@ Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Sui
 
 ## Unreleased
 
+- Offline reports now search/filter/sort the migration queue, link assets to evidence/remediation, and export filtered CSV with spreadsheet-formula protection. Reports remain readable without JavaScript; website samples use the same functionality.
+
 - Reports embed their favicon, avoiding missing external assets in standalone and published sample reports.
 - Scanner registries have explicit type annotations for basic static checking; scanning behavior is unchanged.
 

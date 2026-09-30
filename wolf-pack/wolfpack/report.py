@@ -59,18 +59,18 @@ def policy_html(c):
 def html(r):
     st, rd = r.stats, r.readiness
     rows = []
-    for a in r.assets:
+    for index, a in enumerate(r.assets):
         locs = sorted({s.file for s in a.sightings})
         new = ("<span class=new>new</span>" if a.new_files else "") + ("<span class=new title='only named in an algorithm list or table, not seen in use'>declared</span>" if a.declared else "")
-        rows.append(f"""<tr class="{a.tier}"><td>{tier(a.tier)}</td><td><b>{e(a.variant)}</b>{new}</td>
+        rows.append(f"""<tr class="{a.tier}" data-asset="{index}" data-tier="{e(a.tier)}" data-count="{len(a.sightings)}" data-confidence="{a.confidence}"><td>{tier(a.tier)}</td><td><a href="#asset-{index}"><b>{e(a.variant)}</b></a>{new}</td>
 <td class="w">{e(a.why)}</td><td class="w">{e(a.action) or '<span class="dim">none needed</span>'}</td><td>{e(a.exposure)}</td>
 <td>{len(a.sightings)} in {_plural(len(locs), 'place')}</td><td>{a.confidence:.2f}</td></tr>""")
     detail = []
-    for a in r.assets:
+    for index, a in enumerate(r.assets):
         occ = "".join(f"<div><code>{e(s.file)}{':' + str(s.line) if s.line else ''}</code> {e(s.evidence)}, {e(s.reason)}<br>{e(s.snippet)}</div>" for s in a.sightings[:60])
         fixes = "".join(f"<div><b>{e(w)}</b>: {_code(f)}</div>" for w, f in a.remedies)
         fixes = f"<div class='fix'><span class=tag>How to fix</span>{fixes}</div>" if fixes else ""
-        detail.append(f"<details><summary>{tier(a.tier)} <b>{e(a.variant)}</b> <span class='dim'>{e(a.nist)}</span></summary>{fixes}<div class='occ'>{occ}</div></details>")
+        detail.append(f"""<details id="asset-{index}"><summary>{tier(a.tier)} <b>{e(a.variant)}</b> <span class='dim'>{e(a.nist)}</span></summary>{fixes}<div class='occ'>{occ}</div></details>""")
     alerts = "".join(f"<div class='alert'><span><span class='tag {e(s)}'>{e(s)}</span></span><div>{e(t)}<br><span class='dim'>{e(w)}{'; ' + e(f) if f else ''}</span></div></div>"
                      for s, t, w, f in r.alerts) or "<p class='dim'>No hygiene alerts.</p>"
     libs = "".join(f"<tr><td>{e(l.name)}</td><td>{e(l.ecosystem)}</td><td>{e(l.version) or '<span class=dim>unpinned</span>'}</td>"
@@ -101,8 +101,14 @@ def html(r):
 {base}
 {pol}
 <h2>Migration queue</h2>
+<p>Priorities are scanner assessments, not proof of runtime protection. Inspect the asset's evidence before changing a system.</p>
+<div class="tools" id="queue-tools" hidden><label>Search findings<input id="finding-search" type="search" placeholder="Algorithm, exposure, recommendation"></label>
+<label>Priority<select id="finding-tier"><option value="">All priorities</option><option>critical</option><option>high</option><option>medium</option><option>low</option><option>ok</option></select></label>
+<label>Sort by<select id="finding-sort"><option value="priority">Migration priority</option><option value="asset">Asset name</option><option value="count">Most sightings</option><option value="confidence">Highest confidence</option></select></label>
+<button id="finding-export" type="button">Export filtered CSV</button><button id="finding-reset" type="button">Reset filters</button><span id="finding-count" role="status" aria-live="polite"></span></div>
 <div class="scroll" tabindex="0"><table><thead><tr><th>Tier</th><th>Asset</th><th>Why</th><th>Do this</th><th>Exposure</th><th>Seen</th><th>Conf.</th></tr></thead>
-<tbody>{''.join(rows) or '<tr><td colspan=7 class=dim>No cryptography found.</td></tr>'}</tbody></table></div>
+<tbody id="migration-rows">{''.join(rows) or '<tr><td colspan=7 class=dim>No cryptography found.</td></tr>'}</tbody></table></div>
+<p id="finding-empty" hidden>No findings match. Clear the search or choose All priorities.</p>
 <h2>Hygiene alerts</h2>{alerts}
 <h2>Where each asset lives</h2>{''.join(detail)}
 <h2>Crypto libraries</h2>
@@ -111,7 +117,7 @@ def html(r):
 <h2>Held back by the den</h2>
 <p class="dim">{'; '.join(f'{v} {k}' for k, v in why.most_common())}</p>
 <details><summary>Show {len(q)} sightings that did not enter the CBOM</summary><div class="occ">{quar}</div></details>
-{''.join(f'<p class="dim">{e(n)}</p>' for n in r.notes)}"""
+{''.join(f'<p class="dim">{e(n)}</p>' for n in r.notes)}""" + INTERACTIVE
     sub = f"Cryptographic inventory and quantum migration plan, scanned in {st['seconds']}s.{_ablation(st)}"
     return page(f"{r.project}: Wolf Pack CBOM", "Cryptographic inventory", r.project, e(sub), body,
                 "CycloneDX 1.6 CBOM in cbom.json, SARIF 2.1.0 in wolfpack.sarif, full audit trail in findings.json")
@@ -146,3 +152,40 @@ def terminal(r):
     for n in r.notes:
         out.append(f"  note: {n}")
     return "\n".join(out)
+
+
+# Static script: scan content is escaped HTML, never interpolated into JavaScript.
+INTERACTIVE = """<script>
+(() => {
+  const $ = id => document.getElementById(id), body = $("migration-rows");
+  const rows = [...body.querySelectorAll("tr[data-asset]")], priorities = {critical:0,high:1,medium:2,low:3,ok:4};
+  $("queue-tools").hidden = false;
+  const draw = () => {
+    const query = $("finding-search").value.toLowerCase(), tier = $("finding-tier").value, sort = $("finding-sort").value;
+    const ordered = rows.slice().sort((a,b) => sort === "asset" ? a.cells[1].textContent.localeCompare(b.cells[1].textContent) :
+      sort === "count" ? Number(b.dataset.count) - Number(a.dataset.count) : sort === "confidence" ? Number(b.dataset.confidence) - Number(a.dataset.confidence) :
+      priorities[a.dataset.tier] - priorities[b.dataset.tier]);
+    let visible = 0;
+    for (const row of ordered) {
+      row.hidden = !!((tier && row.dataset.tier !== tier) || !row.textContent.toLowerCase().includes(query));
+      const detail = $("asset-" + row.dataset.asset);
+      detail.hidden = row.hidden;
+      if (!row.hidden) visible++;
+      body.append(row);
+    }
+    $("finding-count").textContent = `${visible} of ${rows.length} assets`;
+    $("finding-empty").hidden = visible !== 0 || rows.length === 0;
+  };
+  $("finding-search").oninput = draw; $("finding-tier").onchange = draw; $("finding-sort").onchange = draw;
+  $("finding-reset").onclick = () => { $("finding-search").value = ""; $("finding-tier").value = ""; $("finding-sort").value = "priority"; draw(); };
+  for (const row of rows) row.querySelector("a").onclick = () => { $("asset-" + row.dataset.asset).open = true; };
+  $("finding-export").onclick = () => {
+    const csv = [["Priority","Asset","Why","Next action","Exposure","Sightings","Confidence"],
+      ...[...body.querySelectorAll("tr[data-asset]")].filter(r => !r.hidden).map(r => [...r.cells].map(c => c.textContent.trim()))]
+      .map(row => row.map(v => '"' + (/^[\\s]*[=+@-]/.test(v) ? "'" : "") + v.replace(/"/g, '""') + '"').join(",")).join("\\r\\n");
+    const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"})), a = document.createElement("a");
+    a.href = url; a.download = "wolfpack-migration.csv"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  draw();
+})();
+</script>"""
