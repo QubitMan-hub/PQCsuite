@@ -1,35 +1,26 @@
 # Agent handoff
 
-## Active Work
+## Active work
+- Codex: product improvements and earlier hardening verified on `main`; preparing direct fast-forward push. No PR requested.
+- Claude Code: current work unknown. Repeated checks found no overlapping local edits or remote-main changes beyond base `ed4b260`. Existing customer-experience work was preserved.
 
-### Codex
-- Implementation and local validation complete on `codex/security-and-console-hardening`; changes are prepared for review.
-
-### Claude Code
-- Current work unknown. No overlapping local changes or new remote-main commits were observed during this pass (base `ed4b260`).
-- Preserved recent key overwrite protections, error messages, doctor checks, and documentation improvements.
-
-## Completed
-- Exclusive, unpredictable CA/Vault temporary writes; private plaintext staging and restore outputs; preservation of dangling destination symlinks.
-- Renewal status check and issuance share the CA lock; a deterministic test reproduces and prevents renewal after a competing revocation.
-- Console action progress/errors/confirmed results, duplicate-submit protection, stale-response guards, and scan polling after navigation. Actual CA algorithm and unverified backup metadata labels.
-- Safe repeatable site builds preserve unrelated files and reject dangerous destinations. Reports embed favicons; backup CLI/compliance output distinguishes metadata and signer trust.
-- Bounded HTTP/signature lengths, explicit HTTP framing errors, finite numeric settings, and basic type annotations.
+## Completed — do not duplicate
+- Earlier hardening: unpredictable exclusive temporary writes/private Vault restores, renewal/revocation locking, bounded input, reliable console mutations/navigation, safe repeatable site publishing, and unverified backup metadata labels.
+- Readiness: observed posture metrics, priority/search filters, evidence/next actions (legacy protocols, trust failures, expiring certificates), JSON/CSV downloads, and retained targets for rescan.
+- Wolf Pack: offline report search/priority filtering/sorting, linked evidence/remediation and CSV export. JavaScript-free reading remains usable; site samples regenerated.
+- Integration: bounded local CycloneDX CBOM review beside endpoint assessment. Files never upload, content is escaped, and imported inventory clears on sign out. No invented combined score or code-to-endpoint mapping.
+- VPN/Vault: truthful gateway observations and CLI diagnostic output, concise setup/verify/recover guidance. Overview excludes expired certificates from valid counts, surfaces unreachable VPN sources, and chooses the newest archive across folders.
+- Market map/design decisions/final gaps: `docs/PRODUCT-REVIEW.md` (public references; no authenticated competitor-product access). Acxelin primitives retained, no new runtime dependencies/crypto primitives.
 
 ## Verification
-- Full Python suite: 325 passed, 12 skipped, 4,385 subtests passed (final run). Skips: missing nginx/PostgreSQL/Redis/MQTT, root/OpenSSH, and privileged VPN/WireGuard prerequisites.
-- Browser suite: 26 passed on installed Chromium, including mobile/dark mode, accessibility, and real certificate issuance/revocation. Desktop/mobile visuals inspected.
-- Ruff and basic mypy (`--ignore-missing-imports`, 56 source files) passed; both wheels built; site published twice locally; pip check, pip-audit, npm audit and CBOM baseline passed.
-- TLS smoke, clinic and bank demos passed. Short soak: 3,056 successful connections, 0 failed, 3/3 revocations enforced, stable final thread/file counts. This does not validate days-long behavior.
+- Final Python suite: 327 passed, 12 skipped, 4,407 subtests passed. Skips require missing external services or privileged VPN/OpenSSH/platform prerequisites.
+- Final browser suite: 32 passed on installed Chromium (local config outside checkout), including real issue/revoke, local scan/rescan targets, CBOM escaping/local-only import, exports, offline reports, mobile/dark layouts, and accessibility.
+- Ruff, basic mypy (56 source files), compileall, both wheels, site publishing twice, doctor, pip check, CBOM baseline, TLS tour and clinic workflow passed. Desktop/mobile/dark screenshots inspected using actual local unreachable-endpoint data.
+- Earlier pass also verified dependency audits, bank workflow and a one-minute TLS/revocation soak; those do not establish days-long reliability.
 
-## Important Decisions
-- No changes to cryptographic primitives or archive format. Restored folder roots are 0700 on POSIX; internal archive modes are retained.
-- Archive headers are not proof of integrity or signer identity. Use `vault verify` with a recipient key and `--ca` for issuer trust.
-- No destructive Git operations, force pushes, or speculative feature/dependency removals.
-
-## Needs Attention
-- Docker build blocked by network policy at `registry-1.docker.io`; GitHub API at `api.github.com` returns Forbidden. Native Git reads work. Playwright download hosts are denied; browser checks used `/usr/bin/chromium` with a local config outside the checkout.
-- Independent security/cryptographic review, real cloud/managed Kubernetes deployments, days-long soak, and VPN checks on real laptops remain release limitations (`docs/RELEASE-READINESS.md`).
-
-## Do Not Duplicate
-- Reviewed improvements above and the pre-existing customer-experience work. Re-read current Git state before editing overlapping files.
+## Boundaries and remaining work
+- No consumer one-download VPN installer or browser connect/disconnect API. Existing native services/adapters require administrator credentials and OS tools. Separate referenced PQCvpn source was not found; public documentation was reviewed.
+- Signed desktop packaging/enrollment, multi-user ownership/RBAC and durable fleet history remain product gaps. See product review and release-readiness docs.
+- Real laptop/privileged tunnel tests, independent security review, real cloud/Kubernetes and days-long validation remain release limitations. Docker registry/build and pinned Playwright downloads were blocked in the earlier pass; browser validation uses system Chromium.
+- Remote research was partially reachable on retries; Acxelin/PQCrypto/Tailscale/Vault and other public pages were read. Some specialized sources remained 403/404; remote hydrated visuals were unreliable. Do not claim all competitor functionality was verified.
+- Preserve current Git identity, concurrent work and shared history. No force pushes or branch-protection bypasses.

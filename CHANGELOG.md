@@ -4,6 +4,9 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 ## Unreleased
 
+- **Actionable readiness:** observed posture metrics, migration-priority filtering, evidence and next actions, JSON/CSV exports, and local Wolf Pack CBOM review without uploading code or combining unrelated scores.
+- **Clear VPN and Vault workflows:** gateway telemetry is distinguished from device protection; Vault explains protection, verification and recovery. VPN diagnostic-only key agreement no longer claims a connection. Overview excludes expired certificates from valid counts and reports unreachable VPN status sources.
+
 - **Safer file operations:** CA and Vault temporary writes use exclusive, unpredictable names. Restore uses private plaintext staging and owner-only restored files/folder roots on POSIX, and preserves dangling destination symlinks.
 - **Revocation and renewal:** renewal checks status while holding the CA lock through issuance, so a renewal waiting behind a revocation cannot issue a replacement for the revoked certificate.
 - **Reliable console actions:** certificate operations show progress and confirmed success or failure, prevent duplicate pending submits, and preserve the selected page when older requests finish. Running readiness scans resume polling when reopened. CA algorithm labels come from the actual certificate.

@@ -219,6 +219,7 @@ A clinic's patient portal, old records server, a doctor's laptop and nightly bac
 | [SECURITY.md](SECURITY.md) | Reporting a vulnerability, and every classical algorithm in the code and why it is there |
 | [docs/SECURITY-REVIEW.md](docs/SECURITY-REVIEW.md) | The brief for an independent security review: assets, trust boundaries, what to test |
 | [docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md) | What every release must pass, and what has not been validated yet |
+| [docs/PRODUCT-REVIEW.md](docs/PRODUCT-REVIEW.md) | Market map, implemented customer workflows, evidence boundaries and remaining product gaps |
 | [docs/PILOT.md](docs/PILOT.md) | Step-by-step checks that need your own cloud accounts or hardware |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Working on the suite: tests, the website and releases |
 | [wolf-pack/README.md](wolf-pack/README.md) | Wolf Pack CBOM, the cryptography inventory scanner |
