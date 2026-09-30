@@ -74,3 +74,10 @@ Four products sharing one ML-DSA certificate authority.
 - **Readiness assessment:** TLS and SSH endpoint grades, and compliance evidence mapped to NIST IR 8547 and CNSA 2.0.
 - **Console:** one dashboard for all four, in light and dark, on localhost with a bearer token.
 - **Deployment:** Docker image, Helm chart, systemd units, Packer images for AWS, Azure and Google Cloud.
+
+### Project scan and Code Crawler (unreleased)
+
+- One local CLI or console project scan connects Wolf Pack inventory to migration priorities and supported Python callers.
+- Shared, git-aware file enumeration and reused Python ASTs avoid repeated discovery and parsing.
+- Private unified exports, bounded summary history, registered console folders, real progress, and offline relationship evidence.
+- Python-only static relationship coverage is explicit; dynamic dispatch and business ownership remain review tasks.
