@@ -19,6 +19,10 @@ class Elders(unittest.TestCase):
         self.assertEqual(lookup("SHA-512/256"), "SHA-512")
         self.assertEqual(lookup("HMACSHA1"), "HMAC")
 
+    def test_generated_report_has_an_embedded_favicon(self):
+        from wolfpack.brand import page
+        self.assertIn('<link rel="icon" href="data:image/svg+xml;base64,', page("Sample", "", "", "", "", ""))
+
 
 class Image(unittest.TestCase):
     @staticmethod

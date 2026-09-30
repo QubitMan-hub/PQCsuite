@@ -29,7 +29,7 @@ The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts
 
 ## Website
 
-The website is in `site/` and is published to https://qubitman-hub.github.io/PQCsuite/ by `.github/workflows/pages.yml` on every change to it. `python site/publish.py https://YOUR-ADDRESS/ dist` copies it into `dist` with the absolute addresses that link previews and search engines need (canonical links, preview images, `sitemap.xml`, `robots.txt`).
+The website is in `site/` and is published to https://qubitman-hub.github.io/PQCsuite/ by `.github/workflows/pages.yml` on every change to it. `python site/publish.py https://YOUR-ADDRESS/ dist/site` copies it into `dist/site` with the absolute addresses that link previews and search engines need (canonical links, preview images, `sitemap.xml`, `robots.txt`). Choose a fresh output folder: the publisher refuses the source tree and unrelated nonempty folders. Rebuilding its own output preserves extra files instead of deleting the whole folder.
 
 ## Releases
 

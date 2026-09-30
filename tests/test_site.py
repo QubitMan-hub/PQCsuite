@@ -1,4 +1,6 @@
 import re
+import runpy
+import tempfile
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
@@ -94,7 +96,58 @@ class SiteTest(unittest.TestCase):
         products = re.search(r'\["Products", \{([^}]*)\}\]', html).group(1)
         self.assertNotIn("wolf", products.lower())
         self.assertIn('["Also from Acxelin", { wolfpack:', html)
-        self.assertIn("wolfpack() {", html)
+        self.assertRegex(html, r"async wolfpack\(")
+
+
+class PublishTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.d = Path(self.tmp.name)
+        self.source = self.d / "source"
+        self.source.mkdir()
+        for name in PAGES:
+            (self.source / name).write_text('<head>\n<meta property="og:image" content="image.png">\n</head>')
+        self.publish = runpy.run_path(str(SITE / "publish.py"))["publish"]
+        self.publish.__globals__["SITE"] = self.source
+
+    def test_publish_is_repeatable_and_preserves_unrelated_output_files(self):
+        out = self.d / "output"
+        self.publish("https://example.test/pqc/", out)
+        (out / "keep.txt").write_text("keep this")
+        self.publish("https://example.test/new/", out)
+        self.assertEqual((out / "keep.txt").read_text(), "keep this")
+        self.assertIn('href="https://example.test/new/"', (out / "index.html").read_text())
+        self.assertEqual((out / "index.html").read_text().count('rel="canonical"'), 1)
+        self.assertIn("https://example.test/new/wolf-pack.html", (out / "sitemap.xml").read_text())
+
+    def test_source_ancestors_descendants_and_unrelated_folders_are_preserved(self):
+        unrelated = self.d / "unrelated"
+        unrelated.mkdir()
+        (unrelated / "keep.txt").write_text("keep this")
+        for out in [self.d, self.source, self.source / "output", unrelated]:
+            with self.subTest(out=out), self.assertRaises(SystemExit):
+                self.publish("https://example.test/", out)
+        self.assertTrue((self.source / "index.html").exists())
+        self.assertEqual((unrelated / "keep.txt").read_text(), "keep this")
+
+    def test_symlink_destinations_and_markup_in_the_base_are_refused(self):
+        out = self.d / "output"
+        for base in ['https://example.test/"bad"/', "https://example.test/?bad/", "https://example.test/#bad/"]:
+            with self.subTest(base=base), self.assertRaises(SystemExit):
+                self.publish(base, out)
+        try:
+            out.symlink_to(self.source, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("cannot create symlinks here")
+        with self.assertRaises(SystemExit):
+            self.publish("https://example.test/", out)
+        self.assertTrue(out.is_symlink())
+
+    def test_report_favicons_are_self_contained(self):
+        for name in ("wolf-pack-sample.html", "wolf-pack-inventory.html"):
+            content = (SITE / name).read_text()
+            self.assertIn('<link rel="icon" href="data:image/svg+xml;base64,', content)
 
 
 if __name__ == "__main__":

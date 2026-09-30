@@ -62,7 +62,9 @@ def _assets():
 
 def page(title, kicker, heading, sub, body, footer):
     font, logo = _assets()
+    icon = base64.b64encode(logo.encode()).decode()
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:image/svg+xml;base64,{icon}">
 <title>{e(title)}</title><style>@font-face{{font-family:"Host Grotesk";font-weight:400 600;src:url(data:font/woff2;base64,{font}) format("woff2")}}{CSS}</style></head>
 <body><main><div class="brandbar">{logo}<small>Wolf Pack CBOM {__version__}</small></div>
 <p class="kicker">{e(kicker)}</p><h1>{e(heading)}</h1><p class="sub">{sub}</p>

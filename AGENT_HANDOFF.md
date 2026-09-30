@@ -12,6 +12,7 @@
 - Recent history already improves key overwrite protection, error messages, doctor checks, and documentation; preserve those changes.
 
 ## Completed
+- Website publishing refuses source/ancestor/symlink/unrelated output paths and preserves extra files on repeated builds; URLs are escaped. Wolf Pack reports and published samples have embedded favicons. Full browser suite: 26 passed. Site/docs/Wolf Pack tests: 95 passed, 7 subtests passed.
 - Console: four browser regressions reproduced before fixes; all 13 console tests passed on system Chromium, including mobile/dark mode, accessibility, and real certificate issue/revoke. Python console/secret/docs tests: 15 passed, 6 subtests passed.
 - Exclusive unpredictable CA/Vault temporary writes, owner-only plaintext restore staging/output, and preservation of dangling destination symlinks. Four regression tests; 46 focused tests and 3,571 subtests passed; crash tests also passed.
 - Development environment validated: 312 tests and 4,237 subtests passed; 12 optional tests skipped. Lint, wheel, clinic demo, TLS smoke, and CBOM baseline passed before code changes.
