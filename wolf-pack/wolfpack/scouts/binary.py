@@ -9,7 +9,7 @@ from .source import classify_literal
 from .implementations import SHA1_K4, byte_tables, not_sha1, packed
 
 
-EXTRA = [
+EXTRA: list[tuple[str | None, dict, list[bytes]]] = [
     ("ChaCha20", {}, [b"expand 32-byte k"]),
     (None, {}, [b"ML-KEM-768", b"MLKEM768"]),
     (None, {}, [b"ML-DSA-65", b"MLDSA65", b"ML-DSA-44", b"ML-DSA-87"]),

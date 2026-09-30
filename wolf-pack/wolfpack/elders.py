@@ -178,7 +178,7 @@ CURVES = {"P-256": (128, "secp256r1 prime256v1 P256 nistp256 X9_62_prime256v1"),
 _norm = lambda s: re.sub(r"[^A-Z0-9]", "", s.upper())
 CURVE_OF = {_norm(a): c for c, (_, names) in CURVES.items() for a in [c, *names.split()]}
 _flat = lambda s: re.sub(r"[-_\s/.]", "", s)
-FLAT_ALIAS = {}
+FLAT_ALIAS: dict[str, str] = {}
 for _k, _v in ALIAS.items():
     FLAT_ALIAS.setdefault(_flat(_k), _v)
 

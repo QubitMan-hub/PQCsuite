@@ -1,10 +1,11 @@
 import re
+from collections.abc import Callable
 
 from ..elders import lookup, pq_from_text, curve, parse_transformation, parse_symmetric_name
 from .suites import sig_scheme, cipher_string
 
 Q = r"""['"`]"""
-RULES = {}
+RULES: dict[str, list[tuple[re.Pattern[str], Callable]]] = {}
 
 
 def rule(langs, pattern):

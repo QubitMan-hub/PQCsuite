@@ -3,31 +3,33 @@
 ## Active Work
 
 ### Codex
-- Audit customer workflows and security boundaries; fix verified problems in small commits.
-- Console group complete; now auditing malformed inputs, report metadata, and website publishing safety.
-- Run final full suite, build, dependency/CBOM scans, and customer workflows before push.
+- Implementation and local validation complete on `codex/security-and-console-hardening`; changes are prepared for review.
 
 ### Claude Code
-- Current work unknown. Checkout was clean at `ed4b260` when this pass began.
-- Recent history already improves key overwrite protection, error messages, doctor checks, and documentation; preserve those changes.
+- Current work unknown. No overlapping local changes or new remote-main commits were observed during this pass (base `ed4b260`).
+- Preserved recent key overwrite protections, error messages, doctor checks, and documentation improvements.
 
 ## Completed
-- Final pass reproduced a renewal/revocation race: renewal read status outside the CA lock. The read/check/issue now share the reentrant lock; deterministic regression passes (44 focused tests passed).
-- Vault CLI inspection and compliance evidence identify unverified headers; signature verification without `--ca` explicitly says the issuer is unchecked. Trust-message regression and CLI/compliance/docs tests: 20 passed.
-- Input hardening: controlled HTTP errors for oversized/ambiguous body lengths; finite numeric configuration and integer/boolean distinction; bounded Vault signature lengths. 80 focused tests and 4,051 subtests passed.
-- Website publishing refuses source/ancestor/symlink/unrelated output paths and preserves extra files on repeated builds; URLs are escaped. Wolf Pack reports and published samples have embedded favicons. Full browser suite: 26 passed. Site/docs/Wolf Pack tests: 95 passed, 7 subtests passed.
-- Console: four browser regressions reproduced before fixes; all 13 console tests passed on system Chromium, including mobile/dark mode, accessibility, and real certificate issue/revoke. Python console/secret/docs tests: 15 passed, 6 subtests passed.
-- Exclusive unpredictable CA/Vault temporary writes, owner-only plaintext restore staging/output, and preservation of dangling destination symlinks. Four regression tests; 46 focused tests and 3,571 subtests passed; crash tests also passed.
-- Development environment validated: 312 tests and 4,237 subtests passed; 12 optional tests skipped. Lint, wheel, clinic demo, TLS smoke, and CBOM baseline passed before code changes.
+- Exclusive, unpredictable CA/Vault temporary writes; private plaintext staging and restore outputs; preservation of dangling destination symlinks.
+- Renewal status check and issuance share the CA lock; a deterministic test reproduces and prevents renewal after a competing revocation.
+- Console action progress/errors/confirmed results, duplicate-submit protection, stale-response guards, and scan polling after navigation. Actual CA algorithm and unverified backup metadata labels.
+- Safe repeatable site builds preserve unrelated files and reject dangerous destinations. Reports embed favicons; backup CLI/compliance output distinguishes metadata and signer trust.
+- Bounded HTTP/signature lengths, explicit HTTP framing errors, finite numeric settings, and basic type annotations.
+
+## Verification
+- Full Python suite: 325 passed, 12 skipped, 4,385 subtests passed (final run). Skips: missing nginx/PostgreSQL/Redis/MQTT, root/OpenSSH, and privileged VPN/WireGuard prerequisites.
+- Browser suite: 26 passed on installed Chromium, including mobile/dark mode, accessibility, and real certificate issuance/revocation. Desktop/mobile visuals inspected.
+- Ruff and basic mypy (`--ignore-missing-imports`, 56 source files) passed; both wheels built; site published twice locally; pip check, pip-audit, npm audit and CBOM baseline passed.
+- TLS smoke, clinic and bank demos passed. Short soak: 3,056 successful connections, 0 failed, 3/3 revocations enforced, stable final thread/file counts. This does not validate days-long behavior.
 
 ## Important Decisions
-- Preserve library formats and cryptographic primitives; focus on verified boundary and workflow defects. Restored folder roots are private (0700 on POSIX), with original interior archive permissions retained.
-- Keep temporary artifacts outside tracked source. No destructive Git operations or force pushes.
-- Backup headers only claim a suite and signer: console labels them unverified and directs users to `vault verify`. Display CA algorithms from API data (including SLH-DSA), not a hardcoded label.
+- No changes to cryptographic primitives or archive format. Restored folder roots are 0700 on POSIX; internal archive modes are retained.
+- Archive headers are not proof of integrity or signer identity. Use `vault verify` with a recipient key and `--ca` for issuer trust.
+- No destructive Git operations, force pushes, or speculative feature/dependency removals.
 
 ## Needs Attention
-- Docker image build is blocked by network policy at `registry-1.docker.io`; GitHub API at `api.github.com` also returns Forbidden. Native Git reads still work. Browser checks use installed `/usr/bin/chromium` because Playwright download hosts are denied.
-- Independent cryptographic review, real cloud/managed Kubernetes deployments, days-long soak, and VPN checks on real laptops remain release limitations (see `docs/RELEASE-READINESS.md`).
+- Docker build blocked by network policy at `registry-1.docker.io`; GitHub API at `api.github.com` returns Forbidden. Native Git reads work. Playwright download hosts are denied; browser checks used `/usr/bin/chromium` with a local config outside the checkout.
+- Independent security/cryptographic review, real cloud/managed Kubernetes deployments, days-long soak, and VPN checks on real laptops remain release limitations (`docs/RELEASE-READINESS.md`).
 
 ## Do Not Duplicate
-- Existing overwrite protections and documentation improvements in recent commits.
+- Reviewed improvements above and the pre-existing customer-experience work. Re-read current Git state before editing overlapping files.

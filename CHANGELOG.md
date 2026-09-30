@@ -4,6 +4,12 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 ## Unreleased
 
+- **Safer file operations:** CA and Vault temporary writes use exclusive, unpredictable names. Restore uses private plaintext staging and owner-only restored files/folder roots on POSIX, and preserves dangling destination symlinks.
+- **Revocation and renewal:** renewal checks status while holding the CA lock through issuance, so a renewal waiting behind a revocation cannot issue a replacement for the revoked certificate.
+- **Reliable console actions:** certificate operations show progress and confirmed success or failure, prevent duplicate pending submits, and preserve the selected page when older requests finish. Running readiness scans resume polling when reopened. CA algorithm labels come from the actual certificate.
+- **Trust messages and input limits:** backup headers and their claimed signers are identified as unverified; `vault verify` explains when the certificate issuer has not been checked. HTTP body lengths and Vault signature lengths are bounded; ambiguous HTTP framing and nonfinite numeric configuration are rejected.
+- **Website build safety:** publishing refuses source/ancestor/symlink/unrelated output paths and preserves extra output files on repeat builds. Wolf Pack sample reports have self-contained favicons.
+
 - **VPN clients for Windows and macOS:** `pqcsuite vpn connect` now runs on Windows (WireGuard for Windows, as a tunnel service) and macOS (Homebrew's WireGuard) as well as Linux, with the post-quantum pre-shared key still replaced every 2 minutes, in place. `vpn install` keeps it on from every start of the machine (systemd, launchd or a Windows scheduled task); `vpn disconnect` takes it down.
 - **Full tunnel and kill switch:** `full_tunnel = true` on the gateway sends all of a laptop's traffic through it, forwarded with NAT; IPv6 goes into the tunnel and is dropped there. A kill switch keeps anything else from leaving (iptables on Linux, pf on macOS, WireGuard for Windows' own), and on Linux and macOS it stays if the client crashes. The Linux kill switch is replaced without a gap when its rules change.
 - **Back after sleep:** keys follow the wall clock, so they are renewed right after the laptop wakes; a tunnel whose keys the gateway no longer accepts is taken down, keys are agreed directly, and it comes back.

@@ -9,7 +9,7 @@ from .lexer import LANGS, split, line_of
 # MD5 shares SHA-1's first four initial values, so SHA-1 needs the fifth; RIPEMD-160 shares all five, so a file with
 # RIPEMD-160's own round constants is SHA-1 only if SHA-1's last round constant is there too; BLAKE2b reuses SHA-512's initial values, so SHA-2
 # is recognised by its round constants only; ChaCha20 and Salsa20 share "expand 32-byte k", so neither is attempted.
-WORDS = [
+WORDS: list[tuple[str, dict, list[int]]] = [
     ("MD5", {}, [0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee]),
     ("SHA-1", {}, [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0]),
     ("RIPEMD-160", {}, [0x50a28be6, 0x5c4dd124, 0x6d703ef3, 0x7a6d76e9]),
