@@ -71,3 +71,88 @@ test("no serious accessibility problems on the console pages", async ({ page }) 
     expect(found.map(v => `${view} ${v.id}: ${v.nodes.map(n => n.target).join(", ")}`)).toEqual([]);
   }
 });
+
+test("a slow response cannot replace the page selected later", async ({ page }) => {
+  await signIn(page);
+  let release, started;
+  const pending = new Promise(resolve => (release = resolve));
+  const requested = new Promise(resolve => (started = resolve));
+  await page.route("**/api/edges", async route => {
+    started();
+    await pending;
+    await route.fulfill({ json: [] });
+  });
+  await page.evaluate(() => (location.hash = "edges"));
+  await requested;
+  await page.evaluate(() => (location.hash = "certificates"));
+  await expect(page.locator("#view h1")).toHaveText("Certificates");
+  const response = page.waitForResponse("**/api/edges");
+  release();
+  await response;
+  await page.waitForTimeout(100);
+  await expect(page.locator("#view h1")).toHaveText("Certificates");
+});
+
+test("certificate actions report errors and stay usable", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", e => errors.push(e.message));
+  await signIn(page);
+  await page.evaluate(() => (location.hash = "certificates"));
+  await expect(page.locator("#view h1")).toHaveText("Certificates");
+  await page.route("**/api/certificates/*", route => route.fulfill({ status: 400, json: { error: "Cannot open CA key; check its passphrase." } }));
+  await page.click("#maintain");
+  await expect(page.locator("#issued")).toContainText("check its passphrase");
+  await expect(page.locator("#maintain")).toBeEnabled();
+  await page.locator("[data-revoke]").first().click();
+  await page.click('[data-confirm="yes"]');
+  await expect(page.locator("#issued")).toContainText("check its passphrase");
+  await expect(page.locator("[data-revoke]").first()).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
+test("issuance shows progress, prevents duplicate submits, and confirms the result", async ({ page }) => {
+  await signIn(page);
+  await page.evaluate(() => (location.hash = "certificates"));
+  await page.fill('[name="common_name"]', "new.example.test");
+  let release, started, requests = 0;
+  const pending = new Promise(resolve => (release = resolve));
+  const requested = new Promise(resolve => (started = resolve));
+  await page.route("**/api/certificates/issue", async route => {
+    requests++;
+    started();
+    await pending;
+    await route.fulfill({ json: { serial: "1234567890abcdef", folder: "/pki/issued/new" } });
+  });
+  await page.click("#issue button");
+  await requested;
+  await expect(page.locator("#issue button")).toBeDisabled();
+  await expect(page.locator("#issued")).toContainText("Issuing");
+  release();
+  await expect(page.locator("#issued")).toContainText("Issued 1234567890abcdef");
+  await expect(page.locator("#issued")).toContainText("/pki/issued/new");
+  expect(requests).toBe(1);
+});
+
+test("an already running scan resumes polling when its page opens", async ({ page }) => {
+  await signIn(page);
+  let reads = 0;
+  await page.route("**/api/scan", route => route.fulfill({ json: { running: ++reads === 1, last: null, error: null, targets: [], every_hours: 0 } }));
+  await page.evaluate(() => (location.hash = "readiness"));
+  await expect(page.locator("#scan button")).toHaveText("Scanning…");
+  await expect(page.locator("#scan button")).toHaveText("Scan", { timeout: 5000 });
+  await expect(page.locator("#scan button")).toBeEnabled();
+});
+
+test("a customer can issue and revoke a real certificate", async ({ page }) => {
+  await signIn(page);
+  await page.evaluate(() => (location.hash = "certificates"));
+  await page.fill('[name="common_name"]', "browser-new.example.test");
+  await page.click("#issue button");
+  await expect(page.locator("#issued")).toContainText("Issued");
+  const row = page.locator("tbody tr").filter({ hasText: "browser-new.example.test" });
+  await expect(row).toContainText("valid");
+  await row.getByRole("button", { name: "Revoke", exact: true }).click();
+  await row.getByRole("button", { name: "Confirm: revoke browser-new.example.test", exact: true }).click();
+  await expect(row).toContainText("revoked");
+  await expect(page.locator("#issued")).toContainText("CRL has been refreshed");
+});

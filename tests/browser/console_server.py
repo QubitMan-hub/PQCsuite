@@ -11,4 +11,5 @@ run("ca", "init", "--dir", "ca", "--name", "Browser Test Root", "--no-encrypt")
 for kind, name, days in [("server", "api.example.test", "397"), ("client", "operator", "397"), ("server", "old.example.test", "10")]:
     run("ca", "issue", "--dir", "ca", kind, name, "--out", name, "--days", days)
 os.environ["PQCSUITE_CONSOLE_TOKEN"] = "browser-test"
+os.chdir(d)  # audit output belongs to this disposable fixture, not the checkout
 os.execv(sys.executable, [sys.executable, "-m", "pqcsuite", "console", "--ca", str(d / "ca"), "--listen", "127.0.0.1:8900"])
