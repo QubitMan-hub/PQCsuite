@@ -1,7 +1,7 @@
 # Agent handoff
 
 ## Active work
-- Codex: product improvements and earlier hardening verified on `main`; preparing direct fast-forward push. No PR requested.
+- Codex: product improvements and earlier hardening verified and pushed directly to `main`. Implementation complete; no PR created.
 - Claude Code: current work unknown. Repeated checks found no overlapping local edits or remote-main changes beyond base `ed4b260`. Existing customer-experience work was preserved.
 
 ## Completed — do not duplicate
