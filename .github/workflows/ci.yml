@@ -9,6 +9,7 @@ permissions:
 jobs:
   unit:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python: ["3.11", "3.13"]
@@ -62,7 +63,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Real applications for the scenario tests
         run: |
-          apt-get update && apt-get install -y --no-install-recommends openssl curl nginx postgresql redis-server redis-tools \
+          apt-get update && apt-get install -y --no-install-recommends git openssl curl nginx postgresql redis-server redis-tools \
             mosquitto mosquitto-clients openssh-server
       - run: pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]" && pqcsuite doctor
       - run: python -m pytest -q

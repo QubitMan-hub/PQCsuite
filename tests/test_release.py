@@ -58,7 +58,8 @@ class EvidenceTest(unittest.TestCase):
             (root / "sbom.json").write_text('{"components": []}')
             for code, expected in (("def test_customer_flow(): assert True", True),
                                    ("def test_customer_flow(): assert False", False), ("", False)):
-                with self.subTest(code=code), mock.patch.object(rr, "ROOT", root):
+                with self.subTest(code=code), mock.patch.object(rr, "ROOT", root), \
+                        mock.patch("pqcsuite.tls.lib", return_value=mock.Mock(version="test TLS version")):
                     (root / "test_customer.py").write_text(code)
                     self.assertEqual(rr.evidence(root / "evidence.json", root / "sbom.json"), expected)
                     result = json.loads((root / "evidence.json").read_text())

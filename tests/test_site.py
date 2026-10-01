@@ -131,6 +131,17 @@ class PublishTest(unittest.TestCase):
         self.assertTrue((self.source / "index.html").exists())
         self.assertEqual((unrelated / "keep.txt").read_text(), "keep this")
 
+    def test_source_under_a_symlinked_parent_cannot_be_publish_destination(self):
+        alias = self.d / "alias"
+        try:
+            alias.symlink_to(self.source, target_is_directory=True)
+        except OSError:
+            self.skipTest("directory symlinks unavailable")
+        self.publish.__globals__["SITE"] = alias
+        with self.assertRaises(SystemExit):
+            self.publish("https://example.test/", self.source / "output")
+        self.assertFalse((self.source / "output").exists())
+
     def test_symlink_destinations_and_markup_in_the_base_are_refused(self):
         out = self.d / "output"
         for base in ['https://example.test/"bad"/', "https://example.test/?bad/", "https://example.test/#bad/"]:

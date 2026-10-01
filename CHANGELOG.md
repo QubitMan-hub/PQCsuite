@@ -4,6 +4,9 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 ## Unreleased
 
+- **Platform validation fixes:** website publishing resolves both source and output paths before checking containment, including macOS temporary-directory aliases. Release-runner tests isolate version reporting from host TLS availability; Debian integration installs Git for repository-analysis tests, and platform matrix jobs finish independently.
+- **Container security updates:** apply Debian updates on top of the pinned Python base, including the available OpenSSL and PCRE2 fixes; the existing vulnerability gate remains enforced.
+
 - **Daemon restart recovery:** VPN VICI sessions reconnect after transport failure without automatically replaying uncertain commands. Status failures stay in the retry loop, and responders reload connection configuration during key agreement.
 - **More accurate deployment checks:** expired or not-yet-valid CA certificates fail preflight. Vault backup checks explicitly distinguish unverified header recipient counts from authenticated verification and restore drills.
 

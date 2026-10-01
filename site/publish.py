@@ -17,15 +17,15 @@ def publish(base, out):
     if not re.fullmatch(r"https://[^/\s]+/(\S*/)?", base) or any(c in base for c in '\"<>?#'):
         raise SystemExit("the address must start with https:// and end with /")
     out = Path(out)
-    destination = out.resolve()
-    if SITE.is_relative_to(destination) or destination.is_relative_to(SITE):
+    destination, source = out.resolve(), SITE.resolve()
+    if source.is_relative_to(destination) or destination.is_relative_to(source):
         raise SystemExit("the output must be outside the site source and must not contain it; choose a build folder such as dist/site")
     marker = out / ".pqcsuite-site-output"
     if out.is_symlink() or (out.exists() and (not out.is_dir() or any(p.is_symlink() for p in out.rglob("*")))):
         raise SystemExit("the output must be a real folder without symlinks; choose a fresh build folder")
     if out.exists() and any(out.iterdir()) and not marker.is_file():
         raise SystemExit("the output is not empty and was not created by this publisher; choose a fresh folder (existing files were kept)")
-    shutil.copytree(SITE, out, dirs_exist_ok=True, ignore=shutil.ignore_patterns("publish.py", "og.html", "__pycache__"))
+    shutil.copytree(source, out, dirs_exist_ok=True, ignore=shutil.ignore_patterns("publish.py", "og.html", "__pycache__"))
     for page in PAGES:
         url = urljoin(base, "" if page == "index.html" else page)
         p = out / page
