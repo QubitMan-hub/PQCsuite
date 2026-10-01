@@ -147,3 +147,6 @@ The corrected run passed macOS (373 tests plus the native WireGuard test), but W
 
 
 [All 15 CI jobs on `048c03e`](https://github.com/QubitMan-hub/PQCsuite/actions/runs/36837393428) and its CodeQL jobs passed, confirming the earlier platform/environment/image corrections. The subsequent Windows lock fix is deliberately retained despite that green run because the preceding run demonstrated intermittent contention failure. Local tests for the lock fix passed; its remote Windows validation remains pending because the environment's GitHub credential expired during this task. Do not treat the preceding green commit as verification of the later lock change.
+
+
+Publishing the cloud environment restored GitHub access on 1 October 2026, allowing the final Windows locking correction (`cfb7646`) to be synchronized with `main`. Its local validation passed **376 tests, 13 prerequisite skips and 4,358 subtests**, plus Ruff and basic mypy. The latest commit’s remote CI is required to validate that correction; the earlier green run does not cover it.

@@ -4,7 +4,7 @@ Current instructions for the next contributor; superseded progress notes remain 
 
 ## Current priority — verify the five existing products
 
-- GitHub authentication expired after `048c03e` was pushed; both the injected Git credential and `GH_TOKEN` were rejected. That commit passed all 15 CI jobs and CodeQL (run 36837393428). The following Windows lock correction is committed locally; refresh environment GitHub access, check remote/concurrent changes, push normally, and verify its own Windows/platform CI before claiming completion.
+- Publishing the environment restored GitHub access on 1 October 2026. The Windows lock correction is `cfb7646`; local verification passed 376 tests with 13 prerequisite skips. `048c03e` passed all 15 CI jobs and CodeQL (run 36837393428). Check the latest commit’s own platform CI before using that earlier result as release evidence.
 - Follow-up platform CI exposed a Windows Python 3.11 multi-process CA lock failure. Shared storage now retries nonblocking Windows lock contention and marks reentrancy only after successful acquisition; errors/interruptions must never allow a later unprotected update. Regression coverage includes injected failures and contention, plus the existing six-process CA race. Keep the remote Windows matrix required.
 
 - Remote validation supersedes the earlier *local kernel* VPN boundary below: actual `afa39fa` CI logs prove 34 IPsec/TLS checks with encrypted traffic and daemon restart recovery, 13 WireGuard checks including full tunnel/kill switch, and 16 Windows platform checks including a native tunnel. Run: https://github.com/QubitMan-hub/PQCsuite/actions/runs/36836106173. That overall run failed separate tests/image checks, so it is not a release sign-off.
