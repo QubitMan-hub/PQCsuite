@@ -190,7 +190,7 @@ section { padding-block: 104px 0; }
 .product ul li { position: relative; padding-left: 18px; margin-bottom: 8px; }
 .product ul li::before { content: ""; position: absolute; left: 0; top: .62em; width: 7px; height: 7px; background: var(--amber); }
 .product .run { grid-column: 1 / -1; }
-.product pre, .ways pre, .settings pre { margin: 0; padding: 14px 16px; background: #26313c; color: #f4efe2; border-radius: 8px; font: 13.5px/1.6 var(--mono); overflow-x: auto; }
+.product pre, .ways pre, .settings pre, #coverage pre { margin: 0; padding: 14px 16px; background: #26313c; color: #f4efe2; border-radius: 8px; font: 13.5px/1.6 var(--mono); overflow-x: auto; }
 .product .with { font-size: 15px; color: var(--muted); }
 .flow { display: grid; grid-template-columns: 1fr minmax(96px, .7fr) 1fr minmax(96px, .7fr) 1fr; align-items: center; }
 .flow li { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); min-width: 0; }
@@ -386,3 +386,5 @@ section.alt + section { padding-top: 88px; }
 .term .m { color: var(--amber); }
 .term figcaption { font-size: 13px; color: #9aa5b1; }
 @media (max-width: 900px) { .also { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 32px 24px; } }
+
+#coverage .results td:last-child { white-space: normal; }

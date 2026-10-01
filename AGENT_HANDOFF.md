@@ -2,6 +2,15 @@
 
 Current instructions for the next contributor; superseded progress notes remain in Git history.
 
+## Latest product milestone — persistent remediation
+
+- Console now persists approved-parent registrations, latest full assessments, 30 recent comparisons per project, owners/deadlines and expiring exceptions in `.pqcsuite/projects.json` (`--project-state` overrides). Scope is rechecked on restart/use; private atomic storage and cross-process locks are reused. It remains a single-administrator token console, not SSO/RBAC.
+- Finding IDs survive line shifts; rescans retain previous observations and assignments. “Not observed” is never labeled a verified deployed fix. Exceptions require rationale/expiry, stay in risk results, and show expired/overdue labels.
+- `console --sample-project` creates an intentionally classical local example and preserves edits. Website has a sample assessment entry point and explicit language coverage matrix; Acxelin styling/product placement preserved.
+- Unified scans have 50,000-file/512 MB discovery and five-minute cooperative time budgets plus Cancel. Prior completed evidence survives cancellation/quota failures. One parser/graph operation may finish before a checkpoint; this is not hard process isolation. No new production module or dependency.
+- Validation: 367 Python tests passed, 12 prerequisite skips and 4,473 subtests; 36 browser journeys passed. Installed-wheel restart/remediation/rescan smoke passed. Both wheels, lint/basic types, CBOM baseline/schema, repeated publishing and seven real public static scans passed. All 20 corpus/ablation rows unchanged; before/after table in `docs/CODE-CRAWLER.md`.
+- Remaining independent work: Java/Go relationship adapters, incremental scans, SSO/RBAC, signed native installers, independent security review and real laptop/cloud/long-duration validation. Identity-provider and signing-service details were requested asynchronously; no answer received at the time of this record. Do not substitute owner labels for access controls.
+
 ## Preserve
 
 - Work on `main` is authorized by the owner. No PR, force push, protection bypass, secrets or unrelated changes. Check status/diffs and fetch before integrating; Claude Code's active work is unknown. Audit began at clean `3366c37`; no concurrent changes were observed.
@@ -26,5 +35,5 @@ Current instructions for the next contributor; superseded progress notes remain 
 ## Release boundaries
 
 - Wolf Pack 1.3.0 remains unpublished. Install both packages from this checkout with their documented extras. Base container does not include optional repository scanning.
-- Signed VPN installers/enrollment, fleet RBAC/history, quotas/cancellation, broader AST languages and runtime deployment mapping remain open. Independent security review and real cloud/laptop/privileged tunnel/long-run validation require their actual environments.
+- Signed VPN installers/enrollment, fleet RBAC/history, hard resource isolation/incremental scans, broader AST languages and runtime deployment mapping remain open. Independent security review and real cloud/laptop/privileged tunnel/long-run validation require their actual environments.
 - Cloud onboarding instructions already saved in the environment draft; no new environment configuration is needed for these source/CI/doc changes. No publication of that draft is implied.

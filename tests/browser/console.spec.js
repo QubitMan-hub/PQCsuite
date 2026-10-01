@@ -219,7 +219,7 @@ test('one registered project scan shows real crypto callers and exports private 
   await expect(page.locator('#project-count')).toContainText('assets');
   await expect(page.locator('#project-message')).toHaveText('Complete');
   const row=page.locator('#project-results tbody tr').filter({hasText:'RSA'}).first();
-  await row.locator('summary').click();
+  await row.getByText('Inspect affected code', {exact:true}).click();
   await expect(row).toContainText('keys.py#make');
   await expect(row).toContainText('service.py#checkout');
   await page.locator('#project-advanced summary').click();
@@ -238,7 +238,7 @@ test('add an approved repository and scan TypeScript without manually importing 
   await page.locator('#project-scan select').selectOption({label:'web-api (#2)'});
   await page.click('#project-scan button'); await expect(page.locator('#project-message')).toHaveText('Complete');
   await expect(page.locator('#project-results')).toContainText('SHA-256');
-  const row=page.locator('#project-results tbody tr').filter({hasText:'SHA-256'}).first(); await row.locator('summary').click();
+  const row=page.locator('#project-results tbody tr').filter({hasText:'SHA-256'}).first(); await row.getByText('Inspect affected code', {exact:true}).click();
   await expect(row).toContainText('api.ts#checkout');
   await page.locator('#project-advanced summary').click(); await expect(page.locator('#project-advanced')).toContainText('TypeScript');
   await expect(page.getByText('Previous local scans',{exact:true})).toBeVisible();
@@ -251,4 +251,28 @@ test('an approved parent with no registered projects starts with Add repository'
   await expect(page.locator('#view h2').first()).toHaveText('Repository readiness');
   await expect(page.locator('#project-add')).toBeVisible();
   await expect(page.locator('#view')).toContainText('Choose an available repository above');
+});
+
+
+test('remediation owner, deadlines and exceptions survive navigation and rescanning', async ({page}) => {
+  await signIn(page); await page.evaluate(() => (location.hash='readiness'));
+  await page.selectOption('#project-scan select', '0');
+  await expect(page.locator('#project-scan select')).toHaveValue('0');
+  await page.click('#project-scan button'); await expect(page.locator('#project-message')).toHaveText('Complete');
+  const row=page.locator('#project-results tbody tr').filter({hasText:'RSA'}).first();
+  await row.locator('summary').last().click();
+  await row.locator('[name=owner]').fill('Migration team <test>');
+  await row.locator('[name=due]').fill('2099-01-01');
+  await row.locator('[name=status]').selectOption('exception');
+  await row.locator('button').click();
+  await expect(row.locator('.tracking-message')).toContainText('rationale');
+  await row.locator('[name=reason]').fill('Compatibility review pending');
+  await row.locator('[name=until]').fill('2099-01-01');
+  await row.locator('button').click();
+  await expect(row).toContainText('Migration team <test>');
+  await page.reload(); await expect(page.locator('#project-results')).toContainText('Migration team <test>');
+  await page.click('#project-scan button'); await expect(page.locator('#project-message')).toHaveText('Complete');
+  await expect(page.locator('#view')).toContainText('still observed');
+  await expect(page.locator('#project-results')).toContainText('Migration team <test>');
+  expect((await new AxeBuilder({page}).analyze()).violations.filter(v=>['serious','critical'].includes(v.impact))).toEqual([]);
 });

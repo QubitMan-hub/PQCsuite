@@ -50,7 +50,7 @@
         <p class="lead">Wolf Pack finds the cryptography in your code, configuration, keys, binaries and live endpoints, writes it down as a standard inventory, and tells you what to migrate first.</p>
         <div class="actions">
           <a class="btn" href="#contact">Book a code scan</a>
-          <a class="link" href="wolf-pack-sample.html">Open a sample report</a>
+          <a class="btn" href="wolf-pack-sample.html">Try a sample assessment</a>
           <a class="link" href="wolf-pack-inventory.html">Open a sample dashboard</a>
         </div>
         <p class="fine">Runs on your laptop, in a container or in CI. Your code never leaves the machine that scans it.</p>
@@ -198,6 +198,20 @@ wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
         <li><code>wolfpack.sarif</code><span>Findings for GitHub code scanning and other SARIF tools</span></li>
         <li><code>findings.json</code><span>Everything, including what was rejected and why</span></li>
       </ul>
+    </div>
+  </section>
+
+  <section id="coverage">
+    <div class="wrap">
+      <div class="intro"><p class="kicker">Know what was checked</p><h2>Evidence you can act on, limits you can see</h2><p>In the local console, assign an owner and deadline, document a time-limited exception, then rescan. Saved assessments distinguish new and persisting findings from findings no longer observed. Static absence does not prove a deployed fix.</p></div>
+      <div class="scroll" tabindex="0" role="region" aria-label="Cryptographic coverage"><table class="results"><thead><tr><th>Input</th><th>Current capability</th><th>Boundary</th></tr></thead><tbody>
+        <tr><td>Python</td><td>AST functions, imports and supported callers</td><td>Dynamic dispatch remains unresolved</td></tr>
+        <tr><td>JavaScript / TypeScript</td><td>Optional Tree-sitter relationships</td><td>Requires the crawler extra; callbacks and runtime dispatch are incomplete</td></tr>
+        <tr><td>Java / Go and other supported source</td><td>Cryptographic detectors</td><td>No class/function relationship adapter yet</td></tr>
+        <tr><td>Configs, certificates and binaries</td><td>Cryptographic inventory and evidence</td><td>Not proof of runtime reachability or deployment protection</td></tr>
+      </tbody></table></div>
+      <p>Try the local workflow from a source checkout:</p><pre>pip install './wolf-pack[crawler]' '.[scan-web]'
+pqcsuite console --sample-project</pre><p>The example stays on your machine. Scan it, inspect callers, assign remediation and rescan after an edit. The console saves work locally; it does not provide organization SSO or role-based access.</p>
     </div>
   </section>
 

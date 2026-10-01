@@ -477,6 +477,7 @@ def cmd_console(a):
     s.backups += a.backups
     s.scan_targets += a.scan
     s.project_roots += a.project
+    s.project_state = a.project_state or s.project_state or ".pqcsuite/projects.json"
     if a.project_history:
         s.project_history = a.project_history
     if a.repositories:
@@ -486,6 +487,10 @@ def cmd_console(a):
     s.check_updates = s.check_updates or a.check_updates
     if s.ca and not (Path(s.ca) / "ca.crt").exists():
         raise ValueError(f"no CA at {s.ca}; run 'pqcsuite ca init' first, or leave out --ca")
+    if a.sample_project:
+        from .project import sample_project, scanner
+        scanner()
+        s.project_roots.append(str(sample_project(Path(s.project_state).parent)))
     app = App(s)
     httpd = serve(app)
     host, port = httpd.server_address[:2]
@@ -975,6 +980,8 @@ def parser():
     p.add_argument("--scan", action="append", default=[], metavar="HOST:PORT", help="an endpoint for readiness scans (repeatable)")
     p.add_argument("--project", action="append", default=[], help="allow scanning this local project folder (repeatable; no source upload)")
     p.add_argument("--repositories", help="administrator-approved parent folder for Add repository in the console")
+    p.add_argument("--sample-project", action="store_true", help="create a local example repository for the readiness workflow; preserve existing edits")
+    p.add_argument("--project-state", help="private persistent repository/assessment workspace (default: .pqcsuite/projects.json)")
     p.add_argument("--project-history", help="persist bounded project scan summaries to this private JSON file")
     p.add_argument("--scan-every", type=float, metavar="HOURS", help="scan those endpoints again every HOURS and show what changed")
     p.add_argument("--check-updates", action="store_true", help="show when a newer release is out (asks GitHub once a day)")

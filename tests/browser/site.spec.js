@@ -72,7 +72,7 @@ test("Wolf Pack is one click from the home page, links back, and opens its sampl
   await expect(page.locator("#products a[href*='wolf']")).toHaveCount(0);
   await page.click("#nav a.tool");
   await expect(page).toHaveURL(/wolf-pack\.html$/);
-  await page.click("text=Open a sample report");
+  await page.getByRole("link", {name:"Try a sample assessment", exact:true}).click();
   await expect(page).toHaveTitle(/payments-api/);
   await page.goBack();
   await page.click("#nav a.back");

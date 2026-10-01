@@ -126,3 +126,130 @@ def test_history_updates_are_preserved_across_processes(tmp_path):
         for child in children:
             if child.poll() is None:
                 child.kill(); child.wait()
+
+
+def test_workspace_rescan_tracking_missing_reappearing_and_privacy(tmp_path):
+    from pqcsuite.project import ProjectStore
+    repo = tmp_path/'repo'; repo.mkdir(); fixture(repo)
+    store = ProjectStore(tmp_path/'private'/'workspace.json')
+    first = store.save(repo, scan(repo))
+    assert not first['comparison']['baseline']
+    finding = first['assets'][0]['id']
+    store.track(repo, {'finding': finding, 'owner':'Payments', 'status':'in_progress', 'due':'2099-01-01'})
+    (repo/'keys.py').write_text('\n\n'+(repo/'keys.py').read_text())
+    second = store.save(repo, scan(repo))
+    assert second['assets'][0]['id'] == finding
+    assert second['assets'][0]['tracking']['owner'] == 'Payments'
+    assert second['comparison']['new'] == 0
+    (repo/'keys.py').write_text('def make(): return None\n')
+    third = store.save(repo, scan(repo))
+    assert third['comparison']['not_observed'] > 0
+    assert any(a['id'] == finding for a in third['not_observed'])
+    fixture(repo)
+    fourth = store.save(repo, scan(repo))
+    assert fourth['assets'][0]['tracking']['owner'] == 'Payments'
+    assert not fourth['not_observed']
+    assert len(ProjectStore(store.path).assessment(repo)['history']) == 4
+    assert 'PRIVATE_SENTINEL' not in store.path.read_text()
+    if os.name != 'nt':
+        assert store.path.stat().st_mode & 0o777 == 0o600
+
+
+def test_workspace_registration_restart_and_scope_change(tmp_path):
+    approved = tmp_path/'approved'; approved.mkdir()
+    repo = approved/'safe'; repo.mkdir(); fixture(repo)
+    settings = Settings(repository_directory=str(approved), project_state=str(tmp_path/'state.json'), audit_log=str(tmp_path/'audit.jsonl'))
+    app = App(settings); app.register_project({'name':'safe'})
+    app.project_store.save(repo, scan(repo))
+    restarted = App(settings)
+    assert restarted.projects == [repo]
+    assert restarted.project_status()['last']['assets']
+    other = tmp_path/'other'; other.mkdir()
+    settings.repository_directory = str(other)
+    assert App(settings).projects == []
+    settings.repository_directory = str(approved)
+    repo.rename(approved/'moved')
+    repo.symlink_to(other, target_is_directory=True)
+    assert App(settings).projects == []
+    with pytest.raises(ValueError):
+        restarted.start_project({'project':0})
+
+
+def test_workspace_invalid_updates_limits_and_competing_writers(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    from pqcsuite.project import ProjectStore
+    fixture(tmp_path)
+    store = ProjectStore(tmp_path/'workspace.json')
+    assessment = store.save(tmp_path, scan(tmp_path))
+    finding = assessment['assets'][0]['id']
+    valid = {'finding':finding, 'owner':'team', 'status':'exception', 'until':'2099-01-01', 'reason':'review'}
+    for bad in ({'status':'fixed'}, {'until':'2000-01-01'}, {'reason':''}, {'finding':[]}, {'finding':'unknown'}, {'due':'not-a-date'}, {'owner':'x'*121}):
+        with pytest.raises(ValueError):
+            store.track(tmp_path, valid | bad)
+    with ThreadPoolExecutor(max_workers=8) as workers:
+        list(workers.map(lambda i: store.register(tmp_path, str(i)), range(30)))
+    assert len(store.read()['registrations'][store.key(tmp_path)]) == 30
+    store.track(tmp_path, valid)
+    before = store.path.read_bytes()
+    store.LIMIT = 1
+    with pytest.raises(ValueError):
+        store.register(tmp_path, 'refuse')
+    assert store.path.read_bytes() == before
+    store.LIMIT = 16_000_000
+    store.path.write_text('{')
+    with pytest.raises(ValueError):
+        store.register(tmp_path, 'refuse')
+    assert store.path.read_text() == '{'
+
+
+def test_cancel_and_budget_never_replace_completed_outputs(tmp_path):
+    import threading
+    from pqcsuite.project import ScanStopped
+    fixture(tmp_path)
+    out = tmp_path/'pqcsuite-out'
+    scan(tmp_path, out=out)
+    before = (out/'assessment.json').read_bytes()
+    cancelled = threading.Event(); cancelled.set()
+    for options in ({'cancel':cancelled}, {'max_files':1}, {'max_bytes':1}, {'timeout':-1}):
+        with pytest.raises(ScanStopped):
+            scan(tmp_path, out=out, **options)
+        assert (out/'assessment.json').read_bytes() == before
+
+
+def test_sample_project_preserves_edits_and_refuses_symlinks(tmp_path):
+    from pqcsuite.project import sample_project
+    root = sample_project(tmp_path)
+    assert scan(root)['summary']['resolved_calls'] == 1
+    (root/'keys.py').write_text('customer edit')
+    assert sample_project(tmp_path) == root
+    assert (root/'keys.py').read_text() == 'customer edit'
+    root.rename(tmp_path/'moved')
+    root.symlink_to(tmp_path/'moved', target_is_directory=True)
+    with pytest.raises(ValueError):
+        sample_project(tmp_path)
+
+
+
+def test_console_cancellation_keeps_previous_assessment(tmp_path):
+    import threading
+    from pqcsuite.project import ScanStopped
+    app = App(Settings(project_roots=[str(tmp_path)], audit_log=str(tmp_path/'audit.jsonl')))
+    previous = {'project':'completed'}
+    app.project_scan['last'] = previous
+    entered = threading.Event()
+    def pending(*args, **kwargs):
+        entered.set()
+        assert kwargs['cancel'].wait(5)
+        raise ScanStopped('Scan cancelled; the previous completed assessment is preserved')
+    with patch('pqcsuite.project.scan', side_effect=pending):
+        app.start_project({'project':0})
+        assert entered.wait(5)
+        assert app.cancel_project() == {'requested':True}
+        deadline = time.monotonic() + 5
+        while app.project_scan['running'] and time.monotonic() < deadline:
+            time.sleep(.01)
+    assert not app.project_scan['running']
+    assert app.project_scan['last'] is previous
+    assert 'cancelled' in app.project_scan['error']
+    with pytest.raises(ValueError):
+        app.cancel_project()

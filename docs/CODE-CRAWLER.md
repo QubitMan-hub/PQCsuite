@@ -62,6 +62,46 @@ Current source measurement: 74 production source files; 65 Python files; 13603 n
 
 ## Remaining release work
 
-Additional language AST adapters, verified runtime/deployment mapping, cancellation/whole-project quotas, signed desktop installers, fleet identity/RBAC and external fleet storage remain open. Privileged real VPNs, cloud/Kubernetes, long-duration reliability and independent security review require their real environments. This change does not claim market superiority or completion of those release gates.
+Additional language AST adapters, verified runtime/deployment mapping, hard process isolation/incremental scans, signed desktop installers, fleet identity/RBAC and external fleet storage remain open. Privileged real VPNs, cloud/Kubernetes, long-duration reliability and independent security review require their real environments. This change does not claim market superiority or completion of those release gates.
 
 Repository workflow: [project scan skill](../.agents/skills/pqcsuite-project-scan/SKILL.md).
+
+
+## Persistent remediation workspace
+
+The console now saves registrations inside the currently approved parent, full latest assessments, up to 30 summary/comparison records per project, owners, due dates and expiring exceptions. Default: `.pqcsuite/projects.json`; override with `--project-state`. `--sample-project` creates a local intentionally classical example without overwriting edits. Setup remains checkout-based until Wolf Pack 1.3.0 is published.
+
+Finding IDs include algorithm/variant, source file set and test/declaration status; line shifts retain assignments. Renames or changed file sets can create a new identity. Rescans retain previously observed findings and distinguish new/persisting/no-longer-observed evidence. Missing findings do not prove a secure deployment or a verified migration; investigate deletion, parser coverage, renames and runtime use. Exception rationale and expiry are mandatory; expired exceptions and overdue dates stay visible without changing scanner risk.
+
+State uses the existing private atomic-write/cross-process-lock implementation. Its read/write limit is 16 MB, with 200 registered repositories per approved parent and 5,000 current/historical findings per project. A failed save preserves prior disk state and leaves the completed scan visible with a warning. Persisted registration never authorizes a new parent or a replaced symlink. Ownership labels are workflow metadata, not authenticated user identities or RBAC.
+
+Unified scans have a 50,000-file/512 MB discovery budget and a five-minute cooperative deadline. Cancel checks run during discovery, between scout files, and before publishing results. A single parser/relationship operation may finish before cancellation is observed; this is not a hard process CPU/memory limit. Existing completed results survive cancellation or quota failure. Standalone Wolf Pack keeps its existing defaults; the shared Scope implementation supplies the optional controls without a duplicate scanner.
+
+Next work remains explicit: incremental analysis and broader language relationships; SSO/roles with a chosen identity provider; trusted native installers with signing infrastructure; real laptop/cloud/long-duration validation and independent security review. Local persistence does not satisfy the separate fleet architecture requirements.
+
+Validation of this milestone: **367 Python tests passed, 12 prerequisite skips, 4,473 subtests passed; 36 browser journeys passed**. Both wheels built and the clean installed-wheel sample → scan → assign → restart → edit → rescan journey passed. Ruff, basic mypy (60 files), production CBOM baseline, whole-repository scan, official schema (zero errors), repeated site publishing and seven pinned public static scans passed. No new dependencies were introduced.
+
+Development-corpus regression before/after the shared discovery budget change (163 labeled pairs, tuned fixture only; not real-world accuracy):
+
+| Configuration | Before P / R / F1; FP / FN | After P / R / F1; FP / FN |
+|---|---|---|
+| full pack | 1.000 / 1.000 / 1.000; 0 / 0 | 1.000 / 1.000 / 1.000; 0 / 0 |
+| without den | 0.845 / 1.000 / 0.916; 30 / 0 | 0.845 / 1.000 / 0.916; 30 / 0 |
+| without corroboration | 1.000 / 0.994 / 0.997; 0 / 1 | 1.000 / 0.994 / 0.997; 0 / 1 |
+| without second look | 1.000 / 0.914 / 0.955; 0 / 14 | 1.000 / 0.914 / 0.955; 0 / 14 |
+| without flow | 1.000 / 0.933 / 0.965; 0 / 11 | 1.000 / 0.933 / 0.965; 0 / 11 |
+| without registries | 1.000 / 0.988 / 0.994; 0 / 2 | 1.000 / 0.988 / 0.994; 0 / 2 |
+| without siblings | 1.000 / 0.994 / 0.997; 0 / 1 | 1.000 / 0.994 / 0.997; 0 / 1 |
+| without recognition | 0.982 / 1.000 / 0.991; 3 / 0 | 0.982 / 1.000 / 0.991; 3 / 0 |
+| without propagation | 1.000 / 0.988 / 0.994; 0 / 2 | 1.000 / 0.988 / 0.994; 0 / 2 |
+| without cross-file | 1.000 / 0.988 / 0.994; 0 / 2 | 1.000 / 0.988 / 0.994; 0 / 2 |
+| without source scouts | 1.000 / 0.356 / 0.525; 0 / 105 | 1.000 / 0.356 / 0.525; 0 / 105 |
+| without names | 1.000 / 0.963 / 0.981; 0 / 6 | 1.000 / 0.963 / 0.981; 0 / 6 |
+| without concat | 1.000 / 0.994 / 0.997; 0 / 1 | 1.000 / 0.994 / 0.997; 0 / 1 |
+| without symbols | 1.000 / 0.957 / 0.978; 0 / 7 | 1.000 / 0.957 / 0.978; 0 / 7 |
+| without parameters | 1.000 / 0.994 / 0.997; 0 / 1 | 1.000 / 0.994 / 0.997; 0 / 1 |
+| without implementation scouts | 1.000 / 0.982 / 0.991; 0 / 3 | 1.000 / 0.982 / 0.991; 0 / 3 |
+| without config scouts | 1.000 / 0.748 / 0.856; 0 / 41 | 1.000 / 0.748 / 0.856; 0 / 41 |
+| without lists | 1.000 / 0.969 / 0.984; 0 / 5 | 1.000 / 0.969 / 0.984; 0 / 5 |
+| without artifact scouts | 1.000 / 0.933 / 0.965; 0 / 11 | 1.000 / 0.933 / 0.965; 0 / 11 |
+| without binary scouts | 1.000 / 0.988 / 0.994; 0 / 2 | 1.000 / 0.988 / 0.994; 0 / 2 |

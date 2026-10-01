@@ -37,6 +37,7 @@ class Settings:
     backups: list = field(default_factory=list)
     project_roots: list = field(default_factory=list)
     project_history: str = ""
+    project_state: str = ""
     repository_directory: str = ""
     scan_targets: list = field(default_factory=list)
     scan_every_hours: float = 0.0
@@ -59,9 +60,25 @@ class App:
         self.last_scan, self.scanning, self.scan_error = None, False, None
         self.latest, self.latest_checked = None, 0.0
         self.lock = threading.Lock()
+        self.project_cancel = threading.Event()
         self.projects = [Path(p).resolve() for p in settings.project_roots]
         self.repository_directory = Path(settings.repository_directory).resolve() if settings.repository_directory else None
-        self.project_scan = {"running": False, "stage": "", "last": None, "error": None}
+        self.project_scan = {"running": False, "stage": "", "last": None, "error": None, "selected": 0}
+        from ..project import ProjectStore
+        self.project_store = ProjectStore(settings.project_state) if settings.project_state else None
+        if self.project_store:
+            if self.repository_directory:
+                for name in self.project_store.read()['registrations'].get(self.project_store.key(self.repository_directory), []):
+                    try:
+                        path = self.approved_project(name)
+                        if path not in self.projects:
+                            self.projects.append(path)
+                    except (OSError, ValueError):
+                        pass  # Persisted names never grant access beyond today's approved parent.
+            saved = [self.project_store.assessment(p) for p in self.projects]
+            self.project_scan['last'] = max((a for a in saved if a), key=lambda a: a['finished'], default=None)
+            if self.project_scan['last']:
+                self.project_scan['selected'] = saved.index(self.project_scan['last'])
 
     def ca(self):
         if not self.s.ca:
@@ -219,7 +236,10 @@ class App:
             ("GET", "/api/projects"): self.project_status,
             ("GET", "/api/projects/status"): lambda: self.project_status(brief=True),
             ("POST", "/api/projects/register"): lambda: self.register_project(body),
+            ("POST", "/api/projects/cancel"): self.cancel_project,
             ("POST", "/api/projects/scan"): lambda: self.start_project(body),
+            ("POST", "/api/projects/select"): lambda: self.select_project(body),
+            ("POST", "/api/projects/track"): lambda: self.track_project(body),
             ("GET", "/api/scan"): lambda: {"running": self.scanning, "last": self.last_scan, "error": self.scan_error, "targets": self.s.scan_targets,
                                            "every_hours": self.s.scan_every_hours},
             ("POST", "/api/certificates/issue"): lambda: self.issue(body),
@@ -267,26 +287,33 @@ class App:
     def project_status(self, brief=False):
         with self.lock:
             state = dict(self.project_scan)
-            projects = [{"id": i, "name": p.name} for i, p in enumerate(self.projects)]
+            projects = [{"id": i, "name": p.name, **({"key": self.project_store.key(p)} if self.project_store else {})} for i, p in enumerate(self.projects)]
         if brief:
             return {k: state[k] for k in ("running", "stage", "error")}
+        workspace_error = None
+        if self.project_store and state['last'] and self.projects:
+            try:
+                saved = self.project_store.assessment(self.projects[state['selected']])
+                if saved and saved['finished'] >= state['last']['finished']:
+                    state['last'] = saved
+            except (OSError, ValueError):
+                workspace_error = 'Saved workspace is unavailable; current session evidence is retained.'
         available, directory_error = [], None
         if self.repository_directory:
             try:
                 available = sorted(p.name for p in self.repository_directory.iterdir() if not p.name.startswith(".") and p.is_dir() and not p.is_symlink())[:200]
             except OSError:
                 directory_error = "The approved repository folder is unavailable. Ask its administrator to check access."
-        history, history_error = [], None
+        history, history_error = (state["last"].get("history", []) if state["last"] else []), None
         if self.s.project_history:
             from ..project import read_history
             try:
                 history = read_history(self.s.project_history)
             except (OSError, ValueError):
                 history_error = "History is unavailable; check the configured history file."
-        return state | {"projects": projects, "available": available, "directory_error": directory_error, "history": history, "history_error": history_error}
+        return state | {"workspace_error": workspace_error, "persistent": bool(self.project_store), "projects": projects, "available": available, "directory_error": directory_error, "history": history, "history_error": history_error}
 
-    def register_project(self, body):
-        name = body.get("name")
+    def approved_project(self, name):
         root = self.repository_directory
         if not root or not isinstance(name, str) or not name or len(name) > 255 or Path(name).name != name or name.startswith(".") or "/" in name or "\\" in name:
             raise ValueError("Choose a repository inside the administrator-approved folder")
@@ -294,6 +321,12 @@ class App:
         path = candidate.resolve()
         if candidate.is_symlink() or not path.is_relative_to(root) or not path.is_dir():
             raise ValueError("Choose an existing repository folder; symlinks and outside paths are not accepted")
+        return path
+
+    def register_project(self, body):
+        path = self.approved_project(body.get('name'))
+        if self.project_store:
+            self.project_store.register(self.repository_directory, path.name)
         with self.lock:
             if path not in self.projects:
                 self.projects.append(path)
@@ -301,24 +334,76 @@ class App:
         self.audit("project-register", {"project_id": index})
         return {"project": index}
 
-    def start_project(self, body):
-        from ..project import scan, scanner
-        i = body.get("project")
+    def selected_project(self, body):
+        i = body.get('project')
         if type(i) is not int or not 0 <= i < len(self.projects):
-            raise ValueError("Choose a project registered with --project; arbitrary filesystem paths are not accepted")
+            raise ValueError('Choose a registered project')
+        path = self.projects[i]
+        if path.is_symlink() or path.resolve() != path or not path.is_dir():
+            raise ValueError('Registered repository is unavailable or has become a symlink')
+        if path.parent == self.repository_directory:
+            self.approved_project(path.name)
+        return i, path
+
+    def select_project(self, body):
+        i, path = self.selected_project(body)
+        if not self.project_store:
+            raise ValueError('Start the console with --project-state to save assessments')
+        with self.lock:
+            if self.project_scan['running']:
+                raise ValueError('Wait for the active scan to finish')
+            self.project_scan['last'] = self.project_store.assessment(path)
+            self.project_scan['selected'] = i
+            self.project_scan.update(error=None, stage='Saved assessment loaded' if self.project_scan['last'] else 'Ready to scan')
+        return {'selected': i}
+
+    def track_project(self, body):
+        i, path = self.selected_project(body)
+        if not self.project_store:
+            raise ValueError('Start the console with --project-state to track findings')
+        with self.lock:
+            result = self.project_store.track(path, body)
+            if self.project_scan['last'] and self.project_scan['last'].get('project_key') == self.project_store.key(path):
+                self.project_scan['last'] = result
+        self.audit('project-triage', {'project_id': i, 'finding': body.get('finding'), 'status': body.get('status')})
+        return {'saved': True}
+
+    def cancel_project(self):
+        with self.lock:
+            if not self.project_scan['running']:
+                raise ValueError('No project scan is running')
+            self.project_cancel.set()
+            self.project_scan['stage'] = 'Cancelling at the next analysis checkpoint'
+        self.audit('project-cancel', {})
+        return {'requested': True}
+
+    def start_project(self, body):
+        from ..project import scan, scanner, ScanStopped
+        i, path = self.selected_project(body)
         scanner()  # Explain missing optional capability before acknowledging a job.
         with self.lock:
             if self.project_scan["running"]:
                 raise ValueError("A project scan is already running")
-            self.project_scan.update(running=True, stage="Preparing project", error=None)
+            self.project_cancel.clear()
+            self.project_scan.update(running=True, stage="Preparing project", error=None, selected=i)
         def progress(stage):
             with self.lock:
                 self.project_scan["stage"] = stage
         def work():
             try:
-                result = scan(self.projects[i], history=self.s.project_history or None, progress=progress)
+                result = scan(path, history=self.s.project_history or None, progress=progress,
+                              exclude=[self.project_store.path] if self.project_store else [], cancel=self.project_cancel)
+                if self.project_store:
+                    result['project_key'] = self.project_store.key(path)
+                    try:
+                        result = self.project_store.save(path, result)
+                    except (OSError, ValueError):
+                        result['notes'].append('Workspace could not be saved. This scan is available until restart; check workspace permissions and size.')
                 with self.lock:
                     self.project_scan["last"] = result
+            except ScanStopped as error:
+                with self.lock:
+                    self.project_scan['error'] = str(error)
             except Exception:
                 # Source-sensitive analysis errors are not logged with source/exception contents.
                 with self.lock:

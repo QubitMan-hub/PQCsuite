@@ -18,10 +18,14 @@ From a source checkout, install the scanner alongside the suite:
 ```sh
 pip install './wolf-pack[crawler]' '.[scan-web]'
 pqcsuite scan ./payments-api --out pqcsuite-out --open
+pqcsuite console --sample-project
+# Or select your own local repositories:
 pqcsuite console --repositories ./repositories --project-history project-history.json
 ```
 
-The Readiness page provides **Add repository → Scan project → Review exposure → Know what to fix**. Repository selection stays inside the administrator-approved local parent folder. Priorities, affected modules/functions/callers and scan history appear together; parser coverage, test-only findings and exports are in advanced views. The CLI writes an offline report, CBOM, SARIF, audit findings, code relationships and assessment JSON. Unified scans omit source snippets and raw source literals. Optional history keeps the last 100 summaries locally.
+The Readiness page provides **Add repository → Scan → Assign remediation → Rescan → Review progress**. Repository selection stays inside the administrator-approved local parent folder. Priorities, affected modules/functions/callers and scan history appear together; parser coverage, test-only findings and exports are in advanced views. The CLI writes an offline report, CBOM, SARIF, audit findings, code relationships and assessment JSON. Unified scans omit source snippets and raw source literals. Optional history keeps the last 100 summaries locally. Console registrations, latest full assessments, owner labels, deadlines and expiring exceptions persist in `.pqcsuite/projects.json` (override with `--project-state`). Switch projects to reopen saved results. Exceptions require a rationale and expiry and never hide risk. Rescans distinguish new, persisting and previously observed findings; “not observed” is static evidence, not proof of a deployed fix. This is a single-administrator workspace, not team RBAC.
+
+Unified scans stop at 50,000 discovered files or 512 MB of discovered files, with a five-minute cooperative time budget. Cancel in the console to preserve the preceding assessment. Checks occur between analysis operations; parsing a file or resolving relationships is not forcibly interrupted. Persistent state is bounded to 16 MB and 5,000 current/historical findings per project. Storage failures leave completed results available in the session with a visible warning.
 
 Python relationships reuse Wolf Pack's existing AST. Optional JavaScript/TypeScript syntax trees feed the same graph and impact engine; other languages retain their crypto detectors with explicit relationship gaps. Dynamic dispatch and business ownership require review. Source stays on your machine and is never executed by the scan. See [Code Crawler](docs/CODE-CRAWLER.md) for evidence limits and measured validation. Wolf Pack 1.3.0 here is checkout code; install from the checkout until that release is published.
 

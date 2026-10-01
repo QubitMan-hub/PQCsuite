@@ -35,3 +35,6 @@ playwright-report/
 # operating systems
 .DS_Store
 Thumbs.db
+
+# Private console workspace
+.pqcsuite/

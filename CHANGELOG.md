@@ -4,6 +4,9 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 ## Unreleased
 
+- **Persistent migration workflow:** console workspace saves approved repositories, assessments, recent comparisons, owner labels, deadlines and expiring exceptions. Rescans retain previous observations without claiming missing findings prove a deployed fix.
+- **Safer scan operations and onboarding:** sample-project startup, cooperative cancellation, unified scan discovery/time budgets, and explicit language coverage on the website. Existing completed evidence survives stopped scans; private workspace writes reuse shared locking/storage.
+
 - **Actionable readiness:** observed posture metrics, migration-priority filtering, evidence and next actions, JSON/CSV exports, and local Wolf Pack CBOM review without uploading code or combining unrelated scores.
 - **Clear VPN and Vault workflows:** gateway telemetry is distinguished from device protection; Vault explains protection, verification and recovery. VPN diagnostic-only key agreement no longer claims a connection. Overview excludes expired certificates from valid counts and reports unreachable VPN status sources.
 

@@ -4,12 +4,13 @@ import subprocess
 from dataclasses import dataclass, field, replace
 from fnmatch import fnmatch
 from pathlib import Path
+from typing import Callable
 
 from ..elders import CATALOG
 from ..model import Sighting
 
 SKIP_DIRS = {".git", ".hg", ".svn", "node_modules", "vendor", "venv", ".venv", "env", "__pycache__", "dist", "build", "target", ".tox",
-             "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "wolfpack-out", "pqcsuite-out"}
+             "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "wolfpack-out", "pqcsuite-out", ".pqcsuite"}
 TEST_PARTS = {"test", "tests", "unit", "spec", "specs", "__tests__", "testdata", "test_data", "fixtures", "mocks", "examples", "example", "samples", "sample", "demo",
               "bench", "benches", "benchmark", "benchmarks", "browsertest", "test-classes"}
 TEST_DIR = re.compile(r"(?:^|[._-])(?:unit|integration|functional|i)?tests?(?:net\d+|core)?$")
@@ -18,9 +19,16 @@ MAX_BYTES = 2_000_000
 DENY = re.compile(r"disabl|disallow|deny|denied|block|forbid|reject|insecure|weak|deprecat|legacy_only|exclude|blacklist", re.I)
 
 
+class ScanLimitError(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class Scope:
     """Which files the scouts walk. A pattern without "/" matches any file or folder name; one with "/" matches the path from the root."""
+    checkpoint: Callable | None = field(default=None, compare=False, repr=False, kw_only=True)
+    max_files: int = field(default=0, kw_only=True)
+    max_total_bytes: int = field(default=0, kw_only=True)
     vendor: bool = False
     exclude: tuple = ()
     only: frozenset | None = None
@@ -35,12 +43,16 @@ def iter_files(root, scope=Scope(), max_bytes=MAX_BYTES, skip=None):
     scope = scope if isinstance(scope, Scope) else Scope(bool(scope))
     skip = SKIP_DIRS if skip is None else skip
     root = Path(root)
+    if scope.checkpoint:
+        scope.checkpoint()
     if root.is_file():
         if not root.is_symlink():
             yield root
         return
     if scope.files is not None:
         for p, size in scope.files:
+            if scope.checkpoint:
+                scope.checkpoint()
             folders = p.relative_to(root).parts[:-1]
             if size <= max_bytes and (scope.vendor or not set(folders) & skip):
                 yield p
@@ -55,10 +67,14 @@ def iter_files(root, scope=Scope(), max_bytes=MAX_BYTES, skip=None):
     except (OSError, subprocess.TimeoutExpired):
         pass
     for d, dirs, files in os.walk(root):
+        if scope.checkpoint:
+            scope.checkpoint()
         here = Path(d).relative_to(root).as_posix()
         at = "" if here == "." else here + "/"
         dirs[:] = sorted(x for x in dirs if not (Path(d) / x).is_symlink() and (scope.vendor or x not in skip) and not scope.excluded(at + x))
         for f in sorted(files):
+            if scope.checkpoint:
+                scope.checkpoint()
             if allowed is not None and at + f not in allowed and not scope.vendor:
                 continue
             if scope.excluded(at + f) or scope.only is not None and at + f not in scope.only:
@@ -74,10 +90,16 @@ def iter_files(root, scope=Scope(), max_bytes=MAX_BYTES, skip=None):
 def snapshot(root, scope=False):
     """Enumerate once per scan; keep only paths/sizes, never customer source contents."""
     scope = scope if isinstance(scope, Scope) else Scope(bool(scope))
-    entries = []
+    entries, total_bytes = [], 0
     for p in iter_files(root, scope, max_bytes=float("inf"), skip=SKIP_DIRS - BUILD_DIRS):
         try:
-            entries.append((p, p.stat().st_size))
+            size = p.stat().st_size
+            total_bytes += size
+            if scope.max_files and len(entries) >= scope.max_files:
+                raise ScanLimitError('Repository exceeds the scan file limit; narrow the project folder')
+            if scope.max_total_bytes and total_bytes > scope.max_total_bytes:
+                raise ScanLimitError('Repository exceeds the scan byte limit; narrow the project folder')
+            entries.append((p, size))
         except OSError:
             continue
     return replace(scope, files=tuple(entries))

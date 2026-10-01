@@ -84,3 +84,12 @@ Final validation (completed 1 October 2026):
 - One-minute soak: 6,094 successful connections, zero failures, 3/3 revoked certificates refused; no resource-growth problems detected. Release benchmark: 200 hybrid handshakes, 2.27 ms median; 32-client/10-second loopback load, 1,042 connections/s, zero errors. These are local indicative measurements, not production sizing or days-long reliability.
 
 No product regression was reproduced. The defects fixed were incomplete release/CI discovery, an insufficient local-evidence release check, missing integration triggers/parser dependency audits and stale guidance. Remote CI success on the final pushed commit is not asserted. No PR, release publication, force push or protection bypass is part of this audit.
+
+
+## Follow-up: customer migration workspace — 1 October 2026
+
+Implemented the local remediation loop: sample/approved repository → scan → assign owner/deadline or expiring exception → edit → rescan → review changed evidence. Full latest assessments and recent comparisons now survive restart; all previous detector and endpoint workflows remain. The website exposes current language coverage and a sample assessment. Scan cancellation and file/byte/time budgets preserve earlier results.
+
+These changes address local adoption, persistence and action tracking. They do not deliver Java/Go relationship adapters, incremental analysis, enterprise SSO/RBAC, signed VPN installers or an independent audit. Identity-provider and signing-service details are still needed for production identity/installer integration. Real deployment validation requires the respective platforms/accounts. Static absence remains labeled “not observed,” not “verified secure.”
+
+The installed-wheel customer test exercised actual console startup, sample creation, scan, owner assignment, process restart, source edit and rescan. The persisted assignment and previous evidence survived. Backend regressions cover denied scope changes/symlinks, invalid exception/owner/date input, bounded private state, concurrent updates and cancellation/quotas without overwriting completed evidence. Browser regressions cover remediation validation, escaping, rescan persistence and accessibility. A newly introduced website code-block contrast issue was caught and corrected; the sample-link assertion was updated for the new CTA.

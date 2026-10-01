@@ -16,7 +16,11 @@ def scanner():
     return pack, report
 
 
-def scan(path, out=None, history=None, progress=None):
+class ScanStopped(ValueError):
+    pass
+
+
+def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, max_files=50000, max_bytes=512_000_000, timeout=300):
     notify = progress or (lambda stage: None)
     notify("Preparing project")
     root = Path(path).resolve()
@@ -24,15 +28,25 @@ def scan(path, out=None, history=None, progress=None):
         raise ValueError("Choose an existing project folder")
     pack, report = scanner()
     notify("Analyzing source and cryptography")
-    from wolfpack.scouts import Scope
+    from wolfpack.scouts import Scope, ScanLimitError
+    deadline = time.monotonic() + timeout
+    def checkpoint():
+        if cancel and cancel.is_set():
+            raise ScanStopped('Scan cancelled; the previous completed assessment is preserved')
+        if time.monotonic() > deadline:
+            raise ScanStopped('Scan time limit reached; narrow the project folder')
     excluded = []
-    for destination in (out, history):
+    for destination in (out, history, *exclude):
         if destination:
             try:
                 excluded.append(Path(destination).resolve().relative_to(root).as_posix())
             except ValueError:
                 pass
-    result = pack.run(root, root.name, scope=Scope(exclude=tuple(excluded)))
+    try:
+        result = pack.run(root, root.name, scope=Scope(exclude=tuple(excluded), checkpoint=checkpoint, max_files=max_files, max_total_bytes=max_bytes))
+    except ScanLimitError as error:
+        raise ScanStopped(str(error)) from None
+    checkpoint()
     notify("Preparing migration results")
     # Unified results deliberately omit source snippets and literal values. No code is uploaded/executed.
     for sighting in result.sightings:
@@ -88,3 +102,134 @@ def append_history(path, assessment):
     with locked(f.parent, "." + f.name + ".lock"):
         rows = read_history(f)[-99:] + [{k: assessment[k] for k in ("project", "finished", "summary")}]
         write(f, json.dumps(rows, indent=2).encode(), secret=True)
+
+
+def finding_id(asset):
+    """Ignore line shifts, but never equate findings from different files or algorithms."""
+    import hashlib
+    identity = [asset['algorithm'], asset['name'], sorted({p for p, _ in asset['locations']}), asset['test_only'], asset['declared']]
+    return hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+
+
+class ProjectStore:
+    """Bounded single-administrator workspace. Shared locks preserve competing updates."""
+    LIMIT = 16_000_000
+
+    def __init__(self, path):
+        self.path = Path(path).absolute()
+
+    @staticmethod
+    def key(path):
+        import hashlib
+        import os
+        return hashlib.sha256(os.path.normcase(str(Path(path).resolve())).encode()).hexdigest()
+
+    def read(self):
+        if not self.path.exists():
+            return {'version': 1, 'registrations': {}, 'projects': {}}
+        with self.path.open('rb') as source:
+            raw = source.read(self.LIMIT + 1)
+        if len(raw) > self.LIMIT:
+            raise ValueError('Project workspace exceeds 16 MB; choose a new workspace file')
+        data = json.loads(raw)
+        if not isinstance(data, dict) or data.get('version') != 1 or not isinstance(data.get('registrations'), dict) or not isinstance(data.get('projects'), dict):
+            raise ValueError('Invalid project workspace; preserve it and choose a new workspace file')
+        return data
+
+    def update(self, action):
+        self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        with locked(self.path.parent, '.' + self.path.name + '.lock'):
+            data = self.read()
+            result = action(data)
+            raw = json.dumps(data).encode()
+            if len(raw) > self.LIMIT:
+                raise ValueError('Project workspace exceeds 16 MB; choose a new workspace file')
+            write(self.path, raw, secret=True)
+            return result
+
+    def register(self, parent, name):
+        def change(data):
+            names = data['registrations'].setdefault(self.key(parent), [])
+            if name not in names:
+                if len(names) >= 200:
+                    raise ValueError('Workspace supports at most 200 registered repositories')
+                names.append(name)
+        self.update(change)
+
+    def save(self, root, assessment):
+        import copy
+        def change(data):
+            key = self.key(root)
+            previous = data['projects'].get(key, {})
+            tracking = previous.get('tracking', {})
+            old = {a['id']: a for a in previous.get('assessment', {}).get('assets', [])}
+            current = copy.deepcopy(assessment)
+            for asset in current['assets']:
+                asset['id'] = finding_id(asset)
+            ids = {a['id'] for a in current['assets']}
+            missing = {a['id']: a for a in previous.get('missing', [])}
+            missing.update({k: a for k, a in old.items() if k not in ids})
+            missing = {k: a for k, a in missing.items() if k not in ids}
+            if len(ids) + len(missing) > 5000:
+                raise ValueError('Workspace supports at most 5000 current and historical findings per project')
+            current['comparison'] = {'baseline': bool(previous), 'new': len(ids - old.keys()), 'persisting': len(ids & old.keys()),
+                                     'not_observed': len(old.keys() - ids), 'previous_finished': previous.get('assessment', {}).get('finished')}
+            history = previous.get('history', [])[-29:] + [{k: current[k] for k in ('project', 'finished', 'summary', 'comparison')}]
+            data['projects'][key] = {'assessment': current, 'tracking': tracking, 'missing': list(missing.values()), 'history': history}
+            return self.view(data['projects'][key])
+        return self.update(change)
+
+    @staticmethod
+    def view(project):
+        import copy
+        result = copy.deepcopy(project['assessment'])
+        result['history'] = copy.deepcopy(project.get('history', []))
+        result['not_observed'] = copy.deepcopy(project.get('missing', []))
+        for asset in result['assets'] + result['not_observed']:
+            asset['tracking'] = copy.deepcopy(project.get('tracking', {}).get(asset['id'], {'owner': '', 'due': '', 'status': 'open', 'reason': '', 'until': ''}))
+            tracking = asset['tracking']
+            today = time.strftime('%Y-%m-%d', time.gmtime())
+            tracking['expired'] = tracking['status'] == 'exception' and tracking.get('until', '') < today
+            tracking['overdue'] = bool(tracking.get('due') and tracking['due'] < today)
+        return result
+
+    def assessment(self, root):
+        record = self.read()['projects'].get(self.key(root))
+        return self.view(record) if record else None
+
+    def track(self, root, body):
+        import datetime as dt
+        if not isinstance(body.get('finding'), str):
+            raise ValueError('Choose a finding from a completed assessment')
+        fields = {k: body.get(k, '') for k in ('owner', 'due', 'status', 'reason', 'until')}
+        if any(not isinstance(v, str) for v in fields.values()) or len(fields['owner']) > 120 or len(fields['reason']) > 1000:
+            raise ValueError('Owner must be at most 120 characters and rationale at most 1000')
+        if fields['status'] not in {'open', 'in_progress', 'exception'}:
+            raise ValueError('Choose open, in_progress or exception')
+        for field in ('due', 'until'):
+            if fields[field] and (len(fields[field]) != 10 or dt.date.fromisoformat(fields[field]).isoformat() != fields[field]):
+                raise ValueError('Dates must use YYYY-MM-DD')
+        if fields['status'] == 'exception' and (not fields['reason'].strip() or not fields['until'] or fields['until'] < dt.datetime.now(dt.timezone.utc).date().isoformat()):
+            raise ValueError('An exception needs a rationale and a current or future expiry date')
+        def change(data):
+            project = data['projects'].get(self.key(root))
+            if not project or body.get('finding') not in {a['id'] for a in project['assessment']['assets'] + project.get('missing', [])}:
+                raise ValueError('Choose a finding from a completed assessment')
+            project['tracking'][body['finding']] = fields | {'updated': time.time()}
+            return self.view(project)
+        return self.update(change)
+
+
+def sample_project(parent):
+    """Create an intentionally classical demonstration; never overwrite customer edits."""
+    root = Path(parent) / 'sample-repository'
+    if root.is_symlink():
+        raise ValueError('Sample repository must not be a symlink')
+    if not root.exists():
+        root.mkdir(mode=0o700, parents=True)
+        write(root / 'keys.py', b'from cryptography.hazmat.primitives.asymmetric import rsa\n\ndef issue_key():\n    return rsa.generate_private_key(public_exponent=65537, key_size=2048)\n', secret=True)
+        write(root / 'checkout.py', b'from keys import issue_key\n\ndef enroll_customer():\n    return issue_key()\n', secret=True)
+        write(root / 'README.md', b'# Sample migration project\n\nIntentionally classical RSA for static scanning only. Do not use for production security.\nScan, assign an owner, edit the example and rescan to compare evidence.\nThe scanner never executes this code. Existing edits are preserved on restart.\n', secret=True)
+    if not root.is_dir():
+        raise ValueError('Sample repository path must be a folder')
+    return root
