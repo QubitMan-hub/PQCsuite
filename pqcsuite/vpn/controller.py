@@ -70,8 +70,7 @@ class Controller:
         ppk_id = f"{tag}.{ppk_pattern(self.site.name, peer.name)}"
         with self.lock:
             self.charon.load_keys(self.site.name, peer.name, psk, ppk, ppk_id, tag)
-            if peer.initiate:
-                self.charon.load_conn(conn_config(self.site, peer, ppk_id))
+            self.charon.load_conn(conn_config(self.site, peer, ppk_id if peer.initiate else None))
             self.keys[peer.name].append(tag)
             for old in self.keys[peer.name][:-2]:
                 self.charon.unload_key(f"ppk-{peer.name}-{old}")
@@ -120,21 +119,21 @@ class Controller:
     def initiator_loop(self, peer):
         rotate, backoff = peer.rotate_minutes * 60, 5
         while not self.stop.is_set():
-            t = self.tunnel(peer.name)
-            due = time.time() - self.last_agreed.get(peer.name, 0) >= rotate
-            if due or not protected(t):
-                try:
+            try:
+                t = self.tunnel(peer.name)
+                due = time.time() - self.last_agreed.get(peer.name, 0) >= rotate
+                if due or not protected(t):
                     self.agree(peer)
                     with self.lock:
                         self.charon.initiate(peer.name)
                     self.counts["rotations" if t else "connects"] += 1
-                    backoff = 5
-                except (tls.TLSError, CAError, CharonError, OSError, ValueError) as e:
-                    self.counts["failures"] += 1
-                    log.warning("%s: %s; retrying in %ds", peer.name, explain(e), backoff)
-                    self.stop.wait(backoff)
-                    backoff = min(backoff * 2, 300)
-                    continue
+                backoff = 5
+            except (tls.TLSError, CAError, CharonError, OSError, ValueError) as e:
+                self.counts["failures"] += 1
+                log.warning("%s: %s; retrying in %ds", peer.name, explain(e), backoff)
+                self.stop.wait(backoff)
+                backoff = min(backoff * 2, 300)
+                continue
             self.stop.wait(min(30, rotate))
 
     def cut(self, name, why):

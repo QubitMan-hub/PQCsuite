@@ -263,7 +263,8 @@ class CLITest(unittest.TestCase):
         from pqcsuite import checks
         messages = lambda folder: " ".join(m for _, m in checks.backups(folder))
         self.assertIn("single key", messages("one"), "an archive only one key opens is flagged")
-        self.assertIn("at least two keys", messages("two"))
+        self.assertIn("lists at least two recipients", messages("two"))
+        self.assertIn("unverified metadata", messages("two"))
         self.assertEqual(checks.backups("empty-folder")[0][0], "fail")
         os.utime(next(Path("one").glob("*.pqv")), (0, 0))
         self.assertIn("(more than 2)", messages("one"))

@@ -94,6 +94,24 @@ class ConfigTest(unittest.TestCase):
             t.join()
         self.assertEqual(Session.overlaps, 0)
 
+    def test_vici_transport_failure_reconnects_without_replaying_mutations(self):
+        from unittest.mock import Mock, patch
+        from pqcsuite.vpn.charon import Charon, CharonError
+        broken, recovered = Mock(), Mock()
+        broken.load_conn.side_effect = EOFError('daemon restarted')
+        recovered.list_sas.return_value = iter([{}])
+        with patch('pqcsuite.vpn.charon.connect', side_effect=[broken, recovered]) as connect:
+            ch = Charon('unix:///test')
+            with self.assertRaisesRegex(CharonError, 'next request will reconnect'):
+                ch.load_conn({'peer':{}})
+            broken.load_conn.assert_called_once()
+            recovered.load_conn.assert_not_called()
+            self.assertEqual(ch.tunnels(), [])
+            self.assertEqual(connect.call_count, 2)
+            broken.transport.socket.close.assert_called_once()
+            ch.close()
+            recovered.transport.socket.close.assert_called_once()
+
     def test_example_configs_load(self):
         root = Path(__file__).parent.parent / "examples"
         for f in ("vpn-hq.toml", "vpn-branch.toml"):
@@ -160,6 +178,35 @@ class TunnelHealthTest(unittest.TestCase):
         self.assertIn('peer="branch.acme"} 1', ctl.metrics())
         self.assertFalse(protected(t | {'ppk':False}))
         self.assertFalse(protected(t | {'key_exchange':'CURVE_25519'}))
+
+    def test_status_query_failure_does_not_kill_reconnection_loop(self):
+        from unittest.mock import Mock
+        from pqcsuite.vpn.charon import CharonError
+        from pqcsuite.vpn.controller import Controller
+        s = site(peers=[Peer("branch.acme", "10.0.0.2", ["10.1.0.0/16"], ["10.2.0.0/16"], initiate=True)])
+        ch = Mock()
+        ch.tunnels.side_effect = [CharonError('restarting'), []]
+        ctl = Controller(s, charon=ch)
+        ctl.stop = Mock()
+        ctl.stop.is_set.side_effect = [False, False, True]
+        ctl.agree = Mock()
+        ctl.initiator_loop(s.peers[0])
+        self.assertEqual(ctl.counts['failures'], 1)
+        ctl.agree.assert_called_once_with(s.peers[0])
+        ch.initiate.assert_called_once_with('branch.acme')
+        ctl.stop.wait.assert_any_call(5)
+
+    def test_responder_reinstalls_connection_after_daemon_state_loss(self):
+        from unittest.mock import Mock
+        from pqcsuite.vpn.controller import Controller
+        s = site(peers=[Peer('branch.acme', '10.0.0.2', ['10.1.0.0/16'], ['10.2.0.0/16'])])
+        ch = Mock()
+        ctl = Controller(s, charon=ch)
+        ctl.install(s.peers[0], 'aaaaaaaaaaaa', b'x'*64, Mock(serial_number=123))
+        configured = ch.load_conn.call_args.args[0]['branch.acme']
+        self.assertTrue(configured['ppk_id'].startswith('*.'))
+        self.assertEqual(configured['ppk_required'], 'yes')
+
 
 
 SS = os.environ.get("PQCSUITE_STRONGSWAN")
@@ -275,6 +322,21 @@ class SiteToSiteTest(unittest.TestCase):
         from pqcsuite.vpn.charon import Charon
         with Charon(f"unix://{self.d}/{tag}.vici") as ch:
             return min(ch.tunnels(), key=lambda t: t["established_s"], default=None)
+
+    def test_controller_recovers_after_responder_daemon_restart(self):
+        self.wait(lambda: (t := self.tunnel('hq')) and t['state'] == 'ESTABLISHED' and t['ppk'], 'initial IKE negotiation failed')
+        controllers = self.procs[2:4]
+        self.procs[0].terminate()
+        self.procs[0].wait(5)
+        self.spawn('ip', 'netns', 'exec', 'pqc-hq', 'unshare', '-m', 'sh', '-c',
+                   f'mount -t tmpfs tmpfs /run && STRONGSWAN_CONF={self.d}/hq.conf exec {SS}/libexec/ipsec/charon')
+        self.wait(lambda: (t := self.tunnel('hq')) and t['state'] == 'ESTABLISHED' and t['ppk'],
+                  'controller did not reconnect and restore responder configuration', 100)
+        self.assertTrue(all(p.poll() is None for p in controllers), 'controllers must recover without being restarted')
+        if os.environ.get('PQCSUITE_VPN_DATAPLANE'):
+            from pqcsuite.vpn.charon import protected
+            self.wait(lambda: protected(self.tunnel('hq')), 'no encrypted child after daemon restart')
+            sh('ip', 'netns', 'exec', 'pqc-br', 'ping', '-c', '3', '-W', '2', '-I', '192.168.20.1', '192.168.10.1')
 
     def test_quantum_safe_tunnel_rotation_and_revocation(self):
         up = lambda: (t := self.tunnel("hq")) and t["state"] == "ESTABLISHED" and t["ppk"]

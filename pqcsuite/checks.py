@@ -29,7 +29,10 @@ def ca(root):
     except (CAError, OSError, ValueError) as e:
         return [("fail", f"CA at {root}: {e}")]
     left = (c.cert.not_valid_after_utc - now()).days
-    out.append(("ok" if left > 365 else "warn", f"CA {c.cert.subject.rfc4514_string()} ({c.algorithm}) valid for {left} more days"))
+    valid_now = c.cert.not_valid_before_utc <= now() < c.cert.not_valid_after_utc
+    out.append(("fail" if not valid_now else "ok" if left > 365 else "warn",
+                f"CA {c.cert.subject.rfc4514_string()} ({c.algorithm}) " +
+                (f"valid for {left} more days" if valid_now else "is expired or not yet valid; restore a valid CA before serving certificates")))
     if (root / "signer.json").exists():
         out.append(("ok", "CA key is held by an external signer (KMS or HSM)"))
     else:
@@ -72,7 +75,7 @@ def ca(root):
 
 
 def backups(folder, days=2):
-    """Vault archives: each readable, each opened by at least two keys, and the newest of each source recent."""
+    """Inspect archive headers and age; no recipient key is supplied, so integrity/restore remain unverified."""
     from .vault import VaultError, read_header
     folder, out = Path(folder), []
     archives = sorted(folder.glob("*.pqv"))
@@ -91,9 +94,10 @@ def backups(folder, days=2):
         newest[h["name"]] = max(newest.get(h["name"], 0), p.stat().st_mtime)
     if broken:
         out.append(("fail", f"{len(broken)} archive(s) in {folder} cannot be read: {', '.join(broken[:5])}"))
-    out.append(("warn", f"{len(lone)} archive(s) open with a single key, so losing it loses them ({', '.join(lone[:3])}): "
+    out.append(("warn", f"{len(lone)} archive header(s) list a single key recipient, so losing its key may lose them ({', '.join(lone[:3])}): "
                         "`pqcsuite vault share FILE --key KEY -r recovery.pub` adds a recovery key without re-encrypting")
-               if lone else ("ok", f"every archive in {folder} opens with at least two keys"))
+               if lone else ("ok", f"every readable archive header in {folder} lists at least two recipients"))
+    out.append(("warn", "Archive headers are unverified metadata; run pqcsuite vault verify with a recipient key and perform a restore drill"))
     for name, mtime in sorted(newest.items()):
         age = (dt.datetime.now().timestamp() - mtime) / 86400
         out.append(("warn" if age > days else "ok", f"newest backup of {name} is {age:.1f} days old"

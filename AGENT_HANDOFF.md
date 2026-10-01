@@ -4,6 +4,8 @@ Current instructions for the next contributor; superseded progress notes remain 
 
 ## Current priority — verify the five existing products
 
+- Latest recheck from `2ae48bb`: 374 Python tests passed (13 host prerequisite skips), 37 browser tests, and 73 real-service/container tests including strongSwan responder restart recovery. Both wheels and the installed-package restart/remediation workflow passed; no new dependencies or modules. Fixed VICI reconnection/status retry/responder reload, invalid CA preflight, and misleading Vault header assurance. One-minute soak: 5,583 connections, zero failures, 3/3 revocations enforced. Kernel/platform limitations below remain unchanged.
+
 - The owner explicitly put broader roadmap work aside. Do not resume SSO/installers/language expansion during verification.
 - Verification from `1d42417`: 369 Python tests and 37 browser journeys passed; 12 host prerequisites skipped. Additional current-code container service/TLS/Vault/VPN checks: 78 passed, 3 VPN prerequisites skipped. Real strongSwan control-plane checks: 10 passed. Real userspace WireGuard split-tunnel traffic/rotation/revocation passed; full-tunnel test remains blocked by the kernel's missing IPv6 `addrtype` matcher. IPsec dataplane fails kernel SA installation (“Requested type not found”). Do not claim complete VPN validation.
 - Fixed a real VPN status/recovery defect: IKE establishment alone no longer counts as protected. Require an installed encrypted child plus ML-KEM/PPK for health/metrics/overview, show IKE-only state in the UI, and retry missing children. Regression tests and stricter real dataplane assertions added.

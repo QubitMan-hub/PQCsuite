@@ -5,10 +5,13 @@ from urllib.parse import urlparse
 
 from . import PROFILES
 
+TRANSPORT_ERRORS: tuple[type[Exception], ...]
 try:
-    from vici.exception import CommandException
+    from vici.exception import CommandException, SessionException, DeserializationException
+    TRANSPORT_ERRORS = (OSError, EOFError, SessionException, DeserializationException)
 except ImportError:
     CommandException = ()
+    TRANSPORT_ERRORS = (OSError, EOFError)
 
 
 class CharonError(Exception):
@@ -21,15 +24,19 @@ def connect(uri):
     except ImportError:
         raise CharonError('the site-to-site VPN needs its extra: pip install "pqcsuite[vpn]"') from None
     u = urlparse(uri)
+    s = None
     try:
         if u.scheme == "unix":
             s = socket.socket(socket.AF_UNIX)
+            s.settimeout(10)
             s.connect(u.path)
         elif u.scheme == "tcp":
-            s = socket.create_connection((u.hostname, u.port))
+            s = socket.create_connection((u.hostname, u.port), timeout=10)
         else:
             raise CharonError(f"unsupported VICI address {uri}; use unix:///path or tcp://host:port")
     except OSError as e:
+        if s is not None:
+            s.close()
         raise CharonError(f"cannot reach charon at {uri}: {e} (is strongSwan running?)") from None
     s.settimeout(60)
     return vici.Session(s)
@@ -79,7 +86,10 @@ class Charon:
         self.lock = threading.Lock()
 
     def close(self):
-        self.session.transport.socket.close()
+        with self.lock:
+            if self.session is not None:
+                self.session.transport.socket.close()
+                self.session = None
 
     def __enter__(self):
         return self
@@ -87,42 +97,49 @@ class Charon:
     def __exit__(self, *exc):
         self.close()
 
-    def _call(self, fn, *args):
-        """One request at a time: the session is a single socket shared by the controller's threads and the metrics server."""
-        try:
-            with self.lock:
-                result = fn(*args)
+    def _call(self, method, *args):
+        """Serialize requests; discard broken sessions without replaying an uncertain mutation."""
+        with self.lock:
+            try:
+                if self.session is None:
+                    self.session = connect(self.uri)
+                result = getattr(self.session, method)(*args)
                 return list(result) if hasattr(result, "__next__") else result
-        except CommandException as e:
-            raise CharonError(str(e)) from None
+            except TRANSPORT_ERRORS as e:
+                if self.session is not None:
+                    self.session.transport.socket.close()
+                    self.session = None
+                raise CharonError("VICI connection lost; the next request will reconnect") from e
+            except CommandException as e:
+                raise CharonError(str(e)) from None
 
     def version(self):
-        v = self._call(self.session.version)
+        v = self._call("version")
         return f"{text(v['daemon'])} {text(v['version'])}"
 
     def ml_kem(self):
         """ML-KEM key exchanges this charon supports."""
-        return sorted(text(k) for k in self._call(self.session.get_algorithms).get("ke", {}) if text(k).startswith("ML_KEM"))
+        return sorted(text(k) for k in self._call("get_algorithms").get("ke", {}) if text(k).startswith("ML_KEM"))
 
     def load_keys(self, site, peer, psk, ppk, ppk_id, key_tag):
-        self._call(self.session.load_shared, {"id": f"psk-{peer}", "type": "IKE", "data": psk, "owners": [site, peer]})
-        self._call(self.session.load_shared, {"id": f"ppk-{peer}-{key_tag}", "type": "PPK", "data": ppk, "owners": [ppk_id]})
+        self._call("load_shared", {"id": f"psk-{peer}", "type": "IKE", "data": psk, "owners": [site, peer]})
+        self._call("load_shared", {"id": f"ppk-{peer}-{key_tag}", "type": "PPK", "data": ppk, "owners": [ppk_id]})
 
     def unload_key(self, key_id):
-        self._call(self.session.unload_shared, {"id": key_id})
+        self._call("unload_shared", {"id": key_id})
 
     def shared_ids(self):
-        return [text(k) for k in self._call(self.session.get_shared).get("keys", [])]
+        return [text(k) for k in self._call("get_shared").get("keys", [])]
 
     def load_conn(self, config):
-        self._call(self.session.load_conn, config)
+        self._call("load_conn", config)
 
     def initiate(self, peer, timeout_ms=15000):
-        return [text(m.get("msg", b"")) for m in self._call(self.session.initiate, {"ike": peer, "child": "net", "timeout": timeout_ms, "init-limits": "no"})]
+        return [text(m.get("msg", b"")) for m in self._call("initiate", {"ike": peer, "child": "net", "timeout": timeout_ms, "init-limits": "no"})]
 
     def terminate(self, peer):
         try:
-            self._call(self.session.terminate, {"ike": peer, "timeout": 5000, "force": "yes"})
+            self._call("terminate", {"ike": peer, "timeout": 5000, "force": "yes"})
         except CharonError as e:
             if "no matching" not in str(e):
                 raise
@@ -130,7 +147,7 @@ class Charon:
     def tunnels(self):
         """One dict per IKE SA: who, state, algorithms, whether a PPK was used, and its child SAs with traffic counters."""
         out = []
-        for sa in self._call(self.session.list_sas):
+        for sa in self._call("list_sas"):
             for name, ike in sa.items():
                 kes = [text(ike.get(k)) for k in ["dh-group"] + [f"ake{i}" for i in range(1, 8)] if ike.get(k)]
                 out.append({

@@ -112,3 +112,19 @@ Final shared Python suite: **369 passed, 12 prerequisite skips, 4,462 subtests p
 The deep VPN test exposed a product defect: an established IKE session without an installed child SA could count as protected, and the initiator could wait for the normal rotation interval before retrying. The controller, metrics and overview now share a predicate requiring an installed encrypted child plus ML-KEM/PPK; the VPN page shows “IKE only · no encrypted tunnel,” and missing children trigger retry. Regression tests prove missing/installing/deleting children and missing PQ negotiation are not protected. The real dataplane test now waits for installed children before sending test traffic, so an unencrypted ping cannot establish success.
 
 Two environment failures were preserved, not bypassed: strongSwan negotiated the expected IKE algorithms but the kernel returned “Requested type not found” while installing IPsec SAs; WireGuard's full-tunnel setup could not load the IPv6 `addrtype` firewall matcher. The container also lacked native WireGuard devices, so supported userspace WireGuard was used with an isolated TUN device. Its initial read-only forwarding setting was corrected only inside the test container. No crypto checks, IPv6 protection, kill-switch rules or failing assertions were disabled. A complete VPN dataplane sign-off still requires a Linux kernel with the required XFRM/ESP and firewall support plus the native laptop checks in the release gates.
+
+
+## Reliability recheck — 1 October 2026
+
+Rechecked from `2ae48bb`, preserving the pause on broader roadmap work.
+
+| Before | After |
+|---|---|
+| Broken VICI sockets stayed attached; a status-query exception could stop the initiator thread | Transport failures discard the session; the next request reconnects, and status failures use bounded retry backoff. Uncertain commands are not automatically replayed. |
+| A restarted responder daemon lost its connection configuration | Key agreement reinstalls responder configuration with the required wildcard PPK selector. A real strongSwan restart test confirms recovery without restarting controllers. |
+| An expired or future-dated CA could receive only a warning | Invalid certificate dates fail deployment preflight. |
+| Backup headers could imply that two keys actually opened an archive | Checks describe unverified recipient metadata and require authenticated verification plus a restore drill. Header checks alone deliberately retain a warning. |
+
+Validation: **374 Python tests passed, 13 prerequisite skips, 4,274 subtests passed**; **37 browser tests passed**; **73 real-service/container tests passed, 3,570 subtests passed**, including real strongSwan restart recovery. Counts overlap. Ruff and basic mypy (60 files) passed. Both production wheels built and installed into a separate environment; sample scan, owner assignment, restart, source edit and rescan preserved remediation evidence. CLI tour and clinic/bank workflows passed. One-minute TLS soak: **5,583 connections, zero failures, 3/3 revocations enforced**. All 20 scanner corpus/ablation rows were unchanged; the production CBOM baseline gate and official schema validation passed.
+
+This pass adds no runtime dependency or production module. Changes reuse the existing VICI adapter, retry loop and preflight checks. Earlier VPN kernel limitations remain: the real restart test validates the IKE/control plane here, not encrypted IPsec traffic. Complete IPsec dataplane, WireGuard full-tunnel and native Windows/macOS validation still require suitable hosts. External KMS/HSM, managed deployments, independent review and long-duration production testing remain outside this local evidence.

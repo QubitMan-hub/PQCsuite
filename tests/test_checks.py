@@ -41,6 +41,24 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(find(checks.ca(self.d / "enc"), "is encrypted"), "ok")
         self.assertEqual(find(checks.ca(self.d / "missing"), "CA at"), "fail")
 
+    def test_expired_or_future_ca_fails_deployment_check(self):
+        import datetime as dt
+        from unittest.mock import patch
+        ca = CA.init(self.d/'pki', 'Root')
+        for moment in (ca.cert.not_valid_after_utc + dt.timedelta(seconds=1), ca.cert.not_valid_before_utc - dt.timedelta(seconds=1)):
+            with patch('pqcsuite.checks.now', return_value=moment):
+                self.assertEqual(find(checks.ca(self.d/'pki'), 'expired or not yet valid'), 'fail')
+
+    def test_archive_header_check_does_not_claim_integrity_or_restore(self):
+        from pqcsuite import vault
+        one, two = vault.Identity.generate(), vault.Identity.generate()
+        source = self.d/'source'; source.write_bytes(b'customer backup')
+        vault.encrypt(source, self.d/'backup.pqv', [one.public, two.public])
+        result = checks.backups(self.d)
+        self.assertEqual(find(result, 'unverified metadata'), 'warn')
+        self.assertEqual(find(result, 'lists at least two recipients'), 'ok')
+        self.assertFalse(any('opens with' in text for _, text in result))
+
     def test_damaged_ca_files_are_problems_not_crashes(self):
         CA.init(self.d / "pki", "Root")
         other = CA.init(self.d / "other", "Other")
