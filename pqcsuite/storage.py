@@ -1,5 +1,6 @@
 """Shared private file writes and process/thread locking, independent of cryptographic protocols."""
 import contextlib
+import errno
 import os
 import secrets
 import threading
@@ -23,14 +24,21 @@ def locked(root, filename=".lock"):
         return
     tl = _THREAD_LOCKS.setdefault(key, threading.Lock())
     with tl, os.fdopen(os.open(root / filename, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600), "a+b") as f:
-        held.add(key)
         if os.name == "nt":
             import msvcrt
             f.seek(0)
-            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+            while True:
+                try:
+                    msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError as e:
+                    if e.errno not in {errno.EACCES, errno.EAGAIN, errno.EDEADLK}:
+                        raise
+                    time.sleep(0.05)
         else:
             import fcntl
             fcntl.flock(f, fcntl.LOCK_EX)
+        held.add(key)
         try:
             yield
         finally:

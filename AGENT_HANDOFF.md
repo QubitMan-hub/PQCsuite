@@ -4,6 +4,9 @@ Current instructions for the next contributor; superseded progress notes remain 
 
 ## Current priority — verify the five existing products
 
+- GitHub authentication expired after `048c03e` was pushed; both the injected Git credential and `GH_TOKEN` were rejected. That commit passed all 15 CI jobs and CodeQL (run 36837393428). The following Windows lock correction is committed locally; refresh environment GitHub access, check remote/concurrent changes, push normally, and verify its own Windows/platform CI before claiming completion.
+- Follow-up platform CI exposed a Windows Python 3.11 multi-process CA lock failure. Shared storage now retries nonblocking Windows lock contention and marks reentrancy only after successful acquisition; errors/interruptions must never allow a later unprotected update. Regression coverage includes injected failures and contention, plus the existing six-process CA race. Keep the remote Windows matrix required.
+
 - Remote validation supersedes the earlier *local kernel* VPN boundary below: actual `afa39fa` CI logs prove 34 IPsec/TLS checks with encrypted traffic and daemon restart recovery, 13 WireGuard checks including full tunnel/kill switch, and 16 Windows platform checks including a native tunnel. Run: https://github.com/QubitMan-hub/PQCsuite/actions/runs/36836106173. That overall run failed separate tests/image checks, so it is not a release sign-off.
 - `b2e5b3e` fixes macOS publisher path canonicalization, the release-runner unit test's unnecessary TLS dependency, missing Git in Debian test CI, and outdated OpenSSL/PCRE2 distribution packages in the runtime image. Local verification: 375 passed, 13 prerequisite skips; lint, image build/doctor/tour and fixable HIGH/CRITICAL Trivy gate passed. Inspect the commit's CI before claiming a complete platform pass. Windows/macOS native CI tests do not establish customer-laptop end-to-end traffic, kill-switch, sleep/wake or roaming.
 

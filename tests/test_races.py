@@ -43,6 +43,30 @@ class RaceTest(unittest.TestCase):
         self.root = self.d / "pki"
         self.ca = CA.init(self.root, "Root")
 
+    def test_windows_lock_waits_for_contention_and_never_remembers_failed_acquisition(self):
+        import errno
+        import os
+        from types import SimpleNamespace
+        from pqcsuite import storage
+        windows = SimpleNamespace(name="nt", open=os.open, fdopen=os.fdopen,
+                                  O_RDWR=os.O_RDWR, O_CREAT=os.O_CREAT, O_NOFOLLOW=getattr(os, "O_NOFOLLOW", 0))
+        crt = mock.Mock(LK_NBLCK=2, LK_UNLCK=0)
+        for failure in (OSError(errno.EIO, "I/O failure"), KeyboardInterrupt()):
+            with self.subTest(failure=type(failure).__name__), mock.patch.object(storage, "os", windows), \
+                    mock.patch.dict(sys.modules, {"msvcrt": crt}), mock.patch.object(storage.time, "sleep") as sleep:
+                crt.locking.reset_mock()
+                crt.locking.side_effect = [failure]
+                with self.assertRaises(type(failure)):
+                    with storage.locked(self.root):
+                        self.fail("failed acquisition entered protected state")
+                # Longer contention must wait, and a previous failure must not bypass locking.
+                crt.locking.side_effect = [OSError(errno.EACCES, "busy")] * 12 + [None, None]
+                with storage.locked(self.root):
+                    with storage.locked(self.root):
+                        self.assertEqual(crt.locking.call_count, 14)
+                self.assertEqual(sleep.call_count, 12)
+                self.assertEqual(crt.locking.call_args.args[1], crt.LK_UNLCK)
+
     def test_processes_issuing_and_revoking_at_once_lose_nothing(self):
         procs = [subprocess.Popen([sys.executable, "-c", WORKER, str(self.root), str(n)]) for n in range(6)]
         self.assertEqual([p.wait(120) for p in procs], [0] * 6)
