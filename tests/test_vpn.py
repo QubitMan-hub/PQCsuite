@@ -137,6 +137,31 @@ class FreshnessTest(unittest.TestCase):
         self.assertEqual(ctl.counts["stale_peers"], 1)
 
 
+class TunnelHealthTest(unittest.TestCase):
+    def test_ike_without_installed_child_is_not_protected_and_is_retried(self):
+        from unittest.mock import Mock
+        from pqcsuite.vpn.charon import protected
+        from pqcsuite.vpn.controller import Controller
+        s = site(peers=[Peer("branch.acme", "10.0.0.2", ["10.1.0.0/16"], ["10.2.0.0/16"], initiate=True)])
+        t = {"peer":"branch.acme", "state":"ESTABLISHED", "ppk":True, "key_exchange":"CURVE_25519 + ML_KEM_768", "established_s":5, "children":[]}
+        ch = FakeCharon([], [t])
+        ctl = Controller(s, charon=ch)
+        ctl.last_agreed['branch.acme'] = time.time()
+        self.assertFalse(protected(t))
+        self.assertIn('peer="branch.acme"} 0', ctl.metrics())
+        ctl.agree = Mock()
+        ch.initiate = Mock(side_effect=lambda name: ctl.stop.set())
+        ctl.initiator_loop(s.peers[0])
+        ctl.agree.assert_called_once_with(s.peers[0])
+        ch.initiate.assert_called_once_with('branch.acme')
+        for state in ('INSTALLING', 'DELETING', 'INSTALLED'):
+            t['children'] = [{'state':state, 'bytes_in':0, 'bytes_out':0}]
+            self.assertEqual(protected(t), state == 'INSTALLED')
+        self.assertIn('peer="branch.acme"} 1', ctl.metrics())
+        self.assertFalse(protected(t | {'ppk':False}))
+        self.assertFalse(protected(t | {'key_exchange':'CURVE_25519'}))
+
+
 SS = os.environ.get("PQCSUITE_STRONGSWAN")
 READY = SS and os.geteuid() == 0 and shutil.which("ip") and sys.platform == "linux"
 
@@ -260,6 +285,9 @@ class SiteToSiteTest(unittest.TestCase):
         self.assertEqual(t["encryption"], "AES_GCM_16_256")
 
         if os.environ.get("PQCSUITE_VPN_DATAPLANE"):
+            from pqcsuite.vpn.charon import protected
+            self.wait(lambda: protected(self.tunnel("hq")) and protected(self.tunnel("br")),
+                      "IKE negotiated but no encrypted child SA was installed; check kernel IPsec support")
             sh("ip", "netns", "exec", "pqc-br", "ping", "-c", "3", "-W", "2", "-I", "192.168.20.1", "192.168.10.1")
             child = self.tunnel("hq")["children"][0]
             self.assertEqual(child["state"], "INSTALLED")

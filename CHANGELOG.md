@@ -4,6 +4,8 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 ## Unreleased
 
+- **VPN health and recovery:** an established IKE session without an installed encrypted child no longer reports protection in metrics or the console. Missing children trigger retries; the real dataplane test requires installed encryption before accepting traffic.
+
 - **Persistent migration workflow:** console workspace saves approved repositories, assessments, recent comparisons, owner labels, deadlines and expiring exceptions. Rescans retain previous observations without claiming missing findings prove a deployed fix.
 - **Safer scan operations and onboarding:** sample-project startup, cooperative cancellation, unified scan discovery/time budgets, and explicit language coverage on the website. Existing completed evidence survives stopped scans; private workspace writes reuse shared locking/storage.
 

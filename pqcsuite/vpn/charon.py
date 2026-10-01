@@ -45,6 +45,13 @@ def cipher(sa):
     return f"{alg}_{size}" if alg and size else alg
 
 
+def protected(tunnel):
+    """PQ key negotiation is not a usable VPN until an encrypted child SA is installed."""
+    return bool(tunnel and tunnel.get('state') == 'ESTABLISHED' and tunnel.get('ppk')
+                and 'ML_KEM' in tunnel.get('key_exchange', '')
+                and any(c.get('state') == 'INSTALLED' for c in tunnel.get('children', [])))
+
+
 def ppk_pattern(site, peer):
     a, b = sorted((site, peer))
     return f"{a}.{b}.ppk.pqcsuite"

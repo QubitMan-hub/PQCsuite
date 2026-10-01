@@ -2,6 +2,13 @@
 
 Current instructions for the next contributor; superseded progress notes remain in Git history.
 
+## Current priority — verify the five existing products
+
+- The owner explicitly put broader roadmap work aside. Do not resume SSO/installers/language expansion during verification.
+- Verification from `1d42417`: 369 Python tests and 37 browser journeys passed; 12 host prerequisites skipped. Additional current-code container service/TLS/Vault/VPN checks: 78 passed, 3 VPN prerequisites skipped. Real strongSwan control-plane checks: 10 passed. Real userspace WireGuard split-tunnel traffic/rotation/revocation passed; full-tunnel test remains blocked by the kernel's missing IPv6 `addrtype` matcher. IPsec dataplane fails kernel SA installation (“Requested type not found”). Do not claim complete VPN validation.
+- Fixed a real VPN status/recovery defect: IKE establishment alone no longer counts as protected. Require an installed encrypted child plus ML-KEM/PPK for health/metrics/overview, show IKE-only state in the UI, and retry missing children. Regression tests and stricter real dataplane assertions added.
+- TLS/clinic/bank workflows, Vault scenarios, all scanner corpus/ablations, seven public static projects, dependency audit, wheels, lint/basic types and CBOM schema/baseline passed. Soak: 5,907 connections, zero failures, 3/3 revocations enforced. Full evidence and precise boundaries: `docs/PRODUCT-REVIEW.md`.
+
 ## Latest product milestone — persistent remediation
 
 - Console now persists approved-parent registrations, latest full assessments, 30 recent comparisons per project, owners/deadlines and expiring exceptions in `.pqcsuite/projects.json` (`--project-state` overrides). Scope is rechecked on restart/use; private atomic storage and cross-process locks are reused. It remains a single-administrator token console, not SSO/RBAC.

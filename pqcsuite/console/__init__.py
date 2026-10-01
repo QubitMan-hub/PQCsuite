@@ -22,6 +22,7 @@ from pathlib import Path
 from .. import HTTP_IDLE, NAME, __version__, build, content_length, read_toml
 from ..pki import CA, CAError, append, encrypted
 from ..tls import hostport
+from ..vpn.charon import protected
 
 log = logging.getLogger("pqcsuite.console")
 NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -217,7 +218,7 @@ class App:
         tunnels, remote = self.tunnels(), self.remote_users()
         tun = [t for t in tunnels if "error" not in t]
         users = [u for u in remote if "error" not in u]
-        out["vpn"] = {"tunnels": len(tun), "quantum_safe": sum(t["state"] == "ESTABLISHED" and t["ppk"] and "ML_KEM" in t["key_exchange"] for t in tun),
+        out["vpn"] = {"tunnels": len(tun), "quantum_safe": sum(protected(t) for t in tun),
                       "unreachable": sum("error" in t for t in tunnels + remote), "remote_users": len(users), "remote_online": sum(time.time() - u.get("latest_handshake", 0) < 180 for u in users)}
         b = [x for x in self.backups() if "error" not in x]
         out["backups"] = {"count": len(b), "latest": max(x["created"] for x in b) if b else None, "signed": sum(bool(x["signed_by"]) for x in b)}

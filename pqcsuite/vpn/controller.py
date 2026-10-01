@@ -14,7 +14,7 @@ from .. import env_passphrase, explain, tls
 from ..pki import CAError, follow_crl
 from ..tls import hostport
 from ..tls.server import Revocation, Server
-from .charon import Charon, CharonError, conn_config, ppk_pattern
+from .charon import Charon, CharonError, conn_config, ppk_pattern, protected
 
 log = logging.getLogger("pqcsuite.vpn")
 LABEL = "EXPORTER-pqcsuite-ipsec-v1"
@@ -122,7 +122,7 @@ class Controller:
         while not self.stop.is_set():
             t = self.tunnel(peer.name)
             due = time.time() - self.last_agreed.get(peer.name, 0) >= rotate
-            if due or not t or t["state"] != "ESTABLISHED":
+            if due or not protected(t):
                 try:
                     self.agree(peer)
                     with self.lock:
@@ -215,7 +215,7 @@ class Controller:
         tunnels = {t["peer"]: t for t in self.charon.tunnels()}
         for p in self.site.peers:
             t = tunnels.get(p.name)
-            up = int(bool(t and t["state"] == "ESTABLISHED" and t["ppk"]))
+            up = int(protected(t))
             lines.append(f'pqcsuite_vpn_tunnel_up{{peer="{p.name}"}} {up}')
             for c in (t or {}).get("children", []):
                 lines.append(f'pqcsuite_vpn_bytes_total{{peer="{p.name}",direction="in"}} {c["bytes_in"]}')

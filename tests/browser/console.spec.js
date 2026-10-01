@@ -276,3 +276,17 @@ test('remediation owner, deadlines and exceptions survive navigation and rescann
   await expect(page.locator('#project-results')).toContainText('Migration team <test>');
   expect((await new AxeBuilder({page}).analyze()).violations.filter(v=>['serious','critical'].includes(v.impact))).toEqual([]);
 });
+
+
+test('successful PQ negotiation without an encrypted child never claims VPN protection', async ({page}) => {
+  const tunnel={peer:'branch',state:'ESTABLISHED',ppk:true,key_exchange:'CURVE_25519 + ML_KEM_768',established_s:60,children:[]};
+  await page.route('**/api/tunnels', r=>r.fulfill({json:[tunnel]}));
+  await signIn(page); await page.evaluate(()=>(location.hash='vpn'));
+  await expect(page.locator('.metrics')).toContainText('Review required');
+  await expect(page.locator('#view')).toContainText('IKE only · no encrypted tunnel');
+  await expect(page.locator('.metrics')).not.toContainText('PQ observed');
+  tunnel.children=[{state:'INSTALLED',bytes_in:128,bytes_out:256}];
+  await page.evaluate(()=>(location.hash='readiness')); await expect(page.locator('#view h1')).toHaveText('Readiness');
+  await page.evaluate(()=>(location.hash='vpn'));
+  await expect(page.locator('.metrics')).toContainText('PQ observed');
+});

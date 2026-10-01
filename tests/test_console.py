@@ -107,6 +107,14 @@ class ConsoleTest(unittest.TestCase):
         self.assertEqual(o["vpn"]["quantum_safe"], 0)
         self.assertEqual(o["backups"]["latest"], "2026-01-01")
 
+    def test_ike_only_session_is_not_counted_as_protected(self):
+        from unittest.mock import patch
+        session = {'state':'ESTABLISHED', 'ppk':True, 'key_exchange':'ML_KEM_768', 'children':[]}
+        with patch.object(self.app, 'tunnels', return_value=[session]):
+            self.assertEqual(self.app.overview()['vpn']['quantum_safe'], 0)
+            session['children'] = [{'state':'INSTALLED'}]
+            self.assertEqual(self.app.overview()['vpn']['quantum_safe'], 1)
+
     def test_issue_and_revoke_are_audited(self):
         _, _, r = self.call("/api/certificates/issue", {"kind": "server", "common_name": "api.acme", "names": "10.0.0.5", "days": 90})
         _, _, certs = self.call("/api/certificates")
