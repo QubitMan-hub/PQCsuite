@@ -4,6 +4,9 @@ Current instructions for the next contributor; superseded progress notes remain 
 
 ## Current priority — verify the five existing products
 
+- Remote validation supersedes the earlier *local kernel* VPN boundary below: actual `afa39fa` CI logs prove 34 IPsec/TLS checks with encrypted traffic and daemon restart recovery, 13 WireGuard checks including full tunnel/kill switch, and 16 Windows platform checks including a native tunnel. Run: https://github.com/QubitMan-hub/PQCsuite/actions/runs/36836106173. That overall run failed separate tests/image checks, so it is not a release sign-off.
+- `b2e5b3e` fixes macOS publisher path canonicalization, the release-runner unit test's unnecessary TLS dependency, missing Git in Debian test CI, and outdated OpenSSL/PCRE2 distribution packages in the runtime image. Local verification: 375 passed, 13 prerequisite skips; lint, image build/doctor/tour and fixable HIGH/CRITICAL Trivy gate passed. Inspect the commit's CI before claiming a complete platform pass. Windows/macOS native CI tests do not establish customer-laptop end-to-end traffic, kill-switch, sleep/wake or roaming.
+
 - Latest recheck from `2ae48bb`: 374 Python tests passed (13 host prerequisite skips), 37 browser tests, and 73 real-service/container tests including strongSwan responder restart recovery. Both wheels and the installed-package restart/remediation workflow passed; no new dependencies or modules. Fixed VICI reconnection/status retry/responder reload, invalid CA preflight, and misleading Vault header assurance. One-minute soak: 5,583 connections, zero failures, 3/3 revocations enforced. Kernel/platform limitations below remain unchanged.
 
 - The owner explicitly put broader roadmap work aside. Do not resume SSO/installers/language expansion during verification.
