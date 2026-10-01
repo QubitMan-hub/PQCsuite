@@ -351,6 +351,9 @@ class SiteToSiteTest(unittest.TestCase):
             self.wait(lambda: protected(self.tunnel("hq")) and protected(self.tunnel("br")),
                       "IKE negotiated but no encrypted child SA was installed; check kernel IPsec support")
             sh("ip", "netns", "exec", "pqc-br", "ping", "-c", "3", "-W", "2", "-I", "192.168.20.1", "192.168.10.1")
+            from tests.helpers import redis_application
+            application = redis_application(self, "pqc-hq", "pqc-br", "192.168.10.1", "192.168.20.1")
+            self.wait(application, "Redis SET/GET did not cross the encrypted IPsec tunnel")
             child = self.tunnel("hq")["children"][0]
             self.assertEqual(child["state"], "INSTALLED")
             self.assertGreaterEqual(child["packets_in"], 3)
@@ -361,6 +364,8 @@ class SiteToSiteTest(unittest.TestCase):
         rotated = time.time()
         self.wait(lambda: born() >= rotated - 3 and self.tunnel("br")["ppk"], "no new PPK-protected SA after rotation", 20)
         self.assertTrue(self.tunnel("br")["ppk"])
+        if os.environ.get("PQCSUITE_VPN_DATAPLANE"):
+            self.wait(application, "Redis traffic failed after IPsec key rotation")
 
         serial = next(r.serial for r in self.ca.records() if r.common_name == "branch.acme")
         self.ca.revoke(serial, "keyCompromise")

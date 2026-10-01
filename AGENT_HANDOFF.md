@@ -4,6 +4,8 @@ Current instructions for the next contributor; superseded progress notes remain 
 
 ## Current priority — verify the five existing products
 
+- Latest real-application pass starts at `f573521`: real nginx/PostgreSQL/Redis/MQTT/OpenSSH scenarios plus three pinned public static scans (Django, PyCryptodome, noble-post-quantum). Fixed `SelfTest`/`test_vectors` classification; PyCryptodome keeps 73 assets but production candidates drop 25 → 17. Added PostgreSQL dump/recovery/restore and Redis traffic before/after VPN rotation; the CI VPN job now installs Redis. Host validation: 378 passed, 14 prerequisites skipped; real-service container 54 passed; real userspace WireGuard Redis/rotation/revocation passed. Final commit CI must execute the encrypted IPsec Redis checks. See `docs/PRODUCT-REVIEW.md` for review context and coverage limitations.
+
 - Publishing the environment restored GitHub access on 1 October 2026. The Windows lock correction is `cfb7646`; local verification passed 376 tests with 13 prerequisite skips. `048c03e` passed all 15 CI jobs and CodeQL (run 36837393428). Check the latest commit’s own platform CI before using that earlier result as release evidence.
 - Follow-up platform CI exposed a Windows Python 3.11 multi-process CA lock failure. Shared storage now retries nonblocking Windows lock contention and marks reentrancy only after successful acquisition; errors/interruptions must never allow a later unprotected update. Regression coverage includes injected failures and contention, plus the existing six-process CA race. Keep the remote Windows matrix required.
 

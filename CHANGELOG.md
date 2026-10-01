@@ -4,6 +4,9 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 ## Unreleased
 
+- **Real application regression checks:** encrypted PostgreSQL dumps must restore correct rows through a recovery recipient; real Redis SET/GET requests must survive IPsec/WireGuard key rotation, and revoked WireGuard clients lose application access.
+- **Accurate migration scope:** `SelfTest` and `test_vectors` directories count as test evidence. Their assets remain visible in advanced inventory but no longer create production migration candidates by themselves.
+
 - **Windows concurrent updates:** state locks wait through contention instead of exhausting the C runtime’s ten retries. Failed or interrupted acquisitions no longer leave a false reentrant-lock marker that could bypass the next acquisition.
 
 - **Platform validation fixes:** website publishing resolves both source and output paths before checking containment, including macOS temporary-directory aliases. Release-runner tests isolate version reporting from host TLS availability; Debian integration installs Git for repository-analysis tests, and platform matrix jobs finish independently.

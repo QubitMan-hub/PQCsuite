@@ -253,3 +253,19 @@ def test_console_cancellation_keeps_previous_assessment(tmp_path):
     assert 'cancelled' in app.project_scan['error']
     with pytest.raises(ValueError):
         app.cancel_project()
+
+
+@pytest.mark.parametrize("directory", ["test_vectors", "lib/Crypto/SelfTest"])
+def test_crypto_test_vectors_remain_visible_without_production_migration_candidates(tmp_path, directory):
+    root = tmp_path / directory
+    root.mkdir(parents=True)
+    fixture(root)
+    result = scan(tmp_path)
+    assert result['assets']
+    assert all(a['test_only'] for a in result['assets'])
+    assert result['summary']['migration_candidates'] == 0
+    # The same algorithm used in production must remain a migration candidate.
+    fixture(tmp_path)
+    mixed = scan(tmp_path)
+    assert mixed['summary']['migration_candidates'] > 0
+    assert any(not a['test_only'] for a in mixed['assets'])

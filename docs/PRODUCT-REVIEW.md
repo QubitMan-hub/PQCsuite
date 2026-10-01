@@ -150,3 +150,32 @@ The corrected run passed macOS (373 tests plus the native WireGuard test), but W
 
 
 Publishing the cloud environment restored GitHub access on 1 October 2026, allowing the final Windows locking correction (`cfb7646`) to be synchronized with `main`. Its local validation passed **376 tests, 13 prerequisite skips and 4,358 subtests**, plus Ruff and basic mypy. The latest commit’s remote CI is required to validate that correction; the earlier green run does not cover it.
+
+
+## Real application and repository validation — 1 October 2026
+
+Started from `f573521`. Application instances were disposable, isolated and controlled by this test environment; no third-party production endpoints were probed. Public repositories were cloned at the commits below and scanned statically, without installing their dependencies or executing their code. Findings were reviewed by the assistant doing the implementation; there is no independent complete truth set or precision/recall claim.
+
+| Product | Real target and workflow | Verified result |
+|---|---|---|
+| TLS / mTLS | nginx reached by independent OpenSSL clients; PostgreSQL queries, Redis SET/GET and MQTT publish/subscribe through terminating/originating edges | Real payloads, hybrid negotiation, classical transition policy, concurrent clients, enrollment and revoked-client refusal passed. |
+| VPN | Redis SET/GET in isolated gateway/client namespaces before and after key rotation | Real userspace WireGuard passed locally; revocation removed the peer and Redis access. The Linux CI VPN gate executes the matching IPsec application check only after installed encrypted children are confirmed. Local IPsec validation remains control-plane-only because of kernel support. |
+| Vault | PostgreSQL custom-format dump with Unicode rows; two archive recipients; authenticate through recovery recipient, restore, then run `pg_restore` | Database rows matched the original after the dump and table were removed. Existing 40 MiB backup/retention/signature/tamper checks also passed. This validates a dump, not a crash-consistent backup of live PostgreSQL data files. |
+| Readiness | Real OpenSSH and TLS endpoints with strict hybrid, transition, classical-only, legacy TLS and closed-port configurations | Existing probes/reports completed and distinguished observed configurations; expected TLS grades A/B/C/C/F passed. Endpoint evidence does not establish which source findings are deployed. |
+| Wolf Pack / Code Crawler | Additional Python/TypeScript repository scans, report/relationship exports and official CycloneDX schema | All scans completed. Scope bug fixed as described below; graph and attribution limits remain explicit. |
+
+| Public repository | Pinned commit | Assets | Supported AST files | Resolved / observed calls | Seconds |
+|---|---|---:|---|---:|---:|
+| django/django | `50eef95591b1e5d8c47b2e8c96066cb0c516753a` | 12 | Python 2,931; JavaScript 43 | 17,278 / 100,000 | 37.78 |
+| Legrandin/pycryptodome | `a1e52c70302a51077e9d6a20a6abc6a04da1b5e6` | 73 | Python 228; JavaScript 2 | 1,484 / 19,766 | 12.80 |
+| paulmillr/noble-post-quantum | `48e493397e69fa3e377bd454ff5261b1a7e22651` | 22 | TypeScript 20 | 400 / 1,494 | 0.91 |
+
+Timing reflects one Linux/Python 3.12 run before the scope correction and is indicative. Django's entire repository reached the 100,000-call graph cap; a deliberately invalid Python test fixture and two JavaScript syntax failures were reported. Scanning only Django’s `django/` application source completed in 9.88 seconds with 37,552 calls and no graph cap (907 Python and 20 JavaScript files); one JavaScript relationship syntax gap remained. PyCryptodome's C implementation files have detector coverage without an AST relationship adapter. These are explicit partial-coverage results, not complete call graphs.
+
+Reviewed findings show why source inventory is not a vulnerability verdict:
+
+- Django's optional `MD5PasswordHasher.encode` is a real weak-password-hasher implementation worth checking against a deployment's configured hashers. Its static-files `file_hash` also uses MD5, explicitly with `usedforsecurity=False`; that cache fingerprint is not evidence of a password or signature vulnerability. Django's default HMAC-SHA1 helper and SHA1 used inside PBKDF2 require purpose/context review; SHA1 collision attacks do not establish that HMAC or PBKDF2 is broken. The scanner records primitives and candidate callers, not effective application settings.
+- PyCryptodome really implements RSA, ECC and legacy algorithms; RSA-OAEP defaults to SHA1 if its caller supplies no hash. That is a compatibility/default observation, not an exploit proof. RSA-1536 fixtures under Wycheproof `test_vectors` incorrectly entered the production queue. Recognizing `test_vectors` and `SelfTest` as test scope retains all **73 assets** while reducing production migration candidates **25 → 17**. Regressions prove production uses still count and test evidence is preserved.
+- noble-post-quantum's ML-KEM/ML-DSA/SLH-DSA/FN-DSA implementations were recognized. Its ECDH findings include a classical component combined with ML-KEM in hybrid presets, so a generic ECDH priority does not show the complete hybrid is quantum-vulnerable. A local variable named `dsa` actually holds ML-DSA signers and produces a false classical DSA finding in test code. That alias-attribution gap remains in advanced/test evidence. AES DRBG key-size inference also requires review; the observed helper is `rngAesCtrDrbg256`, so its generic AES label must not be taken as AES-128.
+
+Validation after the scope fix: **378 local Python tests passed, 14 prerequisite skips, 4,485 subtests passed**; **54 real-service/container tests passed, 3,568 subtests passed**; real userspace WireGuard Redis/rotation/revocation passed. These counts overlap. All 20 development corpus/ablation configurations ran; full pack remains 163 labeled pairs with zero false positives/negatives, as a tuned regression result only. Production CBOM baseline gate and official CycloneDX 1.6 validation passed for every new repository CBOM. Ruff, basic mypy and both production wheels passed. All **37 local browser tests passed** after restoring the environment’s Chromium prerequisite. Final remote platform checks are recorded by the latest commit's CI; do not infer unexecuted paths from local prerequisite skips.

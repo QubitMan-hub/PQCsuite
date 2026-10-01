@@ -96,6 +96,18 @@ class Scenario(unittest.TestCase):
         self.procs.append(p)
         return p
 
+    def postgres(self):
+        data, port = self.d / "pg", free_port()
+        data.mkdir()
+        shutil.chown(data, "postgres")
+        os.chmod(self.d, 0o755)
+        subprocess.run(["runuser", "-u", "postgres", "--", PG_BIN / "initdb", "-D", data, "-A", "trust", "--encoding=UTF8"],
+                       check=True, capture_output=True)
+        self.spawn("runuser", "-u", "postgres", "--", PG_BIN / "postgres", "-D", data, "-p", port, "-k", data,
+                   "-c", "listen_addresses=127.0.0.1")
+        wait_port(port)
+        return port
+
     def pqc(self, *args, log):
         return self.spawn(sys.executable, "-m", "pqcsuite", *args, log=self.d / log)
 
@@ -253,14 +265,7 @@ class TunnelTest(Scenario):
     @unittest.skipUnless(PG_BIN and shutil.which("psql"), "needs PostgreSQL")
     @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0 and shutil.which("runuser"), "needs root to run postgres as its own user")
     def test_postgres(self):
-        bin_ = PG_BIN
-        data, port = self.d / "pg", free_port()
-        data.mkdir()
-        shutil.chown(data, "postgres")
-        os.chmod(self.d, 0o755)
-        subprocess.run(["runuser", "-u", "postgres", "--", bin_ / "initdb", "-D", data, "-A", "trust"], check=True, capture_output=True)
-        self.spawn("runuser", "-u", "postgres", "--", bin_ / "postgres", "-D", data, "-p", port, "-k", data, "-c", "listen_addresses=127.0.0.1")
-        wait_port(port)
+        port = self.postgres()
         local = self.tunnel(port)
         r = subprocess.run(["psql", "-h", "127.0.0.1", "-p", str(local), "-U", "postgres", "-tAc", "select 6 * 7"],
                            capture_output=True, text=True, timeout=30)
@@ -298,6 +303,31 @@ class EnrollTest(Scenario):
 
 class VaultTest(Scenario):
     """Backups of a real data folder: large files, nested folders, the command line, and tampering."""
+
+    @unittest.skipUnless(PG_BIN and shutil.which("psql") and shutil.which("runuser") and
+                         hasattr(os, "geteuid") and os.geteuid() == 0, "needs PostgreSQL and root")
+    def test_postgres_dump_can_be_restored_after_vault_recovery(self):
+        from pqcsuite import vault
+        port = self.postgres()
+        args = ["-h", "127.0.0.1", "-p", str(port), "-U", "postgres"]
+        def sql(query):
+            return subprocess.run(["psql", *args, "-v", "ON_ERROR_STOP=1", "-tAc", query], capture_output=True,
+                                  text=True, encoding="utf-8", timeout=30, check=True).stdout.strip()
+        sql("CREATE TABLE customer_data (id integer PRIMARY KEY, value text); "
+            "INSERT INTO customer_data VALUES (1, 'customer α'), (2, 'recovery 漢字')")
+        expected = sql("SELECT id, value FROM customer_data ORDER BY id")
+        dump = self.d / "database.dump"
+        subprocess.run([PG_BIN / "pg_dump", *args, "-Fc", "-f", dump, "postgres"], capture_output=True, check=True, timeout=30)
+        ops, recovery = vault.Identity.generate(), vault.Identity.generate()
+        archive = self.d / "database.pqv"
+        vault.encrypt(dump, archive, [ops.public, recovery.public])
+        vault.verify(archive, recovery)
+        dump.unlink()
+        sql("DROP TABLE customer_data")
+        restored, _ = vault.decrypt(archive, self.d / "restore", recovery)
+        subprocess.run([PG_BIN / "pg_restore", *args, "--clean", "--if-exists", "--exit-on-error", "-d", "postgres", restored],
+                       capture_output=True, check=True, timeout=30)
+        self.assertEqual(sql("SELECT id, value FROM customer_data ORDER BY id"), expected)
 
     def test_backup_restore_and_tamper(self):
         src = self.d / "data"

@@ -160,6 +160,8 @@ jobs:
             --enable-kdf --enable-kernel-netlink --enable-socket-default --enable-updown --enable-resolve --enable-attr --enable-constraints \
             --enable-revocation && make -j4 && sudo make install && sudo chmod -R a+rX /opt/pqc
       - run: pip install -e ".[vpn]"
+      - name: Real application for VPN traffic checks
+        run: sudo apt-get update && sudo apt-get install -y redis-server
       - name: Two sites in network namespaces, real ESP traffic
         run: |
           sudo modprobe -a esp4 xfrm_user || true

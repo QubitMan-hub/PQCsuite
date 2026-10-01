@@ -272,6 +272,9 @@ class RemoteAccessTest(Namespaces):
     def test_traffic_rotation_and_revocation(self):
         ping = lambda: self.ping("pqc-wgc", "192.168.10.1")
         self.wait(ping, "no traffic through the tunnel")
+        from tests.helpers import redis_application
+        application = redis_application(self, "pqc-wgs", "pqc-wgc", "192.168.10.1")
+        self.wait(application, "Redis SET/GET did not cross WireGuard")
         dump = sh("ip", "netns", "exec", "pqc-wgs", "wg", "show", "pqc-wgs0", "preshared-keys").stdout.split()
         self.assertEqual(len(dump), 2)
         self.assertNotEqual(dump[1], "(none)")
@@ -280,6 +283,7 @@ class RemoteAccessTest(Namespaces):
         self.wait(lambda: agreements() >= 2, "the PSK did not rotate", 40)
         self.assertNotEqual(sh("ip", "netns", "exec", "pqc-wgs", "wg", "show", "pqc-wgs0", "preshared-keys").stdout.split()[1], first_psk)
         self.wait(ping, "traffic stopped after the PSK rotated", 20)
+        self.wait(application, "Redis traffic failed after WireGuard key rotation", 20)
         self.assertFalse(sh("ip", "netns", "exec", "pqc-wgc", "iptables", "-S", "PQCSUITE-KILLSWITCH", check=False).returncode == 0,
                          "a split tunnel must not block the rest of the laptop's traffic")
 
@@ -287,6 +291,7 @@ class RemoteAccessTest(Namespaces):
         self.wait(lambda: not sh("ip", "netns", "exec", "pqc-wgs", "wg", "show", "pqc-wgs0", "peers").stdout.strip(),
                   "the gateway kept a revoked user", 30)
         self.assertFalse(ping())
+        self.assertFalse(application(), "revoked client retained Redis access")
         self.assertIn("revoked", (self.d / "gateway.log").read_text())
 
 
