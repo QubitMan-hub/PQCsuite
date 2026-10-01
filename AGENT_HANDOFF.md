@@ -2,7 +2,10 @@
 
 Current instructions for the next contributor; superseded progress notes remain in Git history.
 
-## Current priority — verify the five existing products
+## Current priority — improve and verify the five existing products
+
+- Owner resumed the product roadmap, then explicitly removed team access (SSO/RBAC) and native installer code signing from scope on 1 October 2026. Neither was implemented in this checkout; do not add them or request identity-provider/signing credentials. Keep the single-administrator token console, third-party installer signature verification, and core certificate/Vault cryptographic signing intact.
+- Continue scanner accuracy, large-repository coverage/performance, evidence-backed migration verification, easier setup/diagnostics and realistic product validation. Actual customer laptops/cloud accounts and independent reviewers remain external validation prerequisites; do not claim those checks from local or CI substitutes.
 
 - Latest real-application pass starts at `f573521`: real nginx/PostgreSQL/Redis/MQTT/OpenSSH scenarios plus three pinned public static scans (Django, PyCryptodome, noble-post-quantum). Fixed `SelfTest`/`test_vectors` classification; PyCryptodome keeps 73 assets but production candidates drop 25 → 17. Added PostgreSQL dump/recovery/restore and Redis traffic before/after VPN rotation; the CI VPN job now installs Redis. Host validation: 378 passed, 14 prerequisites skipped; real-service container 54 passed; real userspace WireGuard Redis/rotation/revocation passed. Final commit CI must execute the encrypted IPsec Redis checks. See `docs/PRODUCT-REVIEW.md` for review context and coverage limitations.
 
@@ -14,7 +17,7 @@ Current instructions for the next contributor; superseded progress notes remain 
 
 - Latest recheck from `2ae48bb`: 374 Python tests passed (13 host prerequisite skips), 37 browser tests, and 73 real-service/container tests including strongSwan responder restart recovery. Both wheels and the installed-package restart/remediation workflow passed; no new dependencies or modules. Fixed VICI reconnection/status retry/responder reload, invalid CA preflight, and misleading Vault header assurance. One-minute soak: 5,583 connections, zero failures, 3/3 revocations enforced. Kernel/platform limitations below remain unchanged.
 
-- The owner explicitly put broader roadmap work aside. Do not resume SSO/installers/language expansion during verification.
+- The earlier roadmap pause is superseded by the current scope above. Team access and native installer code signing remain excluded by the owner.
 - Verification from `1d42417`: 369 Python tests and 37 browser journeys passed; 12 host prerequisites skipped. Additional current-code container service/TLS/Vault/VPN checks: 78 passed, 3 VPN prerequisites skipped. Real strongSwan control-plane checks: 10 passed. Real userspace WireGuard split-tunnel traffic/rotation/revocation passed; full-tunnel test remains blocked by the kernel's missing IPv6 `addrtype` matcher. IPsec dataplane fails kernel SA installation (“Requested type not found”). Do not claim complete VPN validation.
 - Fixed a real VPN status/recovery defect: IKE establishment alone no longer counts as protected. Require an installed encrypted child plus ML-KEM/PPK for health/metrics/overview, show IKE-only state in the UI, and retry missing children. Regression tests and stricter real dataplane assertions added.
 - TLS/clinic/bank workflows, Vault scenarios, all scanner corpus/ablations, seven public static projects, dependency audit, wheels, lint/basic types and CBOM schema/baseline passed. Soak: 5,907 connections, zero failures, 3/3 revocations enforced. Full evidence and precise boundaries: `docs/PRODUCT-REVIEW.md`.
@@ -26,7 +29,7 @@ Current instructions for the next contributor; superseded progress notes remain 
 - `console --sample-project` creates an intentionally classical local example and preserves edits. Website has a sample assessment entry point and explicit language coverage matrix; Acxelin styling/product placement preserved.
 - Unified scans have 50,000-file/512 MB discovery and five-minute cooperative time budgets plus Cancel. Prior completed evidence survives cancellation/quota failures. One parser/graph operation may finish before a checkpoint; this is not hard process isolation. No new production module or dependency.
 - Validation: 367 Python tests passed, 12 prerequisite skips and 4,473 subtests; 36 browser journeys passed. Installed-wheel restart/remediation/rescan smoke passed. Both wheels, lint/basic types, CBOM baseline/schema, repeated publishing and seven real public static scans passed. All 20 corpus/ablation rows unchanged; before/after table in `docs/CODE-CRAWLER.md`.
-- Remaining independent work: Java/Go relationship adapters, incremental scans, SSO/RBAC, signed native installers, independent security review and real laptop/cloud/long-duration validation. Identity-provider and signing-service details were requested asynchronously; no answer received at the time of this record. Do not substitute owner labels for access controls.
+- Remaining independent work: Java/Go relationship adapters, incremental scans, easier onboarding, independent security review and real laptop/cloud/long-duration validation. Team access and native installer code signing are excluded from the current roadmap. Owner labels remain workflow metadata, not access controls.
 
 ## Preserve
 
@@ -52,5 +55,5 @@ Current instructions for the next contributor; superseded progress notes remain 
 ## Release boundaries
 
 - Wolf Pack 1.3.0 remains unpublished. Install both packages from this checkout with their documented extras. Base container does not include optional repository scanning.
-- Signed VPN installers/enrollment, fleet RBAC/history, hard resource isolation/incremental scans, broader AST languages and runtime deployment mapping remain open. Independent security review and real cloud/laptop/privileged tunnel/long-run validation require their actual environments.
+- Guided VPN enrollment, hard resource isolation/incremental scans, broader AST languages and runtime deployment mapping remain open. Team access and native installer code signing are outside the current scope. Independent security review and real cloud/laptop/privileged tunnel/long-run validation require their actual environments.
 - Cloud onboarding instructions already saved in the environment draft; no new environment configuration is needed for these source/CI/doc changes. No publication of that draft is implied.
