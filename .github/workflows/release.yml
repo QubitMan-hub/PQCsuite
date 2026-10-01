@@ -22,7 +22,7 @@ jobs:
             mosquitto mosquitto-clients openssh-server
           python -m venv /tmp/runtime && /tmp/runtime/bin/pip install --no-cache-dir .
           /tmp/runtime/bin/pip freeze --exclude pqcsuite > constraints.txt
-          pip install -c constraints.txt -e ".[test,integration]" cyclonedx-bom==7.4.0
+          pip install -c constraints.txt -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]" cyclonedx-bom==7.4.0
           cyclonedx-py environment /tmp/runtime/bin/python -o sbom.json
           python scripts/release_readiness.py evidence evidence.json sbom.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

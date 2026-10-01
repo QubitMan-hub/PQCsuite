@@ -22,6 +22,7 @@ venv/
 *.pqv
 *.part
 wolfpack-out/
+pqcsuite-out/
 
 # the Wolf Pack corpus holds deliberate test keys and weak code
 !wolf-pack/bench/corpus/**

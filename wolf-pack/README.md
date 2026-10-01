@@ -14,7 +14,7 @@ Optional web relationships use maintained Tree-sitter bindings and JavaScript/Ty
 cd wolf-pack
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install .                    # gives you the `wolfpack` command (to work on Wolf Pack itself: pip install -e ".[dev]")
+pip install .                    # gives you the `wolfpack` command (to work on Wolf Pack itself: pip install -e ".[dev,crawler]")
 
 py -m wolfpack scan C:\path\to\repo
 py -m wolfpack scan C:\path\to\repo --tls api.example.com:443 --ssh bastion.example.com
@@ -29,7 +29,7 @@ py -m wolfpack scan image.tar                                 # a container imag
 py -m wolfpack merge scans\ --name "Acme Bank"              # every system's cbom.json into one inventory and dashboard
 py -m wolfpack merge scans\ --history readiness.jsonl        # add this run to a history; the dashboard charts readiness over time
 py -m wolfpack bench bench\corpus                            # full pack plus one ablation per role
-py -m unittest discover -s tests
+py -m pytest -q
 ```
 
 Output lands in `wolfpack-out\`. `cbom.json` is the CycloneDX 1.6 CBOM, validated against the official schema. `report.html` is a self-contained report that works offline. `wolfpack.sarif` is SARIF 2.1.0 for GitHub code scanning. `findings.json` is the full audit trail, including everything the den rejected and why. `relationships.json` records bounded Python and optional JavaScript/TypeScript syntax-tree symbols, imports and static call references without source snippets or argument values. The offline report and CBOM attach supported functions and callers to crypto findings. Dynamic dispatch remains unresolved; static references do not prove runtime reachability.

@@ -1,46 +1,30 @@
 # Agent handoff
 
-## Latest follow-up — shared relationships and customer onboarding
+Current instructions for the next contributor; superseded progress notes remain in Git history.
 
-- Extended the shared graph/impact engine with optional JavaScript/TypeScript Tree-sitter adapters, Python package re-exports and direct CommonJS aliases. Supported callers now include affected module evidence. Missing parsers, malformed/deep syntax and unsupported languages expose coverage gaps while retaining crypto findings.
-- Added scoped **Add repository → Scan → Review exposure → Fix**. Admins select `--repositories`; customers can add only immediate child names. Traversal, outside paths and symlinks are rejected. Default results focus on production assets; coverage, tests/declarations and exports are advanced. Wolf Pack's console page links directly to this workflow.
-- Extracted existing private writes/retries/locks to `pqcsuite.storage` with PKI compatibility imports; history now supports competing threads/processes, bounded reads, restart visibility and errors that do not discard successful scans. One report writer replaces CLI coupling. Polling uses small job status payloads.
-- CI now installs optional parser fixtures and runs pytest, correcting unittest discovery that did not execute function-style crawler/project tests. Targeted privileged checks remain unchanged. Base packages keep one required runtime dependency each; optional web relationships add three native parser dependencies.
-- Validation: full Python suite 359 passed, 12 prerequisite skips, 4,431 subtests passed; final targeted integration/regression checks passed. Browser suite: 35 passed, including scoped onboarding, real Python/TypeScript scans, cold-start onboarding, evidence/history/exports and existing mobile/accessibility coverage. Both wheels built and installed; base scanning without parsers and web scanning with parser extras both succeeded. Ruff, basic mypy (60 source files), pip check, doctor, corpus regression/ablations, CBOM baseline and schema (0 errors), repeatable publishing and direct parser dependency vulnerability audit passed.
-- Seven pinned public repositories scanned statically (Python/JS/TS/Go). Node JSON Web Token exposed a directory-import bug, fixed with a fixture. Public-repository counts are performance/processing evidence, not precision/recall claims. The complete repository was rescanned outside the checkout, including intentional weak fixtures/catalogs. See `docs/CODE-CRAWLER.md` for measurements, limits, cleanup decisions and remaining release work.
-- Static unused checking found no confirmed dead callable; required context-manager parameters were preserved. Existing config/binary/unsupported-language and argument-flow detectors remain necessary; do not remove them as alleged duplicates. This adds capabilities and reduces coupling, not net source lines.
-- Claude Code's active state remains unknown. Repeated local status/diff and origin/main checks showed no overlapping work beyond base `10e9deb`. No worktree, PR, force push, credential changes or protection bypass.
+## Preserve
 
-## Latest pass — Code Crawler and minimal workflow
+- Work on `main` is authorized by the owner. No PR, force push, protection bypass, secrets or unrelated changes. Check status/diffs and fetch before integrating; Claude Code's active work is unknown. Audit began at clean `3366c37`; no concurrent changes were observed.
+- Read `CLAUDE.md` and `wolf-pack/CLAUDE.md`. Keep Acxelin styling and Wolf Pack's separate product placement. Do not delete supported config/binary/unsupported-language detectors or labeled evaluation truth as duplicates.
+- Shared Code Crawler supports Python and optional JavaScript/TypeScript AST relationships, package aliases and bounded static caller/module impact. Dynamic dispatch and unsupported languages remain explicit coverage gaps. See [Code Crawler](docs/CODE-CRAWLER.md).
+- Unified project scans feed Wolf Pack reports and Readiness. Approved-parent onboarding rejects traversal/outside paths/symlinks; exports omit source snippets/literals; private summary history uses shared cross-process storage locks. Default results exclude tests/declarations; advanced views retain them. Manual CBOM import and endpoint assessment remain separate supported evidence paths.
+- Existing hardening, certificate/Vault recovery, truthful VPN telemetry, endpoint prioritization, offline exports, mobile and accessibility flows remain intact.
 
-- Added shared discovery and Python AST relationships, connected to accepted Wolf Pack findings, CBOM and offline reports. Existing detector results/tiers remain unchanged on all development-corpus ablations.
-- Added optional `pqcsuite scan`, registered console project jobs, real stage messages, priority/search/evidence/JSON controls, private exports and bounded local summary history. Endpoint scans and imported CBOM review remain available.
-- Customer workflow, evidence limits, performance, before/after size audit and remaining work: `docs/CODE-CRAWLER.md`. Added `.agents/skills/pqcsuite-project-scan/SKILL.md`; cloud setup draft now includes the scan extra. No third-party skill code was installed.
-- Verification: 339 Python tests passed, 12 prerequisite skips, 4,431 subtests passed; 33 browser tests passed. Ruff/basic mypy, both wheels plus clean-environment install/scan, CycloneDX schema (0 errors), all 20 corpus configurations before/after, CBOM baseline, doctor, pip check, repeatable site publishing passed. Four pinned public projects scanned statically with no code/dependency execution.
-- Wolf Pack checkout version is 1.3.0, unreleased. Root scan extra requires it; install both packages from this checkout until release publication. Graphs are Python-only; dynamic dispatch is unresolved. Optional history has one writer, bounded summaries, and no fleet storage/RBAC.
-- Direct main integration follows the user authorization. No force push, no PR, no unrelated concurrent changes observed.
+## Final audit changes
 
-## Earlier work
-- Codex: product improvements and earlier hardening verified and pushed directly to `main`. Implementation complete; no PR created.
-- Claude Code: current work unknown. Repeated checks found no overlapping local edits or remote-main changes beyond base `ed4b260`. Existing customer-experience work was preserved.
+- Release evidence now uses pytest, including function-style tests, and refuses empty/failing runs. Release reports refuse failed/missing local evidence despite green remote CI; regressions demonstrate these failures.
+- Linux integration/macOS CI use the same runner and parser extras. Wolf Pack runtime changes trigger suite CI; optional dependency audit derives requirements from manifests. Targeted privileged VPN checks remain unchanged.
+- Consolidated stale developer/handoff guidance; repository map in [Contributing](CONTRIBUTING.md), generated default scan outputs ignored. Exact duplicate and unused-symbol checks found no safely removable production implementation. Required independent package assets and fixtures remain.
+- Before/after, final validation and public competitor gaps: [Product review](docs/PRODUCT-REVIEW.md). Do not claim market superiority, a net source reduction or production readiness.
 
-## Completed — do not duplicate
-- Earlier hardening: unpredictable exclusive temporary writes/private Vault restores, renewal/revocation locking, bounded input, reliable console mutations/navigation, safe repeatable site publishing, and unverified backup metadata labels.
-- Readiness: observed posture metrics, priority/search filters, evidence/next actions (legacy protocols, trust failures, expiring certificates), JSON/CSV downloads, and retained targets for rescan.
-- Wolf Pack: offline report search/priority filtering/sorting, linked evidence/remediation and CSV export. JavaScript-free reading remains usable; site samples regenerated.
-- Integration: bounded local CycloneDX CBOM review beside endpoint assessment. Files never upload, content is escaped, and imported inventory clears on sign out. No invented combined score or code-to-endpoint mapping.
-- VPN/Vault: truthful gateway observations and CLI diagnostic output, concise setup/verify/recover guidance. Overview excludes expired certificates from valid counts, surfaces unreachable VPN sources, and chooses the newest archive across folders.
-- Market map/design decisions/final gaps: `docs/PRODUCT-REVIEW.md` (public references; no authenticated competitor-product access). Acxelin primitives retained, no new runtime dependencies/crypto primitives.
+## Final validation — 1 October 2026
 
-## Verification
-- Final Python suite: 327 passed, 12 skipped, 4,407 subtests passed. Skips require missing external services or privileged VPN/OpenSSH/platform prerequisites.
-- Final browser suite: 32 passed on installed Chromium (local config outside checkout), including real issue/revoke, local scan/rescan targets, CBOM escaping/local-only import, exports, offline reports, mobile/dark layouts, and accessibility.
-- Ruff, basic mypy (56 source files), compileall, both wheels, site publishing twice, doctor, pip check, CBOM baseline, TLS tour and clinic workflow passed. Desktop/mobile/dark screenshots inspected using actual local unreachable-endpoint data.
-- Earlier pass also verified dependency audits, bank workflow and a one-minute TLS/revocation soak; those do not establish days-long reliability.
+- Shared release evidence: 361 passed, 12 prerequisite skips, 4,446 passed subtests; 35 browser journeys passed. The JUnit total includes subtests. Additional Debian 13 real-service tests: 17 passed with no skips (nginx/PostgreSQL/Redis/MQTT/OpenSSH and related scenarios).
+- Both wheels built/installed in a clean environment; optional web and base scans, seven pinned public repositories, corpus ablations, CBOM baseline/schema, lint/basic types, runtime/optional dependency audit, website publishing and demos passed. Production container built and ran with trusted proxy CA supplied through a temporary build secret, without changing the shipped Dockerfile or disabling verification.
+- One-minute soak: 6,094 successful connections, no failures, 3/3 revocations enforced. Full release benchmark passed. These do not establish long-duration/production reliability; remote CI on the final commit is not claimed.
 
-## Boundaries and remaining work
-- No consumer one-download VPN installer or browser connect/disconnect API. Existing native services/adapters require administrator credentials and OS tools. Separate referenced PQCvpn source was not found; public documentation was reviewed.
-- Signed desktop packaging/enrollment, multi-user ownership/RBAC and durable fleet history remain product gaps. See product review and release-readiness docs.
-- Real laptop/privileged tunnel tests, independent security review, real cloud/Kubernetes and days-long validation remain release limitations. Docker registry/build and pinned Playwright downloads were blocked in the earlier pass; browser validation uses system Chromium.
-- Remote research was partially reachable on retries; Acxelin/PQCrypto/Tailscale/Vault and other public pages were read. Some specialized sources remained 403/404; remote hydrated visuals were unreliable. Do not claim all competitor functionality was verified.
-- Preserve current Git identity, concurrent work and shared history. No force pushes or branch-protection bypasses.
+## Release boundaries
+
+- Wolf Pack 1.3.0 remains unpublished. Install both packages from this checkout with their documented extras. Base container does not include optional repository scanning.
+- Signed VPN installers/enrollment, fleet RBAC/history, quotas/cancellation, broader AST languages and runtime deployment mapping remain open. Independent security review and real cloud/laptop/privileged tunnel/long-run validation require their actual environments.
+- Cloud onboarding instructions already saved in the environment draft; no new environment configuration is needed for these source/CI/doc changes. No publication of that draft is implied.

@@ -10,7 +10,7 @@ import release_readiness as rr  # noqa: E402
 BENCH = {f"tls_handshake_{g}": {"median_ms": 1, "p95_ms": 2} for g in ("X25519MLKEM768", "X25519")} | {
     "ca_issue_ML-DSA-65": {"median_ms": 1}, "vault_64MiB": {"encrypt_MiB_s": 1, "decrypt_MiB_s": 1},
     "load": {"clients": 32, "seconds": 10, "connections_per_s": 400, "median_ms": 70, "p99_ms": 90, "errors": 0}}
-EVIDENCE = {"tests": "1 run", "fuzz_tests": 1, "hostile_tests": 1, "openssl": "OpenSSL 3.5", "python": "3.13", "sbom_components": 1,
+EVIDENCE = {"tests": "1 run", "tests_exit_code": 0, "fuzz_tests": 1, "hostile_tests": 1, "openssl": "OpenSSL 3.5", "python": "3.13", "sbom_components": 1,
             "benchmark": BENCH}
 
 
@@ -26,6 +26,13 @@ class GateTest(unittest.TestCase):
         self.assertIn("## Not yet validated", text)
         self.assertIn("Independent security", text)
 
+    def test_failed_or_missing_local_evidence_blocks_green_ci(self):
+        for status in (1, 2, 5, None):
+            evidence = dict(EVIDENCE, tests_exit_code=status)
+            ok, text = rr.report("v1.0.0", "abc", evidence, green())
+            self.assertFalse(ok)
+            self.assertIn("must not be released", text)
+
     def test_a_failed_missing_or_skipped_job_blocks_the_release(self):
         for change in ("failure", "skipped", None):
             with self.subTest(change=change):
@@ -37,6 +44,25 @@ class GateTest(unittest.TestCase):
                 ok, text = rr.report("v1.0.0", "abc", EVIDENCE, runs)
                 self.assertFalse(ok)
                 self.assertIn("must not be released", text)
+
+
+class EvidenceTest(unittest.TestCase):
+    def test_function_style_failures_and_empty_suites_block_evidence(self):
+        import json
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "scripts").mkdir()
+            (root / "scripts" / "benchmark.py").write_text("print('{}')")
+            (root / "sbom.json").write_text('{"components": []}')
+            for code, expected in (("def test_customer_flow(): assert True", True),
+                                   ("def test_customer_flow(): assert False", False), ("", False)):
+                with self.subTest(code=code), mock.patch.object(rr, "ROOT", root):
+                    (root / "test_customer.py").write_text(code)
+                    self.assertEqual(rr.evidence(root / "evidence.json", root / "sbom.json"), expected)
+                    result = json.loads((root / "evidence.json").read_text())
+                    self.assertEqual(result["tests_exit_code"] == 0, expected)
 
 
 class SinceTest(unittest.TestCase):

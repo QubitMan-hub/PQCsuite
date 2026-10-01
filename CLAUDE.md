@@ -27,9 +27,8 @@ Prove, simplify, benchmark and validate; don't add features unless the owner ask
 ## Commands
 
 ```
-pip install -e ".[test,integration]"     # integration: certbot and acme, for the ACME tests; leave it out for a lighter setup
-python -m unittest discover -s tests -v
-python -m pytest                          # suite and wolf-pack/ tests together, from the root
+pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]"     # integration: certbot and acme, for the ACME tests; leave it out for a lighter setup
+python -m pytest -q                       # suite and wolf-pack/ tests together, from the root
 ruff check .                              # lint (config in pyproject.toml), CI runs it
 cd tests/browser; npm install; npx playwright test   # website and console in Chromium, axe accessibility
 wolfpack scan pqcsuite -o out --baseline docs/cbom.json --fail-on high   # CI self-scan; refresh docs/cbom.json when intended

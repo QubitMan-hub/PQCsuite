@@ -14,8 +14,8 @@ Current checkout version: 1.3.0 (unreleased; shared Python and optional JavaScri
 
 ```powershell
 cd wolf-pack; py -m venv .venv; .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
-python -m unittest discover -s tests -v          # 86 tests, must stay green
+pip install -e ".[dev,crawler]"
+python -m pytest -q                            # includes crawler function-style tests
 python -m wolfpack bench bench/corpus            # full pack + one ablation per role (--detail lists FP/FN)
 python -m wolfpack scan bench/corpus -o wolfpack-out
 python scripts/validate_cbom.py wolfpack-out/cbom.json   # must report 0 errors

@@ -13,6 +13,8 @@ So a release can say "passed the defined gates", and nothing more than that.
 | Secure | pip-audit on runtime and optional dependencies; Trivy on the container image (fixable HIGH/CRITICAL fail unless triaged in `.trivyignore.yaml`); Wolf Pack finds no new high-risk cryptography against `docs/cbom.json`; CodeQL on Python, JavaScript and the workflows |
 | Operational | Helm install in a kind cluster with a post-quantum request through the edge and a CRL fetched from the CA; IPsec and WireGuard with real traffic in network namespaces, including revocation, full tunnel, the kill switch and recovery; a real VPN client tunnel on Windows and macOS; the Packer template and provisioning on Debian 13 |
 
+Evidence uses the shared pytest runner, including function-style Code Crawler and project tests. A failing, empty or missing test result blocks release even when remote CI is green. Wolf Pack runtime changes also trigger suite integration CI; optional parser dependencies are included in the dependency audit.
+
 Each release also records its test counts, OpenSSL version, a CycloneDX SBOM of the installed dependencies, the Wolf Pack
 CBOM of the suite, build provenance, and a small benchmark on the GitHub runner (`scripts/benchmark.py`: TLS handshakes
 with and without ML-KEM, certificate issuance, Vault throughput, and sustained connections from many clients). Runner numbers are indicative; measure on your own

@@ -41,7 +41,7 @@ Opportunities to go further: signed per-platform VPN installers with enrollment;
 |---|---|---|
 | Readiness | Scan → see posture → filter classical/unknown assets → inspect evidence and recommendation → export | Numbers come from completed scans. SSH records advertised algorithms, not a completed authenticated handshake. A PQ exchange does not imply a PQ certificate. |
 | Wolf Pack | Scan → search/sort/filter migration queue → open matching evidence/remediation → export filtered actions | HTML remains self-contained and usable without JavaScript. Risk priorities are scanner assessments. SARIF/CBOM/raw audit exports remain available. |
-| Integrated investigation | Scan code → load cbom.json in readiness → inspect local priorities beside endpoint results | File is read in the browser, bounded to 10 MB/20,000 components, never uploaded, and cleared on sign out. No automatic mapping between code and endpoints is inferred. |
+| Integrated investigation | Add approved repository → Scan → Readiness priorities → functions/callers → recommended action | Shared Code Crawler/Wolf Pack evidence feeds Readiness automatically. Manual CBOM import remains an advanced, browser-local option (10 MB/20,000 components). Source and endpoint evidence remain distinct; runtime deployment mapping is not inferred. |
 | Vault | Generate recipient → protect → inspect metadata → verify with key/trusted issuer → restore drill | Console lists headers only; private recipient keys remain on a trusted machine. Verification and restore are existing CLI operations. |
 | VPN | Install prerequisites → receive gateway/certificate → connect process → check handshake/routes → optional startup service → disconnect | Gateway observation is not protection of the browser device. ML-KEM + PPK is reported only for established IPsec tunnels carrying those values. --no-apply never claims a tunnel was activated. |
 
@@ -51,4 +51,36 @@ A typical VPN client still has three setup prerequisites (Python/PQCSuite, WireG
 
 Local investigation now meets common filtering, evidence, action and export expectations while retaining original cryptographic architecture and offline reports. The final comparison still identifies meaningful gaps: desktop packaging/enrollment, organization-wide ownership/RBAC, durable multi-user scan history, and automatic migration verification. Their absence is explicit; UI metrics do not simulate them.
 
-Release limitations remain in [RELEASE-READINESS.md](RELEASE-READINESS.md): independent security review, privileged real VPN/platform validation, real cloud/managed Kubernetes deployments, and long-running production tests. There are no new runtime dependencies or cryptographic primitives in this pass.
+Release limitations remain in [RELEASE-READINESS.md](RELEASE-READINESS.md): independent security review, privileged real VPN/platform validation, real cloud/managed Kubernetes deployments, and long-running production tests. Base runtime dependencies remain unchanged; optional JavaScript/TypeScript relationships use three Tree-sitter packages. No new cryptographic primitives were introduced.
+
+
+## Final audit — 30 September 2026
+
+The audit starts from `3366c37` and checks the earlier product changes as well as the final release-gate fixes. Local results do not certify production readiness or replace the required remote CI/platform gates.
+
+| Before | Now |
+|---|---|
+| Separate code scan, inventory and manual readiness review | One approved-repository scan produces shared relationship, inventory and readiness evidence; advanced manual import remains available |
+| Release evidence and some CI jobs use unittest discovery, silently omitting function-style crawler tests | Shared pytest runner in release evidence, Linux integration and macOS jobs; regression tests prove failing function-style tests and empty suites block evidence |
+| Green remote jobs can mask failed/missing supplied local evidence | Release report requires a successful local test process as well as every remote gate |
+| Wolf Pack-only changes skip suite integration CI; parser extras absent from dependency audit | Runtime scanner changes trigger suite CI, and optional dependencies come directly from the package manifests for auditing |
+| Handoff mixes obsolete Python-only/single-writer statements with current behavior | One current handoff, consistent developer commands and a repository map; default scan output ignored |
+
+Repository cleanup preserves all supported detectors, independent package entry points, offline fonts/licenses and evaluation truth. An exact-content comparison of all 383 tracked files found only required entry-point and font/license copies. Static unused-symbol analysis found only required context-manager exception parameters. No defensible large source-file reduction was found; capabilities added in the preceding implementation increased source size. Removing these files would sacrifice supported installs, evidence or coverage. The final audit adds no production runtime module or dependency.
+
+Fresh public-page checks: [PQCLens](https://pqcrypto.ai/pqclens/) advertises continuous agents and migration priorities; [Tailscale quickstart](https://tailscale.com/kb/1017/install) documents device installation and identity/access workflows; [Vault](https://developer.hashicorp.com/vault/docs) documents dynamic credentials, identity and audit; [Semgrep Code](https://semgrep.dev/docs/semgrep-code/overview) documents local/CI scans, data-flow rules and triage. PQCSuite supports local evidence, prioritization, export and CI, but lacks comparable managed fleet enrollment/ownership, continuous agent inventory and broader cross-language analysis. Its archive Vault is not a dynamic-secret service. IBM's requested Explorer URL resolved to a general product directory; no specialized claims were inferred. These are public documentation comparisons, not authenticated product tests.
+
+Remaining meaningful gaps: additional language relationship adapters, runtime-to-deployment attribution, whole-project quotas/cancellation, durable multi-user history/RBAC, signed desktop installers/enrollment and externally reviewed crypto protocols. Real privileged VPNs, Windows/macOS laptops, managed Kubernetes/cloud accounts and days-long load remain separate validation requirements. The default container supplies the base TLS/Vault/VPN/readiness runtime; repository scanning requires the documented optional packages installed from this checkout until Wolf Pack 1.3.0 is published.
+
+
+Final validation (completed 1 October 2026):
+
+- Shared release runner: **361 passed, 12 skipped, 4,446 subtests passed**. JUnit evidence includes subtests (4,819 total records, 12 skipped, zero failures); it is not a claim of 4,819 independent tests. New gate regressions cover failing function-style tests, empty suites and missing/failed evidence with green CI.
+- Browser: **35 passed** using installed Chromium, covering live console APIs, certificate issue/revoke, repository onboarding, Python/TypeScript evidence, Readiness, exports, responsive layouts and accessibility.
+- Additional Debian 13 container: **17 real-service tests passed, no skips**, exercising nginx, PostgreSQL, Redis, MQTT, OpenSSH and scan/scenario workflows that required unavailable host services. Privileged VPN/dataplane and native laptop checks remain unrun here.
+- Ruff, basic mypy (60 source files), compilation, dependency consistency, doctor, workflow checks by review, both wheel builds and clean installs passed. Base scans report missing web parsers; installing the extra enables real TypeScript relationships. Runtime/VPN/KMS/parser dependency audit found no known vulnerabilities.
+- All seven pinned public repositories rescanned successfully without executing their code. Full development-corpus/ablation regression, production CBOM baseline, official CycloneDX schema (zero errors), whole-repository scan, sample regeneration and repeatable website publishing passed. Classifier results unchanged; this is not independent precision/recall evidence.
+- TLS tour, clinic/bank demos and the production-container tour passed. Container build initially failed on proxy CA trust; a temporary external Dockerfile supplied the host CA bundle as a BuildKit secret without disabling TLS verification or changing the shipped Dockerfile. The test-only integration image restored pip through `python -m ensurepip` and used `python -m pip`.
+- One-minute soak: 6,094 successful connections, zero failures, 3/3 revoked certificates refused; no resource-growth problems detected. Release benchmark: 200 hybrid handshakes, 2.27 ms median; 32-client/10-second loopback load, 1,042 connections/s, zero errors. These are local indicative measurements, not production sizing or days-long reliability.
+
+No product regression was reproduced. The defects fixed were incomplete release/CI discovery, an insufficient local-evidence release check, missing integration triggers/parser dependency audits and stale guidance. Remote CI success on the final pushed commit is not asserted. No PR, release publication, force push or protection bypass is part of this audit.

@@ -1,9 +1,9 @@
 name: ci
 on:
   push:
-    paths-ignore: ["wolf-pack/**", ".github/workflows/wolf-pack.yml"]
+    paths-ignore: ["wolf-pack/docs/**", "wolf-pack/eval/**"]
   pull_request:
-    paths-ignore: ["wolf-pack/**", ".github/workflows/wolf-pack.yml"]
+    paths-ignore: ["wolf-pack/docs/**", "wolf-pack/eval/**"]
 permissions:
   contents: read
 jobs:
@@ -29,10 +29,10 @@ jobs:
           python-version: "3.13"
       - name: OpenSSL 3.5+ from Homebrew, so the TLS tests run too
         run: brew install openssl@3 && echo "PQCSUITE_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
-      - run: pip install -e ".[test,integration]" && pqcsuite doctor && pqcsuite try
+      - run: pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]" && pqcsuite doctor && pqcsuite try
       - name: A second loopback address, as Linux has, for the per-host limit test
         run: sudo ifconfig lo0 alias 127.0.0.2 up
-      - run: python -m unittest discover -s tests -v
+      - run: python -m pytest -q
       - name: VPN client with Homebrew's WireGuard, a real tunnel brought up, rotated and removed
         run: |
           brew install wireguard-tools
@@ -64,8 +64,8 @@ jobs:
         run: |
           apt-get update && apt-get install -y --no-install-recommends openssl curl nginx postgresql redis-server redis-tools \
             mosquitto mosquitto-clients openssh-server
-      - run: pip install -e ".[test,integration]" && pqcsuite doctor
-      - run: python -m unittest discover -s tests -v
+      - run: pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]" && pqcsuite doctor
+      - run: python -m pytest -q
       - run: python examples/clinic_demo.py --auto
       - run: python examples/bank_demo.py --auto
   audit:
@@ -79,7 +79,8 @@ jobs:
         run: |
           pip install pip-audit==2.10.1
           pip-audit .
-          printf 'vici>=6.0\nboto3>=1.35\n' > extras.txt && pip-audit -r extras.txt
+          python -c 'import tomllib; from pathlib import Path; suite=tomllib.loads(Path("pyproject.toml").read_text())["project"]["optional-dependencies"]; wolf=tomllib.loads(Path("wolf-pack/pyproject.toml").read_text())["project"]["optional-dependencies"]; print("\n".join(suite["vpn"] + suite["kms"] + wolf["crawler"]))' > extras.txt
+          pip-audit -r extras.txt
   lint:
     runs-on: ubuntu-latest
     steps:

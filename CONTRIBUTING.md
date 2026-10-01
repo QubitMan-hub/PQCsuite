@@ -2,12 +2,26 @@
 
 How to work on the suite itself: a development install, the tests, the website and releases. Using the products is in the [README](README.md).
 
+## Repository map
+
+| Folder | Purpose |
+|---|---|
+| `pqcsuite/` | Product runtime, APIs and console; shared private storage in `storage.py` |
+| `wolf-pack/wolfpack/` | Independently packaged scanner and shared Code Crawler |
+| `tests/`, `wolf-pack/tests/` | Product and scanner regression tests; browser journeys in `tests/browser/` |
+| `site/` | Public website and generated sample reports |
+| `examples/`, `deploy/` | Runnable customer workflows and deployment templates |
+| `docs/`, `scripts/` | Current architecture/release guidance and operational validation |
+| `wolf-pack/bench/`, `wolf-pack/eval/` | Labeled detection fixtures and evaluation provenance; intentionally weak crypto |
+
+Build outputs (`dist/`), package metadata (`*.egg-info/`), test caches/results and default scan outputs are ignored generated files, not additional implementations. Keep private/custom scan outputs outside the checkout. Separate package entry points and bundled fonts/licenses are required for independent installs and offline reports. Do not delete evaluation labels or supported detectors merely to reduce the file count.
+
 ## Development install
 
 Python 3.11+, from a clone:
 
 ```
-pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]"   # [test]: hypothesis; [integration]: certbot and acme, for the ACME tests (leave it out for a lighter setup)
+pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]"   # [test]: pytest and hypothesis; [integration]: certbot and acme, for the ACME tests (leave it out for a lighter setup)
 pqcsuite doctor
 ```
 

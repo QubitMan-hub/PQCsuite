@@ -107,7 +107,7 @@ def outstanding():
 
 
 def report(tag, sha, evidence, latest, changes=""):
-    lines, ok = [], True
+    lines, ok = [], evidence.get("tests_exit_code") == 0
     for gate, checks in GATES.items():
         lines += [f"\n### {gate}\n", "| Check | Jobs | Result |", "|---|---|---|"]
         for what, name, count in checks:
@@ -133,9 +133,10 @@ Commit `{sha}`, checked {dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} UTC.
 | | |
 |---|---|
 | Tests (Debian 13, {e['openssl']}, Python {e['python']}) | {e['tests']} |
+| Test process exit status (zero required) | {e.get("tests_exit_code", "missing")} |
 | Fuzz tests (seeded, in the suite) | {e['fuzz_tests']} |
 | Crash, race, downgrade, recovery and secret-leak tests | {e['hostile_tests']} |
-| Platforms in CI | Linux (Ubuntu, Debian 13 containers), Windows. macOS: not tested |
+| Platforms in CI | Linux (Ubuntu, Debian 13 containers), Windows. macOS (Homebrew OpenSSL) |
 | OpenSSL | 3.5 or newer for TLS; {e['openssl']} here |
 | SBOM | `pqcsuite-{tag.lstrip('v')}-sbom.json`, CycloneDX, {e['sbom_components']} components |
 | CBOM | `pqcsuite-{tag.lstrip('v')}-cbom.json` (Wolf Pack) |
@@ -165,22 +166,26 @@ Commit `{sha}`, checked {dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} UTC.
 def evidence(out, sbom):
     import platform
     import subprocess
-    import unittest
+    import tempfile
+    import xml.etree.ElementTree as ET
     sys.path.insert(0, str(ROOT))
     from pqcsuite import tls
-    tests = unittest.defaultTestLoader.discover(str(ROOT / "tests"), top_level_dir=str(ROOT))
-    flat = lambda s: [t for x in s for t in (flat(x) if isinstance(x, unittest.TestSuite) else [x])]
-    modules = [type(t).__module__.rsplit(".", 1)[-1] for t in flat(tests)]
-    with open(os.devnull, "w") as null:
-        result = unittest.TextTestRunner(stream=null).run(tests)
+    with tempfile.TemporaryDirectory(prefix="pqcsuite-evidence-") as tmp:
+        junit = Path(tmp) / "tests.xml"
+        result = subprocess.run([sys.executable, "-m", "pytest", "-q", f"--junitxml={junit}"], cwd=ROOT)
+        suites = ET.parse(junit).getroot().findall("testsuite") if junit.exists() else []
+        counts = {key: sum(int(s.get(key, 0)) for s in suites) for key in ("tests", "skipped", "failures", "errors")}
+        modules = [t.get("classname", "").split(".") for s in suites for t in s.findall("testcase")]
+        passed = result.returncode == 0 and counts["tests"] > counts["skipped"] and not (counts["failures"] + counts["errors"])
     bench = subprocess.run([sys.executable, str(ROOT / "scripts" / "benchmark.py")], capture_output=True, text=True, check=True).stdout
     Path(out).write_text(json.dumps({
-        "tests": f"{result.testsRun} run, {len(result.skipped)} skipped, {len(result.failures) + len(result.errors)} failed",
-        "fuzz_tests": modules.count("test_fuzz"),
-        "hostile_tests": sum(m in ("test_crash", "test_races", "test_downgrade", "test_recovery", "test_secrets") for m in modules),
+        "tests": f"{counts['tests']} test cases/subtests reported, {counts['skipped']} skipped, {counts['failures'] + counts['errors']} failed",
+        "tests_exit_code": result.returncode if result.returncode else (0 if passed else 1),
+        "fuzz_tests": sum("test_fuzz" in m for m in modules),
+        "hostile_tests": sum(bool(set(m) & {"test_crash", "test_races", "test_downgrade", "test_recovery", "test_secrets"}) for m in modules),
         "openssl": tls.lib().version, "python": platform.python_version(),
         "sbom_components": len(json.loads(Path(sbom).read_text()).get("components", [])), "benchmark": json.loads(bench)}, indent=1))
-    return result.wasSuccessful()
+    return passed
 
 
 if __name__ == "__main__":
