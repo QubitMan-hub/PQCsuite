@@ -38,7 +38,7 @@ nav { display: flex; gap: 20px; flex-wrap: wrap; } :target { scroll-margin-top: 
  main { max-width: none; padding: 0; } nav { display: none; } h2, h3 { break-after: avoid; } tr, pre { break-inside: avoid; }
  .manual-table { overflow: visible; } table { min-width: 0; } a { color: black; } }
 </style>'''
-    nav = '<nav aria-label="Manual navigation"><a href="index.html">PQC Suite website</a><a href="#contents">Contents</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PRODUCT-MANUAL.md">Markdown source</a></nav>'
+    nav = '<nav aria-label="Manual navigation"><a href="https://qubitman-hub.github.io/PQCsuite/">PQC Suite website</a><a href="#contents">Contents</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PRODUCT-MANUAL.md">Markdown source</a></nav>'
     output = page('PQCSuite product manual', 'Customer guide',
                   'Five products, explained step by step. Read offline or use your browser’s Print → Save as PDF.', style + nav + body)
     output = output.replace('<html lang=en>', '<html lang="en">\n<head>\n', 1).replace('<main>', '</head><body>\n<main>', 1).replace('</main></html>', '</main></body></html>')
