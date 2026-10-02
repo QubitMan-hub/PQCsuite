@@ -29,7 +29,7 @@ High-value implemented opportunities: local code-inventory review beside network
 
 Low-value additions avoided: decorative topology without real relationships, fabricated history or aggregate readiness scores, competitor countdowns, an unrelated dashboard theme, and dozens of storage connectors duplicating existing sync tools. Unknown asset tiers remain labeled unknown instead of being presented as safe.
 
-Opportunities to go further: signed per-platform VPN installers with enrollment; durable authenticated scan history and asset ownership; migration tickets linked to evidence and subsequent verification. These require operational design, signing/release infrastructure, or persistence/access-control decisions beyond changing the dashboard.
+Subsequent milestones added durable local scan history, ownership labels, guided certificate enrollment and endpoint observations. Installer signing and team access are excluded from the current scope; see the current milestone below for remaining gaps.
 
 ## Acxelin visual direction
 
@@ -90,7 +90,7 @@ No product regression was reproduced. The defects fixed were incomplete release/
 
 Implemented the local remediation loop: sample/approved repository → scan → assign owner/deadline or expiring exception → edit → rescan → review changed evidence. Full latest assessments and recent comparisons now survive restart; all previous detector and endpoint workflows remain. The website exposes current language coverage and a sample assessment. Scan cancellation and file/byte/time budgets preserve earlier results.
 
-These changes address local adoption, persistence and action tracking. They do not deliver Java/Go relationship adapters, incremental analysis, enterprise SSO/RBAC, signed VPN installers or an independent audit. Identity-provider and signing-service details are still needed for production identity/installer integration. Real deployment validation requires the respective platforms/accounts. Static absence remains labeled “not observed,” not “verified secure.”
+This historical milestone addressed local adoption, persistence and action tracking. The subsequent accuracy milestone adds syntax reuse and guided setup. Java/Go relationship adapters and an independent audit remain open; team access and native installer signing are excluded. Real deployment validation requires the respective platforms/accounts. Static absence remains labeled “not observed,” not “verified secure.”
 
 The installed-wheel customer test exercised actual console startup, sample creation, scan, owner assignment, process restart, source edit and rescan. The persisted assignment and previous evidence survived. Backend regressions cover denied scope changes/symlinks, invalid exception/owner/date input, bounded private state, concurrent updates and cancellation/quotas without overwriting completed evidence. Browser regressions cover remediation validation, escaping, rescan persistence and accessibility. A newly introduced website code-block contrast issue was caught and corrected; the sample-link assertion was updated for the new CTA.
 

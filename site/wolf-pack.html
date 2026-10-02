@@ -196,6 +196,7 @@ wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
         <li><code>cbom.json</code><span>The inventory, in CycloneDX 1.6 and checked against its official schema</span></li>
         <li><code>report.html</code><span>A report you can open offline and forward as it is</span></li>
         <li><code>wolfpack.sarif</code><span>Findings for GitHub code scanning and other SARIF tools</span></li>
+        <li><code>relationships.json</code><span>Supported functions and callers, migration impact, and explicit coverage gaps</span></li>
         <li><code>findings.json</code><span>Everything, including what was rejected and why</span></li>
       </ul>
     </div>
@@ -203,15 +204,19 @@ wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
 
   <section id="coverage">
     <div class="wrap">
-      <div class="intro"><p class="kicker">Know what was checked</p><h2>Evidence you can act on, limits you can see</h2><p>In the local console, assign an owner and deadline, document a time-limited exception, then rescan. Saved assessments distinguish new and persisting findings from findings no longer observed. Static absence does not prove a deployed fix.</p></div>
+      <div class="intro"><p class="kicker">Know what was checked</p><h2>Evidence you can act on, limits you can see</h2><p>In the local console, assign an owner and deadline, document a time-limited exception, then rescan. Saved assessments distinguish new and persisting findings from findings no longer observed. Static absence does not prove a deployed fix. Advanced verification checks one authenticated post-quantum connection to an approved service, with certificate and revocation checks. The link from source to release remains operator supplied.</p></div>
       <div class="scroll" tabindex="0" role="region" aria-label="Cryptographic coverage"><table class="results"><thead><tr><th>Input</th><th>Current capability</th><th>Boundary</th></tr></thead><tbody>
         <tr><td>Python</td><td>AST functions, imports and supported callers</td><td>Dynamic dispatch remains unresolved</td></tr>
         <tr><td>JavaScript / TypeScript</td><td>Optional Tree-sitter relationships</td><td>Requires the crawler extra; callbacks and runtime dispatch are incomplete</td></tr>
         <tr><td>Java / Go and other supported source</td><td>Cryptographic detectors</td><td>No class/function relationship adapter yet</td></tr>
         <tr><td>Configs, certificates and binaries</td><td>Cryptographic inventory and evidence</td><td>Not proof of runtime reachability or deployment protection</td></tr>
       </tbody></table></div>
-      <p>Try the local workflow from a source checkout:</p><pre>pip install './wolf-pack[crawler]' '.[scan-web]'
-pqcsuite console --sample-project</pre><p>The example stays on your machine. Scan it, inspect callers, assign remediation and rescan after an edit. The console saves work locally; it does not provide organization SSO or role-based access.</p>
+      <p>Production files are analyzed before tests. Repeat scans reuse unchanged syntax while recomputing findings and relationships. Coverage details identify files that could not be fully analyzed. Password-storage advice is separated from declared non-security cache fingerprints; candidate hybrids retain their classical components for review.</p>
+      <p>Try the local workflow from a source checkout (Wolf Pack 1.3.0 is not yet published):</p><pre>pip install './wolf-pack[crawler]' '.[scan-web]'
+pqcsuite console --sample-project</pre>
+      <p>For your own repository:</p><pre>pqcsuite doctor --json --product repository
+pqcsuite setup --project /path/to/repository --out .pqcsuite/console.toml
+pqcsuite console --config .pqcsuite/console.toml</pre><p>The example stays on your machine. Scan it, inspect callers, assign remediation and rescan after an edit. The console saves work locally; it does not provide organization SSO or role-based access.</p>
     </div>
   </section>
 

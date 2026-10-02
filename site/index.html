@@ -230,7 +230,7 @@ pqcsuite vpn status</pre></div>
         <div class="also-text">
           <p class="kicker">Also from Acxelin <span aria-hidden="true">·</span> a separate tool</p>
           <h2 id="also-title">Wolf Pack CBOM finds the cryptography inside your own code</h2>
-          <p>Add a local repository, scan once, and review exposure and migration priorities together. Supported Python, JavaScript and TypeScript functions and callers show which modules to review. Assign owners and deadlines, record expiring exceptions, and compare the next scan with saved evidence. Technical coverage and exports stay in advanced views. Wolf Pack also inventories configuration, keys and binaries. Source stays on your machine; the unified scan exports evidence without source snippets or argument values. Static callers require review before you assign business ownership.</p>
+          <p>Add a local repository, scan once, and review exposure and migration priorities together. Supported Python, JavaScript and TypeScript functions and callers show which modules to review. Assign owners and deadlines, record expiring exceptions, and compare the next scan with saved evidence. Repeat scans reuse unchanged syntax and prioritize production code. Technical coverage, exports and authenticated endpoint observations stay in advanced views; a missing source finding alone does not verify a deployed fix. Wolf Pack also inventories configuration, keys and binaries. Source stays on your machine; the unified scan exports evidence without source snippets or argument values. Static callers require review before you assign business ownership.</p>
           <div class="actions">
             <a class="btn" href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/CODE-CRAWLER.md">Run a local project scan</a>
             <a class="link" href="wolf-pack.html">Explore Wolf Pack CBOM</a>
@@ -242,11 +242,12 @@ pqcsuite vpn status</pre></div>
 quantum-safe asymmetric: 1/6 (17%)
 
 <i class="c">■■■■</i> critical  TLS 1.1     config
-<i class="c">■■■■</i> critical  MD5         code
+<i class="h">■■■□</i> high      MD5         code
 <i class="h">■■■□</i> high      RSA-2048    cert
 <i class="h">■■■□</i> high      AES-ECB     code
-<i class="m">■■□□</i> medium    ECDSA-P-256 code</pre>
-          <figcaption>Real output on the example in the sample report.</figcaption>
+<i class="m">■■□□</i> medium    ECDSA-P-256 code
+<i>■□□□</i> low       MD5 (declared non-security)</pre>
+          <figcaption>Selected findings from the current example report; declared cache hashes are shown separately.</figcaption>
         </figure>
       </div>
     </div>
@@ -331,7 +332,9 @@ quantum-safe asymmetric: 1/6 (17%)
           <h3>Install it</h3>
           <p>Python 3.11 or newer, on Windows, macOS or Linux, from a <a href="https://github.com/QubitMan-hub/PQCsuite/releases">release</a> or a copy of the code. <code>pqcsuite</code> on its own lists every command; <code>doctor</code> says what works on this machine.</p>
           <pre>pip install .
-pqcsuite doctor</pre>
+pqcsuite doctor --json --product all</pre>
+          <p>The latest guided setup and repository workflows require the current source checkout; published releases and container tags are earlier snapshots.</p>
+          <p>Enrolling a device? <code>pqcsuite ca enroll --guide --out device</code> guides certificate enrollment with trusted CA fingerprint checking and an encrypted local key.</p>
         </div>
         <div>
           <h3>Read the documentation</h3>

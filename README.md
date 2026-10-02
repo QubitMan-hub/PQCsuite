@@ -263,6 +263,8 @@ First, proving what exists rather than adding to it: an independent security rev
 
 ### Guided repository setup and migration evidence
 
+These additions are available on `main`; published v0.2.2 / Wolf Pack v1.2.1 artifacts predate them. Install from the current checkout until a new release is published.
+
 Install both packages with the repository scanning extras as documented above, then run:
 
 ```sh

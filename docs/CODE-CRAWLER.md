@@ -62,7 +62,7 @@ Current source measurement: 74 production source files; 65 Python files; 13603 n
 
 ## Remaining release work
 
-Additional language AST adapters, verified runtime/deployment mapping, hard process isolation/incremental scans, signed desktop installers, fleet identity/RBAC and external fleet storage remain open. Privileged real VPNs, cloud/Kubernetes, long-duration reliability and independent security review require their real environments. This change does not claim market superiority or completion of those release gates.
+Additional language AST adapters, independently proven source-to-deployment provenance, hard process isolation and external fleet storage remain open. Syntax reuse and operator-associated endpoint verification are now implemented; team access and installer signing are outside scope. Privileged real VPNs, cloud/Kubernetes, long-duration reliability and independent security review require their real environments. This change does not claim market superiority or completion of those release gates.
 
 Repository workflow: [project scan skill](../.agents/skills/pqcsuite-project-scan/SKILL.md).
 
@@ -77,7 +77,7 @@ State uses the existing private atomic-write/cross-process-lock implementation. 
 
 Unified scans have a 50,000-file/512 MB discovery budget and a five-minute cooperative deadline. Cancel checks run during discovery, between scout files, and before publishing results. A single parser/relationship operation may finish before cancellation is observed; this is not a hard process CPU/memory limit. Existing completed results survive cancellation or quota failure. Standalone Wolf Pack keeps its existing defaults; the shared Scope implementation supplies the optional controls without a duplicate scanner.
 
-Current next work: incremental analysis and broader language relationships; evidence-backed migration verification; simpler setup and diagnostics; real laptop/cloud/long-duration validation and independent security review. The owner removed team access (SSO/roles) and native installer code signing from this roadmap on 1 October 2026. The console remains a single-administrator workspace; ownership labels do not grant access.
+Current next work: broader language relationships, hard resource isolation, independently proven deployment provenance, real laptop/cloud/long-duration validation and independent security review. Syntax reuse, endpoint observations and guided setup/diagnostics are implemented below. The owner removed team access (SSO/roles) and native installer code signing from this roadmap on 1 October 2026. The console remains a single-administrator workspace; ownership labels do not grant access.
 
 Validation of this milestone: **367 Python tests passed, 12 prerequisite skips, 4,473 subtests passed; 36 browser journeys passed**. Both wheels built and the clean installed-wheel sample → scan → assign → restart → edit → rescan journey passed. Ruff, basic mypy (60 files), production CBOM baseline, whole-repository scan, official schema (zero errors), repeated site publishing and seven pinned public static scans passed. No new dependencies were introduced.
 

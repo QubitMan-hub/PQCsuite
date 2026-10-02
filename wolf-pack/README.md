@@ -164,29 +164,29 @@ Development corpus: `bench/corpus` has 76 files across 9 languages plus configs,
 - a JS `'sha' + bits`, a command-line flag named `ecdsa`, a JSON field named `hmac`, libsodium prototypes in a header and in C# P/Invoke;
 - MD5 initial values that must not read as SHA-1, prose that looks like an SSH directive, benchmark labels, and `getDigest(name)` with a variable name.
 
-Ground truth is 163 (file, algorithm family) pairs.
+Ground truth is 166 (file, algorithm family) pairs, including immutable PQ signer aliases and mutation traps.
 
 | configuration | precision | recall | F1 |
 |---|---|---|---|
 | full pack | 1.000 | 1.000 | 1.000 |
-| without den | 0.845 | 1.000 | 0.916 |
+| without den | 0.847 | 1.000 | 0.917 |
 | without corroboration | 1.000 | 0.994 | 0.997 |
-| without second look | 1.000 | 0.914 | 0.955 |
-| &nbsp;&nbsp;without flow | 1.000 | 0.933 | 0.965 |
-| &nbsp;&nbsp;without registries | 1.000 | 0.988 | 0.994 |
-| &nbsp;&nbsp;without siblings | 1.000 | 0.994 | 0.997 |
+| without second look | 1.000 | 0.916 | 0.956 |
+| without flow | 1.000 | 0.934 | 0.966 |
+| without registries | 1.000 | 0.988 | 0.994 |
+| without siblings | 1.000 | 0.994 | 0.997 |
 | without recognition | 0.982 | 1.000 | 0.991 |
 | without propagation | 1.000 | 0.988 | 0.994 |
 | without cross-file | 1.000 | 0.988 | 0.994 |
-| without source scouts | 1.000 | 0.356 | 0.525 |
-| without names | 1.000 | 0.963 | 0.981 |
+| without source scouts | 1.000 | 0.349 | 0.518 |
+| without names | 1.000 | 0.958 | 0.978 |
 | without concat | 1.000 | 0.994 | 0.997 |
-| without symbols | 1.000 | 0.957 | 0.978 |
+| without symbols | 1.000 | 0.958 | 0.978 |
 | without parameters | 1.000 | 0.994 | 0.997 |
 | without implementation scouts | 1.000 | 0.982 | 0.991 |
-| without config scouts | 1.000 | 0.748 | 0.856 |
-| without lists | 1.000 | 0.969 | 0.984 |
-| without artifact scouts | 1.000 | 0.933 | 0.965 |
+| without config scouts | 1.000 | 0.753 | 0.859 |
+| without lists | 1.000 | 0.970 | 0.985 |
+| without artifact scouts | 1.000 | 0.934 | 0.966 |
 | without binary scouts | 1.000 | 0.988 | 0.994 |
 
 This corpus was written alongside the scanner, so treat it as a regression test and ablation demo, not a result. Propagation also recovers parameters (RSA-1024 rather than RSA), which family-level scoring does not see.
@@ -249,3 +249,9 @@ wolfpack/
 bench/corpus, bench/truth.json
 tests/test_core.py
 ```
+
+### Current checkout workflow
+
+The suite console combines repository inventory, supported caller relationships and readiness evidence. From the repository root install `./wolf-pack[crawler]` and `.[scan-web]`, then run `pqcsuite setup --project /path/to/repository` and the printed console command. The sample workflow is `pqcsuite console --sample-project`.
+
+Production files precede tests in the relationship budget. Console repeat scans reuse bounded syntax trees; findings and relationships are recomputed. Unresolved dynamic aliases, unsupported languages and truncated files remain visible. Password-hasher findings recommend Argon2id/scrypt, declared cache hashes stay separate, and candidate hybrids preserve their classical components. Advanced endpoint verification proves one authenticated PQ connection, not source provenance or a complete migration. See [Code Crawler](../docs/CODE-CRAWLER.md) for boundaries.

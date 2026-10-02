@@ -2,6 +2,8 @@
 
 This project was built over one long Claude.ai chat session on 25 September 2026, then moved into this repo for Claude Code. This file records what happened, why things are the way they are, and what has actually been verified.
 
+Current implementation and validation are summarized in [the root handoff](../../AGENT_HANDOFF.md) and [Code Crawler](../../docs/CODE-CRAWLER.md). The dated history below is not the current roadmap or corpus count.
+
 ## Origin
 
 The owner started with a "wolf pack" idea: wise elders lead at the front, aggressive young wolves come next, the vulnerable are protected in the middle, and the alpha watches from the back. The viral story behind it is a myth, and the Grey Wolf Optimizer (Mirjalili 2014) already exists, so the metaphor alone is not novel. It is useful as an architecture, though:
