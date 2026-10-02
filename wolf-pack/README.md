@@ -4,7 +4,7 @@ A zero-setup scanner that inventories the cryptography in a codebase, its compil
 
 Base installation: Python code, one required dependency (`cryptography`), runs on Windows, macOS and Linux with Python 3.11 or newer. Python code is parsed with the running interpreter, so scan with the project's Python or newer: files it cannot parse are named in the report (the Docker image and GitHub Action use 3.14).
 
-Project site: [`site/index.html`](site/index.html), a single self-contained page. Open it locally, or serve it with GitHub Pages from the `site/` folder.
+Current product site: [Wolf Pack CBOM](https://qubitman-hub.github.io/PQCsuite/wolf-pack.html), published from the root `site/` folder. [`site/index.html`](site/index.html) retains the historical 1.2.1 animated demonstration and links to the current workflow.
 
 Optional web relationships use maintained Tree-sitter bindings and JavaScript/TypeScript grammars: install `pip install ".[crawler]"` from this folder. This adds three optional parser dependencies; the base package and existing crypto detectors remain usable without them. Unsupported or invalid syntax reports a relationship coverage gap. Python package re-exports and direct CommonJS export aliases feed the shared graph; dynamic dispatch remains unresolved.
 
@@ -255,3 +255,5 @@ tests/test_core.py
 The suite console combines repository inventory, supported caller relationships and readiness evidence. From the repository root install `./wolf-pack[crawler]` and `.[scan-web]`, then run `pqcsuite setup --project /path/to/repository` and the printed console command. The sample workflow is `pqcsuite console --sample-project`.
 
 Production files precede tests in the relationship budget. Console repeat scans reuse bounded syntax trees; findings and relationships are recomputed. Unresolved dynamic aliases, unsupported languages and truncated files remain visible. Password-hasher findings recommend Argon2id/scrypt, declared cache hashes stay separate, and candidate hybrids preserve their classical components. Advanced endpoint verification proves one authenticated PQ connection, not source provenance or a complete migration. See [Code Crawler](../docs/CODE-CRAWLER.md) for boundaries.
+
+The base GitHub Action and Wolf Pack container install the minimal scanner. Python relationships are included; JavaScript/TypeScript crypto detection remains available, but their AST relationships require the `crawler` extra. To use those relationships in CI, install `./wolf-pack[crawler]` and invoke `wolfpack scan` in a Python job, as this repository’s test workflow does. Existing published image tags do not track unreleased `main` automatically.
