@@ -2,7 +2,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ["site/**", "wolf-pack/wolfpack/**", "wolf-pack/pyproject.toml", "examples/wolfpack-sample/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", "docs/PRODUCT-MANUAL.md", "scripts/manual.py", "pqcsuite/brand.py", "pqcsuite/console/console.html", "pqcsuite/__init__.py", "wolf-pack/wolfpack/**", "wolf-pack/pyproject.toml", "examples/wolfpack-sample/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,8 +25,9 @@ jobs:
           python-version: "3.13"
       - name: Generate sample reports with this commit's scanner
         run: |
-          pip install './wolf-pack[crawler]'
+          pip install . './wolf-pack[crawler]' markdown-it-py==4.2.0
           python examples/wolfpack-sample/make_report.py
+          python scripts/manual.py
       - name: The site with its public address stamped in (change it here when the site moves)
         run: python3 site/publish.py https://qubitman-hub.github.io/PQCsuite/ dist
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

@@ -11,6 +11,8 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 
 `pqcsuite console` shows all four on one page. Wolf Pack CBOM, the separate cryptography inventory scanner, is in [`wolf-pack/`](wolf-pack/README.md). The website is https://qubitman-hub.github.io/PQCsuite/; working on the suite itself (tests, website, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+**New here? Read the [plain-language product manual](docs/PRODUCT-MANUAL.md) or its [printable website edition](https://qubitman-hub.github.io/PQCsuite/product-manual.html).**
+
 ## Scan one project
 
 From a source checkout, install the scanner alongside the suite:
@@ -27,7 +29,7 @@ The Readiness page provides **Add repository → Scan → Assign remediation →
 
 Unified scans stop at 50,000 discovered files or 512 MB of discovered files, with a five-minute cooperative time budget. Cancel in the console to preserve the preceding assessment. Checks occur between analysis operations; parsing a file or resolving relationships is not forcibly interrupted. Persistent state is bounded to 16 MB and 5,000 current/historical findings per project. Storage failures leave completed results available in the session with a visible warning.
 
-Python relationships reuse Wolf Pack's existing AST. Optional JavaScript/TypeScript syntax trees feed the same graph and impact engine; other languages retain their crypto detectors with explicit relationship gaps. Dynamic dispatch and business ownership require review. Source stays on your machine and is never executed by the scan. See [Code Crawler](docs/CODE-CRAWLER.md) for evidence limits and measured validation. Wolf Pack 1.3.0 here is checkout code; install from the checkout until that release is published.
+Python relationships reuse Wolf Pack's existing AST. Optional JavaScript/TypeScript syntax trees feed the same graph and impact engine; other languages retain their crypto detectors with explicit relationship gaps. Dynamic dispatch and business ownership require review. Source stays on your machine and is never executed by the scan. See [Code Crawler](docs/CODE-CRAWLER.md) for evidence limits and measured validation. Use the aligned PQC Suite 0.3.0 / Wolf Pack 1.3.0 release family or install both packages from this checkout; see the product manual for installation channels.
 
 ## Try it in one minute
 
@@ -263,7 +265,7 @@ First, proving what exists rather than adding to it: an independent security rev
 
 ### Guided repository setup and migration evidence
 
-These additions are available on `main`; published v0.2.2 / Wolf Pack v1.2.1 artifacts predate them. Install from the current checkout until a new release is published.
+Use the PQC Suite 0.3.0 / Wolf Pack 1.3.0 release assets when available, or install both packages from the current checkout. Earlier v0.2.2 / Wolf Pack v1.2.1 artifacts predate these additions. The product manual explains the base-container and optional-parser distinctions.
 
 Install both packages with the repository scanning extras as documented above, then run:
 

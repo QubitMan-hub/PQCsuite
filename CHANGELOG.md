@@ -2,7 +2,9 @@
 
 Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; it is published only when every CI and CodeQL job passed on its commit, and its GitHub release carries the wheel, `RELEASE_READINESS.md`, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`), a CycloneDX SBOM, the tested dependency versions and build provenance. From 0.2.0 the container image is published to `ghcr.io/qubitman-hub/pqcsuite`.
 
-## Unreleased
+## 0.3.0 (2 October 2026)
+
+- Comprehensive customer manual, printable branded website guide and release-channel instructions. Guided encrypted device enrollment now connects through an interactive key-passphrase prompt; built-in startup installation refuses unsupported encrypted keys with an actionable message.
 
 - Repository setup now checks prerequisites and creates a private loopback console configuration; guided certificate enrollment pins CA trust and encrypts the device key. `doctor --json --product` provides actionable diagnostics.
 - Shared Code Crawler caches bounded syntax trees, prioritizes production files, and reports incomplete coverage. Large relationship graphs use bounded, lossless compression in workspace format 2; format 1 remains readable.

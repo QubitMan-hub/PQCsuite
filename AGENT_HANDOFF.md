@@ -60,10 +60,16 @@ Current instructions for the next contributor; superseded progress notes remain 
 
 ## Release boundaries
 
-- Wolf Pack 1.3.0 remains unpublished. Install both packages from this checkout with their documented extras. Base container does not include optional repository scanning.
+- The aligned release targets are PQC Suite 0.3.0 and Wolf Pack 1.3.0. Check their GitHub release workflows/assets before claiming publication; source checkout installation remains supported. Base container does not include optional repository scanning.
 - Hard resource isolation, broader AST languages and independently proven deployment provenance remain open. Guided certificate enrollment, syntax reuse and operator-associated endpoint observations are now implemented. Team access and native installer code signing are outside the current scope. Independent security review and real cloud/laptop/privileged tunnel/long-run validation require their actual environments.
 - Cloud onboarding instructions already saved in the environment draft; no new environment configuration is needed for these source/CI/doc changes. No publication of that draft is implied.
 
 ## Website and demo synchronization
 
 The website now describes the current setup, syntax reuse, purpose-aware findings and bounded endpoint verification. Sample report/inventory pages are regenerated with the checkout scanner; Pages builds regenerate them on scanner/example changes. Older release/container artifacts remain immutable and do not include unreleased main changes. Clinic/bank demos, site tests and browser journeys are checked against the current implementation. Preserve the distinction between source evidence and a verified endpoint observation.
+
+## Customer manual and release alignment — 2 October 2026
+
+Single source: docs/PRODUCT-MANUAL.md. Build its standalone Acxelin HTML with scripts/manual.py (build-only markdown-it-py 4.2.0); Pages and release workflows regenerate it, and release downloads include both formats. The manual covers all four suite products plus separate Wolf Pack, website/console, workflows, recovery, capability differences and evidence limits. It explains encrypted-device startup-service limitations instead of recommending unencrypted keys. Interactive VPN connect now prompts for an encrypted device key; noninteractive callers must supply the existing environment option and unsupported built-in install refuses before changing the system.
+
+Version targets: suite 0.3.0 (package, module, Helm and Packer aligned), Wolf Pack 1.3.0. Publish only through existing release workflow after exact-commit checks; never rewrite old tags. Actual release status must be confirmed from GitHub, not inferred from this note.

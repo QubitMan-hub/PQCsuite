@@ -2,7 +2,7 @@
 
 Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Suite repository; its GitHub release carries the wheel and build provenance.
 
-## 1.3.0 (unreleased)
+## 1.3.0 (2 October 2026)
 
 - Resolve immutable JavaScript/TypeScript ML-DSA signer-table aliases, retain classical components in candidate hybrid compositions, and separate declared cache fingerprints from password-hashing findings. Password advice recommends Argon2id/scrypt instead of a plain hash replacement.
 - Reuse bounded content-hash syntax trees while recomputing findings and relationships; process production files first and expose per-file relationship truncation and parser coverage gaps.

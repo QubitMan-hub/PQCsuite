@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 SITE = Path(__file__).resolve().parent
-PAGES = ["index.html", "wolf-pack.html"]
+PAGES = ["index.html", "wolf-pack.html", "product-manual.html"]
 
 
 def publish(base, out):

@@ -346,3 +346,30 @@ def test_guided_enrollment_keeps_secrets_out_of_output_and_requires_trust(tmp_pa
             main(args)
         assert result.value.code != 0
         enroll.assert_not_called()
+
+
+def test_guided_device_key_connect_prompts_without_disclosing_secret(tmp_path, capsys):
+    import pytest
+    from unittest.mock import patch
+    ca = CA.init(tmp_path/'ca', 'Test')
+    ca.issue('device', 'client', out=tmp_path/'device', passphrase=b'PRIVATE_DEVICE_PASSPHRASE')
+    args = ['vpn', 'connect', 'gateway.example:7443', '--cert-dir', str(tmp_path/'device'), '--no-apply', '--once']
+    with patch('sys.stdin.isatty', return_value=True), patch('getpass.getpass', return_value='PRIVATE_DEVICE_PASSPHRASE'), patch('pqcsuite.vpn.wireguard.Client') as client:
+        client.return_value.once.return_value = {'address': '10.0.0.2', 'endpoint': 'gateway.example:51820', 'routes': [], 'rotate_s': 120}
+        with pytest.raises(SystemExit) as result:
+            main(args)
+        assert result.value.code == 0
+        assert client.call_args.args[6] == b'PRIVATE_DEVICE_PASSPHRASE'
+        assert 'PRIVATE_DEVICE' not in capsys.readouterr().out
+    with patch('sys.stdin.isatty', return_value=False), patch('pqcsuite.vpn.wireguard.Client') as client:
+        with pytest.raises(SystemExit) as result:
+            main(args)
+        assert result.value.code != 0
+        client.assert_not_called()
+        assert '--key-passphrase-env' in capsys.readouterr().err
+    with patch('pqcsuite.vpn.platforms.install') as install, patch('pqcsuite.vpn.wireguard.Client') as client:
+        with pytest.raises(SystemExit) as result:
+            main(['vpn', 'install', 'gateway.example:7443', '--cert-dir', str(tmp_path/'device')])
+        assert result.value.code != 0
+        install.assert_not_called()
+        client.assert_not_called()
