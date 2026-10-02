@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pqcsuite"
-version = "0.3.0"
+version = "0.3.1"
 description = "Post-quantum TLS 1.3 and mTLS, IPsec VPN, Vault and Readiness assessment"
 readme = "README.md"
 requires-python = ">=3.11"

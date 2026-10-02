@@ -7,6 +7,9 @@ on:
       tag:
         description: "Tag to create and release from this branch's latest commit: vX.Y.Z for the suite, wolf-pack-vX.Y.Z for Wolf Pack"
         required: true
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
@@ -34,7 +37,7 @@ jobs:
             constraints.txt
   release:
     needs: evidence
-    if: always() && contains(fromJSON('["success", "skipped"]'), needs.evidence.result)
+    if: ${{ !cancelled() && contains(fromJSON('["success", "skipped"]'), needs.evidence.result) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -50,6 +53,22 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
+      - name: Refuse an existing release before uploading any artifacts or images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PYTHON'
+          import os
+          from urllib.error import HTTPError
+          from scripts.release_readiness import api
+          try:
+              api(f"releases/tags/{os.environ['TAG']}")
+          except HTTPError as error:
+              if error.code != 404:
+                  raise
+          else:
+              raise SystemExit("This release already exists; use a new version instead of replacing its artifacts or image")
+          PYTHON
       - name: Build the customer manual from the same source
         run: |
           pip install . markdown-it-py==4.2.0
@@ -107,4 +126,5 @@ jobs:
       - name: Publish the release (a tag pushed by hand is used as it is; from the button, the tag is created on this commit)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$TAG" dist/* --title "$TAG" --notes-file notes.md --target "$GITHUB_SHA"
+          LATEST: ${{ startsWith(inputs.tag || github.ref_name, 'v') }}
+        run: gh release create "$TAG" dist/* --title "$TAG" --notes-file notes.md --target "$GITHUB_SHA" --latest="$LATEST"

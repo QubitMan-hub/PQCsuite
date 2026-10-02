@@ -3,13 +3,15 @@
 Build-only dependency: markdown-it-py==4.2.0. Run from an installed source checkout.
 """
 import re
+import sys
 from pathlib import Path
 from urllib.parse import urljoin
 
 from markdown_it import MarkdownIt
-from pqcsuite.brand import page
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from pqcsuite.brand import page  # noqa: E402
 
 
 def render():

@@ -4,7 +4,7 @@
 
 This guide explains what to use, how to start, what a successful result looks like, and what to do when something goes wrong. You do not need to understand cryptographic algorithms to follow the first steps. Running a production certificate authority or VPN does require a system administrator.
 
-The release family covered here is **PQC Suite 0.3.0 and Wolf Pack 1.3.0**. Check the release links in [Installation and versions](#installation-and-versions) before downloading: a release is available only after its publication workflow succeeds. Old releases remain old snapshots.
+The release family covered here is **PQC Suite 0.3.1 and Wolf Pack 1.3.0**. Check the release links in [Installation and versions](#installation-and-versions) before downloading: a release is available only after its publication workflow succeeds. Old releases remain old snapshots.
 
 ## Contents
 
@@ -63,7 +63,7 @@ Use **Readiness → repository → Scan** for the simplest workflow. Keep advanc
 | Published suite container | TLS/readiness demonstrations and configured services | The base image does not include repository scanning; persistent data needs mounted storage |
 | Wolf Pack base container or base Action | Minimal scanner automation | Python relationships are included; JavaScript/TypeScript AST relationships need the optional parser installation |
 
-[Suite releases](https://github.com/QubitMan-hub/PQCsuite/releases) and [Wolf Pack 1.3.0](https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.3.0) are separate downloads. Suite 0.3.0 and Wolf Pack 1.3.0 are the aligned targets for this manual. Earlier suite 0.2.2 and Wolf Pack 1.2.1 releases predate guided setup, syntax reuse and deployment observations. A Git push does not modify an existing wheel or image. Use a specific container version for repeatable deployments rather than assuming `latest` is unchanged.
+[Suite releases](https://github.com/QubitMan-hub/PQCsuite/releases) and [Wolf Pack 1.3.0](https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.3.0) are separate downloads. Suite 0.3.1 and Wolf Pack 1.3.0 are the aligned targets for this manual. Earlier suite 0.2.2 and Wolf Pack 1.2.1 releases predate guided setup, syntax reuse and deployment observations. A Git push does not modify an existing wheel or image. Use a specific container version for repeatable deployments rather than assuming `latest` is unchanged.
 
 ### Install the current checkout
 
@@ -102,7 +102,7 @@ Save the versions and commit with your assessment. `doctor` reports available ca
 For fixed releases, download both wheels from their release pages into a new directory, create/activate a virtual environment, and install:
 
 ```sh
-python -m pip install 'wolfpack_cbom-1.3.0-py3-none-any.whl[crawler]' 'pqcsuite-0.3.0-py3-none-any.whl[scan-web]'
+python -m pip install 'wolfpack_cbom-1.3.0-py3-none-any.whl[crawler]' 'pqcsuite-0.3.1-py3-none-any.whl[scan-web]'
 ```
 
 Only run that command once those exact files have been published and downloaded. Release assets include build provenance; this is different from a native Windows/macOS signed installer. Native installer signing is outside the current scope. The base suite wheel does not bundle Wolf Pack.
