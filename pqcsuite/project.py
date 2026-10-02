@@ -1,5 +1,7 @@
 """One local project scan: existing Wolf Pack discovery, call relationships, and migration evidence."""
 import json
+import base64
+import zlib
 import time
 from collections import Counter
 from pathlib import Path
@@ -20,7 +22,7 @@ class ScanStopped(ValueError):
     pass
 
 
-def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, max_files=50000, max_bytes=512_000_000, timeout=300):
+def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, max_files=50000, max_bytes=512_000_000, timeout=300, cache=None):
     notify = progress or (lambda stage: None)
     notify("Preparing project")
     root = Path(path).resolve()
@@ -43,7 +45,7 @@ def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, m
             except ValueError:
                 pass
     try:
-        result = pack.run(root, root.name, scope=Scope(exclude=tuple(excluded), checkpoint=checkpoint, max_files=max_files, max_total_bytes=max_bytes))
+        result = pack.run(root, root.name, scope=Scope(exclude=tuple(excluded), checkpoint=checkpoint, max_files=max_files, max_total_bytes=max_bytes), cache=cache)
     except ScanLimitError as error:
         raise ScanStopped(str(error)) from None
     checkpoint()
@@ -54,7 +56,8 @@ def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, m
         sighting.params.pop("literal", None)
     assets = [{"name": a.variant, "algorithm": a.algo, "tier": a.tier, "why": a.why, "action": a.action,
                "confidence": a.confidence, "test_only": a.test_only, "declared": a.declared,
-               "locations": sorted({(s.file, s.line) for s in a.sightings}), "impact": a.params.get("code_impact")}
+               "uncertainty": "Algorithm inferred from names or literals; confirm the implementation and dynamic dispatch" if all(s.evidence in {"identifier", "import", "string"} for s in a.sightings) else "Static evidence; runtime use is not established",
+               "locations": sorted({(s.file, s.line) for s in a.sightings}), "impact": a.params.get("code_impact"), "hybrid_context": a.params.get("hybrid_context", [])}
               for a in result.assets]
     graph = result.relationships
     assessment = {"project": root.name, "finished": time.time(), "assets": assets, "notes": result.notes,
@@ -62,7 +65,7 @@ def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, m
                               "python_files": graph.get("languages", {}).get("Python", 0), "languages": graph.get("languages", {}), "coverage_gaps": graph.get("skipped", {}),
                               "migration_candidates": sum(a["tier"] in {"critical", "high"} and not a["test_only"] and not a["declared"] for a in assets), "functions": sum(s["kind"] == "function" for s in graph["symbols"]),
                               "resolved_calls": sum(bool(c["target"]) for c in graph["calls"]), "calls": len(graph["calls"]),
-                              "libraries": result.stats["libraries"], "seconds": result.stats["seconds"], "graph_limited": graph["limited"]},
+                              "libraries": result.stats["libraries"], "seconds": result.stats["seconds"], "graph_limited": graph["limited"], "truncated_files": len(graph.get("truncated_files", {})), "incremental": graph.get("incremental", {})},
                   "evidence_boundary": "Static source evidence is not runtime protection or proof of business ownership.",
                   "relationships": graph}
     if out:
@@ -114,6 +117,7 @@ def finding_id(asset):
 class ProjectStore:
     """Bounded single-administrator workspace. Shared locks preserve competing updates."""
     LIMIT = 16_000_000
+    GRAPH_LIMIT = 64_000_000
 
     def __init__(self, path):
         self.path = Path(path).absolute()
@@ -126,13 +130,13 @@ class ProjectStore:
 
     def read(self):
         if not self.path.exists():
-            return {'version': 1, 'registrations': {}, 'projects': {}}
+            return {'version': 2, 'registrations': {}, 'projects': {}}
         with self.path.open('rb') as source:
             raw = source.read(self.LIMIT + 1)
         if len(raw) > self.LIMIT:
             raise ValueError('Project workspace exceeds 16 MB; choose a new workspace file')
         data = json.loads(raw)
-        if not isinstance(data, dict) or data.get('version') != 1 or not isinstance(data.get('registrations'), dict) or not isinstance(data.get('projects'), dict):
+        if not isinstance(data, dict) or data.get('version') not in (1, 2) or not isinstance(data.get('registrations'), dict) or not isinstance(data.get('projects'), dict):
             raise ValueError('Invalid project workspace; preserve it and choose a new workspace file')
         return data
 
@@ -141,6 +145,7 @@ class ProjectStore:
         with locked(self.path.parent, '.' + self.path.name + '.lock'):
             data = self.read()
             result = action(data)
+            data['version'] = 2
             raw = json.dumps(data).encode()
             if len(raw) > self.LIMIT:
                 raise ValueError('Project workspace exceeds 16 MB; choose a new workspace file')
@@ -175,7 +180,11 @@ class ProjectStore:
             current['comparison'] = {'baseline': bool(previous), 'new': len(ids - old.keys()), 'persisting': len(ids & old.keys()),
                                      'not_observed': len(old.keys() - ids), 'previous_finished': previous.get('assessment', {}).get('finished')}
             history = previous.get('history', [])[-29:] + [{k: current[k] for k in ('project', 'finished', 'summary', 'comparison')}]
-            data['projects'][key] = {'assessment': current, 'tracking': tracking, 'missing': list(missing.values()), 'history': history}
+            graph = json.dumps(current.pop('relationships', {}), separators=(',', ':')).encode()
+            if len(graph) > self.GRAPH_LIMIT:
+                raise ValueError('Relationship graph exceeds 64 MB; narrow the repository scope')
+            packed = base64.b64encode(zlib.compress(graph)).decode('ascii')
+            data['projects'][key] = {'graph_zlib': packed, 'assessment': current, 'tracking': tracking, 'missing': list(missing.values()), 'history': history, 'verifications': previous.get('verifications', [])}
             return self.view(data['projects'][key])
         return self.update(change)
 
@@ -183,8 +192,26 @@ class ProjectStore:
     def view(project):
         import copy
         result = copy.deepcopy(project['assessment'])
+        if 'graph_zlib' in project:
+            try:
+                decoder = zlib.decompressobj()
+                raw = decoder.decompress(base64.b64decode(project['graph_zlib'], validate=True), ProjectStore.GRAPH_LIMIT + 1)
+                if len(raw) > ProjectStore.GRAPH_LIMIT or not decoder.eof or decoder.unused_data:
+                    raise ValueError('Invalid or oversized stored relationship graph')
+                graph = json.loads(raw)
+                if not isinstance(graph, dict):
+                    raise ValueError('Invalid stored relationship graph')
+                result['relationships'] = graph
+            except (zlib.error, ValueError, TypeError, RecursionError) as error:
+                raise ValueError('Stored relationship graph is damaged or exceeds its size limit') from error
         result['history'] = copy.deepcopy(project.get('history', []))
         result['not_observed'] = copy.deepcopy(project.get('missing', []))
+        result['verifications'] = copy.deepcopy(project.get('verifications', []))
+        present = {a['id'] for a in result['assets']}
+        for evidence in result['verifications']:
+            evidence['source_state'] = 'observed' if evidence['finding'] in present else 'not_observed'
+            evidence['rescan_required'] = evidence['source_finished'] != result['finished']
+            evidence['expired'] = time.time() - evidence['checked'] > 86400
         for asset in result['assets'] + result['not_observed']:
             asset['tracking'] = copy.deepcopy(project.get('tracking', {}).get(asset['id'], {'owner': '', 'due': '', 'status': 'open', 'reason': '', 'until': ''}))
             tracking = asset['tracking']
@@ -196,6 +223,17 @@ class ProjectStore:
     def assessment(self, root):
         record = self.read()['projects'].get(self.key(root))
         return self.view(record) if record else None
+
+    def record_verification(self, root, binding, observation, source_finished):
+        def change(data):
+            project = data['projects'].get(self.key(root))
+            if not project or project['assessment']['finished'] != source_finished:
+                raise ValueError('Assessment changed during verification; select the current finding and retry')
+            evidence = binding | observation | {'source_finished': source_finished, 'checked': time.time(),
+                                                'mapping_basis': 'Operator-supplied deployment association; source-to-release provenance is not independently verified'}
+            project['verifications'] = project.get('verifications', [])[-99:] + [evidence]
+            return self.view(project)
+        return self.update(change)
 
     def track(self, root, body):
         import datetime as dt
@@ -233,3 +271,41 @@ def sample_project(parent):
     if not root.is_dir():
         raise ValueError('Sample repository path must be a folder')
     return root
+
+
+def verify_endpoint(target, ca, expected_sha256, crl=None):
+    """Authenticate a strict PQ TLS connection and pin the operator's deployment certificate."""
+    from cryptography.hazmat.primitives import hashes
+    from . import tls
+    from .pki import CAError, verify_crl, now
+    from .readiness.scan import endpoint, PQ
+    protocol, host, port = endpoint(target)
+    if protocol != 'tls':
+        raise ValueError('Deployment verification currently supports TLS endpoints only')
+    result = {'state': 'not_verified', 'policy': 'strict', 'boundary':
+              'One authenticated PQ connection at this time; does not establish all client paths, fallback refusal, application behavior or source provenance'}
+    context = None
+    try:
+        context = tls.client_context(ca=ca, policy_name='strict')
+        with tls.connect(host, port, context, timeout=5) as connection:
+            certificate = connection.peer_certificate()
+            fingerprint = certificate.fingerprint(hashes.SHA256()).hex() if certificate else ''
+            result |= {'group': connection.group, 'certificate_sha256': fingerprint}
+            if fingerprint != expected_sha256:
+                result['error'] = 'Certificate differs from the expected deployment; check the release and certificate rotation'
+            elif connection.group not in PQ:
+                result['error'] = 'Post-quantum key exchange was not established'
+            else:
+                if not crl:
+                    raise CAError('A current issuer CRL is required')
+                revocations = verify_crl(Path(crl).read_bytes(), connection.peer_chain()[1:2])
+                if revocations.issuer != certificate.issuer or revocations.last_update_utc > now() or not revocations.next_update_utc or revocations.get_revoked_certificate_by_serial_number(certificate.serial_number):
+                    raise CAError('Revocation evidence does not establish a current valid leaf certificate')
+                result['state'] = 'verified_pq_connection'
+                result['revocation'] = 'Leaf certificate checked against current issuer CRL'
+    except (tls.TLSError, CAError, OSError, ValueError):
+        result['error'] = 'Verified strict TLS connection failed; check endpoint, CA trust, certificate name/expiry, current issuer CRL and PQ policy'
+    finally:
+        if context:
+            context.close()
+    return result

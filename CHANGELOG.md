@@ -4,6 +4,11 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 ## Unreleased
 
+- Repository setup now checks prerequisites and creates a private loopback console configuration; guided certificate enrollment pins CA trust and encrypts the device key. `doctor --json --product` provides actionable diagnostics.
+- Shared Code Crawler caches bounded syntax trees, prioritizes production files, and reports incomplete coverage. Large relationship graphs use bounded, lossless compression in workspace format 2; format 1 remains readable.
+- Migration tracking distinguishes source disappearance from a recent authenticated PQ endpoint connection. Verification requires an approved target, pinned certificate and valid issuer CRL; source-to-release association remains operator supplied.
+- Private pilot measurements record setup time, finding decisions, reported fix duration and current endpoint evidence without adding team access or installer signing.
+
 - **Real application regression checks:** encrypted PostgreSQL dumps must restore correct rows through a recovery recipient; real Redis SET/GET requests must survive IPsec/WireGuard key rotation, and revoked WireGuard clients lose application access.
 - **Accurate migration scope:** `SelfTest` and `test_vectors` directories count as test evidence. Their assets remain visible in advanced inventory but no longer create production migration candidates by themselves.
 

@@ -274,6 +274,9 @@ def assess(a, h, hybrid_files, purpose=True):
         tier = "ok"
         a.why = "Quantum-safe" if c.primitive in ("kem", "signature") else "No known quantum break at this strength"
         a.action = ""
+    if purpose and a.params.get("purpose") == "password":
+        a.why = "Weak fast hash in a password-hasher implementation; confirm whether this hasher is enabled"
+        a.action = "Use Argon2id or scrypt with an appropriate work factor and migrate stored password hashes; a plain SHA-256 replacement is not sufficient"
     if purpose:
         for s in a.sightings:
             if s.params.get("purpose") == "non-security":

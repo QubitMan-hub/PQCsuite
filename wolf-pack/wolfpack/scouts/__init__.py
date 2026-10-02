@@ -102,6 +102,7 @@ def snapshot(root, scope=False):
             entries.append((p, size))
         except OSError:
             continue
+    entries.sort(key=lambda item: (is_test(rel(root, item[0])), rel(root, item[0])))
     return replace(scope, files=tuple(entries))
 
 

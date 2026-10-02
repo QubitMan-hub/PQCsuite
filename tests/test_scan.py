@@ -33,6 +33,35 @@ def rsa_cert(d):
 
 @unittest.skipIf(REASON, REASON)
 class ScanTest(unittest.TestCase):
+    def test_migration_observation_refuses_wrong_pin_name_ca_and_classical_server(self):
+        from pqcsuite.project import verify_endpoint
+        with tempfile.TemporaryDirectory() as folder:
+            d = Path(folder)
+            ca = CA.init(d/'pki', 'Migration Root')
+            out, issued = ca.issue('localhost', 'server', out=d/'srv')
+            fingerprint = x509.load_pem_x509_certificate((out/'cert.pem').read_bytes()).fingerprint(hashes.SHA256()).hex()
+            server = Server(('127.0.0.1', 0), lambda: tls.server_context(out/'chain.pem', out/'key.pem'), lambda c, a: None)
+            server.start()
+            try:
+                target = f'localhost:{server.port}'
+                self.assertEqual(verify_endpoint(target, ca.anchor, fingerprint, d/'pki/crl.pem')['state'], 'verified_pq_connection')
+                self.assertEqual(verify_endpoint(target, ca.anchor, '0'*64, d/'pki/crl.pem')['state'], 'not_verified')
+                self.assertEqual(verify_endpoint(f'127.0.0.1:{server.port}', ca.anchor, fingerprint, d/'pki/crl.pem')['state'], 'not_verified')
+                ca.revoke(issued.serial)
+                ca.crl()
+                self.assertEqual(verify_endpoint(target, ca.anchor, fingerprint, d/'pki/crl.pem')['state'], 'not_verified')
+                other = CA.init(d/'other', 'Other Root')
+                self.assertEqual(verify_endpoint(target, other.anchor, fingerprint, d/'pki/crl.pem')['state'], 'not_verified')
+            finally:
+                server.stop(1)
+            rcert, rkey = rsa_cert(d)
+            server = Server(('127.0.0.1', 0), lambda: Context(True, 'X25519', None, tls.CIPHERSUITES, rcert, rkey), lambda c, a: None)
+            server.start()
+            try:
+                self.assertEqual(verify_endpoint(f'localhost:{server.port}', rcert, fingerprint, d/'pki/crl.pem')['state'], 'not_verified')
+            finally:
+                server.stop(1)
+
     def test_grades_and_report(self):
         d = Path(tempfile.mkdtemp())
         out, _ = CA.init(d / "pki", "Root").issue("localhost", "server", out=d / "srv")

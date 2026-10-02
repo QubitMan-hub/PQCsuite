@@ -69,7 +69,7 @@ def declaration(code, m, lang, header):
     return lang == "java" and not before.strip() and re.fullmatch(r"[A-Z][A-Z0-9_]*", m.group(1)) is not None and after in (",", ";", "{")
 
 
-def scan(code, lang, path=""):
+def scan(code, lang, path="", aliases=()):
     """Yields (line, algo) for calls, constructors and type definitions whose names spell an algorithm."""
     if path.endswith(".d.ts"):
         return
@@ -85,6 +85,10 @@ def scan(code, lang, path=""):
             parts = re.split(r"\.|::|->", name)
             last = parts[-1]
             found = algos(name)
+            line = bisect(ends, m.start(g)) + 1
+            for first, end, alias, resolved in aliases:
+                if first <= line <= end and parts[0] == alias and len(parts) == 2 and parts[1] in {"sign", "verify", "keygen", "getPublicKey"}:
+                    found = resolved
             if not found or last in KEYWORDS or NOT_USE.search(last) or any(TEST_WORD.search(p) or ERRORISH.search(p) for p in parts):
                 continue
             if UTILITY.search(last) and not algos(last) or rx is CALL and declaration(code, m, lang, header):

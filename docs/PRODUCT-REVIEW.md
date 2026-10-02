@@ -185,3 +185,48 @@ Validation after the scope fix: **378 local Python tests passed, 14 prerequisite
 The owner resumed product improvements and subsequently excluded team access (SSO/RBAC) and native installer code signing. Neither feature is implemented in this checkout. Earlier gap lists describe the historical review, not a commitment to implement these excluded features. The existing administrator-token login, verification of third-party installer signatures, and certificate/Vault cryptographic signing remain required.
 
 Continue scanner accuracy and large-repository performance, migration evidence, easier setup/diagnostics and realistic customer-condition validation. Independent review and real laptop/cloud validation still require actual reviewers and environments.
+
+## Accuracy milestone: before and after (2 October 2026)
+
+Before: generic password-hash advice, a false classical DSA alias in a PQ signer table, scan-order-dependent graph truncation, repeated parsing, and source remediation without authenticated endpoint observations.
+
+After: password-specific Argon2id/scrypt advice, narrow AST alias resolution with mutation/shadowing traps, candidate hybrid context without safety downgrades, production-first relationships, bounded syntax reuse and explicit uncertainty. The console adds guided prerequisites/enrollment and advanced endpoint verification. Graph compression fixes large-project persistence without retaining source snippets. Existing detectors remain shared; no production dependency was added. This milestone adds tested capabilities and does not reduce total source size.
+
+Validation: 391 full-suite tests passed with 14 host prerequisite skips; the additional storage-version and cache-hasher tests passed in the 39-test focused run. All 38 browser checks passed. Both wheels built, lint/basic type checks and the suite CBOM high-risk baseline passed. The 20-minute recovery run completed 96,792 successful connections, zero failures, 49/49 revocations and eight certificate renewals. These are local evidence, not real customer laptop or independent review results.
+
+The corpus grew from 163 to 166 labeled pairs by adding two explicit alias examples; existing labels were unchanged. The following regression table is tuned development data, not independent accuracy evidence.
+
+| Configuration | Before P/R/F1 | After P/R/F1 | Before FP/FN | After FP/FN |
+|---|---|---|---|---|
+| full pack | 1.000/1.000/1.000 | 1.000/1.000/1.000 | 0/0 | 0/0 |
+| without den | 0.845/1.000/0.916 | 0.847/1.000/0.917 | 30/0 | 30/0 |
+| without corroboration | 1.000/0.994/0.997 | 1.000/0.994/0.997 | 0/1 | 0/1 |
+| without second look | 1.000/0.914/0.955 | 1.000/0.916/0.956 | 0/14 | 0/14 |
+| without flow | 1.000/0.933/0.965 | 1.000/0.934/0.966 | 0/11 | 0/11 |
+| without registries | 1.000/0.988/0.994 | 1.000/0.988/0.994 | 0/2 | 0/2 |
+| without siblings | 1.000/0.994/0.997 | 1.000/0.994/0.997 | 0/1 | 0/1 |
+| without recognition | 0.982/1.000/0.991 | 0.982/1.000/0.991 | 3/0 | 3/0 |
+| without propagation | 1.000/0.988/0.994 | 1.000/0.988/0.994 | 0/2 | 0/2 |
+| without cross-file | 1.000/0.988/0.994 | 1.000/0.988/0.994 | 0/2 | 0/2 |
+| without source scouts | 1.000/0.356/0.525 | 1.000/0.349/0.518 | 0/105 | 0/108 |
+| without names | 1.000/0.963/0.981 | 1.000/0.958/0.978 | 0/6 | 0/7 |
+| without concat | 1.000/0.994/0.997 | 1.000/0.994/0.997 | 0/1 | 0/1 |
+| without symbols | 1.000/0.957/0.978 | 1.000/0.958/0.978 | 0/7 | 0/7 |
+| without parameters | 1.000/0.994/0.997 | 1.000/0.994/0.997 | 0/1 | 0/1 |
+| without implementation scouts | 1.000/0.982/0.991 | 1.000/0.982/0.991 | 0/3 | 0/3 |
+| without config scouts | 1.000/0.748/0.856 | 1.000/0.753/0.859 | 0/41 | 0/41 |
+| without lists | 1.000/0.969/0.984 | 1.000/0.970/0.985 | 0/5 | 0/5 |
+| without artifact scouts | 1.000/0.933/0.965 | 1.000/0.934/0.966 | 0/11 | 0/11 |
+| without binary scouts | 1.000/0.988/0.994 | 1.000/0.988/0.994 | 0/2 | 0/2 |
+
+Remaining gaps: ambiguous dynamic signer aliases, Java/Go/C relationship adapters, hard resource isolation, cryptographically established source-to-deployment provenance, real Windows/macOS laptop sleep/roaming/kill-switch evidence, days-long production runs, three actual customer pilots and independent security review. Protocols and a private metric ledger are prepared; no reviewer or customer participation is implied. Team access and native installer code signing remain excluded. Public competitor feature comparisons in this document remain observations, not a claim of superiority.
+
+Final pinned public-repository rerun (static analysis only; no target source executed):
+
+| Repository | First / repeat seconds | Reused syntax on repeat | Assets | Saved workspace bytes |
+|---|---|---|---|---|
+| noble-post-quantum | 0.95 / 0.92 | 20 | 22 | 56088 |
+| pycryptodome | 12.61 / 11.85 | 230 | 73 | 771319 |
+| django | 48.02 / 39.42 | 2976 | 14 | 2393776 |
+
+Every saved graph reloaded identically. Django has 1,653 truncated test files and no truncated production files; its one invalid Python file remains a reported parse failure. Noble’s immutable signer-table DSA false finding is absent; dynamic aliases elsewhere still require review. Timings share a host with other tests and are not controlled performance benchmarks. All five final CBOMs (corpus, suite and three public projects) validate with zero CycloneDX 1.6 errors. Current-code container checks: 61 passed, 3,570 subtests, against real services/TLS/Vault.

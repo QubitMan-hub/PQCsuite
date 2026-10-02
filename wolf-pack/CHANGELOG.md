@@ -4,6 +4,9 @@ Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Sui
 
 ## 1.3.0 (unreleased)
 
+- Resolve immutable JavaScript/TypeScript ML-DSA signer-table aliases, retain classical components in candidate hybrid compositions, and separate declared cache fingerprints from password-hashing findings. Password advice recommends Argon2id/scrypt instead of a plain hash replacement.
+- Reuse bounded content-hash syntax trees while recomputing findings and relationships; process production files first and expose per-file relationship truncation and parser coverage gaps.
+
 - Code Crawler reuses Python ASTs for bounded static symbols/imports/calls and migration impact; unresolved dispatch stays explicit. `relationships.json` joins offline reports and CBOM impact metadata.
 - One git-aware file snapshot feeds scouts, preserves binary build directories, skips symlinks and disables Git filesystem-monitor hooks. Artifact writes use private atomic staging.
 

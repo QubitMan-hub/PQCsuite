@@ -68,20 +68,24 @@ class Hunt:
     crawler: CodeCrawler = field(default_factory=CodeCrawler)
 
 
-def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=(), captures=()):
+def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=(), captures=(), cache=None):
     """The scouts go out. Each reports everything it saw; nothing is filtered until the den."""
-    h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0))
+    h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0), crawler=CodeCrawler(cache))
     if roles.source:
         unparsed = []
-        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed, roles.names, roles.concat, roles.symbols, h.crawler.observe, h.crawler.observe_source)
+        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed, roles.names, roles.concat, roles.symbols, h.crawler.observe, h.crawler.observe_source, h.crawler.parse_python)
         h.sightings += s
         if unparsed:
+            for path in unparsed:
+                h.crawler.gap("Python (syntax errors)", path)
             h.notes.append(f"{len(unparsed)} Python file(s) could not be parsed by this Python ({sys.version.split()[0]}): newer syntax, or not "
                            f"Python 3. Only their strings and comments were read, so calls in them were missed; run Wolf Pack on the "
                            f"project's Python or newer (the Docker image and GitHub Action use 3.14): "
                            + ", ".join(unparsed[:5]) + (" ..." if len(unparsed) > 5 else ""))
         big = oversized(root, scope)
         if big:
+            for path in big:
+                h.crawler.gap("Source exceeds 2 MB read limit", path)
             h.notes.append(f"{len(big)} source file(s) over {MAX_BYTES // 1_000_000} MB not read (usually generated or minified code): "
                            + ", ".join(big[:5]) + (" ..." if len(big) > 5 else ""))
     if roles.source and roles.parameters:
@@ -151,11 +155,11 @@ def load_baseline(path):
     return seen
 
 
-def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(), scope=False, ssh_targets=(), baseline=None, captures=()):
+def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(), scope=False, ssh_targets=(), baseline=None, captures=(), cache=None):
     t0 = time.time()
     scope = snapshot(root, scope)
     horizon = horizon or alpha.Horizon()
-    h = hunt(root, roles, scope, tls_targets, ssh_targets, captures)
+    h = hunt(root, roles, scope, tls_targets, ssh_targets, captures, cache)
     lines = den.Lines(root)
     trails = alpha.follow_trails(root, h.artifacts, h.sightings, scope) if roles.trails else 0
     if roles.den:
@@ -168,7 +172,7 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
     for s in sightings:
         if s.file in stores:
             s.context.add("trust-store")
-    assets = alpha.lead(den.assets(sightings), horizon, roles.purpose)
+    assets = alpha.lead(den.assets(sightings, roles.purpose), horizon, roles.purpose)
     for a in assets:
         a.remedies = remedy.remedies(a)
     if baseline:

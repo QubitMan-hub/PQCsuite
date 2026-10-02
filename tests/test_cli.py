@@ -296,3 +296,53 @@ class CLITest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_setup_preserves_existing_config_and_separates_optional_tls(tmp_path, capsys):
+    import pytest
+    from pqcsuite.console import Settings
+    out = tmp_path/'private/console.toml'
+    with pytest.raises(SystemExit) as result:
+        main(['setup', '--project', str(tmp_path), '--out', str(out)])
+    assert result.value.code == 0
+    settings = Settings.load(out)
+    assert settings.listen == '127.0.0.1:8900'
+    assert settings.project_roots == [str(tmp_path.resolve())]
+    original = out.read_bytes()
+    with pytest.raises(SystemExit) as result:
+        main(['setup', '--project', str(tmp_path), '--out', str(out)])
+    assert result.value.code != 0 and out.read_bytes() == original
+    if os.name != 'nt':
+        assert out.stat().st_mode & 0o777 == 0o600
+    capsys.readouterr()
+    with pytest.raises(SystemExit) as result:
+        main(['doctor', '--json', '--product', 'vault'])
+    import json
+    report = json.loads(capsys.readouterr().out)
+    assert result.value.code == 0 and report['checks'][0]['product'] == 'vault'
+
+
+def test_guided_enrollment_keeps_secrets_out_of_output_and_requires_trust(tmp_path, capsys):
+    import datetime as dt
+    import pytest
+    from types import SimpleNamespace
+    from unittest.mock import patch
+    args = ['ca', 'enroll', '--guide', '--out', str(tmp_path/'device')]
+    cert = SimpleNamespace(serial_number=1, not_valid_after_utc=dt.datetime.now(dt.timezone.utc))
+    with patch('sys.stdin.isatty', return_value=True), patch('pqcsuite.checks.prerequisites', return_value=[]), \
+            patch('builtins.input', side_effect=['https://ca.example:9443', 'device-1', 'a'*64]), \
+            patch('getpass.getpass', side_effect=['PRIVATE_TOKEN', 'PRIVATE_PASSWORD', 'PRIVATE_PASSWORD']), \
+            patch.dict(os.environ, {'PQCSUITE_ENROLL_TOKEN': ''}), \
+            patch('pqcsuite.pki.est.fetch_ca') as fetch, patch('pqcsuite.pki.est.enroll', return_value=cert) as enroll:
+        with pytest.raises(SystemExit) as result:
+            main(args)
+        assert result.value.code == 0
+        assert fetch.call_args.args[1] == 'a'*64
+        assert enroll.call_args.kwargs['passphrase'] == b'PRIVATE_PASSWORD'
+        assert enroll.call_args.args[1] == 'PRIVATE_TOKEN'
+        assert 'PRIVATE_' not in capsys.readouterr().out
+    with patch('sys.stdin.isatty', return_value=False), patch('pqcsuite.pki.est.enroll') as enroll:
+        with pytest.raises(SystemExit) as result:
+            main(args)
+        assert result.value.code != 0
+        enroll.assert_not_called()

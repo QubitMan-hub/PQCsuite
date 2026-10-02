@@ -294,5 +294,12 @@
     "RSA",
     "SHA-256",
     "bcrypt"
+  ],
+  "js/pqc_signer_table.ts": [
+    "ML-DSA"
+  ],
+  "js/mixed_signer_trap.ts": [
+    "ML-DSA",
+    "DSA"
   ]
 }

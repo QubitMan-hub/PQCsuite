@@ -229,7 +229,7 @@ def string_scout(path, lang, strings, lines, sink, base_ctx, docs, concat=True):
             _emit(sink, path, lang, line, lines, a, dict(p, literal=val), "string", "strings", c)
 
 
-def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, names=True, concat=True, cross_file=True, symbols=True, on_python=None, on_source=None):
+def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, names=True, concat=True, cross_file=True, symbols=True, on_python=None, on_source=None, parse_python=None):
     lang = LANGS.get(p.suffix.lower())
     if not lang:
         return False
@@ -237,13 +237,12 @@ def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, nam
     if text is None:
         return False
     path = rel(root, p)
-    if on_source:
-        on_source(path, text, lang)
+    aliases = on_source(path, text, lang) if on_source else None
     base = {"test"} if is_test(path) else set()
     lines = text.splitlines()
     code, comments, strings, docs = split(text, lang)
     if lang == "python":
-        found = scan_python(path, text, constants, on_python)
+        found = scan_python(path, text, constants, on_python, **({"parse": parse_python} if parse_python else {}))
         if found is None and unparsed is not None:
             unparsed.append(path)
         for algo, ln, ev, snip, params in found or []:
@@ -256,7 +255,7 @@ def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, nam
         run_rules(path, propagate(code, reach) if constants else code, lang, sink, base)
         run_rules(path, comments, lang, sink, base, comment=True)
     if names and lang != "hash":
-        for ln, a in named.scan(code, lang, path):
+        for ln, a in named.scan(code, lang, path, aliases or ()):
             _emit(sink, path, lang, ln, lines, a, {}, "identifier", "names", base | ({"doc"} if ln in docs else set()))
     if symbols and lang != "hash":
         for ln, a in named.symbols(code, lang, path):
@@ -268,10 +267,10 @@ def scan_file(root, p, sink, constants=True, shared=((), {}), unparsed=None, nam
     return True
 
 
-def scan(root, scope=False, constants=True, cross_file=True, unparsed=None, names=True, concat=True, symbols=True, on_python=None, on_source=None):
+def scan(root, scope=False, constants=True, cross_file=True, unparsed=None, names=True, concat=True, symbols=True, on_python=None, on_source=None, parse_python=None):
     """`unparsed` collects Python files this interpreter cannot parse (newer syntax); only their strings and comments are read."""
     sink, n = [], 0
     shared = shared_constants(root, scope) if constants and cross_file else ((), {})
     for p in iter_files(root, scope):
-        n += scan_file(root, p, sink, constants, shared, unparsed, names, concat, cross_file, symbols, on_python, on_source)
+        n += scan_file(root, p, sink, constants, shared, unparsed, names, concat, cross_file, symbols, on_python, on_source, parse_python)
     return sink, n

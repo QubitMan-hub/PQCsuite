@@ -170,3 +170,43 @@ def config(path):
             out.append(("fail", f"{path} [console]: ca = {c['ca']} holds no CA (no ca.crt), so the console will not start"))
         out += [("warn", f"{path} [console]: backups folder {b} does not exist") for b in c.get("backups", []) if not Path(b).is_dir()]
     return out
+
+
+def prerequisites(product='all'):
+    """Local-only capability checks with next actions; no account credentials or source collected."""
+    import importlib.util
+    import shutil
+    import sys
+    from . import tls, vault
+    rows = []
+    def add(name, level, message, action=''):
+        if product in ('all', name):
+            rows.append({'product': name, 'level': level, 'message': message, 'action': action})
+    try:
+        vault.Identity.generate()
+        add('vault', 'ok', 'ML-KEM key generation is available')
+    except (ImportError, ValueError, RuntimeError):
+        add('vault', 'fail', 'Post-quantum key generation is unavailable', 'Install the cryptography version required by this checkout in the active Python environment')
+    try:
+        context = tls.client_context(verify=False)
+        context.close()
+        add('tls', 'ok', 'OpenSSL supports strict PQ TLS contexts')
+    except (tls.TLSError, OSError) as error:
+        add('tls', 'fail', str(error), 'Install OpenSSL 3.5+ for this architecture; run pqcsuite doctor again before enrollment')
+    try:
+        from .project import scanner
+        scanner()
+        add('repository', 'ok', 'Shared repository scanner is installed')
+        missing = [name for name in ('tree_sitter', 'tree_sitter_javascript', 'tree_sitter_typescript') if importlib.util.find_spec(name) is None]
+        if missing:
+            add('repository', 'warn', 'JavaScript/TypeScript relationships are unavailable', 'From this checkout run: pip install -e "./wolf-pack[crawler]" -e ".[scan-web]"')
+    except (ImportError, ValueError):
+        add('repository', 'fail', 'Shared repository scanner is unavailable', 'From this checkout run: pip install -e "./wolf-pack[crawler]" -e ".[scan-web]"')
+    if product in ('all', 'vpn'):
+        if sys.platform.startswith('linux') and importlib.util.find_spec('vici') and shutil.which('swanctl') and shutil.which('ip'):
+            add('vpn', 'ok', 'IPsec control tools found; kernel support and tunnel traffic still require deployment tests')
+        else:
+            add('vpn', 'warn', 'IPsec gateway prerequisites are incomplete or this is a client platform', 'Use a Linux strongSwan gateway with VICI and iproute2; Windows/macOS devices use the remote WireGuard client')
+        if not shutil.which('wg'):
+            add('vpn', 'warn', 'WireGuard command was not found on PATH', 'Install the official WireGuard tools for this platform before device enrollment')
+    return rows

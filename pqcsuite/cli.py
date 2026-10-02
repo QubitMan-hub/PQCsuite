@@ -52,6 +52,13 @@ def show(obj, as_json):
 
 
 def cmd_doctor(a):
+    if getattr(a, 'json', False):
+        from . import checks
+        rows = checks.prerequisites(a.product)
+        rows += [{'product': 'deployment', 'level': level, 'message': message, 'action': ''}
+                 for level, message in ([r for d in a.ca for r in checks.ca(d)] + [r for f in a.config for r in checks.config(f)] + [r for d in a.backups for r in checks.backups(d)])]
+        print(json.dumps({'version': __version__, 'checks': rows}, indent=2))
+        return 2 if any(r['level'] == 'fail' for r in rows) else 1 if a.strict and any(r['level'] == 'warn' for r in rows) else 0
     import cryptography
     from cryptography.hazmat.backends.openssl.backend import backend
     print(f"{NAME} {__version__}, Python {sys.version.split()[0]}")
@@ -84,6 +91,33 @@ def cmd_doctor(a):
         fails, warns = sum(r[0] == "fail" for r in results), sum(r[0] == "warn" for r in results)
         print(f"\n{fails} problem(s), {warns} warning(s)")
     return 3 if broken else 2 if fails else 1 if warns and a.strict else 0
+
+
+def cmd_setup(a):
+    from . import checks
+    from .storage import locked, write
+    project = Path(a.project).resolve()
+    if not project.is_dir():
+        raise ValueError('Choose an existing repository folder with --project')
+    rows = checks.prerequisites('repository')
+    for row in rows:
+        print(f"{row['level'].upper()}: {row['message']}" + (f". {row['action']}" if row['action'] else ''))
+    if any(r['level'] == 'fail' for r in rows):
+        return 2
+    destination = Path(a.out).absolute()
+    destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    settings = {'listen': '127.0.0.1:8900', 'project_roots': [str(project)],
+                'project_state': str(destination.parent/'projects.json'), 'audit_log': str(destination.parent/'console-audit.jsonl')}
+    content = '[console]\n' + ''.join(f'{key} = {json.dumps(value)}\n' for key, value in settings.items())
+    with locked(destination.parent, '.setup.lock'):
+        if destination.exists() or destination.is_symlink():
+            raise ValueError('Setup preserves existing configuration; choose another --out path or use the existing console configuration')
+        write(destination, content.encode(), secret=True)
+    print(f'Configured repository: {project}')
+    print(f'Next: pqcsuite console --config "{destination}"')
+    print('Open the local address, use the startup token, then select Scan project. Results and remediation are saved privately.')
+    print('For a device certificate: pqcsuite ca enroll --guide --out device')
+    return 0
 
 
 def cmd_ca(a):
@@ -506,8 +540,29 @@ def cmd_console(a):
 
 def cmd_enroll(a):
     from .pki import est
+    key_passphrase = env_passphrase(a.key_passphrase_env)
+    if getattr(a, 'guide', False):
+        if a.renew:
+            raise CAError('--guide is for first enrollment; use --renew with an existing device folder')
+        if not sys.stdin.isatty():
+            raise CAError('--guide needs an interactive terminal; automation should supply enrollment flags and secret environment variables')
+        from .checks import prerequisites
+        failures = [r for r in prerequisites('tls') if r['level'] == 'fail']
+        if failures:
+            raise CAError(failures[0]['message'] + '. ' + failures[0]['action'])
+        a.url = a.url or input('Enrollment service HTTPS URL: ').strip()
+        a.common_name = a.common_name or input('Device or service name assigned by your administrator: ').strip()
+        if not a.ca and not a.ca_fingerprint:
+            a.ca_fingerprint = input('CA SHA-256 fingerprint supplied by your administrator: ').strip()
+        a.token = a.token or os.environ.get('PQCSUITE_ENROLL_TOKEN') or getpass.getpass('One-time enrollment token: ')
+        if not key_passphrase:
+            key_passphrase = getpass.getpass('New local key passphrase: ').encode()
+            if not key_passphrase or key_passphrase != getpass.getpass('Repeat key passphrase: ').encode():
+                raise CAError('A nonempty matching passphrase is required for guided enrollment')
+    if not a.url or not a.url.startswith('https://'):
+        raise CAError('Supply an HTTPS enrollment URL, or use --guide')
     if a.renew:
-        cert = est.renew(a.url, a.renew, within_days=a.within_days, passphrase=env_passphrase(a.key_passphrase_env), server_name=a.server_name)
+        cert = est.renew(a.url, a.renew, within_days=a.within_days, passphrase=key_passphrase, server_name=a.server_name)
         print(f"{a.renew}: " + (f"renewed, new serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}" if cert
                                 else f"still valid for more than {a.within_days} days, nothing to do"))
         return 0
@@ -520,7 +575,7 @@ def cmd_enroll(a):
             raise CAError("give --ca FILE or --ca-fingerprint SHA256 (from `pqcsuite ca serve`) so the CA can be trusted")
         ca = Path(a.out) / "ca.crt"
         est.fetch_ca(a.url, a.ca_fingerprint, ca, a.server_name)
-    cert = est.enroll(a.url, token, a.common_name, a.san, a.out, ca, passphrase=env_passphrase(a.key_passphrase_env), server_name=a.server_name)
+    cert = est.enroll(a.url, token, a.common_name, a.san, a.out, ca, passphrase=key_passphrase, server_name=a.server_name)
     print(f"enrolled {a.common_name}: serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}, files in {a.out}")
     print(f"renew it daily from cron: pqcsuite ca enroll {a.url} --renew {a.out} --within-days 30")
     return 0
@@ -711,6 +766,8 @@ def parser():
     p = sub.add_parser("doctor", help="check that this machine can run everything",
                        epilog="exit codes: 0 safe, 1 warnings (with --strict), 2 unsafe configuration, 3 broken installation")
     p.set_defaults(func=cmd_doctor)
+    p.add_argument("--json", action="store_true", help="structured local prerequisite checks and actionable diagnostics")
+    p.add_argument("--product", choices=["all", "repository", "tls", "vault", "vpn"], default="all", help="with --json: select capability checks")
     p.add_argument("--check-updates", action="store_true", help="also ask GitHub whether a newer release is out (the only request it makes)")
     p.add_argument("--ca", action="append", default=[], metavar="DIR", help="check a CA: key protection, CRL freshness, certificates expiring")
     p.add_argument("--backups", action="append", default=[], metavar="DIR",
@@ -718,6 +775,11 @@ def parser():
     p.add_argument("--strict", action="store_true", help="warnings fail too (exit 1); a deployment gate")
     p.add_argument("--config", action="append", default=[], metavar="FILE",
                    help="check an edge, VPN, WireGuard or console configuration: it loads, its files exist, nothing weakens it")
+
+    p = sub.add_parser("setup", help="check prerequisites and prepare a private repository console")
+    p.set_defaults(func=cmd_setup)
+    p.add_argument("--project", default=".", help="repository folder to scan")
+    p.add_argument("--out", default=".pqcsuite/console.toml", help="new configuration file; existing files are preserved")
 
     p = sub.add_parser("try", help="a one-minute tour: the post-quantum edge in front of a web server, nothing to set up")
     p.set_defaults(func=cmd_try)
@@ -836,7 +898,8 @@ def parser():
         c.set_defaults(func=cmd_ca)
     p = ca.add_parser("enroll", help="get or renew a certificate from an EST service; the key stays on this machine")
     p.set_defaults(func=cmd_enroll)
-    p.add_argument("url", help="https://ca.example.com:9443")
+    p.add_argument("url", nargs="?", help="https://ca.example.com:9443")
+    p.add_argument("--guide", action="store_true", help="interactive enrollment with pinned CA trust and an encrypted local key")
     p.add_argument("--token", help="one-time token from `ca token`; better in PQCSUITE_ENROLL_TOKEN, since other users can read command lines")
     p.add_argument("--cn", dest="common_name")
     p.add_argument("--san", action="append", default=[])

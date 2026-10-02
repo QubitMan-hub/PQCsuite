@@ -521,8 +521,9 @@ class Roles(unittest.TestCase):
             self.assertEqual(tier(), "low")
             self.assertEqual(tier(roles=pack.Roles.without("purpose")), "critical")
             (Path(d) / "login.py").write_text("import hashlib\nhashlib.md5(password)\n", encoding="utf-8")
-            self.assertEqual(tier(), "critical")
             r = pack.run(d, "t")
+            self.assertEqual({(a.variant, a.tier) for a in r.assets if a.algo == "MD5"},
+                             {("MD5", "critical"), ("MD5 (declared non-security)", "low")})
             levels = {x["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]: x["level"]
                       for x in cbom.sarif(r.assets, [])["runs"][0]["results"]}
             self.assertEqual(levels, {"etag.py": cbom.LEVEL["low"], "login.py": cbom.LEVEL["critical"]})

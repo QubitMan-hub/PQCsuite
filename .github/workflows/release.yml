@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: The suite, the benchmark and an SBOM, on Debian 13 with OpenSSL 3.5 and real applications
         run: |
-          apt-get update && apt-get install -y --no-install-recommends openssl curl nginx postgresql redis-server redis-tools \
+          apt-get update && apt-get install -y --no-install-recommends openssl curl git nginx postgresql redis-server redis-tools \
             mosquitto mosquitto-clients openssh-server
           python -m venv /tmp/runtime && /tmp/runtime/bin/pip install --no-cache-dir .
           /tmp/runtime/bin/pip freeze --exclude pqcsuite > constraints.txt

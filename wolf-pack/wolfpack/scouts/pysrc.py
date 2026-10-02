@@ -21,11 +21,20 @@ class PyScout(ast.NodeVisitor):
         self.constants = constants
         self.root = None
         self.skip = set()
+        self.owners = []
+
+    def visit_ClassDef(self, node):
+        self.owners.append(node.name)
+        self.generic_visit(node)
+        self.owners.pop()
 
     def emit(self, node, algo, params=None, evidence="call"):
         if not algo:
             return
         params = {k: v for k, v in (params or {}).items() if v is not None}
+        if (evidence == "call" and algo in {"MD5", "SHA-1"} and self.owners and self.owners[-1].endswith("PasswordHasher")
+                and isinstance(node, ast.Call) and any(isinstance(n, ast.Name) and n.id == "password" for arg in node.args for n in ast.walk(arg))):
+            params["purpose"] = "password"
         if self.root and self.root not in ("hashlib", "hmac", "ssl"):
             params["lib"] = self.root
         ln = getattr(node, "lineno", 0)
@@ -279,9 +288,9 @@ class PyScout(ast.NodeVisitor):
         return lookup(name) or parse_transformation(name)[0]
 
 
-def scan_python(path, src, constants=True, on_tree=None):
+def scan_python(path, src, constants=True, on_tree=None, parse=ast.parse):
     try:
-        tree = ast.parse(src)
+        tree = parse(src)
     except (SyntaxError, ValueError, RecursionError):
         return None
     if on_tree:

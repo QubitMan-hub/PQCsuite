@@ -64,6 +64,7 @@ class App:
         self.project_cancel = threading.Event()
         self.projects = [Path(p).resolve() for p in settings.project_roots]
         self.repository_directory = Path(settings.repository_directory).resolve() if settings.repository_directory else None
+        self.project_cache = None
         self.project_scan = {"running": False, "stage": "", "last": None, "error": None, "selected": 0}
         from ..project import ProjectStore
         self.project_store = ProjectStore(settings.project_state) if settings.project_state else None
@@ -241,6 +242,7 @@ class App:
             ("POST", "/api/projects/scan"): lambda: self.start_project(body),
             ("POST", "/api/projects/select"): lambda: self.select_project(body),
             ("POST", "/api/projects/track"): lambda: self.track_project(body),
+            ("POST", "/api/projects/verify"): lambda: self.verify_project(body),
             ("GET", "/api/scan"): lambda: {"running": self.scanning, "last": self.last_scan, "error": self.scan_error, "targets": self.s.scan_targets,
                                            "every_hours": self.s.scan_every_hours},
             ("POST", "/api/certificates/issue"): lambda: self.issue(body),
@@ -312,7 +314,7 @@ class App:
                 history = read_history(self.s.project_history)
             except (OSError, ValueError):
                 history_error = "History is unavailable; check the configured history file."
-        return state | {"workspace_error": workspace_error, "persistent": bool(self.project_store), "projects": projects, "available": available, "directory_error": directory_error, "history": history, "history_error": history_error}
+        return state | {"verification_targets": self.s.scan_targets, "workspace_error": workspace_error, "persistent": bool(self.project_store), "projects": projects, "available": available, "directory_error": directory_error, "history": history, "history_error": history_error}
 
     def approved_project(self, name):
         root = self.repository_directory
@@ -378,6 +380,34 @@ class App:
         self.audit('project-cancel', {})
         return {'requested': True}
 
+    def verify_project(self, body):
+        import re
+        from ..project import verify_endpoint
+        i, path = self.selected_project(body)
+        if not self.project_store:
+            raise ValueError('Deployment evidence needs a persistent project workspace')
+        binding = {k: body.get(k, '') for k in ('finding', 'target', 'release', 'association', 'expected_sha256')}
+        if any(not isinstance(v, str) or not v.strip() for v in binding.values()):
+            raise ValueError('Choose a finding and endpoint; supply release, association evidence and expected certificate SHA-256')
+        if binding['target'] not in self.s.scan_targets:
+            raise ValueError('Choose an endpoint from the administrator-configured scan_targets')
+        if len(binding['release']) > 120 or len(binding['association']) > 1000 or not re.fullmatch('[0-9a-fA-F]{64}', binding['expected_sha256']):
+            raise ValueError('Release: at most 120 characters; association: at most 1000; certificate SHA-256: 64 hexadecimal characters')
+        binding['expected_sha256'] = binding['expected_sha256'].lower()
+        with self.lock:
+            if self.project_scan['running']:
+                raise ValueError('Wait for the project scan before verifying deployment')
+            assessment = self.project_store.assessment(path)
+            if not assessment or binding['finding'] not in {a['id'] for a in assessment['assets'] + assessment.get('not_observed', [])}:
+                raise ValueError('Choose a finding from a completed assessment')
+        observation = verify_endpoint(binding['target'], self.ca().anchor, binding['expected_sha256'], Path(self.s.ca)/'crl.pem')
+        with self.lock:
+            result = self.project_store.record_verification(path, binding, observation, assessment['finished'])
+            if self.project_scan['last'] and self.project_scan['last'].get('project_key') == result.get('project_key'):
+                self.project_scan['last'] = result
+        self.audit('project-verify', {'project_id': i, 'finding': binding['finding'], 'state': observation['state']})
+        return result
+
     def start_project(self, body):
         from ..project import scan, scanner, ScanStopped
         i, path = self.selected_project(body)
@@ -385,6 +415,9 @@ class App:
         with self.lock:
             if self.project_scan["running"]:
                 raise ValueError("A project scan is already running")
+            if self.project_cache is None:
+                from wolfpack.crawler import ParseCache
+                self.project_cache = ParseCache()
             self.project_cancel.clear()
             self.project_scan.update(running=True, stage="Preparing project", error=None, selected=i)
         def progress(stage):
@@ -393,7 +426,7 @@ class App:
         def work():
             try:
                 result = scan(path, history=self.s.project_history or None, progress=progress,
-                              exclude=[self.project_store.path] if self.project_store else [], cancel=self.project_cancel)
+                              exclude=[self.project_store.path] if self.project_store else [], cancel=self.project_cancel, cache=self.project_cache)
                 if self.project_store:
                     result['project_key'] = self.project_store.key(path)
                     try:

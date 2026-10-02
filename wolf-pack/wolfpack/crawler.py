@@ -1,7 +1,9 @@
 """Bounded Python AST relationships. Never executes code or retains source/argument values."""
 import ast
 import json
-from collections import defaultdict, deque
+import hashlib
+import threading
+from collections import OrderedDict, defaultdict, deque
 
 
 LIMIT_SYMBOLS = 20_000
@@ -17,8 +19,38 @@ def dotted(node):
     return ""
 
 
+class ParseCache:
+    """Bounded in-memory syntax reuse; relationships and findings are always recomputed."""
+    def __init__(self, max_bytes=32_000_000, max_entries=5000):
+        self.max_bytes, self.max_entries = max_bytes, max_entries
+        self.entries, self.bytes = OrderedDict(), 0
+        self.lock = threading.Lock()
+
+    def parse(self, language, source, parser):
+        key = language, hashlib.sha256(source).digest()
+        with self.lock:
+            if key in self.entries:
+                self.entries.move_to_end(key)
+                return self.entries[key][0], True
+        tree = parser(source)
+        with self.lock:
+            if len(source) <= self.max_bytes and self.max_entries > 0:
+                previous = self.entries.pop(key, None)
+                if previous:
+                    self.bytes -= previous[1]
+                self.entries[key] = tree, len(source)
+                self.bytes += len(source)
+                while self.bytes > self.max_bytes or len(self.entries) > self.max_entries:
+                    _, (_, size) = self.entries.popitem(last=False)
+                    self.bytes -= size
+        return tree, False
+
+
 class CodeCrawler:
-    def __init__(self):
+    def __init__(self, cache=None):
+        self.cache = cache
+        self.cache_hits = self.cache_misses = 0
+        self.truncated = defaultdict(lambda: defaultdict(int))
         self.symbols = []
         self.calls = []
         self.imports = []
@@ -27,42 +59,69 @@ class CodeCrawler:
         self.uncertain_lines = defaultdict(set)
         self.languages = defaultdict(int)
         self.skipped = defaultdict(int)
+        self.coverage_files = defaultdict(list)
         self.parsers = {}
         self.aliases = []
+        self.crypto_contexts = []
+
+    def parse(self, language, source, parser):
+        if self.cache is None:
+            self.cache_misses += 1
+            return parser(source)
+        try:
+            tree, hit = self.cache.parse(language, source, parser)
+        except (SyntaxError, ValueError):
+            self.cache_misses += 1
+            raise
+        self.cache_hits += int(hit)
+        self.cache_misses += int(not hit)
+        return tree
+
+    def parse_python(self, text):
+        return self.parse("Python", text.encode("utf-8"), lambda raw: ast.parse(raw.decode("utf-8")))
+
+    def cut(self, path, kind):
+        self.limited = True
+        self.truncated[path][kind] += 1
 
     def add_symbol(self, path, module, name, kind, line, end_line, **extra):
         if len(self.symbols) >= LIMIT_SYMBOLS:
-            self.limited = True
+            self.cut(path, "symbols")
             return
         self.symbols.append({"id": path + "#" + name, "file": path, "module": module, "name": name or module,
                              "kind": kind, "line": line, "end_line": end_line, **extra})
 
     def add_call(self, path, source, line, callee, candidate):
         if len(self.calls) >= LIMIT_CALLS:
-            self.limited = True
+            self.cut(path, "calls")
             return
         self.calls.append({"source": path + "#" + source, "file": path, "line": line, "callee": callee, "candidate": candidate})
 
     def add_import(self, path, source, module, line):
         if len(self.imports) >= LIMIT_CALLS:
-            self.limited = True
+            self.cut(path, "imports")
             return
         self.imports.append({"file": path, "source": path + "#" + source, "module": module, "line": line})
 
-    def add_alias(self, family, alias, target):
+    def add_alias(self, family, alias, target, path):
         if len(self.aliases) >= LIMIT_CALLS:
-            self.limited = True
+            self.cut(path, "aliases")
             return
         self.aliases.append({"family": family, "alias": alias, "target": target})
 
+    def gap(self, category, path):
+        self.skipped[category] += 1
+        if len(self.coverage_files[category]) < 1000:
+            self.coverage_files[category].append(path)
+
     def observe_source(self, path, text, language):
         if language not in {"js", "python"}:
-            self.skipped[language + " (no relationship adapter)"] += 1
+            self.gap(language + " (no relationship adapter)", path)
         if language == "js":
             from .crawler_web import observe
             sizes = (len(self.symbols), len(self.calls), len(self.imports), len(self.aliases), self.files, dict(self.languages))
             try:
-                observe(self, path, text)
+                return observe(self, path, text)
             except RecursionError:
                 ns, nc, ni, na, self.files, languages = sizes
                 del self.symbols[ns:]
@@ -71,7 +130,7 @@ class CodeCrawler:
                 del self.aliases[na:]
                 self.languages = defaultdict(int, languages)
                 self.uncertain_lines.pop(path, None)
-                self.skipped["Web syntax (analysis depth limit)"] += 1
+                self.gap("Web syntax (analysis depth limit)", path)
                 self.limited = True
 
     def observe(self, path, tree):
@@ -120,7 +179,7 @@ class CodeCrawler:
                 names = bindings(tree.body)
                 for name, target in names.items():
                     if target and not target.startswith("@"):
-                        crawler.add_alias("Python", module + "." + name, target)
+                        crawler.add_alias("Python", module + "." + name, target, path)
                 self.stack = [("", names, "module")]
                 self.add("", "module", tree)
             def add(self, qual, kind, node, **extra):
@@ -160,7 +219,7 @@ class CodeCrawler:
                 crawler.add_import(path, self.stack[-1][0], name, node.lineno)
             def visit_Call(self, node):
                 if len(crawler.calls) >= LIMIT_CALLS:
-                    crawler.limited = True
+                    crawler.cut(path, "calls (including unvisited nested calls)")
                     return
                 name, candidate = dotted(node.func), ""
                 if name:
@@ -223,6 +282,11 @@ class CodeCrawler:
             if symbol["kind"] == "function":
                 by_file[symbol["file"]].append(symbol)
         for asset in assets:
+            contexts = [c for c in self.crypto_contexts if asset.algo in c['algorithms'] and
+                        any(s.file == c['file'] and c['line'] <= s.line <= c['end_line'] for s in asset.sightings)]
+            if contexts:
+                asset.params['hybrid_context'] = contexts
+                asset.why += ". Some uses pass a classical component alongside ML-KEM to a combiner; review those compositions separately from standalone uses. This is not a verdict on the hybrid's security."
             owners = set()
             for sighting in asset.sightings:
                 if sighting.evidence == "import" or sighting.verdict != "accepted":
@@ -244,6 +308,9 @@ class CodeCrawler:
                                              "limited": bool(pending), "basis": "static references; runtime reachability and business ownership are not established"}
         return {"version": 1, "language": ", ".join(sorted(self.languages)) or "Python", "languages": dict(self.languages), "skipped": dict(self.skipped), "files_analyzed": self.files, "symbols": self.symbols,
                 "calls": calls, "imports": self.imports, "aliases": self.aliases, "limited": self.limited,
+                "truncated_files": dict(self.truncated), "coverage_files": dict(self.coverage_files),
+                "coverage_file_list_limit": 1000,
+                "incremental": {"reused_syntax": self.cache_hits, "parsed_syntax": self.cache_misses, "basis": "Content-hash syntax cache; all findings and cross-file relationships recomputed"},
                 "limitations": ["Python AST and optional JavaScript/TypeScript syntax trees; other languages retain crypto detectors without call graphs.",
                                 "Dynamic dispatch, wildcard imports, callbacks and runtime reassignment require manual review.",
                                 "No source snippets, argument values, docstrings or runtime execution are included."]}

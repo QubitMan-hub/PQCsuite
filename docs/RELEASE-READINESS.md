@@ -36,3 +36,7 @@ Update this list when one of these is done; every release report copies it as it
 | macOS | The unit and TLS tests pass in CI on macOS with Homebrew OpenSSL, a release gate |
 | VPN clients on Windows and macOS | CI brings a real tunnel up, rotates its key and removes it with WireGuard for Windows and with Homebrew's WireGuard on macOS. Full tunnel, the kill switch and recovery after the gateway forgets a laptop are tested with real traffic on Linux only; on Windows and macOS they have not been run on real laptops. Phones are not supported |
 | Security snapshot comparison between releases (SBOM and CBOM diffs) | Done: each release report lists dependency and cryptographic-asset changes since the previous release |
+
+## Accuracy milestone validation
+
+Local 20-minute recovery validation on 1 October completed 96,792 successful connections, zero failures, 49/49 enforced revocations and eight renewals. It does not supersede the longer historical CI run or close the physical-laptop, production-load and independent-review gaps above. New guided certificate enrollment and syntax reuse are implemented; the pilot protocol remains awaiting real participants. See PRODUCT-REVIEW.md for the current implementation evidence and limits.

@@ -23,8 +23,11 @@ def dedupe(sightings):
         cur = best.setdefault(k, s)
         if cur is not s:
             win, lose = (s, cur) if RANK[s.evidence] > RANK[cur.evidence] else (cur, s)
+            mixed_purpose = win.evidence == lose.evidence == "call" and win.params.get("purpose") != lose.params.get("purpose")
             for p, v in lose.params.items():
                 win.params.setdefault(p, v)
+            if mixed_purpose:
+                win.params["purpose"] = "unknown"
             best[k] = win
     return list(best.values())
 
@@ -90,7 +93,7 @@ def admit_all(sightings):
     return out
 
 
-def assets(sightings):
+def assets(sightings, purpose=True):
     """Accepted sightings grouped by variant. A sighting with no parameters joins the one parameterised variant of its algorithm in its file."""
     kept = []
     for s in sightings:
@@ -104,11 +107,16 @@ def assets(sightings):
     groups = defaultdict(list)
     for s, p, v in kept:
         one = known[s.file, s.algo]
-        groups[v or (next(iter(one)) if len(one) == 1 else s.algo)].append((s, p))
+        name = v or (next(iter(one)) if len(one) == 1 else s.algo)
+        use = s.params.get("purpose", "") if purpose else ""
+        use = use if use in {"non-security", "password"} else ""
+        groups[name, use].append((s, p))
     out = []
-    for v, items in sorted(groups.items()):
+    for (v, use), items in sorted(groups.items()):
         algo = items[0][0].algo
-        params = {}
+        if use:
+            v += " (declared non-security)" if use == "non-security" else " (password hashing)"
+        params = {"purpose": use} if use else {}
         for _, p in items:
             for k, val in p.items():
                 params.setdefault(k, val)

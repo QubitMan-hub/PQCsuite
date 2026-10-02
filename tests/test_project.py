@@ -269,3 +269,67 @@ def test_crypto_test_vectors_remain_visible_without_production_migration_candida
     mixed = scan(tmp_path)
     assert mixed['summary']['migration_candidates'] > 0
     assert any(not a['test_only'] for a in mixed['assets'])
+
+
+def test_deployment_association_is_scoped_and_observation_survives_restart(tmp_path):
+    from pqcsuite.pki import CA
+    repo = tmp_path/'repo'; repo.mkdir(); fixture(repo)
+    CA.init(tmp_path/'pki', 'Root')
+    settings = Settings(project_roots=[str(repo)], project_state=str(tmp_path/'state.json'), ca=str(tmp_path/'pki'),
+                        scan_targets=['localhost:8443'], audit_log=str(tmp_path/'audit.jsonl'))
+    app = App(settings, token='test')
+    assessment = scan(repo); assessment['project_key'] = app.project_store.key(repo)
+    saved = app.project_store.save(repo, assessment)
+    body = {'project': 0, 'finding': saved['assets'][0]['id'], 'target': 'localhost:8443', 'release': 'release-1',
+            'association': 'Service deployment manifest maps this source module to this endpoint', 'expected_sha256': 'a'*64}
+    with patch('pqcsuite.project.verify_endpoint', return_value={'state': 'verified_pq_connection'}) as probe:
+        for changed in ({'target': '169.254.169.254:80'}, {'finding': 'missing'}, {'expected_sha256': 'invalid'}, {'association': ''}):
+            status, _ = app.handle('POST', '/api/projects/verify', body | changed)
+            assert status == 400
+        probe.assert_not_called()
+        status, result = app.handle('POST', '/api/projects/verify', body)
+        assert status == 200
+        assert result['verifications'][0]['source_state'] == 'observed'
+    (repo/'keys.py').write_text('def make(): return None\n')
+    after = scan(repo); after['project_key'] = app.project_store.key(repo)
+    result = app.project_store.save(repo, after)
+    observation = result['verifications'][0]
+    assert observation['source_state'] == 'not_observed' and observation['rescan_required']
+    assert 'not independently verified' in observation['mapping_basis']
+    restarted = App(settings, token='test')
+    assert restarted.project_status()['last']['verifications'] == result['verifications']
+    with pytest.raises(ValueError, match='Assessment changed'):
+        app.project_store.record_verification(repo, body, {'state': 'verified_pq_connection'}, assessment['finished'])
+
+
+def test_persisted_graph_compression_is_lossless_bounded_and_backward_compatible(tmp_path, monkeypatch):
+    import base64
+    import zlib
+    from pqcsuite.project import ProjectStore
+    fixture(tmp_path)
+    store = ProjectStore(tmp_path/'state.json')
+    original = scan(tmp_path)
+    saved = store.save(tmp_path, original)
+    assert saved['relationships'] == original['relationships']
+    record = store.read()['projects'][store.key(tmp_path)]
+    assert 'relationships' not in record['assessment'] and 'graph_zlib' in record
+    legacy = dict(record, assessment=dict(record['assessment'], relationships=original['relationships']))
+    del legacy['graph_zlib']
+    assert store.view(legacy)['relationships'] == original['relationships']
+    monkeypatch.setattr(ProjectStore, 'GRAPH_LIMIT', 100)
+    for packed in ('bad!', base64.b64encode(zlib.compress(b' '*101)).decode(), base64.b64encode(zlib.compress(b'{}') + b'extra').decode()):
+        with pytest.raises(ValueError, match='damaged or exceeds'):
+            store.view(record | {'graph_zlib': packed})
+
+
+def test_workspace_upgrades_legacy_version_and_refuses_unknown_version(tmp_path):
+    from pqcsuite.project import ProjectStore
+    path = tmp_path / 'workspace.json'
+    path.write_text(json.dumps({'version': 1, 'registrations': {}, 'projects': {}}))
+    store = ProjectStore(path)
+    assert store.read()['version'] == 1
+    store.register(tmp_path, 'repo')
+    assert store.read()['version'] == 2
+    path.write_text(json.dumps({'version': 3, 'registrations': {}, 'projects': {}}))
+    with pytest.raises(ValueError, match='Invalid project workspace'):
+        store.read()

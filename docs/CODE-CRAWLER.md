@@ -105,3 +105,13 @@ Development-corpus regression before/after the shared discovery budget change (1
 | without lists | 1.000 / 0.969 / 0.984; 0 / 5 | 1.000 / 0.969 / 0.984; 0 / 5 |
 | without artifact scouts | 1.000 / 0.933 / 0.965; 0 / 11 | 1.000 / 0.933 / 0.965; 0 / 11 |
 | without binary scouts | 1.000 / 0.988 / 0.994; 0 / 2 | 1.000 / 0.988 / 0.994; 0 / 2 |
+
+## Accuracy and repeat scans — October 2026
+
+One parser pipeline now serves relationships and supported alias evidence. Immutable ML-DSA signer tables are resolved only when the local binding is unambiguous; mutated tables, shadowed bindings and unrelated DSA calls retain conservative findings. Dynamic maps and callbacks can still require manual review. Candidate hybrid compositions preserve their classical component findings and do not establish combiner security or deployment protection.
+
+Declared non-security fingerprints are separated from undeclared security uses. Calls hashing a `password` argument inside a named PasswordHasher receive Argon2id/scrypt advice; this narrow rule is not general password data-flow analysis. Name/literal evidence exposes uncertainty in unified assessments.
+
+The console caches syntax by language and source hash, bounded to 5,000 entries and 32 MB of input. AST memory is additional. Every scan still reads source and recomputes findings and cross-file relationships, including deletion and changed imports. Production files consume the relationship budget before tests. Exported relationships identify omitted calls and named coverage gaps (up to 1,000 filenames per category). Cooperative deadlines do not provide hard process isolation.
+
+Large graphs are compressed separately in workspace format 2, with a 64 MB decompressed graph limit and 16 MB workspace limit. Corrupt, trailing or oversized compressed data is refused. Summary history stores the truncation count; full details remain in the latest graph. Format 1 can be read, but older clients must not be used with new workspaces.

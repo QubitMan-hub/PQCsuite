@@ -22,4 +22,4 @@ web.mkdir()
 (web / "api.ts").write_text('import {digest} from "./keys";\nexport function checkout(data: string) { return digest(data); }')
 os.environ["PQCSUITE_CONSOLE_TOKEN"] = "browser-test"
 os.chdir(d)  # audit output belongs to this disposable fixture, not the checkout
-os.execv(sys.executable, [sys.executable, "-m", "pqcsuite", "console", "--ca", str(d / "ca"), "--listen", "127.0.0.1:8900", "--project", str(project), "--repositories", str(repositories), "--project-history", str(d / "history.json")])
+os.execv(sys.executable, [sys.executable, "-m", "pqcsuite", "console", "--ca", str(d / "ca"), "--listen", "127.0.0.1:8900", "--project", str(project), "--repositories", str(repositories), "--project-history", str(d / "history.json"), "--scan", "localhost:1"])

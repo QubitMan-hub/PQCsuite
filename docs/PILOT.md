@@ -60,3 +60,23 @@ Give the reviewer [SECURITY-REVIEW.md](SECURITY-REVIEW.md) (assets, trust bounda
 [THREAT-MODEL.md](THREAT-MODEL.md). The parts no library covers are the VPN key agreement (`pqcsuite/vpn/controller.py`,
 `wireguard.py`), Vault's file format (`pqcsuite/vault.py`) and the TLS bridge (`pqcsuite/tls/openssl.py`). Record who
 reviewed, the date and where the report is; fix findings as ordinary changes, each with a test.
+
+## Three-customer accuracy milestone
+
+These are protocols awaiting real participants, not completed pilots. Use pilot-1 through pilot-3 and keep the identity mapping outside this repository. Have a new customer follow README setup without coaching; record interruptions as support requests. Ask them to scan an authorized repository, explain one finding and its uncertainty, choose a fix, rescan, and distinguish source evidence from advanced endpoint evidence. Measure time to first scan, accepted/dismissed findings, reported fix duration and successful current endpoint observations.
+
+From the checkout, store pseudonymous measurements privately:
+
+```sh
+python scripts/pilot.py --file /private/pilot-events.json --pilot pilot-1 --event setup_started
+python scripts/pilot.py --file /private/pilot-events.json --pilot pilot-1 --event first_scan
+python scripts/pilot.py --file /private/pilot-events.json --pilot pilot-1 --event finding_accepted --finding FINDING_ID
+python scripts/pilot.py --file /private/pilot-events.json --pilot pilot-1 --event connection_verified --finding FINDING_ID --assessment /private/assessment.json
+python scripts/pilot.py --file /private/pilot-events.json
+```
+
+Use fix_started/fix_completed, finding_dismissed and support_request for the remaining measures. An empty cohort reports not_started. Endpoint evidence must be successful, current, and match the assessment baseline; exported observations remain local operator-controlled evidence, not an independent attestation.
+
+For Windows/macOS, use dedicated physical laptops and a controlled VPN gateway. Record OS/build, adapter, VPN configuration and release commit. While sending numbered canary requests through the tunnel, exercise sleep/wake, Wi-Fi changes, Wi-Fi-to-hotspot roaming, adapter loss, gateway restart, key rotation and certificate revocation. Capture traffic on the gateway and physical interface to verify protected application traffic and refusal of cleartext fallback. Check DNS and IPv6 as well as IPv4, recovery time, UI status and kill-switch behavior. Do not infer success from tunnel status alone. Run the existing soak tool for at least 24 hours in the intended deployment and preserve its machine-readable results; short local and CI runs do not replace this test.
+
+Independent review remains uncommissioned. Provide an external reviewer the exact commit, THREAT-MODEL.md, SECURITY-REVIEW.md, protocol/format documentation, reproducible builds and isolated test credentials. Request attack-oriented review of VPN key agreement/rotation/revocation, Vault framing/authentication/recovery and the TLS ctypes bridge/verification lifecycle. Require reproducible findings, severity/rationale, remediation review and a dated scope statement. Actual reviewer selection, budget, hardware and customer participation are external prerequisites; none are claimed by these scripts.

@@ -27,13 +27,13 @@ def observe(crawler, path, text):
         if parser is None:
             parser = crawler.parsers[key] = Parser(Language(factory()))
     except ImportError:
-        crawler.skipped[language] += 1
+        crawler.gap(language, path)
         return
     symbol_start, alias_start = len(crawler.symbols), len(crawler.aliases)
     source = text.encode('utf-8')
-    tree = parser.parse(source)
+    tree = crawler.parse(key, source, parser.parse)
     if tree.root_node.has_error:
-        crawler.skipped[language + ' (syntax errors)'] += 1
+        crawler.gap(language + ' (syntax errors)', path)
         return
     crawler.languages[language] += 1
     crawler.files += 1
@@ -202,7 +202,7 @@ def observe(crawler, path, text):
                     if target and target.endswith('.*'):
                         target = target[:-2] + '.default'
                     if target:
-                        crawler.add_alias('web', mod + '.' + alias, target)
+                        crawler.add_alias('web', mod + '.' + alias, target, path)
                 if left == 'module.exports' and right and right.type == 'object':
                     for item in right.named_children:
                         if item.type == 'pair':
@@ -236,3 +236,106 @@ def observe(crawler, path, text):
     for symbol in crawler.symbols[symbol_start:]:
         if symbol['module'] + '.' + symbol['name'] in targets:
             symbol['exported'] = True
+    hints = crypto_aliases(tree, source)
+    crawler.crypto_contexts.extend(hybrid_contexts(tree, source, path))
+    return hints
+
+
+def crypto_aliases(tree, source):
+    """Resolve immutable, locally consumed signer tables; ambiguous/mutated tables stay unknown."""
+    from .scouts.names import algos
+    def text(node):
+        return source[node.start_byte:node.end_byte].decode('utf-8') if node else ''
+    def field(node, name):
+        return node.child_by_field_name(name)
+    def walk(node):
+        yield node
+        for child in node.named_children:
+            yield from walk(child)
+    imported = {}
+    for statement in tree.root_node.named_children:
+        if statement.type == 'import_statement':
+            for node in walk(statement):
+                if node.type == 'import_specifier':
+                    name = text(field(node, 'name'))
+                    imported[text(field(node, 'alias')) or name] = algos(name)
+    rebound = set()
+    for node in walk(tree.root_node):
+        targets = []
+        if node.type == 'variable_declarator':
+            targets = [field(node, 'name')]
+        elif node.type in {'assignment_expression', 'augmented_assignment_expression', 'update_expression'}:
+            targets = [field(node, 'left') or field(node, 'argument')]
+        elif node.type in FUNCTIONS:
+            targets = [field(node, 'parameters') or field(node, 'parameter')]
+        for target in targets:
+            if target:
+                rebound.update(text(n) for n in walk(target) if n.type == 'identifier')
+    imported = {name: found for name, found in imported.items() if name not in rebound}
+    hints = []
+    for loop in walk(tree.root_node):
+        if loop.type != 'for_in_statement' or text(field(loop, 'kind')) != 'const' or text(field(loop, 'operator')) != 'of':
+            continue
+        left, right, body = (field(loop, key) for key in ('left', 'right', 'body'))
+        if not left or left.type != 'array_pattern' or left.children[1].type != 'identifier' or not right or right.type != 'identifier':
+            continue
+        alias, table = text(left.children[1]), text(right)
+        block = loop.parent
+        if block.type not in {'program', 'statement_block'}:
+            continue
+        uses = [n for n in walk(block) if n.type == 'identifier' and text(n) == table]
+        if len(uses) != 2:
+            continue  # Other references may mutate or escape the table.
+        declarations = [n for n in block.named_children if n.type == 'lexical_declaration' and text(field(n, 'kind')) == 'const' and n.end_byte < loop.start_byte]
+        values = [field(n, 'value') for d in declarations for n in d.named_children if n.type == 'variable_declarator' and text(field(n, 'name')) == table]
+        if len(values) != 1:
+            continue
+        value = values[0]
+        if value and value.type == 'as_expression':
+            value = value.named_children[0]
+        if not value or value.type != 'array' or not value.named_children:
+            continue
+        families = set()
+        for row in value.named_children:
+            if row.type != 'array' or len(row.children) < 3 or row.children[1].type != 'identifier':
+                break
+            found = imported.get(text(row.children[1]), [])
+            if len(found) != 1 or not found[0].startswith('ML-DSA-'):
+                break
+            families.add(found[0])
+        else:
+            references = [n for n in walk(body) if n.type == 'identifier' and text(n) == alias]
+            if not references or any(n.parent.type != 'member_expression' or field(n.parent, 'object') != n or
+                                     n.parent.parent.type != 'call_expression' or field(n.parent.parent, 'function') != n.parent for n in references):
+                continue
+            # Nested callbacks can capture a reassigned binding; do not infer their scope.
+            if any(n.type in FUNCTIONS or n.type == 'for_in_statement' for n in walk(body)):
+                continue
+            hints.append((body.start_point.row + 1, body.end_point.row + 1, alias, sorted(families)))
+    return hints
+
+
+def hybrid_contexts(tree, source, path):
+    """Paired arguments are composition evidence, never proof of a secure combiner."""
+    from .scouts.names import algos
+    contexts = []
+    def spelling(node):
+        return source[node.start_byte:node.end_byte].decode('utf-8') if node else ''
+    def walk(node):
+        if node.type == 'call_expression':
+            args = node.child_by_field_name('arguments')
+            if args:
+                pq = [spelling(a) for a in args.named_children if a.type == 'identifier' and any(x.startswith('ML-KEM-') for x in algos(spelling(a))) ]
+                for arg in args.named_children if pq else []:
+                    if arg.type == 'call_expression':
+                        callee = spelling(arg.child_by_field_name('function'))
+                        classical = set(algos(callee)) & {'ECDH', 'X25519', 'X448', 'RSA', 'DH'}
+                        if classical:
+                            contexts.append({'file': path, 'line': arg.start_point.row + 1, 'end_line': arg.end_point.row + 1,
+                                             'algorithms': sorted(classical), 'pqc_arguments': pq,
+                                             'combiner': spelling(node.child_by_field_name('function')),
+                                             'basis': 'Classical constructor and named PQC value passed to the same call; combiner security and deployed use unverified'})
+        for child in node.named_children:
+            walk(child)
+    walk(tree.root_node)
+    return contexts

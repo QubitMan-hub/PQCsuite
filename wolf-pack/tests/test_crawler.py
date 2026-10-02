@@ -135,3 +135,95 @@ def test_cyclic_python_reexports_stay_unresolved(tmp_path):
     (tmp_path/'a.py').write_text('from b import helper')
     (tmp_path/'b.py').write_text('from a import helper\ndef run(): helper()')
     assert all(c['target'] is None for c in pack.run(tmp_path,'cycle').relationships['calls'])
+
+
+def test_incremental_parsing_recomputes_relationships_and_invalidates_edits(tmp_path):
+    from wolfpack.crawler import ParseCache
+    cache = ParseCache()
+    (tmp_path/'a.py').write_text('def key(): pass\n')
+    (tmp_path/'b.py').write_text('from a import key\ndef run(): key()\n')
+    first = pack.run(tmp_path, 'cache', cache=cache).relationships
+    second = pack.run(tmp_path, 'cache', cache=cache).relationships
+    assert second['incremental']['reused_syntax'] == 2
+    assert first['calls'] == second['calls']
+    (tmp_path/'a.py').write_text('def renamed(): pass\n')
+    edited = pack.run(tmp_path, 'cache', cache=cache).relationships
+    assert edited['incremental']['reused_syntax'] == 1
+    assert edited['calls'][0]['target'] is None
+    (tmp_path/'a.py').unlink()
+    assert pack.run(tmp_path, 'cache', cache=cache).relationships['calls'][0]['target'] is None
+    tiny = ParseCache(max_bytes=15, max_entries=1)
+    import ast
+    for src in (b'x=1', b'y=2', b'z=' + b'1'*30):
+        tiny.parse('Python', src, ast.parse)
+    assert len(tiny.entries) <= 1 and tiny.bytes <= 15
+
+
+def test_production_precedes_tests_and_budget_names_omissions(tmp_path, monkeypatch):
+    (tmp_path/'a_tests').mkdir()
+    (tmp_path/'a_tests/test_big.py').write_text('test_call()\n'*30)
+    (tmp_path/'z_service.py').write_text('production_call()\n')
+    monkeypatch.setattr('wolfpack.crawler.LIMIT_CALLS', 2)
+    graph = pack.run(tmp_path, 'budget').relationships
+    assert graph['calls'][0]['file'] == 'z_service.py'
+    assert graph['truncated_files'] == {'a_tests/test_big.py': {'calls (including unvisited nested calls)': 29}}
+
+
+def test_nonsecurity_partition_and_same_line_security_trap(tmp_path):
+    (tmp_path/'hashes.py').write_text('import hashlib\nhashlib.md5(b"cache", usedforsecurity=False)\nhashlib.md5(password)\n')
+    result = pack.run(tmp_path, 'purpose')
+    assert {(a.variant, a.tier) for a in result.assets} == {('MD5', 'critical'), ('MD5 (declared non-security)', 'low')}
+    assert len(pack.run(tmp_path, 'purpose', roles=pack.Roles.without('purpose')).assets) == 1
+    (tmp_path/'hashes.py').write_text('import hashlib\nhashlib.md5(b"cache", usedforsecurity=False); hashlib.md5(password)\n')
+    assert all(a.tier == 'critical' for a in pack.run(tmp_path, 'mixed').assets)
+
+
+def test_web_signer_table_resolution_and_mutation_trap(tmp_path):
+    import pytest
+    pytest.importorskip('tree_sitter_typescript')
+    source = '''import { ml_dsa44, ml_dsa65 } from './ml-dsa.js';
+const cases = [[ml_dsa44, 80], [ml_dsa65, 55]] as const;
+for (const [dsa, count] of cases) { dsa.sign(msg); }
+'''
+    path = tmp_path/'sign.ts'
+    path.write_text(source)
+    result = pack.run(tmp_path, 'signers')
+    assert not any(a.algo == 'DSA' for a in result.assets)
+    assert {'ML-DSA-44', 'ML-DSA-65'} <= {a.algo for a in result.assets}
+    assert not any(s.scout == 'names' for s in pack.run(tmp_path, 'off', roles=pack.Roles.without('names')).sightings)
+    path.write_text(source.replace('for (', 'cases.push([classicalDSA, 1]);\nfor ('))
+    assert any(a.algo == 'DSA' for a in pack.run(tmp_path, 'mutated').assets)
+    path.write_text(source.replace('const cases', 'const ml_dsa44 = DSA;\nconst cases'))
+    assert any(a.algo == 'DSA' for a in pack.run(tmp_path, 'shadowed').assets)
+    path.write_text(source + '\nDSA.sign(secret);\n')
+    assert any(a.algo == 'DSA' for a in pack.run(tmp_path, 'classical').assets)
+
+
+def test_hybrid_composition_is_context_not_blanket_risk_downgrade(tmp_path):
+    import pytest
+    pytest.importorskip('tree_sitter_typescript')
+    (tmp_path/'hybrid.ts').write_text('import { ml_kem768 } from "./ml-kem.js";\nfunction build() { return combine(ml_kem768, _ecdhKem(p256)); }\nfunction old() { return _ecdhKem(p256); }')
+    asset = next(a for a in pack.run(tmp_path, 'hybrid').assets if a.algo == 'ECDH')
+    assert asset.tier == 'high'
+    assert len(asset.params['hybrid_context']) == 1
+    assert asset.params['hybrid_context'][0]['line'] == 2
+    assert 'standalone' in asset.why
+
+
+def test_password_hasher_recommendation_is_not_a_plain_hash_replacement(tmp_path):
+    source = 'import hashlib\nclass MD5PasswordHasher:\n def encode(self, password): return hashlib.md5(password).hexdigest()\n'
+    (tmp_path/'hashers.py').write_text(source)
+    result = pack.run(tmp_path, 'password')
+    asset = next(a for a in result.assets if a.params.get('purpose') == 'password')
+    assert asset.tier == 'critical' and 'Argon2id' in asset.action
+    assert 'not sufficient' in asset.action
+    assert not any(a.params.get('purpose') == 'password' for a in pack.run(tmp_path, 'off', roles=pack.Roles.without('purpose')).assets)
+    (tmp_path/'hashers.py').write_text(source.replace('MD5PasswordHasher', 'CacheHasher'))
+    assert not any(a.params.get('purpose') == 'password' for a in pack.run(tmp_path, 'trap').assets)
+
+
+def test_cache_hash_inside_password_hasher_is_not_password_hashing(tmp_path):
+    (tmp_path / 'hashers.py').write_text('import hashlib\nclass MD5PasswordHasher:\n def cache(self, body): return hashlib.md5(body, usedforsecurity=False).hexdigest()\n')
+    assets = pack.run(tmp_path, 'cache').assets
+    assert not any(a.params.get('purpose') == 'password' for a in assets)
+    assert any(a.algo == 'MD5' and a.tier == 'low' for a in assets)

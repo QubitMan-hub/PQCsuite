@@ -260,3 +260,20 @@ First, proving what exists rather than adding to it: an independent security rev
 
 1. VPN: sign-in with the company's identity provider, per-group access rules and a users page in the console; two gateways with failover; phones.
 2. mTLS: a cert-manager issuer and in-cluster renewal of edge certificates (CRLs already reach edges through `crl_url`); dns-01 for ACME.
+
+### Guided repository setup and migration evidence
+
+Install both packages with the repository scanning extras as documented above, then run:
+
+```sh
+pqcsuite doctor --json --product repository
+pqcsuite setup --project /path/to/repository --out .pqcsuite/console.toml
+```
+
+Run the console command printed by setup. Add a repository, scan, review exposure and readiness, and track the next action in the same workspace. Technical coverage and endpoint verification are in advanced views. Setup refuses to overwrite an existing configuration.
+
+For certificate enrollment, `pqcsuite ca enroll --guide --out device` requests the HTTPS enrollment URL, trusted CA fingerprint, enrollment token and a passphrase for the encrypted device key. Obtain the fingerprint through a trusted channel. Tokens and passphrases are not printed.
+
+Advanced deployment verification requires a configured approved scan target, expected certificate SHA-256 fingerprint, CA and current issuer CRL, plus a release identifier and explanation linking the finding to that service. A successful observation proves one authenticated PQ connection. Source disappearance alone does not prove deployed protection; source-to-release provenance remains operator supplied. Observations expire after 24 hours and require rechecking after a rescan.
+
+Workspace format 2 compresses relationship graphs and reads format 1. Back up the private workspace before downgrading: older versions cannot read format 2. The console remains single-administrator; team access and native installer code signing are outside this milestone.

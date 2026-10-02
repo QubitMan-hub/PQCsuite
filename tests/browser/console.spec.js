@@ -290,3 +290,23 @@ test('successful PQ negotiation without an encrypted child never claims VPN prot
   await page.evaluate(()=>(location.hash='vpn'));
   await expect(page.locator('.metrics')).toContainText('PQ observed');
 });
+
+
+test('deployment verification preserves a failed observation and explains rescan invalidation', async ({page}) => {
+  await signIn(page); await page.evaluate(() => (location.hash='readiness'));
+  await page.selectOption('#project-scan select', '0');
+  await page.click('#project-scan button'); await expect(page.locator('#project-message')).toHaveText('Complete');
+  await page.getByText('Verify a deployed service', {exact:true}).click();
+  await page.locator('#project-verify [name=release]').fill('pilot-release <1>');
+  await page.locator('#project-verify [name=association]').fill('Deployment manifest links this repository to the service');
+  await page.locator('#project-verify [name=expected_sha256]').fill('0'.repeat(64));
+  await page.locator('#project-verify button').click();
+  await expect(page.locator('#view')).toContainText('Not verified');
+  await expect(page.locator('#view')).toContainText('pilot-release <1>');
+  await page.click('#project-scan button'); await expect(page.locator('#project-message')).toHaveText('Complete');
+  await page.getByText('Verify a deployed service', {exact:true}).click();
+  await expect(page.locator('#view')).toContainText('source rescanned; reverify');
+  await page.getByText('Analysis coverage and incremental parsing', {exact:true}).click();
+  await expect(page.locator('#view')).toContainText('Reused syntax: 2');
+  expect((await new AxeBuilder({page}).analyze()).violations.filter(v=>['serious','critical'].includes(v.impact))).toEqual([]);
+});

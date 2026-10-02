@@ -72,7 +72,7 @@ wolfpack/
                  overdue vs due later; tests, declared non-security hashes and trust stores are exempt
   cli.py         scan / merge / bench subcommands; --changed-since (git) for incremental scans, .wolfpack.toml settings, exit codes 0 / 1 error / 2 fail-on
   bench.py       scores at (file, algorithm family) granularity, full pack and one ablation per role
-bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 163 labelled pairs
+bench/corpus     dev corpus with deliberate traps; bench/truth.json holds 166 labelled pairs
 bench/fixtures-src  source for compiled corpus fixtures (legacy_tool.c)
 Dockerfile, action.yml  container image and GitHub Action (../.github/workflows/wolf-pack.yml builds and runs both, and the wheel)
 scripts/validate_cbom.py  official CycloneDX 1.6 schema check (downloads schemas to .cache/)

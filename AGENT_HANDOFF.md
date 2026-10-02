@@ -1,3 +1,9 @@
+## Active accuracy milestone — 2 October 2026
+
+Resumed from 8aadfc1 after cloud transport recovery; preserve concurrent work and normal main-only pushes. Team access and native installer code signing remain excluded. Shared AST alias/purpose/hybrid evidence, production-first bounded syntax reuse, compressed version-2 project graphs (version-1 read support), advanced pinned/CRL-checked endpoint evidence, guided setup/enrollment, and private pilot measurements are implemented. Endpoint association is operator supplied; successful connection evidence is not a verified full migration. See README, CODE-CRAWLER and PILOT for boundaries.
+
+Current local evidence: 391 full-suite tests passed, 14 prerequisite skips, 38 browser checks; added focused storage/cache tests also passed. Lint/basic types, wheels, 166-pair tuned corpus/ablations and self-scan high-risk baseline passed. Recovery soak: 20 minutes, 96,792 successes, zero failures, 49/49 revocations, eight renewals. Final three public-project graph roundtrips and schema checks passed; current-code real-service/TLS/Vault container checks passed 61 tests and 3,570 subtests. Exact-commit remote CI must be checked before release claims. Private artifacts: /workspace/accuracy-release. No actual customer pilots, outside review or physical laptop testing is claimed.
+
 # Agent handoff
 
 Current instructions for the next contributor; superseded progress notes remain in Git history.
@@ -55,5 +61,5 @@ Current instructions for the next contributor; superseded progress notes remain 
 ## Release boundaries
 
 - Wolf Pack 1.3.0 remains unpublished. Install both packages from this checkout with their documented extras. Base container does not include optional repository scanning.
-- Guided VPN enrollment, hard resource isolation/incremental scans, broader AST languages and runtime deployment mapping remain open. Team access and native installer code signing are outside the current scope. Independent security review and real cloud/laptop/privileged tunnel/long-run validation require their actual environments.
+- Hard resource isolation, broader AST languages and independently proven deployment provenance remain open. Guided certificate enrollment, syntax reuse and operator-associated endpoint observations are now implemented. Team access and native installer code signing are outside the current scope. Independent security review and real cloud/laptop/privileged tunnel/long-run validation require their actual environments.
 - Cloud onboarding instructions already saved in the environment draft; no new environment configuration is needed for these source/CI/doc changes. No publication of that draft is implied.
