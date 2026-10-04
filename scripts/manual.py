@@ -31,7 +31,10 @@ def render():
     body = re.sub(r'<h1[^>]*>.*?</h1>\n', '', body, count=1)
     body = body.replace('<table>', '<div class="manual-table" tabindex="0" role="region" aria-label="Reference table"><table>').replace('</table>', '</table></div>')
     style = '''<style>
-main { max-width: 1040px; } h2 { font-size: 24px; margin: 40px 0 16px; } h3 { font-size: 18px; margin-top: 28px; }
+@font-face { font-family: "Roboto"; font-weight: 400 500; font-display: optional; src: url("assets/fonts/roboto.woff2") format("woff2"); }
+:root { --sans: "Roboto", "Segoe UI", system-ui, -apple-system, sans-serif; }
+main { max-width: 1040px; } p, li { font-size: 15px; line-height: 1.65; }
+#contents + ul { columns: 2 280px; column-gap: 40px; } #contents + ul li { break-inside: avoid; } h2 { font-size: 24px; margin: 40px 0 16px; } h3 { font-size: 18px; margin-top: 28px; }
 p, li { max-width: 85ch; } a { color: var(--accent-text); text-decoration: underline; overflow-wrap: anywhere; }
 pre { padding: 16px; background: var(--sunken); overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 code { overflow-wrap: anywhere; } .manual-table { overflow-x: auto; margin: 20px 0; } table { min-width: 550px; }
@@ -42,8 +45,8 @@ nav { display: flex; gap: 20px; flex-wrap: wrap; } :target { scroll-margin-top: 
 </style>'''
     nav = '<nav aria-label="Manual navigation"><a href="https://qubitman-hub.github.io/PQCsuite/">PQC Suite website</a><a href="#contents">Contents</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PRODUCT-MANUAL.md">Markdown source</a></nav>'
     output = page('PQCSuite product manual', 'Customer guide',
-                  'Five products, explained step by step. Read offline or use your browser’s Print → Save as PDF.', style + nav + body)
-    output = output.replace('<html lang=en>', '<html lang="en">\n<head>\n', 1).replace('<main>', '</head><body>\n<main>', 1).replace('</main></html>', '</main></body></html>')
+                  'The four PQC Suite products and Wolf Pack CBOM, step by step. Read offline or use your browser’s Print → Save as PDF.', style + nav + body)
+    output = output.replace('<html lang=en>', '<html lang="en">\n<head>\n', 1).replace('<title>', '<link rel="preload" href="assets/fonts/roboto.woff2" as="font" type="font/woff2" crossorigin>\n<title>', 1).replace('<main>', '</head><body>\n<main>', 1).replace('</main></html>', '</main></body></html>')
     (ROOT / 'site/product-manual.html').write_text(output, encoding='utf-8')
 
 
