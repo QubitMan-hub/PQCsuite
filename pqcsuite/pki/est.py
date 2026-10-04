@@ -175,7 +175,7 @@ def _call(url, ctx, path, body=b"", headers=None, server_name=None):
 def fetch_ca(url, fingerprint, out, server_name=None):
     """Bootstrap trust: download the CA certificate and accept it only if its SHA-256 fingerprint matches the one given."""
     host, port = _target(url)
-    ctx = tls.client_context(verify=False)
+    ctx = tls.client_context(verify=False)  # wolfpack:ignore (RFC 7030 bootstrap: the CA certificate is pinned by fingerprint below)
     with tls.connect(host, port, ctx, server_name or host, timeout=15) as conn:
         status, _, body = request(conn, "GET", PREFIX + "/cacerts", host)
     if status != 200:

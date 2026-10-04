@@ -249,6 +249,14 @@ pqcsuite console --config .pqcsuite/console.toml
 <td>Test-only or declared support</td>
 <td>Evidence exists, but may not represent production usage; advanced views retain it</td>
 </tr>
+<tr>
+<td>Held: code that can never run</td>
+<td>A Python line under <code>if False:</code> or after <code>return</code> is kept in <code>findings.json</code> but left out of the inventory</td>
+</tr>
+<tr>
+<td>Security pattern (WPC001–WPC005)</td>
+<td>Certificate checks switched off, a secret in code (its value is redacted), weak randomness for keys, an unsigned token, a fixed IV. Matched line by line; review each one</td>
+</tr>
 </tbody>
 </table></div>
 <p>Read the explanation, not only the color. SHA-1 inside HMAC/PBKDF2, cache fingerprints, compatibility tests and library registries need context. Do not delete supported behavior or replace a working protocol solely because an algorithm name appears.</p>
@@ -288,6 +296,7 @@ pqcsuite console --config .pqcsuite/console.toml
 </tbody>
 </table></div>
 <p>The unified suite scan removes source snippets and raw source literals from exported evidence. Standalone Wolf Pack evidence can contain snippets; inspect exports before sharing them. Paths, system names and cryptographic inventory can still be sensitive in either workflow.</p>
+<p>For Python, Wolf Pack also follows values through the code: a constant imported from a settings module, a class attribute, a <code>CONFIG[&quot;hash&quot;]</code> entry, a default argument, or a value a caller passes into a function. A key size or hash chosen in one file and used in another is therefore reported where it is used, for example RSA-1024 rather than just RSA. A value that cannot be worked out from the code is left unresolved, never guessed. A local helper that merely borrows an algorithm's name (<code>def md5(text)</code> that formats text) is not counted.</p>
 <p>Python and optional JavaScript/TypeScript adapters build relationships. Other supported languages retain crypto detectors without equivalent function graphs. Dynamic callbacks and aliases can remain unresolved. Production files consume graph budgets before tests. Console repeat scans reuse unchanged syntax, but still read files and recompute findings and cross-file relationships; not every repository scans faster.</p>
 <p>If a limit is reached, open advanced coverage and inspect the named omissions. Narrow the scope or use standalone exclusions. Unified discovery is limited to 50,000 files/512 MB and a cooperative five-minute deadline; a parsing operation is not forcibly interrupted. The workspace is limited to 16 MB with a maximum 64 MB decompressed graph. Smaller scan scopes may be necessary even when disk space is available.</p>
 <h3 id="act-and-rescan">Act and rescan</h3>
@@ -332,6 +341,10 @@ pqcsuite console --config .pqcsuite/console.toml
 <p>A report may be produced successfully while the command exits nonzero because action is needed. This is intentional for automation. An F grade is not necessarily a scanner crash. Behind a TLS-inspecting proxy, observations may describe the proxy rather than the destination; inspect issuer and trust warnings.</p>
 <p>For broader configured evidence:</p>
 <pre><code class="language-sh">pqcsuite readiness report --ca pki --targets hosts.txt --backups backups --html evidence.html
+</code></pre>
+<p>To include cryptography found in your own code, add one or more Wolf Pack output folders. Each algorithm becomes a row that names the files and lines where it is used and, for Python and JavaScript/TypeScript, the functions that reach it; high-severity security patterns such as switched-off certificate checks become rows that need action:</p>
+<pre><code class="language-sh">wolfpack scan &quot;PATH_TO_REPOSITORY&quot; -o wolfpack-out
+pqcsuite readiness report --targets hosts.txt --wolfpack wolfpack-out --html evidence.html
 </code></pre>
 <p>Use only paths that actually exist on this installation. NIST IR 8547/CNSA 2.0 mappings help organize evidence; they are not an independent certification or a legal compliance opinion. A backup header alone does not prove a successful restore.</p>
 <h2 id="tls-and-mtls-protect-one-service-connection">TLS and mTLS: protect one service connection</h2>
@@ -641,4 +654,4 @@ pqcsuite vault share notes.pqv --key owner.key -r auditor.pub
 <p>Use <code>pqcsuite --help</code>, then the relevant command's <code>--help</code> for exact options. See the <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/README.md">README</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/CODE-CRAWLER.md">Code Crawler limits</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/RELEASE-READINESS.md">release gates</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PILOT.md">pilot instructions</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/SECURITY.md">security reporting</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/wolf-pack/README.md">Wolf Pack guide</a>.</p>
 <p>For guided stories using temporary data, run <code>python examples/clinic_demo.py --auto</code> or <code>python examples/bank_demo.py --auto</code> from an installed checkout. The privileged Linux VPN demo needs its documented networking prerequisites. These demos exercise real operations on example data; they do not configure your production organization.</p>
 
-<footer>Generated 2026-10-04 17:01 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>
+<footer>Generated 2026-10-04 17:36 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>

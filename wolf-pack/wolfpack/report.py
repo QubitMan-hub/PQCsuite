@@ -79,6 +79,8 @@ def html(r):
         detail.append(f"""<details id="asset-{index}"><summary>{tier(a.tier)} <b>{e(a.variant)}</b> <span class='dim'>{e(a.nist)}</span></summary>{fixes}<div class='occ'>{occ}</div></details>""")
     alerts = "".join(f"<div class='alert'><span><span class='tag {e(s)}'>{e(s)}</span></span><div>{e(t)}<br><span class='dim'>{e(w)}{'; ' + e(f) if f else ''}</span></div></div>"
                      for s, t, w, f in r.alerts) or "<p class='dim'>No hygiene alerts.</p>"
+    pats = "".join(f"<tr><td><span class='tag {e(p.severity)}'>{e(p.severity)}</span></td><td><b>{e(p.title)}</b><br><span class=dim>{e(p.rule)}, {e(p.cwe)}</span></td>"
+                   f"<td><code>{e(p.file)}:{p.line}</code><br><span class=dim>{e(p.snippet)}</span></td><td class=w>{e(p.fix)}</td></tr>" for p in r.patterns)
     libs = "".join(f"<tr><td>{e(l.name)}</td><td>{e(l.ecosystem)}</td><td>{e(l.version) or '<span class=dim>unpinned</span>'}</td>"
                    f"<td>{_plural(len(l.used_in), 'file')}</td><td>{'yes' if l.pq else ''}</td><td class='dim w'>{e(l.manifest)}{'<br>' + e(l.note) if l.note else ''}</td></tr>" for l in r.libraries)
     q = [s for s in r.sightings if s.verdict != "accepted"]
@@ -116,6 +118,10 @@ def html(r):
 <tbody id="migration-rows">{''.join(rows) or '<tr><td colspan=7 class=dim>No cryptography found.</td></tr>'}</tbody></table></div>
 <p id="finding-empty" hidden>No findings match. Clear the search or choose All priorities.</p>
 <h2>Hygiene alerts</h2>{alerts}
+<h2>Security patterns</h2>
+<p class="dim">Rules matched one line at a time on code without comments: a starting point for review, not taint tracking. Test code is ranked low.</p>
+<div class="scroll" tabindex="0"><table><thead><tr><th>Severity</th><th>Pattern</th><th>Where</th><th>Fix</th></tr></thead>
+<tbody>{pats or '<tr><td colspan=4 class=dim>No security patterns matched.</td></tr>'}</tbody></table></div>
 <h2>Where each asset lives</h2>{''.join(detail)}
 <h2>Crypto libraries</h2>
 <div class="scroll" tabindex="0"><table><thead><tr><th>Library</th><th>Source</th><th>Version</th><th>Imported by</th><th>PQ-capable</th><th>Where declared</th></tr></thead>
@@ -149,6 +155,12 @@ def terminal(r):
         out.append("")
         for s, t, where, _ in r.alerts:
             out.append(f"  ! {s:<8} {t}  ({where})")
+    if r.patterns:
+        out.append("")
+        for p in r.patterns[:20]:
+            out.append(f"  ! {p.severity:<8} {p.rule} {p.title}  ({p.file}:{p.line})")
+        if len(r.patterns) > 20:
+            out.append(f"  ! ... {len(r.patterns) - 20} more security patterns in report.html and wolfpack.sarif")
     if r.compliance:
         c = r.compliance
         out.append(f"\npolicy ({', '.join(c['profiles']) or 'own rules'}, as of {c['as_of']}): "
@@ -200,8 +212,9 @@ def write_results(out, name, r):
     """Publish complete individual artifacts atomically from private staging."""
     payloads = {
         "cbom.json": json.dumps(cbom.build(name, r.assets, r.artifacts, r.libraries, r.endpoints), indent=2),
-        "wolfpack.sarif": json.dumps(cbom.sarif(r.assets, r.alerts), indent=2),
-        "findings.json": json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness, "compliance": r.compliance}, indent=2, default=str),
+        "wolfpack.sarif": json.dumps(cbom.sarif(r.assets, r.alerts, r.patterns), indent=2),
+        "findings.json": json.dumps(cbom.audit(r.sightings, r.notes) | {"stats": r.stats, "readiness": r.readiness, "compliance": r.compliance,
+                                                                       "patterns": [p.as_dict() for p in r.patterns]}, indent=2, default=str),
         "relationships.json": json.dumps(r.relationships, indent=2),
         "report.html": html(r),
     }

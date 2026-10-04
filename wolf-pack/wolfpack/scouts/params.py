@@ -1,6 +1,7 @@
 """Values passed through parameters: `digest(data, "SHA-512")` reaching `MessageDigest.getInstance(alg)` inside `digest`.
 
-A crypto API called with a parameter is resolved from the literal arguments at the function's call sites. The rebuilt call
+A crypto API called with a parameter is resolved from the literal arguments at the function's call sites. Python is
+handled by the syntax tree instead (pyflow), which also follows constants and caller parameters. The rebuilt call
 (`MessageDigest.getInstance("SHA-512")`) goes through the ordinary language rules, so this module holds no algorithm knowledge.
 """
 import re
@@ -9,26 +10,23 @@ from collections import defaultdict
 from ..model import Sighting
 from . import iter_files, rel, is_test, read
 from .lexer import LANGS, split, line_of
-from .pysrc import scan_python
 from .rules import RULES
 
 IDENT = r"[A-Za-z_$][\w$]*"
 SINKS = {
     "java": rf"\b((?:Cipher|MessageDigest|Mac|Signature|KeyPairGenerator|KeyGenerator|KeyAgreement|SecretKeyFactory|KeyFactory)\.getInstance)\(\s*({IDENT})\s*[,)]",
     "js": rf"\b((?:crypto\.)?create(?:Hash|Hmac|Cipheriv|Decipheriv|Sign|Verify))\(\s*({IDENT})\s*[,)]",
-    "python": rf"\b(hashlib\.new)\(\s*({IDENT})\s*[,)]",
 }
 DEFS = {
     "java": re.compile(rf"\b({IDENT})\s*\(([^()]*)\)\s*(?:throws\s+[\w.,\s]+)?\{{"),
     "js": re.compile(rf"(?:\bfunction\s+({IDENT})\s*\(([^()]*)\)|\b({IDENT})\s*[:=]\s*(?:async\s*)?(?:function\s*)?\(([^()]*)\)\s*(?:=>)?|^\s*(?:async\s+)?({IDENT})\s*\(([^()]*)\)\s*\{{)", re.M),
-    "python": re.compile(rf"^\s*(?:async\s+)?def\s+({IDENT})\s*\(([^()]*)\)", re.M),
 }
 KEYWORDS = {"if", "for", "while", "switch", "catch", "return", "function", "new", "synchronized", "using", "lock", "foreach"}
 LITERAL = re.compile(r"""^\s*(["'`])([^"'`\\\n]{1,80})\1\s*$""")
 
 
 def params_of(text):
-    """Parameter names in order, from Java/C#/JS/Python parameter lists (types, defaults and annotations stripped)."""
+    """Parameter names in order, from Java/C#/JS parameter lists (types, defaults and annotations stripped)."""
     names = []
     for p in split_args(text):
         p = re.sub(r"=.*$|:.*$", "", p.strip()).replace("...", "")
@@ -63,8 +61,7 @@ def enclosing(code, pos, lang, name):
             continue
         ps = params_of(args)
         if name in ps:
-            skip = 1 if lang == "python" and ps and ps[0] in ("self", "cls") else 0
-            best = (fn, ps.index(name) - skip)
+            best = (fn, ps.index(name))
     return best if best and best[1] >= 0 else None
 
 
@@ -116,8 +113,6 @@ def scan(root, scope=False):
 
 def resolve(lang, rebuilt):
     """What the ordinary scouts make of the rebuilt call."""
-    if lang == "python":
-        return [(a, p) for a, _, _, _, p in scan_python("x.py", "import hashlib\n" + rebuilt) or [] if a]
     out = []
     for rx, fn in RULES.get(lang, []):
         for m in rx.finditer(rebuilt):

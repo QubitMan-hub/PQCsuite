@@ -129,6 +129,10 @@
         <li><b>Fast checks on every pull request</b><p>Scans only the files changed since a branch, and fails the build only on cryptography that is new since the last release.</p><code>--changed-since main</code></li>
         <li><b>An audit trail</b><p>Everything the scouts found is kept with the evidence and the reason it was accepted, held or rejected.</p><code>findings.json</code></li>
         <li><b>Silence what you have checked</b><p>A <code>wolfpack:ignore</code> comment on a line, or an exclude pattern, keeps a reviewed finding out of later runs.</p><code>.wolfpack.toml</code></li>
+        <li><b>Values followed through the code</b><p>In Python, a key size or hash set in a settings file, a class or a caller is followed to the call that uses it, so you see RSA-1024 where the key is made.</p><code>make_key(KEY_BITS)</code></li>
+        <li><b>Security patterns</b><p>Certificate checks switched off, secrets in code, weak randomness for keys, unsigned tokens and fixed IVs, each with its CWE, in eight languages.</p><code>WPC001–WPC005</code></li>
+        <li><b>No look-alikes, no dead code</b><p>A helper that only borrows an algorithm's name is not counted, and code that can never run is held back instead of inflating the list.</p><code>def md5(text)</code></li>
+        <li><b>Code in the readiness report</b><p>Add a scan to the PQC Suite readiness report: each algorithm appears with the files, lines and functions that use it, next to your endpoints and certificates.</p><code>--wolfpack wolfpack-out</code></li>
       </ul>
     </div>
   </section>
@@ -207,7 +211,7 @@ wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
     <div class="wrap">
       <div class="intro"><p class="kicker">Know what was checked</p><h2>Evidence you can act on, limits you can see</h2><p>In the local console, assign an owner and deadline, document a time-limited exception, then rescan. Saved assessments distinguish new and persisting findings from findings no longer observed. Static absence does not prove a deployed fix. Advanced verification checks one authenticated post-quantum connection to an approved service, with certificate and revocation checks. The link from source to release remains operator supplied.</p></div>
       <div class="scroll" tabindex="0" role="region" aria-label="Cryptographic coverage"><table class="results"><thead><tr><th>Input</th><th>Current capability</th><th>Boundary</th></tr></thead><tbody>
-        <tr><td>Python</td><td>AST functions, imports and supported callers</td><td>Dynamic dispatch remains unresolved</td></tr>
+        <tr><td>Python</td><td>AST functions, imports and supported callers; constants, class attributes, defaults and caller values followed across files</td><td>Dynamic dispatch and values computed at run time remain unresolved</td></tr>
         <tr><td>JavaScript / TypeScript</td><td>Optional Tree-sitter relationships</td><td>Requires the crawler extra; callbacks and runtime dispatch are incomplete</td></tr>
         <tr><td>Java / Go and other supported source</td><td>Cryptographic detectors</td><td>No class/function relationship adapter yet</td></tr>
         <tr><td>Configs, certificates and binaries</td><td>Cryptographic inventory and evidence</td><td>Not proof of runtime reachability or deployment protection</td></tr>

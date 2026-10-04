@@ -115,3 +115,32 @@ Declared non-security fingerprints are separated from undeclared security uses. 
 The console caches syntax by language and source hash, bounded to 5,000 entries and 32 MB of input. AST memory is additional. Every scan still reads source and recomputes findings and cross-file relationships, including deletion and changed imports. Production files consume the relationship budget before tests. Exported relationships identify omitted calls and named coverage gaps (up to 1,000 filenames per category). Cooperative deadlines do not provide hard process isolation.
 
 Large graphs are compressed separately in workspace format 2, with a 64 MB decompressed graph limit and 16 MB workspace limit. Corrupt, trailing or oversized compressed data is refused. Summary history stores the truncation count; full details remain in the latest graph. Format 1 can be read, but older clients must not be used with new workspaces.
+
+## Values, look-alikes, unreachable code and security patterns — October 2026
+
+The crawler now changes what Wolf Pack finds, not only how findings are linked. Each addition belongs to a pack role that can be switched off (`wolfpack scan --without ROLE`); `wolfpack bench` reports one ablation per role.
+
+| Addition | Role | What it does | Limit |
+|---|---|---|---|
+| Python values across files | `cross-file`, `propagation` | Module constants, class attributes (`self.ALGO`), dictionary entries (`CONFIG["hash"]`) and re-exported names are followed through imports, so `hashlib.new(self.ALGO)` is SHA-224 at the call. A constant whose value reaches a crypto call counts as used where it is defined | Values computed at run time, `getattr`, star imports and names bound more than once stay unresolved |
+| Python parameters | `parameters` | A function whose parameters reach a crypto call is re-read once per value its callers or defaults give them, through up to four hops of callers; `make_key(KEY_BITS)` with `KEY_BITS = 1024` in a settings file is RSA-1024 at the key generation | At most 8 values per parameter and 8 combinations per function; a method called through an untyped object resolves only when its name is unique in the project |
+| Look-alikes | `lookalikes` | A name sighting that is only a local definition named like an algorithm (`def md5(text)`, `class rsa`), and calls to it, is rejected when the definition does no cryptography | Python only; a look-alike that calls any non-builtin function is kept |
+| Unreachable code | `reachability` | Sightings under `if False:`, `while 0:`, the dead branch of `if True:`, or after `return`/`raise`/`break`/`continue` are held: kept in `findings.json`, left out of the CBOM | Python only; functions nobody calls are not treated as dead (they may be public API) |
+| Security patterns | `patterns` | WPC001 certificate verification off (CWE-295), WPC002 secret in code (CWE-798, value redacted), WPC003 non-cryptographic random for key material (CWE-338), WPC004 token accepted without its signature (CWE-347), WPC005 fixed or zero IV (CWE-329), in Python, JavaScript/TypeScript, Java/Kotlin, Go, C#, C/C++/PHP, Rust and Ruby. In SARIF with CWE tags and `security-severity`, in the report, `findings.json` and console assessments | One line at a time on comment-free code: pattern detection, not taint tracking. Test code ranks low |
+| Readiness evidence | Suite | `pqcsuite readiness report --wolfpack wolfpack-out` adds one row per algorithm with its files, lines and calling functions, and a row per high-severity security pattern, mapped to NIST IR 8547 and CNSA 2.0 (2033 for custom software). The Suite reads the files; it does not import Wolf Pack for this | A static finding is not proof of runtime use |
+
+The regex parameter scout no longer handles Python; the syntax tree covers everything it did. Git is not consulted when choosing files, so gitignored keys and `.env` files are scanned.
+
+### Before and after
+
+| Measure | 1.2.1 | 1.3.0 | Now |
+|---|---|---|---|
+| Dev corpus, full pack (P / R) | 1.000 / 1.000 on 163 pairs | 1.000 / 1.000 on 166 | 1.000 / 1.000 on 174 |
+| Held-out, strict (P / R / F1) | 0.802 / 0.919 / 0.856 | same | same |
+| Held-out, inclusive (P / R / F1) | 0.944 / 0.800 / 0.866 | same | same |
+| Self-scan against the reviewed inventory | 57 / 57 | 56 of 58 (inventory out of date) | 60 / 60 (inventory refreshed) |
+| Gap probe (7 Python files, 9 checks: 5 misses, 4 false findings) | 0 of 9 | 1 of 9 (`self.ALGO`, through its string) | 9 of 9 |
+| Time, 18 held-out repositories plus self-scan | 9.67 s | 10.43 s | 12.85 s (1.33x) |
+| Peak memory over that run | 48 MB | 53 MB | 88 MB (1.83x) |
+
+The held-out repositories show no change: their Python does not pass algorithms through settings or parameters in the ways now followed, and their security patterns are not CBOM entries. On them the security patterns produced 5 hits outside test code, 4 of them correct on review (golang-jwt's command allowing `alg none`, a demo making a public key with `random`) and 1 false hit, since fixed (a constant named `crypto_secretbox_PRIMITIVE`). The dev corpus and the gap probe were written alongside these rules, so they show that the rules work, not how accurate they are on unseen code.

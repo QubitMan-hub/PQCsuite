@@ -26,6 +26,8 @@ CONFIGS = [
     ("without lists", ("lists",)),
     ("without artifact scouts", ("artifacts",)),
     ("without binary scouts", ("binary",)),
+    ("without lookalikes", ("lookalikes",)),
+    ("without reachability", ("reachability",)),
 ]
 
 

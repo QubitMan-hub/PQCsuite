@@ -32,7 +32,7 @@ py -m wolfpack bench bench\corpus                            # full pack plus on
 py -m pytest -q
 ```
 
-Output lands in `wolfpack-out\`. `cbom.json` is the CycloneDX 1.6 CBOM, validated against the official schema. `report.html` is a self-contained report that works offline. `wolfpack.sarif` is SARIF 2.1.0 for GitHub code scanning. `findings.json` is the full audit trail, including everything the den rejected and why. `relationships.json` records bounded Python and optional JavaScript/TypeScript syntax-tree symbols, imports and static call references without source snippets or argument values. The offline report and CBOM attach supported functions and callers to crypto findings. Dynamic dispatch remains unresolved; static references do not prove runtime reachability.
+Output lands in `wolfpack-out\`. `cbom.json` is the CycloneDX 1.6 CBOM, validated against the official schema. `report.html` is a self-contained report that works offline. `wolfpack.sarif` is SARIF 2.1.0 for GitHub code scanning, with CWE tags and severities, including the security patterns (certificate checks switched off, secrets in code with their values redacted, weak randomness for keys, unsigned tokens, fixed IVs). `findings.json` is the full audit trail, including everything the den rejected and why. `relationships.json` records bounded Python and optional JavaScript/TypeScript syntax-tree symbols, imports and static call references without source snippets or argument values. The offline report and CBOM attach supported functions and callers to crypto findings. Dynamic dispatch remains unresolved; static references do not prove runtime reachability.
 
 `wolfpack merge` takes CBOMs from many scans, or from other tools such as CBOMkit, and writes one organisation inventory to `wolfpack-inventory\`:
 
@@ -215,7 +215,9 @@ Live probes were verified against a real OpenSSL 3.5 server (hybrid X25519MLKEM7
 
 Algorithms implemented in source are recognised by their published constants (MD5, SHA-1, SHA-2, SHA-3, SM3, SM4, AES, DES, SM2, P-256), or by the names their code uses (`blowfish_encrypt`, `curve25519_generate_public`). An implementation with neither, such as WireGuard's JavaScript key generator, is missed.
 
-Only Python gets true AST analysis. Other languages use rules plus constant propagation: within a file, and across files for `Owner.NAME` constants in Java, Kotlin and C#, exported Go constants, and C header macros. Values passed through function parameters, JavaScript imports, reflection and dynamically built names are still missed.
+Only Python gets syntax-tree analysis. There, values are followed across files and through function parameters (constants, class attributes, dictionary entries, defaults and caller values, up to four hops), helpers that only borrow an algorithm's name are not counted, and code that can never run is held back. Other languages use rules plus constant propagation: within a file, and across files for `Owner.NAME` constants in Java, Kotlin and C#, exported Go constants, C header macros and JavaScript/TypeScript `export const` imports; their function parameters are resolved only from literal arguments at call sites. Reflection and names built at run time are missed.
+
+Security patterns (WPC001 to WPC005) are matched one line at a time on code without comments. They are not taint tracking: a disabled check or a predictable random value that reaches its use through other variables or files is missed, and a match is a lead for review, not proof of an exploitable flaw.
 
 Key sizes and modes are found only when they are visible near the call; otherwise assets are reported without them (`AES` rather than `AES-256-GCM`).
 

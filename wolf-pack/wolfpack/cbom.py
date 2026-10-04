@@ -6,6 +6,7 @@ from pathlib import PurePosixPath
 from . import __version__
 from .crawler import impact_property
 from .elders import CATALOG, classical_bits, quantum_level
+from .scouts.patterns import RULES
 
 MODES = {"ecb", "cbc", "ccm", "gcm", "cfb", "ofb", "ctr"}
 PADS = {"pkcs5", "pkcs7", "pkcs1v15", "oaep", "raw"}
@@ -160,15 +161,30 @@ QUIET = {"non-security": "declared not for security here (usedforsecurity=False)
          "trust-store": "a root certificate in a trust store: trusted, not held; it changes when the bundle is updated"}
 
 
-def sarif(assets, alerts):
+SEVERITY = {"critical": "9.0", "high": "7.5", "medium": "5.0", "low": "3.0"}
+
+
+def cwe(a):
+    """Weak hashes are CWE-328, too-short keys CWE-326, any other broken or quantum-vulnerable choice CWE-327."""
+    if CATALOG[a.algo].primitive == "hash" and a.tier == "critical":
+        return "CWE-328"
+    size = a.params.get("key_size")
+    return "CWE-326" if isinstance(size, int) and size < 2048 and CATALOG[a.algo].primitive in ("pke", "signature") else "CWE-327"
+
+
+def sarif(assets, alerts, patterns=()):
     rules, results = {}, []
     for a in assets:
         if a.tier not in LEVEL:
             continue
         rid = f"WP-{a.algo.replace(' ', '')}"
         fixes = "".join(f"\n- {w}: {f}" for w, f in a.remedies)
-        rules.setdefault(rid, {"id": rid, "name": a.algo, "shortDescription": {"text": f"{a.algo} usage"},
-                               "help": {"text": (a.action or a.why) + fixes, "markdown": f"**{a.action or a.why}**{fixes}"}})
+        tags = ["security", "cryptography", "external/cwe/" + cwe(a).lower()]
+        rule = rules.setdefault(rid, {"id": rid, "name": a.algo, "shortDescription": {"text": f"{a.algo} usage"},
+                                      "help": {"text": (a.action or a.why) + fixes, "markdown": f"**{a.action or a.why}**{fixes}"},
+                                      "properties": {"tags": tags, "security-severity": SEVERITY[a.tier]}})
+        if float(SEVERITY[a.tier]) > float(rule["properties"]["security-severity"]):
+            rule["properties"]["security-severity"] = SEVERITY[a.tier]
         for s in a.sightings:
             if s.file.startswith("tls://"):
                 continue
@@ -185,6 +201,12 @@ def sarif(assets, alerts):
         rules.setdefault("WP-ALERT", {"id": "WP-ALERT", "name": "hygiene", "shortDescription": {"text": "Crypto hygiene alert"}})
         results.append({"ruleId": "WP-ALERT", "level": LEVEL[sev], "message": {"text": f"{title}. {fix}".strip()},
                         "locations": [{"physicalLocation": {"artifactLocation": {"uri": f}, "region": {"startLine": max(1, int(ln or 1))}}}]})
+    for p in patterns:
+        rules.setdefault(p.rule, {"id": p.rule, "name": p.title, "shortDescription": {"text": p.title}, "help": {"text": p.fix, "markdown": p.fix},
+                                  "properties": {"tags": ["security", "external/cwe/" + p.cwe.lower()], "security-severity": SEVERITY[RULES[p.rule][2]],
+                                                 "precision": "medium", "detection": "pattern on one line; not taint tracking"}})
+        results.append({"ruleId": p.rule, "level": LEVEL[p.severity], "message": {"text": f"{p.title} ({p.cwe}). {p.fix}" + (" (test code)" if p.test else "")},
+                        "locations": [{"physicalLocation": {"artifactLocation": {"uri": p.file}, "region": {"startLine": max(1, p.line)}}}]})
     return {"$schema": "https://json.schemastore.org/sarif-2.1.0.json", "version": "2.1.0",
             "runs": [{"tool": {"driver": {"name": "wolfpack", "version": __version__, "rules": list(rules.values())}}, "results": results}]}
 

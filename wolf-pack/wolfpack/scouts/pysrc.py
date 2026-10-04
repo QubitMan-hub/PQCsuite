@@ -16,9 +16,9 @@ def _norm(q):
 
 
 class PyScout(ast.NodeVisitor):
-    def __init__(self, path, src, constants=True):
+    def __init__(self, path, src, constants=True, flow=None):
         self.path, self.lines, self.alias, self.consts, self.out, self.seen = path, src.splitlines(), {}, {}, [], set()
-        self.constants = constants
+        self.constants, self.flow = constants, flow
         self.root = None
         self.skip = set()
         self.owners = []
@@ -58,6 +58,8 @@ class PyScout(ast.NodeVisitor):
             return self.consts[e.id]
         if isinstance(e, (ast.List, ast.Tuple)):
             return [self.val(x) for x in e.elts]
+        if self.flow and isinstance(e, (ast.Name, ast.Attribute, ast.Subscript)):
+            return self.flow.value(e, self.owners[-1] if self.owners else None)
         return None
 
     def arg(self, call, pos, kw):
@@ -84,6 +86,8 @@ class PyScout(ast.NodeVisitor):
         mod = node.module or ""
         for n in node.names:
             full = f"{mod}.{n.name}"
+            if self.flow and not full.startswith(ROOTS):
+                full = next((q for q in [self.flow.alias(n.asname or n.name)] if q and q.startswith(ROOTS)), full)
             self.alias[n.asname or n.name] = full
             self._import_sighting(node, full)
 
@@ -288,13 +292,41 @@ class PyScout(ast.NodeVisitor):
         return lookup(name) or parse_transformation(name)[0]
 
 
-def scan_python(path, src, constants=True, on_tree=None, parse=ast.parse):
+def scan_python(path, src, constants=True, on_tree=None, parse=ast.parse, flow=None):
     try:
         tree = parse(src)
     except (SyntaxError, ValueError, RecursionError):
         return None
     if on_tree:
         on_tree(path, tree)
-    s = PyScout(path, src, constants)
+    s = PyScout(path, src, constants, flow)
     s.visit(tree)
+    if flow:
+        try:
+            revisit(s, path, src, constants, flow)
+        except RecursionError:
+            pass
     return s.out
+
+
+def revisit(s, path, src, constants, flow):
+    """Re-read each function whose parameters reach a crypto call, once per value its callers or defaults give them."""
+    def relevant(node):
+        names = {a.arg for a in node.args.posonlyargs + node.args.args + node.args.kwonlyargs}
+        out = set()
+        for n in ast.walk(node):
+            if isinstance(n, ast.Call) and s.qual(n.func).split(".")[0] in ROOTS:
+                for a in [*n.args, *(k.value for k in n.keywords)]:
+                    out |= {x.id for x in ast.walk(a) if isinstance(x, ast.Name) and x.id in names}
+        return out
+    seen = {(a, ln, ev, repr(sorted(p.items()))) for a, ln, ev, _, p in s.out}
+    for d, binding in flow.functions(relevant):
+        r = PyScout(path, src, constants, flow)
+        r.alias, r.consts, r.owners = s.alias, {**s.consts, **binding}, [d.cls] if d.cls else []
+        for st in d.node.body:
+            r.visit(st)
+        for a, ln, ev, snip, p in r.out:
+            k = (a, ln, ev, repr(sorted(p.items())))
+            if k not in seen:
+                seen.add(k)
+                s.out.append((a, ln, ev, snip, dict(p, via=d.qual)))

@@ -5,6 +5,8 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 ## Unreleased
 
 - `pqcsuite scan` and the console's project scans find private keys, certificates and other files that the project's `.gitignore` leaves out (Wolf Pack fix). The reviewed inventory `docs/cbom.json` is refreshed for code moved since 0.3.0.
+- `pqcsuite readiness report --wolfpack FOLDER` adds the cryptography Wolf Pack found in your code: one row per algorithm with its files, lines and calling functions, and a row for each high-severity security pattern (such as certificate checks switched off), mapped to NIST IR 8547 and CNSA 2.0. Console project scans list security patterns too, without source text.
+- Four deliberate `verify=False` uses (doctor checks, the EST bootstrap that pins the CA fingerprint, the readiness probe) are annotated for Wolf Pack's new certificate-verification rule.
 - Website: the menu fits on one line again (the manual link sits before the call to action, and the menu folds earlier on narrow screens); the Wolf Pack band on the home page is shorter and points to the Wolf Pack page; the manual uses the site's typeface without shifting the page while it loads.
 
 ## 0.3.1 (2 October 2026)

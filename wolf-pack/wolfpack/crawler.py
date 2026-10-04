@@ -80,6 +80,15 @@ class CodeCrawler:
     def parse_python(self, text):
         return self.parse("Python", text.encode("utf-8"), lambda raw: ast.parse(raw.decode("utf-8")))
 
+    def peek_python(self, text):
+        """A tree for analysis that runs before the scan proper: reads the cache, never fills it or moves its counters."""
+        if self.cache is not None:
+            with self.cache.lock:
+                hit = self.cache.entries.get(("Python", hashlib.sha256(text.encode("utf-8")).digest()))
+            if hit:
+                return hit[0]
+        return ast.parse(text)
+
     def cut(self, path, kind):
         self.limited = True
         self.truncated[path][kind] += 1

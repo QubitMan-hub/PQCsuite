@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import den, alpha, remedy
 from .crawler import CodeCrawler
-from .scouts import MAX_BYTES, source, config, artifacts, deps, tls, binary, implementations, params, capture, carried_hashes, oversized, snapshot
+from .scouts import MAX_BYTES, source, config, artifacts, deps, tls, binary, implementations, params, capture, carried_hashes, oversized, snapshot, pyflow, patterns
 
 SCOUTS = ("source", "implementations", "config", "artifacts", "binary")
 
@@ -37,6 +37,9 @@ class Roles:
     purpose: bool = True
     trust_store: bool = True
     trails: bool = True
+    lookalikes: bool = True
+    reachability: bool = True
+    patterns: bool = True
 
     @classmethod
     def without(cls, *names):
@@ -66,14 +69,26 @@ class Hunt:
     notes: list = field(default_factory=list)
     endpoints: list = field(default_factory=list)
     crawler: CodeCrawler = field(default_factory=CodeCrawler)
+    patterns: list = field(default_factory=list)
 
 
 def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=(), captures=(), cache=None):
     """The scouts go out. Each reports everything it saw; nothing is filtered until the den."""
     h = Hunt([], [], [], dict.fromkeys(SCOUTS, 0), crawler=CodeCrawler(cache))
+    found = {}
+
+    def observe(path, tree):
+        h.crawler.observe(path, tree)
+        if roles.lookalikes or roles.reachability:
+            try:
+                found[path] = pyflow.facts(tree)
+            except RecursionError:
+                pass
     if roles.source:
         unparsed = []
-        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed, roles.names, roles.concat, roles.symbols, h.crawler.observe, h.crawler.observe_source, h.crawler.parse_python)
+        on_code = (lambda path, text, lang, parts: h.patterns.extend(patterns.scan_text(path, text, lang, parts))) if roles.patterns else None
+        s, h.files["source"] = source.scan(root, scope, roles.propagation, roles.cross_file, unparsed, roles.names, roles.concat, roles.symbols, observe,
+                                           h.crawler.observe_source, h.crawler.parse_python, roles.parameters, h.crawler.peek_python, on_code)
         h.sightings += s
         if unparsed:
             for path in unparsed:
@@ -90,6 +105,9 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=(), captu
                            + ", ".join(big[:5]) + (" ..." if len(big) > 5 else ""))
     if roles.source and roles.parameters:
         h.sightings += params.scan(root, scope)
+    if roles.patterns and not roles.source:
+        h.patterns = patterns.scan(root, scope)
+    h.patterns = patterns.ordered(h.patterns)
     if roles.implementations:
         s, h.files["implementations"] = implementations.scan(root, scope)
         h.sightings += s
@@ -124,6 +142,7 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=(), captu
         h.endpoints += eps
         h.notes += n
     h.sightings += carried_hashes(h.sightings)
+    pyflow.mark(h.sightings, found, roles.lookalikes, roles.reachability)
     return h
 
 
@@ -142,6 +161,7 @@ class Result:
     baseline: str = ""
     compliance: dict = field(default_factory=dict)
     relationships: dict = field(default_factory=dict)
+    patterns: list = field(default_factory=list)
 
 
 def load_baseline(path):
@@ -166,6 +186,7 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
         sightings = den.verify(h.sightings, threshold, lines, roles.corroboration)
         looks = alpha.second_look(sightings, lines, threshold, [k for k in alpha.LOOKS if getattr(roles, k)], roles.recognition)
         held = alpha.recognise(sightings, lines) if roles.recognition else 0
+        den.settle(sightings)
     else:
         sightings, looks, held = den.admit_all(h.sightings), dict.fromkeys(alpha.LOOKS, 0), 0
     stores = alpha.trust_stores(h.artifacts) if roles.trust_store else {}
@@ -181,10 +202,12 @@ def run(root, project, tls_targets=(), horizon=None, threshold=0.6, roles=Roles(
             a.new_files = sorted({s.file.split("!")[0] for s in a.sightings if (a.variant, s.file.split("!")[0]) not in seen})
     relationships = h.crawler.finish(assets)
     al = alpha.alerts(h.artifacts, h.libraries, sightings, stores)
+    found = [p for p in h.patterns if not any(0 < k <= len(lines(p.file)) and "wolfpack:ignore" in lines(p.file)[k - 1] for k in (p.line, p.line - 1))]
     verdicts = Counter(s.verdict for s in sightings)
     stats = {"files_code": h.files["source"], "files_config": h.files["config"], "files_artifacts": h.files["artifacts"], "files_binary": h.files["binary"],
              "libraries": len(h.libraries), "endpoints": len(h.endpoints), "raw_sightings": len(h.sightings),
              **{v: verdicts[v] for v in ("accepted", "quarantined", "rejected", "suppressed")},
-             "promoted_on_second_look": sum(looks.values()), "second_look": looks, "held_as_formats": held, "trails_followed": trails, "roles_off": roles.off,
+             "promoted_on_second_look": sum(looks.values()), "patterns": len(found), "second_look": looks, "held_as_formats": held, "trails_followed": trails, "roles_off": roles.off,
              "seconds": round(time.time() - t0, 2), "horizon": vars(horizon) | {"years_to_crqc": horizon.z}}
-    return Result(project, sightings, assets, h.artifacts, h.libraries, al, alpha.readiness(assets), stats, h.notes, h.endpoints, str(baseline or ""), relationships=relationships)
+    return Result(project, sightings, assets, h.artifacts, h.libraries, al, alpha.readiness(assets), stats, h.notes, h.endpoints, str(baseline or ""), relationships=relationships,
+                  patterns=found)

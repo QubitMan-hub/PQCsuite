@@ -96,7 +96,7 @@ def _old_versions(host, port, server_name, timeout):
 
 
 def _hello(host, port, groups, server_name, timeout):
-    ctx = Context(False, groups, None, tls.CIPHERSUITES, verify=False)
+    ctx = Context(False, groups, None, tls.CIPHERSUITES, verify=False)  # wolfpack:ignore (a probe of what the server offers; no data is sent)
     try:
         with ctx.wrap(socket.create_connection((host, port), timeout=timeout), server_name, timeout) as conn:
             return conn.group, conn.peer_certificate()

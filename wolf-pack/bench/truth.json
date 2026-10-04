@@ -301,5 +301,24 @@
   "js/mixed_signer_trap.ts": [
     "ML-DSA",
     "DSA"
+  ],
+  "py/flow/settings.py": [
+    "MD5",
+    "SHA-1"
+  ],
+  "py/flow/primitives.py": [
+    "RSA",
+    "SHA-1"
+  ],
+  "py/flow/service.py": [
+    "MD5",
+    "SHA-224"
+  ],
+  "py/flow/dynamic.py": [],
+  "py/lookalike.py": [
+    "SHA-256"
+  ],
+  "py/dead_branch.py": [
+    "SHA-512"
   ]
 }

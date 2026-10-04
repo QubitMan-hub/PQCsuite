@@ -54,6 +54,44 @@ class ComplianceTest(unittest.TestCase):
         self.assertIn("Backup classifications describe unverified headers", page)
         self.assertNotIn("<script", page)
 
+    def test_wolfpack_scan_becomes_code_rows_that_cite_locations_and_callers(self):
+        import json
+        d = Path(tempfile.mkdtemp())
+        props = lambda tier, **kw: [{"name": f"wolfpack:{k}", "value": v} for k, v in dict(tier=tier, **kw).items()]
+        bom = {"bomFormat": "CycloneDX", "specVersion": "1.6", "metadata": {"component": {"name": "payments"}}, "components": [
+            {"type": "cryptographic-asset", "name": "RSA-1024", "evidence": {"occurrences": [{"location": "keys.py", "line": 7}]},
+             "properties": props("critical", **{"nist-status": "Disallowed now", "recommendation": "ML-DSA-65",
+                                                "code-impact": json.dumps({"callers": ["checkout.py#enroll"]})})},
+            {"type": "cryptographic-asset", "name": "AES-256-GCM", "properties": props("ok")},
+            {"type": "cryptographic-asset", "name": "<script>alert(1)</script>", "properties": props("medium", **{"code-impact": "{not json"})},
+            {"type": "library", "name": "cryptography"}]}
+        (d / "cbom.json").write_text(json.dumps(bom))
+        (d / "findings.json").write_text(json.dumps({"patterns": [
+            {"rule": "WPC001", "title": "Certificate verification switched off", "cwe": "CWE-295", "severity": "high", "file": "client.py", "line": 3, "fix": "verify"},
+            {"rule": "WPC002", "title": "Secret written into source code", "cwe": "CWE-798", "severity": "low", "file": "tests/t.py", "line": 1, "fix": "x"}]}))
+        rows = compliance.code(d)
+        by = {r["name"]: r for r in rows}
+        self.assertEqual([by[n]["status"] for n in ("RSA-1024", "AES-256-GCM", "<script>alert(1)</script>")], ["action", "ready", "transition"])
+        self.assertIn("keys.py:7", by["RSA-1024"]["detail"])
+        self.assertIn("checkout.py#enroll", by["RSA-1024"]["detail"])
+        self.assertEqual((by["AES-256-GCM"]["cnsa2"], by["RSA-1024"]["cnsa2_deadline"]), ("compliant", 2033))
+        self.assertIn("client.py:3", by["WPC001 Certificate verification switched off"]["detail"])
+        self.assertFalse(any(r["name"].startswith("WPC002") for r in rows), "test-only patterns are not compliance rows")
+        self.assertEqual(compliance.code(d / "cbom.json")[0]["name"], "RSA-1024")
+        self.assertNotIn("<script>alert", compliance.to_html(compliance.report(rows)))
+
+    def test_wolfpack_input_that_is_not_a_cbom_is_refused(self):
+        d = Path(tempfile.mkdtemp())
+        for name, data in (("cbom.json", b"[1, 2]"), ("bad.json", b"{not json"), ("other.json", b'{"bomFormat": "SPDX"}')):
+            (d / name).write_bytes(data)
+            with self.assertRaises(ValueError):
+                compliance.code(d / name)
+        big = d / "big.json"
+        with open(big, "wb") as f:
+            f.truncate(compliance.LIMIT + 1)
+        with self.assertRaisesRegex(ValueError, "larger than"):
+            compliance.code(big)
+
 
 if __name__ == "__main__":
     unittest.main()

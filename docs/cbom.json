@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:0eeebbfd-fd1b-444c-bc59-2e974fe7ecd9",
+  "serialNumber": "urn:uuid:1b032834-2b70-4afd-9dd3-6e2b986ec5b5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-04T16:51:30Z",
+    "timestamp": "2026-10-04T17:26:35Z",
     "tools": {
       "components": [
         {
@@ -1265,8 +1265,13 @@
         "occurrences": [
           {
             "location": "readiness/compliance.py",
+            "additionalContext": "string: CNSA2_ALGORITHMS = (\"ML-KEM-1024\", \"ML-DSA-87\", \"AES-256\", \"SHA-384\", \"SHA-512\", \"LMS\", \"XMSS\")",
+            "line": 18
+          },
+          {
+            "location": "readiness/compliance.py",
             "additionalContext": "string: cnsa = \"ML_KEM_1024\" in kex and \"ECP_384\" in kex and all(c == \"AES_GCM_16_256\" for c in ciphers)",
-            "line": 69
+            "line": 73
           },
           {
             "location": "vault.py",
@@ -1557,17 +1562,17 @@
           {
             "location": "project.py",
             "additionalContext": "call: return hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()",
-            "line": 114
+            "line": 118
           },
           {
             "location": "project.py",
             "additionalContext": "call: return hashlib.sha256(os.path.normcase(str(Path(path).resolve())).encode()).hexdigest()",
-            "line": 129
+            "line": 133
           },
           {
             "location": "project.py",
             "additionalContext": "call: fingerprint = certificate.fingerprint(hashes.SHA256()).hex() if certificate else ''",
-            "line": 292
+            "line": 296
           },
           {
             "location": "vault.py",
@@ -1658,6 +1663,11 @@
             "line": 38
           },
           {
+            "location": "readiness/compliance.py",
+            "additionalContext": "string: CNSA2_ALGORITHMS = (\"ML-KEM-1024\", \"ML-DSA-87\", \"AES-256\", \"SHA-384\", \"SHA-512\", \"LMS\", \"XMSS\")",
+            "line": 18
+          },
+          {
             "location": "vault.py",
             "additionalContext": "call: Suite(\"P-384+ML-KEM-1024/AES-256-GCM\", mlkem.MLKEM1024PrivateKey, mlkem.MLKEM1024PublicKey, ec.SECP384R1(), hashlib.sha384),",
             "line": 69
@@ -1720,6 +1730,11 @@
             "location": "pki/acme.py",
             "additionalContext": "call: \"P-521\": (ec.SECP521R1(), hashes.SHA512(), \"ES512\")}",
             "line": 39
+          },
+          {
+            "location": "readiness/compliance.py",
+            "additionalContext": "string: CNSA2_ALGORITHMS = (\"ML-KEM-1024\", \"ML-DSA-87\", \"AES-256\", \"SHA-384\", \"SHA-512\", \"LMS\", \"XMSS\")",
+            "line": 18
           },
           {
             "location": "vault.py",
@@ -2059,8 +2074,13 @@
           },
           {
             "location": "readiness/compliance.py",
+            "additionalContext": "string: CNSA2_ALGORITHMS = (\"ML-KEM-1024\", \"ML-DSA-87\", \"AES-256\", \"SHA-384\", \"SHA-512\", \"LMS\", \"XMSS\")",
+            "line": 18
+          },
+          {
+            "location": "readiness/compliance.py",
             "additionalContext": "string: cnsa = r.algorithm == \"ML-DSA-87\"",
-            "line": 30
+            "line": 34
           },
           {
             "location": "readiness/scan.py",
@@ -2200,8 +2220,13 @@
         "occurrences": [
           {
             "location": "readiness/compliance.py",
+            "additionalContext": "string: CNSA2_ALGORITHMS = (\"ML-KEM-1024\", \"ML-DSA-87\", \"AES-256\", \"SHA-384\", \"SHA-512\", \"LMS\", \"XMSS\")",
+            "line": 18
+          },
+          {
+            "location": "readiness/compliance.py",
             "additionalContext": "string: cnsa = \"ML_KEM_1024\" in kex and \"ECP_384\" in kex and all(c == \"AES_GCM_16_256\" for c in ciphers)",
-            "line": 69
+            "line": 73
           },
           {
             "location": "readiness/scan.py",

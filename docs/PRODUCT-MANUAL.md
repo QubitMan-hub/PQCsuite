@@ -178,6 +178,8 @@ Start with the migration queue, select a finding, inspect its source locations a
 | Candidate hybrid composition | Classical and PQ components appear together; this does not establish a secure combiner or deployed protection |
 | Name/literal uncertainty | The algorithm was inferred; inspect the actual implementation and dynamic behavior |
 | Test-only or declared support | Evidence exists, but may not represent production usage; advanced views retain it |
+| Held: code that can never run | A Python line under `if False:` or after `return` is kept in `findings.json` but left out of the inventory |
+| Security pattern (WPC001–WPC005) | Certificate checks switched off, a secret in code (its value is redacted), weak randomness for keys, an unsigned token, a fixed IV. Matched line by line; review each one |
 
 Read the explanation, not only the color. SHA-1 inside HMAC/PBKDF2, cache fingerprints, compatibility tests and library registries need context. Do not delete supported behavior or replace a working protocol solely because an algorithm name appears.
 
@@ -193,6 +195,8 @@ Read the explanation, not only the color. SHA-1 inside HMAC/PBKDF2, cache finger
 | `assessment.json` | Unified repository/readiness result from the suite scan |
 
 The unified suite scan removes source snippets and raw source literals from exported evidence. Standalone Wolf Pack evidence can contain snippets; inspect exports before sharing them. Paths, system names and cryptographic inventory can still be sensitive in either workflow.
+
+For Python, Wolf Pack also follows values through the code: a constant imported from a settings module, a class attribute, a `CONFIG["hash"]` entry, a default argument, or a value a caller passes into a function. A key size or hash chosen in one file and used in another is therefore reported where it is used, for example RSA-1024 rather than just RSA. A value that cannot be worked out from the code is left unresolved, never guessed. A local helper that merely borrows an algorithm's name (`def md5(text)` that formats text) is not counted.
 
 Python and optional JavaScript/TypeScript adapters build relationships. Other supported languages retain crypto detectors without equivalent function graphs. Dynamic callbacks and aliases can remain unresolved. Production files consume graph budgets before tests. Console repeat scans reuse unchanged syntax, but still read files and recompute findings and cross-file relationships; not every repository scans faster.
 
@@ -237,6 +241,13 @@ For broader configured evidence:
 
 ```sh
 pqcsuite readiness report --ca pki --targets hosts.txt --backups backups --html evidence.html
+```
+
+To include cryptography found in your own code, add one or more Wolf Pack output folders. Each algorithm becomes a row that names the files and lines where it is used and, for Python and JavaScript/TypeScript, the functions that reach it; high-severity security patterns such as switched-off certificate checks become rows that need action:
+
+```sh
+wolfpack scan "PATH_TO_REPOSITORY" -o wolfpack-out
+pqcsuite readiness report --targets hosts.txt --wolfpack wolfpack-out --html evidence.html
 ```
 
 Use only paths that actually exist on this installation. NIST IR 8547/CNSA 2.0 mappings help organize evidence; they are not an independent certification or a legal compliance opinion. A backup header alone does not prove a successful restore.

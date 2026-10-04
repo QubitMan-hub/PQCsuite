@@ -188,7 +188,7 @@ def prerequisites(product='all'):
     except (ImportError, ValueError, RuntimeError):
         add('vault', 'fail', 'Post-quantum key generation is unavailable', 'Install the cryptography version required by this checkout in the active Python environment')
     try:
-        context = tls.client_context(verify=False)
+        context = tls.client_context(verify=False)  # wolfpack:ignore (only checks that a context can be built; nothing connects)
         context.close()
         add('tls', 'ok', 'OpenSSL supports strict PQ TLS contexts')
     except (tls.TLSError, OSError) as error:

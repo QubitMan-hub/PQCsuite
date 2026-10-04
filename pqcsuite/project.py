@@ -54,16 +54,20 @@ def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, m
     for sighting in result.sightings:
         sighting.snippet = ""
         sighting.params.pop("literal", None)
+    for pattern in getattr(result, "patterns", []):
+        pattern.snippet = ""
     assets = [{"name": a.variant, "algorithm": a.algo, "tier": a.tier, "why": a.why, "action": a.action,
                "confidence": a.confidence, "test_only": a.test_only, "declared": a.declared,
                "uncertainty": "Algorithm inferred from names or literals; confirm the implementation and dynamic dispatch" if all(s.evidence in {"identifier", "import", "string"} for s in a.sightings) else "Static evidence; runtime use is not established",
                "locations": sorted({(s.file, s.line) for s in a.sightings}), "impact": a.params.get("code_impact"), "hybrid_context": a.params.get("hybrid_context", [])}
               for a in result.assets]
+    patterns = [{k: v for k, v in p.as_dict().items() if k != "snippet"} for p in getattr(result, "patterns", [])][:500]
     graph = result.relationships
-    assessment = {"project": root.name, "finished": time.time(), "assets": assets, "notes": result.notes,
+    assessment = {"project": root.name, "finished": time.time(), "assets": assets, "patterns": patterns, "notes": result.notes,
                   "summary": {"crypto_assets": len(assets), "priorities": dict(Counter(a["tier"] for a in assets)),
                               "python_files": graph.get("languages", {}).get("Python", 0), "languages": graph.get("languages", {}), "coverage_gaps": graph.get("skipped", {}),
-                              "migration_candidates": sum(a["tier"] in {"critical", "high"} and not a["test_only"] and not a["declared"] for a in assets), "functions": sum(s["kind"] == "function" for s in graph["symbols"]),
+                              "migration_candidates": sum(a["tier"] in {"critical", "high"} and not a["test_only"] and not a["declared"] for a in assets),
+                              "security_patterns": sum(p["severity"] in {"critical", "high"} for p in patterns), "functions": sum(s["kind"] == "function" for s in graph["symbols"]),
                               "resolved_calls": sum(bool(c["target"]) for c in graph["calls"]), "calls": len(graph["calls"]),
                               "libraries": result.stats["libraries"], "seconds": result.stats["seconds"], "graph_limited": graph["limited"], "truncated_files": len(graph.get("truncated_files", {})), "incremental": graph.get("incremental", {})},
                   "evidence_boundary": "Static source evidence is not runtime protection or proof of business ownership.",

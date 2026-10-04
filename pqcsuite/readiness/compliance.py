@@ -7,12 +7,16 @@ CNSA 2.0 (NSA, 2022, updated 2024): ML-KEM-1024, ML-DSA-87, AES-256 and SHA-384/
 import datetime as dt
 import html
 import json
+from pathlib import Path
 
 from ..brand import page
 
-CNSA2_DEADLINE = {"tls": 2033, "ssh": 2033, "vpn": 2030, "pki": 2033, "backup": 2033}
+CNSA2_DEADLINE = {"tls": 2033, "ssh": 2033, "vpn": 2030, "pki": 2033, "backup": 2033, "code": 2033}
 CNSA2_CATEGORY = {"tls": "web browsers, servers and cloud services", "ssh": "operating systems and services",
-                  "vpn": "traditional networking equipment (VPNs, routers)", "pki": "certificates and signing", "backup": "custom applications and data at rest"}
+                  "vpn": "traditional networking equipment (VPNs, routers)", "pki": "certificates and signing", "backup": "custom applications and data at rest",
+                  "code": "custom applications and legacy software"}
+CNSA2_ALGORITHMS = ("ML-KEM-1024", "ML-DSA-87", "AES-256", "SHA-384", "SHA-512", "LMS", "XMSS")
+LIMIT = 64_000_000
 STATUS = {"ready": "quantum-safe", "transition": "quantum-safe, classical fallback still allowed", "action": "action needed"}
 
 
@@ -84,6 +88,55 @@ def backups(items):
                         "post-quantum key encapsulation (FIPS 203)", "compliant" if cnsa else "needs recipients made with `vault keygen --cnsa2`",
                         {"file": b.get("file"), "authenticated": False}))
     return out
+
+
+def code(path):
+    """Rows from a Wolf Pack scan: its output folder (cbom.json, plus findings.json for security patterns) or a cbom.json file.
+    Read as data; Wolf Pack itself is not imported. Each row cites where the asset was seen and, when known, which functions reach it."""
+    path = Path(path)
+    folder = path if path.is_dir() else path.parent
+    bom, findings = _load(path / "cbom.json" if path.is_dir() else path), folder / "findings.json"
+    if not isinstance(bom, dict) or bom.get("bomFormat") != "CycloneDX" or not isinstance(bom.get("components"), list):
+        raise ValueError(f"{path} is not a CycloneDX CBOM; give a Wolf Pack output folder or its cbom.json")
+    project = str(((bom.get("metadata") or {}).get("component") or {}).get("name") or folder.name)
+    out = []
+    for c in bom["components"]:
+        if not isinstance(c, dict) or c.get("type") != "cryptographic-asset":
+            continue
+        props = {p.get("name"): str(p.get("value", "")) for p in c.get("properties") or [] if isinstance(p, dict)}
+        tier, name = props.get("wolfpack:tier", "medium"), str(c.get("name", "?"))
+        seen = [f"{o.get('location')}:{o.get('line')}" if o.get("line") else str(o.get("location")) for o in (c.get("evidence") or {}).get("occurrences") or []
+                if isinstance(o, dict)]
+        try:
+            callers = json.loads(props.get("wolfpack:code-impact") or "{}").get("callers") or []
+        except (ValueError, AttributeError):
+            callers = []
+        where = ", ".join(seen[:3]) + (f" and {len(seen) - 3} more" if len(seen) > 3 else "")
+        detail = f"{project}: {props.get('wolfpack:usage', 'used')} in {where or 'unknown location'}; {props.get('wolfpack:exposure', 'code')}"
+        detail += f"; reached from {', '.join(map(str, callers[:3]))}" if callers else ""
+        detail += f"; next: {props['wolfpack:recommendation']}" if props.get("wolfpack:recommendation") else ""
+        cnsa = any(name.startswith(a) for a in CNSA2_ALGORITHMS)
+        out.append(_row("code", name, detail, "action" if tier in ("critical", "high") else "transition" if tier == "medium" else "ready",
+                        props.get("wolfpack:nist-status") or "not classified", "compliant" if cnsa else "not a CNSA 2.0 algorithm",
+                        {"project": project, "tier": tier, "locations": seen[:20], "callers": callers[:20]}))
+    report = _load(findings) if findings.is_file() else {}
+    for p in report.get("patterns", []) if isinstance(report, dict) else []:
+        if isinstance(p, dict) and p.get("severity") in ("critical", "high"):
+            out.append(_row("code", f"{p.get('rule')} {p.get('title')}", f"{project}: {p.get('file')}:{p.get('line')} ({p.get('cwe')}); fix: {p.get('fix')}",
+                            "action", "undermines the protection of whatever algorithm is chosen", "not compliant",
+                            {"project": project, "pattern": p.get("rule"), "locations": [f"{p.get('file')}:{p.get('line')}"]}))
+    return out
+
+
+def _load(path):
+    with open(path, "rb") as f:
+        raw = f.read(LIMIT + 1)
+    if len(raw) > LIMIT:
+        raise ValueError(f"{path} is larger than {LIMIT // 1_000_000} MB")
+    try:
+        return json.loads(raw)
+    except ValueError:
+        raise ValueError(f"{path} is not valid JSON") from None
 
 
 def report(rows):

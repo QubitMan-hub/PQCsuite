@@ -85,6 +85,15 @@ def verify(sightings, threshold=0.6, lines=None, corroboration=True):
     return sightings
 
 
+def settle(sightings):
+    """After the second look: a name that is only a local look-alike is rejected; anything in code that can never run is held."""
+    for s in sightings:
+        if "lookalike" in s.context and s.verdict != "suppressed":
+            s.confidence, s.verdict, s.reason = 0.0, "rejected", "named like an algorithm, but a local definition that does no cryptography"
+        elif "unreachable" in s.context and s.verdict == "accepted":
+            s.verdict, s.reason = "quarantined", "in code that can never run (a constant-false branch, or after return or raise)"
+
+
 def admit_all(sightings):
     """Ablation: the den is bypassed and every scout sighting of a known algorithm is trusted."""
     out = [s for s in sightings if s.algo in CATALOG]

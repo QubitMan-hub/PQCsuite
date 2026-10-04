@@ -35,6 +35,17 @@ def test_scan_exports_and_history_have_evidence_without_source(tmp_path):
     assert len(json.loads(history.read_text())) == 100
 
 
+def test_security_patterns_are_listed_without_source_or_secret_values(tmp_path):
+    (tmp_path / 'client.py').write_text('import requests\nAPI_SECRET = "Zq8vN3kLp0RtX2"\nrequests.get("https://bank", verify=False)\n')
+    out = tmp_path / 'pqcsuite-out'
+    result = scan(tmp_path, out)
+    assert {(p['rule'], p['line']) for p in result['patterns']} == {('WPC001', 3), ('WPC002', 2)}
+    assert result['summary']['security_patterns'] == 2
+    assert all('snippet' not in p for p in result['patterns'])
+    for f in out.iterdir():
+        assert 'Zq8vN3kLp0RtX2' not in f.read_text()
+
+
 def test_registered_project_api_rejects_paths_and_runs_real_scan(tmp_path):
     fixture(tmp_path)
     app = App(Settings(project_roots=[str(tmp_path)], audit_log=str(tmp_path/'audit.jsonl')), token='test')

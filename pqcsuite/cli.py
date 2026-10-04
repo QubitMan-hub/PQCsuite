@@ -65,7 +65,7 @@ def cmd_doctor(a):
     print(f"CA and Vault: ready (cryptography {cryptography.__version__}, with its own {backend.openssl_version_text()})")
     try:
         lib = tls.lib()
-        ctx = tls.client_context(verify=False)
+        ctx = tls.client_context(verify=False)  # wolfpack:ignore (only checks that a context can be built; nothing connects)
         ctx.close()
         print(f"TLS edge, VPN key agreement and readiness scans: ready (this machine's {lib.version}; groups {tls.PQC_GROUPS})")
         broken = False
@@ -653,8 +653,8 @@ def cmd_report(a):
     from .readiness import compliance
     from .readiness import scan
     from .console import App, Settings
-    if not (a.ca or a.targets or a.vici or a.backups):
-        raise ValueError("nothing to report on: pass --ca, --targets, --vici or --backups")
+    if not (a.ca or a.targets or a.vici or a.backups or a.wolfpack):
+        raise ValueError("nothing to report on: pass --ca, --targets, --vici, --backups or --wolfpack")
     app = App(Settings(ca=a.ca or "", vpn=a.vici, backups=a.backups))
     rows = []
     if a.ca:
@@ -665,6 +665,8 @@ def cmd_report(a):
     if targets:
         rows += compliance.endpoints(scan.scan(targets, timeout=a.timeout))
     rows += compliance.tunnels(app.tunnels()) + compliance.backups(app.backups())
+    for scan_out in a.wolfpack:
+        rows += compliance.code(scan_out)
     rep = compliance.report(rows)
     if a.html:
         Path(a.html).write_text(compliance.to_html(rep), encoding="utf-8")
@@ -1025,6 +1027,8 @@ def parser():
     p.add_argument("--targets", nargs="*", default=[], help="host, host:port, ssh://host or .txt files to scan")
     p.add_argument("--vici", action="append", default=[])
     p.add_argument("--backups", action="append", default=[])
+    p.add_argument("--wolfpack", action="append", default=[], metavar="FOLDER",
+                   help="a Wolf Pack output folder (or its cbom.json): cryptography in code, with where it is used (repeatable)")
     p.add_argument("--html")
     p.add_argument("--json")
     p.add_argument("--timeout", type=float, default=8.0)
