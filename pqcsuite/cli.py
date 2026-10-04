@@ -813,8 +813,8 @@ def cmd_report(a):
     if a.json:
         Path(a.json).write_text(compliance.to_json(rep), encoding="utf-8")
     s = rep["status"]
-    print(f"{rep['assets']} assets: {s['ready']} quantum-safe, {s['transition']} with classical fallback, {s['action']} need action; "
-          f"{rep['cnsa2_compliant']} meet CNSA 2.0")
+    print(f"{rep['assets']} assets: {s['action']} need action, {s['plan']} quantum-vulnerable to plan, {s['transition']} with classical fallback, "
+          f"{s['ready']} quantum-safe" + (f", {s['note']} not used for security" if s['note'] else "") + f"; {rep['cnsa2_compliant']} meet CNSA 2.0")
     return 0 if not s["action"] else 2
 
 

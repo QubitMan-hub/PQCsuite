@@ -52,7 +52,8 @@ class ComplianceTest(unittest.TestCase):
         page = compliance.to_html(rep)
         self.assertIn("need action", page)
         self.assertIn("Backup classifications describe unverified headers", page)
-        self.assertNotIn("<script", page)
+        self.assertEqual(page.count("<script"), 1, "only the page's own filter script")
+        self.assertIn("Do these first", page)
 
     def test_wolfpack_scan_becomes_code_rows_that_cite_locations_and_callers(self):
         import json
@@ -71,7 +72,7 @@ class ComplianceTest(unittest.TestCase):
             {"rule": "WPC002", "title": "Secret written into source code", "cwe": "CWE-798", "severity": "low", "file": "tests/t.py", "line": 1, "fix": "x"}]}))
         rows = compliance.code(d)
         by = {r["name"]: r for r in rows}
-        self.assertEqual([by[n]["status"] for n in ("RSA-1024", "AES-256-GCM", "<script>alert(1)</script>")], ["action", "ready", "transition"])
+        self.assertEqual([by[n]["status"] for n in ("RSA-1024", "AES-256-GCM", "<script>alert(1)</script>")], ["action", "ready", "plan"])
         self.assertIn("keys.py:7", by["RSA-1024"]["detail"])
         self.assertIn("checkout.py#enroll", by["RSA-1024"]["detail"])
         self.assertEqual((by["AES-256-GCM"]["cnsa2"], by["RSA-1024"]["cnsa2_deadline"]), ("compliant", 2033))

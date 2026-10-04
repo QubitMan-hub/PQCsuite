@@ -218,6 +218,11 @@ test('one registered project scan shows real crypto callers and exports private 
   await page.click('#project-scan button');
   await expect(page.locator('#project-count')).toContainText('assets');
   await expect(page.locator('#project-message')).toHaveText('Complete');
+  await expect(page.locator('#project-tiers [data-tier="high"]')).toContainText('1');
+  await page.click('#project-tiers [data-tier="critical"]');
+  await expect(page.locator('#project-count')).toContainText('0 of');
+  await page.click('#project-tiers [data-tier="critical"]');
+  await expect(page.locator('#project-count')).toContainText('1 of');
   const row=page.locator('#project-results tbody tr').filter({hasText:'RSA'}).first();
   await row.getByText('Inspect affected code', {exact:true}).click();
   await expect(row).toContainText('keys.py#make');
