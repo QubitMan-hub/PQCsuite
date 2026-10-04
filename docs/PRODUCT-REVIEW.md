@@ -230,3 +230,19 @@ Final pinned public-repository rerun (static analysis only; no target source exe
 | django | 48.02 / 39.42 | 2976 | 14 | 2393776 |
 
 Every saved graph reloaded identically. Django has 1,653 truncated test files and no truncated production files; its one invalid Python file remains a reported parse failure. Noble’s immutable signer-table DSA false finding is absent; dynamic aliases elsewhere still require review. Timings share a host with other tests and are not controlled performance benchmarks. All five final CBOMs (corpus, suite and three public projects) validate with zero CycloneDX 1.6 errors. Current-code container checks: 61 passed, 3,570 subtests, against real services/TLS/Vault.
+
+## Competitive recheck — 4 October 2026
+
+Public pages re-read: [PQCvpn](https://pqcrypto.ai/pqcvpn/) (Windows 10/11 and macOS 13+ downloads, "one-click connection", ML-KEM/ML-DSA/SLH-DSA named, protocol not stated), [PQCLens](https://pqcrypto.ai/pqclens/) (agent-based discovery, severity and environment breakdowns, readiness score and roadmap, 30-day trends), [Q-Vault](https://pqcrypto.ai/qvault/) (PQC encryption of backups before upload to 70+ storage services). These are advertised capabilities, not tested products. The PQCvpn source the owner mentioned was not available in this environment.
+
+| Customer need | PQCrypto (public claims) | PQC Suite now | Status |
+|---|---|---|---|
+| Join a VPN without technical steps | Desktop installer, one click | One invitation file and one command (`vpn join`), checks rights and WireGuard first, plain Protected / Connecting / Not protected status | Partial: no desktop app or signed installer (signing excluded by the owner) |
+| Know whether you are protected | Not described | Protected only after a tunnel handshake with the latest post-quantum key; TLS group and certificate algorithm shown; `vpn status` | Covered |
+| Site-to-site | Contact sales | strongSwan IKEv2 with ML-KEM + PPK, rotation, revocation, console telemetry | Stronger (self-serve, documented) |
+| Find vulnerable cryptography | Agents across infrastructure | Wolf Pack: code, configs, keys, certificates, binaries, dependencies, live TLS/SSH, cross-file values and callers, security patterns | Different shape: no fleet agents; deeper, evidence-cited code analysis |
+| Readiness overview and priorities | Score, severity, trends | Dashboard with action counts, "do these first", per-area CNSA 2.0 deadlines, code evidence with callers, history in the console | Covered without an invented score |
+| Protect backups | Many cloud destinations | Local hybrid-PQ archives, signatures, recovery recipients, verify and restore; any sync tool moves them | Destinations deliberately left to existing tools |
+| Certificates and TLS edge | Not offered as products | ML-DSA CA, EST, ACME, PQ TLS edge | PQC Suite only |
+
+Remaining gaps a customer would notice: no desktop VPN app, no fleet agents for continuous inventory across machines, and relationship analysis only for Python and JavaScript/TypeScript.

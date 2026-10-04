@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:1b032834-2b70-4afd-9dd3-6e2b986ec5b5",
+  "serialNumber": "urn:uuid:e6016063-f053-4091-8633-1cdc76e4578f",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-04T17:26:35Z",
+    "timestamp": "2026-10-04T18:06:41Z",
     "tools": {
       "components": [
         {
@@ -1271,7 +1271,7 @@
           {
             "location": "readiness/compliance.py",
             "additionalContext": "string: cnsa = \"ML_KEM_1024\" in kex and \"ECP_384\" in kex and all(c == \"AES_GCM_16_256\" for c in ciphers)",
-            "line": 73
+            "line": 75
           },
           {
             "location": "vault.py",
@@ -2080,7 +2080,7 @@
           {
             "location": "readiness/compliance.py",
             "additionalContext": "string: cnsa = r.algorithm == \"ML-DSA-87\"",
-            "line": 34
+            "line": 36
           },
           {
             "location": "readiness/scan.py",
@@ -2157,6 +2157,11 @@
             "location": "vpn/charon.py",
             "additionalContext": "string: and 'ML_KEM' in tunnel.get('key_exchange', '')",
             "line": 58
+          },
+          {
+            "location": "vpn/wireguard.py",
+            "additionalContext": "string: \"key_agreement\": self.details | {\"post_quantum\": \"MLKEM\" in str(self.details.get(\"tls_group\", \"\")).upper(),",
+            "line": 417
           }
         ]
       },
@@ -2183,7 +2188,7 @@
         },
         {
           "name": "wolfpack:code-impact",
-          "value": "{\"functions\":[\"vpn/charon.py#protected\"],\"callers\":[\"vpn/controller.py#Controller.initiator_loop\",\"vpn/controller.py#Controller.metrics\"],\"modules\":[\"vpn.charon\",\"vpn.controller\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
+          "value": "{\"functions\":[\"vpn/charon.py#protected\",\"vpn/wireguard.py#Client.status\"],\"callers\":[\"vpn/controller.py#Controller.initiator_loop\",\"vpn/controller.py#Controller.metrics\"],\"modules\":[\"vpn.charon\",\"vpn.controller\",\"vpn.wireguard\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -2226,7 +2231,7 @@
           {
             "location": "readiness/compliance.py",
             "additionalContext": "string: cnsa = \"ML_KEM_1024\" in kex and \"ECP_384\" in kex and all(c == \"AES_GCM_16_256\" for c in ciphers)",
-            "line": 73
+            "line": 75
           },
           {
             "location": "readiness/scan.py",

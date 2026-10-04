@@ -1,77 +1,39 @@
-## Active accuracy milestone — 2 October 2026
-
-Resumed from 8aadfc1 after cloud transport recovery; preserve concurrent work and normal main-only pushes. Team access and native installer code signing remain excluded. Shared AST alias/purpose/hybrid evidence, production-first bounded syntax reuse, compressed version-2 project graphs (version-1 read support), advanced pinned/CRL-checked endpoint evidence, guided setup/enrollment, and private pilot measurements are implemented. Endpoint association is operator supplied; successful connection evidence is not a verified full migration. See README, CODE-CRAWLER and PILOT for boundaries.
-
-Current local evidence: 391 full-suite tests passed, 14 prerequisite skips, 38 browser checks; added focused storage/cache tests also passed. Lint/basic types, wheels, 166-pair tuned corpus/ablations and self-scan high-risk baseline passed. Recovery soak: 20 minutes, 96,792 successes, zero failures, 49/49 revocations, eight renewals. Final three public-project graph roundtrips and schema checks passed; current-code real-service/TLS/Vault container checks passed 61 tests and 3,570 subtests. Commit c8ed6bc passed all 15 suite CI jobs, Wolf Pack CI and CodeQL (suite run 36953250576). Newer commits require their own checks. Private artifacts: /workspace/accuracy-release. No actual customer pilots, outside review or physical laptop testing is claimed.
-
 # Agent handoff
 
-Current instructions for the next contributor; superseded progress notes remain in Git history.
+Current state for the next contributor (any agent or person). Superseded progress notes live in Git history; validation evidence lives in each commit's CI run and in `docs/PRODUCT-REVIEW.md`.
 
-## Current priority — improve and verify the five existing products
+## Rules that always apply
 
-- Owner resumed the product roadmap, then explicitly removed team access (SSO/RBAC) and native installer code signing from scope on 1 October 2026. Neither was implemented in this checkout; do not add them or request identity-provider/signing credentials. Keep the single-administrator token console, third-party installer signature verification, and core certificate/Vault cryptographic signing intact.
-- Continue scanner accuracy, large-repository coverage/performance, evidence-backed migration verification, easier setup/diagnostics and realistic product validation. Actual customer laptops/cloud accounts and independent reviewers remain external validation prerequisites; do not claim those checks from local or CI substitutes.
+- Work on `main` (owner-authorised). No pull requests, force pushes, protection bypass, secrets or unrelated changes. Fetch, read `git log` and recent diffs before editing; another agent may be working concurrently.
+- Read `CLAUDE.md` and `wolf-pack/CLAUDE.md` first. Keep the Acxelin styling, and keep Wolf Pack on its own page (never a product card on `site/index.html`).
+- Out of scope by owner decision (1 October 2026): team access (SSO/RBAC) and native installer code signing. Do not add them or ask for identity-provider or signing credentials. The console stays a single-administrator token console.
+- Do not claim what was not run: customer laptops, cloud accounts, long-duration soak, independent security review and privileged kernel tunnels need their real environments. Source evidence is not a verified deployment; a missing finding is not a verified fix.
+- Never delete supported detectors, labelled evaluation truth or test fixtures as "duplicates".
 
-- Latest real-application pass starts at `f573521`: real nginx/PostgreSQL/Redis/MQTT/OpenSSH scenarios plus three pinned public static scans (Django, PyCryptodome, noble-post-quantum). Fixed `SelfTest`/`test_vectors` classification; PyCryptodome keeps 73 assets but production candidates drop 25 → 17. Added PostgreSQL dump/recovery/restore and Redis traffic before/after VPN rotation; the CI VPN job now installs Redis. Host validation: 378 passed, 14 prerequisites skipped; real-service container 54 passed; real userspace WireGuard Redis/rotation/revocation passed. Final commit CI must execute the encrypted IPsec Redis checks. See `docs/PRODUCT-REVIEW.md` for review context and coverage limitations.
+## Layout
 
-- Publishing the environment restored GitHub access on 1 October 2026. The Windows lock correction is `cfb7646`; local verification passed 376 tests with 13 prerequisite skips. `048c03e` passed all 15 CI jobs and CodeQL (run 36837393428). Check the latest commit’s own platform CI before using that earlier result as release evidence.
-- Follow-up platform CI exposed a Windows Python 3.11 multi-process CA lock failure. Shared storage now retries nonblocking Windows lock contention and marks reentrancy only after successful acquisition; errors/interruptions must never allow a later unprotected update. Regression coverage includes injected failures and contention, plus the existing six-process CA race. Keep the remote Windows matrix required.
+| Path | What it is |
+|---|---|
+| `pqcsuite/` | the suite: `tls/` (edge, OpenSSL binding), `pki/` (CA, EST, ACME, signers), `vpn/` (strongSwan site-to-site, WireGuard remote access, platforms), `vault.py`, `readiness/` (endpoint scans, compliance report), `console/`, `project.py` (repository scans through Wolf Pack), `storage.py` (atomic private writes, locks) |
+| `wolf-pack/` | the separate Wolf Pack CBOM scanner, including the Code Crawler (`wolfpack/crawler.py`, `crawler_web.py`, `scouts/pyflow.py`) and security patterns (`scouts/patterns.py`) |
+| `tests/`, `wolf-pack/tests/`, `tests/browser/` | pytest suites and Playwright journeys |
+| `docs/` | manual (single source for `site/product-manual.html`, built by `scripts/manual.py`), threat model, Code Crawler, pilot protocol, reviews, and the reviewed self-scan inventory `docs/cbom.json` |
+| `site/` | the public website; `site/publish.py` prepares it for Pages |
+| `deploy/`, `docker/`, `examples/` | Helm, Kubernetes, Packer, systemd units (installed by `deploy/packer/provision.sh`), images, example configs and demos |
 
-- Remote validation supersedes the earlier *local kernel* VPN boundary below: actual `afa39fa` CI logs prove 34 IPsec/TLS checks with encrypted traffic and daemon restart recovery, 13 WireGuard checks including full tunnel/kill switch, and 16 Windows platform checks including a native tunnel. Run: https://github.com/QubitMan-hub/PQCsuite/actions/runs/36836106173. That overall run failed separate tests/image checks, so it is not a release sign-off.
-- `b2e5b3e` fixes macOS publisher path canonicalization, the release-runner unit test's unnecessary TLS dependency, missing Git in Debian test CI, and outdated OpenSSL/PCRE2 distribution packages in the runtime image. Local verification: 375 passed, 13 prerequisite skips; lint, image build/doctor/tour and fixable HIGH/CRITICAL Trivy gate passed. Inspect the commit's CI before claiming a complete platform pass. Windows/macOS native CI tests do not establish customer-laptop end-to-end traffic, kill-switch, sleep/wake or roaming.
+## Latest changes (October 2026)
 
-- Latest recheck from `2ae48bb`: 374 Python tests passed (13 host prerequisite skips), 37 browser tests, and 73 real-service/container tests including strongSwan responder restart recovery. Both wheels and the installed-package restart/remediation workflow passed; no new dependencies or modules. Fixed VICI reconnection/status retry/responder reload, invalid CA preflight, and misleading Vault header assurance. One-minute soak: 5,583 connections, zero failures, 3/3 revocations enforced. Kernel/platform limitations below remain unchanged.
+- **Code Crawler accuracy:** Python values are followed across files and through function parameters; look-alike names and unreachable code are handled by new roles `lookalikes` and `reachability`; security patterns WPC001–WPC005 (role `patterns`) reach SARIF with CWE tags, the report, `findings.json` and console assessments. Gitignored files are scanned again (keys and `.env` files live there). Measurements: `docs/CODE-CRAWLER.md`.
+- **VPN:** `vpn invite` / `vpn join` replace four hand-copied values and two commands with one file and one command; the client reports Protected / Connecting / Not protected, and `vpn status` reads the same state.
+- **Readiness:** `readiness report --wolfpack FOLDER` adds code rows; the HTML report is a dashboard (do these first, per-area summary, filterable table). Code rows distinguish "action needed", "quantum-vulnerable: plan its migration", "not used for security" and "quantum-safe".
+- **Console:** project findings come first, with priority counts that filter; the Vault page explains protection and flags archives without a recovery recipient; the VPN page no longer says "Disconnected" when nothing is configured.
 
-- The earlier roadmap pause is superseded by the current scope above. Team access and native installer code signing remain excluded by the owner.
-- Verification from `1d42417`: 369 Python tests and 37 browser journeys passed; 12 host prerequisites skipped. Additional current-code container service/TLS/Vault/VPN checks: 78 passed, 3 VPN prerequisites skipped. Real strongSwan control-plane checks: 10 passed. Real userspace WireGuard split-tunnel traffic/rotation/revocation passed; full-tunnel test remains blocked by the kernel's missing IPv6 `addrtype` matcher. IPsec dataplane fails kernel SA installation (“Requested type not found”). Do not claim complete VPN validation.
-- Fixed a real VPN status/recovery defect: IKE establishment alone no longer counts as protected. Require an installed encrypted child plus ML-KEM/PPK for health/metrics/overview, show IKE-only state in the UI, and retry missing children. Regression tests and stricter real dataplane assertions added.
-- TLS/clinic/bank workflows, Vault scenarios, all scanner corpus/ablations, seven public static projects, dependency audit, wheels, lint/basic types and CBOM schema/baseline passed. Soak: 5,907 connections, zero failures, 3/3 revocations enforced. Full evidence and precise boundaries: `docs/PRODUCT-REVIEW.md`.
+## Open work
 
-## Latest product milestone — persistent remediation
+- A native desktop VPN client or signed installer (customer laptops currently use the terminal; installer signing is out of scope).
+- Relationship adapters for Java, Go and C#; hard resource isolation for repository scans.
+- Independent cryptographic and security review; real laptop, cloud and long-duration validation.
 
-- Console now persists approved-parent registrations, latest full assessments, 30 recent comparisons per project, owners/deadlines and expiring exceptions in `.pqcsuite/projects.json` (`--project-state` overrides). Scope is rechecked on restart/use; private atomic storage and cross-process locks are reused. It remains a single-administrator token console, not SSO/RBAC.
-- Finding IDs survive line shifts; rescans retain previous observations and assignments. “Not observed” is never labeled a verified deployed fix. Exceptions require rationale/expiry, stay in risk results, and show expired/overdue labels.
-- `console --sample-project` creates an intentionally classical local example and preserves edits. Website has a sample assessment entry point and explicit language coverage matrix; Acxelin styling/product placement preserved.
-- Unified scans have 50,000-file/512 MB discovery and five-minute cooperative time budgets plus Cancel. Prior completed evidence survives cancellation/quota failures. One parser/graph operation may finish before a checkpoint; this is not hard process isolation. No new production module or dependency.
-- Validation: 367 Python tests passed, 12 prerequisite skips and 4,473 subtests; 36 browser journeys passed. Installed-wheel restart/remediation/rescan smoke passed. Both wheels, lint/basic types, CBOM baseline/schema, repeated publishing and seven real public static scans passed. All 20 corpus/ablation rows unchanged; before/after table in `docs/CODE-CRAWLER.md`.
-- Remaining independent work: Java/Go relationship adapters, hard resource isolation, independent security review and real laptop/cloud/long-duration validation. The later accuracy milestone implements syntax reuse and guided onboarding. Team access and native installer code signing are excluded from the current roadmap. Owner labels remain workflow metadata, not access controls.
+## Releases
 
-## Preserve
-
-- Work on `main` is authorized by the owner. No PR, force push, protection bypass, secrets or unrelated changes. Check status/diffs and fetch before integrating; Claude Code's active work is unknown. Audit began at clean `3366c37`; no concurrent changes were observed.
-- Read `CLAUDE.md` and `wolf-pack/CLAUDE.md`. Keep Acxelin styling and Wolf Pack's separate product placement. Do not delete supported config/binary/unsupported-language detectors or labeled evaluation truth as duplicates.
-- Shared Code Crawler supports Python and optional JavaScript/TypeScript AST relationships, package aliases and bounded static caller/module impact. Dynamic dispatch and unsupported languages remain explicit coverage gaps. See [Code Crawler](docs/CODE-CRAWLER.md).
-- Unified project scans feed Wolf Pack reports and Readiness. Approved-parent onboarding rejects traversal/outside paths/symlinks; exports omit source snippets/literals; private summary history uses shared cross-process storage locks. Default results exclude tests/declarations; advanced views retain them. Manual CBOM import and endpoint assessment remain separate supported evidence paths.
-- Existing hardening, certificate/Vault recovery, truthful VPN telemetry, endpoint prioritization, offline exports, mobile and accessibility flows remain intact.
-
-## Final audit changes
-
-- Release evidence now uses pytest, including function-style tests, and refuses empty/failing runs. Release reports refuse failed/missing local evidence despite green remote CI; regressions demonstrate these failures.
-- Linux integration/macOS CI use the same runner and parser extras. Wolf Pack runtime changes trigger suite CI; optional dependency audit derives requirements from manifests. Targeted privileged VPN checks remain unchanged.
-- Consolidated stale developer/handoff guidance; repository map in [Contributing](CONTRIBUTING.md), generated default scan outputs ignored. Exact duplicate and unused-symbol checks found no safely removable production implementation. Required independent package assets and fixtures remain.
-- Before/after, final validation and public competitor gaps: [Product review](docs/PRODUCT-REVIEW.md). Do not claim market superiority, a net source reduction or production readiness.
-
-## Final validation — 1 October 2026
-
-- Shared release evidence: 361 passed, 12 prerequisite skips, 4,446 passed subtests; 35 browser journeys passed. The JUnit total includes subtests. Additional Debian 13 real-service tests: 17 passed with no skips (nginx/PostgreSQL/Redis/MQTT/OpenSSH and related scenarios).
-- Both wheels built/installed in a clean environment; optional web and base scans, seven pinned public repositories, corpus ablations, CBOM baseline/schema, lint/basic types, runtime/optional dependency audit, website publishing and demos passed. Production container built and ran with trusted proxy CA supplied through a temporary build secret, without changing the shipped Dockerfile or disabling verification.
-- One-minute soak: 6,094 successful connections, no failures, 3/3 revocations enforced. Full release benchmark passed. These do not establish long-duration/production reliability; remote CI on the final commit is not claimed.
-
-## Release boundaries
-
-- The aligned release targets are PQC Suite 0.3.0 and Wolf Pack 1.3.0. Check their GitHub release workflows/assets before claiming publication; source checkout installation remains supported. Base container does not include optional repository scanning.
-- Hard resource isolation, broader AST languages and independently proven deployment provenance remain open. Guided certificate enrollment, syntax reuse and operator-associated endpoint observations are now implemented. Team access and native installer code signing are outside the current scope. Independent security review and real cloud/laptop/privileged tunnel/long-run validation require their actual environments.
-- Cloud onboarding instructions already saved in the environment draft; no new environment configuration is needed for these source/CI/doc changes. No publication of that draft is implied.
-
-## Website and demo synchronization
-
-The website now describes the current setup, syntax reuse, purpose-aware findings and bounded endpoint verification. Sample report/inventory pages are regenerated with the checkout scanner; Pages builds regenerate them on scanner/example changes. Older release/container artifacts remain immutable and do not include unreleased main changes. Clinic/bank demos, site tests and browser journeys are checked against the current implementation. Preserve the distinction between source evidence and a verified endpoint observation.
-
-## Customer manual and release alignment — 2 October 2026
-
-Single source: docs/PRODUCT-MANUAL.md. Build its standalone Acxelin HTML with scripts/manual.py (build-only markdown-it-py 4.2.0); Pages and release workflows regenerate it, and release downloads include both formats. The manual covers all four suite products plus separate Wolf Pack, website/console, workflows, recovery, capability differences and evidence limits. It explains encrypted-device startup-service limitations instead of recommending unencrypted keys. Interactive VPN connect now prompts for an encrypted device key; noninteractive callers must supply the existing environment option and unsupported built-in install refuses before changing the system.
-
-Version targets: suite 0.3.0 (package, module, Helm and Packer aligned), Wolf Pack 1.3.0. Publish only through existing release workflow after exact-commit checks; never rewrite old tags. Actual release status must be confirmed from GitHub, not inferred from this note.
-
-Release follow-up: v0.3.0 published from d53881e even after cancellation was requested because the release job used always(). Preserve that published release and wolf-pack-v1.3.0. The 0.3.1 patch fixes standalone manual links and makes release publication respect cancellation, serialize the same tag and refuse existing releases before touching images. Only suite releases receive the Latest label. Confirm final publication from GitHub.
+Published: suite v0.3.1 (v0.3.0 is kept as published) and Wolf Pack 1.3.0. Unreleased work is listed under "Unreleased" in both changelogs. Publish only through the release workflow after the exact commit's CI passes; never rewrite tags; confirm publication on GitHub rather than from this note.
