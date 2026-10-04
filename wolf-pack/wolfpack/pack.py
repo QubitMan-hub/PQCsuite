@@ -93,8 +93,8 @@ def hunt(root, roles=Roles(), scope=False, tls_targets=(), ssh_targets=(), captu
         if unparsed:
             for path in unparsed:
                 h.crawler.gap("Python (syntax errors)", path)
-            h.notes.append(f"{len(unparsed)} Python file(s) could not be parsed by this Python ({sys.version.split()[0]}): newer syntax, or not "
-                           f"Python 3. Only their strings and comments were read, so calls in them were missed; run Wolf Pack on the "
+            h.notes.append(f"{len(unparsed)} Python file(s) could not be parsed by this Python ({sys.version.split()[0]}): newer syntax, nesting too deep "
+                           f"to analyse, or not Python 3. Only their strings and comments were read, so calls in them were missed; run Wolf Pack on the "
                            f"project's Python or newer (the Docker image and GitHub Action use 3.14): "
                            + ", ".join(unparsed[:5]) + (" ..." if len(unparsed) > 5 else ""))
         big = oversized(root, scope)

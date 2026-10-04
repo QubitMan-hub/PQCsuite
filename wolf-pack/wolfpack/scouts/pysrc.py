@@ -300,7 +300,10 @@ def scan_python(path, src, constants=True, on_tree=None, parse=ast.parse, flow=N
     if on_tree:
         on_tree(path, tree)
     s = PyScout(path, src, constants, flow)
-    s.visit(tree)
+    try:
+        s.visit(tree)
+    except RecursionError:
+        return None
     if flow:
         try:
             revisit(s, path, src, constants, flow)

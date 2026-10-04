@@ -128,22 +128,30 @@ class CodeCrawler:
             self.gap(language + " (no relationship adapter)", path)
         if language == "js":
             from .crawler_web import observe
-            sizes = (len(self.symbols), len(self.calls), len(self.imports), len(self.aliases), self.files, dict(self.languages))
-            try:
-                return observe(self, path, text)
-            except RecursionError:
-                ns, nc, ni, na, self.files, languages = sizes
-                del self.symbols[ns:]
-                del self.calls[nc:]
-                del self.imports[ni:]
-                del self.aliases[na:]
-                self.languages = defaultdict(int, languages)
-                self.uncertain_lines.pop(path, None)
-                self.gap("Web syntax (analysis depth limit)", path)
-                self.limited = True
+            return self.guarded(lambda: observe(self, path, text), path, "Web syntax (analysis depth limit)")
+
+    def guarded(self, work, path, category):
+        """Run one file's analysis; a tree too deep to walk is rolled back and reported as a coverage gap."""
+        sizes = (len(self.symbols), len(self.calls), len(self.imports), len(self.aliases), len(self.crypto_contexts), self.files, dict(self.languages))
+        try:
+            return work()
+        except RecursionError:
+            ns, nc, ni, na, nx, self.files, languages = sizes
+            del self.symbols[ns:]
+            del self.calls[nc:]
+            del self.imports[ni:]
+            del self.aliases[na:]
+            del self.crypto_contexts[nx:]
+            self.languages = defaultdict(int, languages)
+            self.uncertain_lines.pop(path, None)
+            self.gap(category, path)
+            self.limited = True
 
     def observe(self, path, tree):
         """Called with the very AST the existing cryptographic detector uses."""
+        self.guarded(lambda: self.observe_python(path, tree), path, "Python (analysis depth limit)")
+
+    def observe_python(self, path, tree):
         self.files += 1
         self.languages["Python"] += 1
         module = path.removesuffix(".py").replace("/", ".").removesuffix(".__init__")
