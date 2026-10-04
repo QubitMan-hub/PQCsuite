@@ -1,16 +1,16 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:c46643ff-7d81-47a9-a449-5047feb6e594",
+  "serialNumber": "urn:uuid:0eeebbfd-fd1b-444c-bc59-2e974fe7ecd9",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-09-29T05:38:04Z",
+    "timestamp": "2026-10-04T16:51:30Z",
     "tools": {
       "components": [
         {
           "type": "application",
           "name": "wolfpack",
-          "version": "1.2.0"
+          "version": "1.3.0"
         }
       ]
     },
@@ -41,16 +41,6 @@
       "evidence": {
         "occurrences": [
           {
-            "location": "vault.py",
-            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519",
-            "line": 32
-          },
-          {
-            "location": "vault.py",
-            "additionalContext": "call: return x25519.X25519PrivateKey.generate() if self.curve is None else ec.generate_private_key(self.curve)",
-            "line": 48
-          },
-          {
             "location": "pki/acme.py",
             "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa",
             "line": 30
@@ -59,6 +49,16 @@
             "location": "pki/acme.py",
             "additionalContext": "call: return ec.EllipticCurvePublicNumbers(_int(jwk[\"x\"]), _int(jwk[\"y\"]), CURVES[jwk[\"crv\"]][0]).public_key(), {CURVES[jwk[\"crv\"]][2]}",
             "line": 85
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519",
+            "line": 33
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return x25519.X25519PrivateKey.generate() if self.curve is None else ec.generate_private_key(self.curve)",
+            "line": 49
           }
         ]
       },
@@ -82,6 +82,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"pki/acme.py#jwk_key\",\"vault.py#Suite.dh_generate\"],\"callers\":[\"pki/acme.py#Service.parse\"],\"modules\":[\"pki.acme\",\"vault\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -123,7 +127,7 @@
           {
             "location": "vault.py",
             "additionalContext": "call: return priv.exchange(pub) if self.curve is None else priv.exchange(ec.ECDH(), pub)",
-            "line": 57
+            "line": 58
           }
         ]
       },
@@ -147,6 +151,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"vault.py#Suite.exchange\"],\"callers\":[],\"modules\":[\"vault\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -259,6 +267,10 @@
           "value": "Disallowed after 2035 (NIST IR 8547)"
         },
         {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"pki/acme.py#jwk_key\",\"pki/acme.py#thumbprint\",\"pki/acme.py#verify\",\"readiness/scan.py#key_name\"],\"callers\":[\"pki/acme.py#Service.new_account\",\"pki/acme.py#Service.parse\",\"readiness/scan.py#_cert_info\",\"readiness/scan.py#probe\",\"readiness/scan.py#scan.one\"],\"modules\":[\"pki.acme\",\"readiness.scan\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
+        },
+        {
           "name": "wolfpack:rationale",
           "value": "Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)"
         },
@@ -298,44 +310,44 @@
       "evidence": {
         "occurrences": [
           {
-            "location": "vault.py",
-            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519",
-            "line": 32
-          },
-          {
-            "location": "vault.py",
-            "additionalContext": "call: return x25519.X25519PrivateKey.generate() if self.curve is None else ec.generate_private_key(self.curve)",
-            "line": 48
-          },
-          {
-            "location": "vault.py",
-            "additionalContext": "call: return x25519.X25519PublicKey.from_public_bytes(data) if self.curve is None else ec.EllipticCurvePublicKey.from_encoded_point(self.curve, data)",
-            "line": 54
-          },
-          {
-            "location": "vault.py",
-            "additionalContext": "identifier: return kem_ok and isinstance(dh_key, (x25519.X25519PrivateKey, x25519.X25519PublicKey))",
-            "line": 62
-          },
-          {
             "location": "readiness/scan.py",
             "additionalContext": "string: CLASSICAL = [\"X25519\", \"secp256r1\", \"secp384r1\", \"secp521r1\", \"X448\", \"ffdhe2048\", \"ffdhe3072\"]",
             "line": 22
           },
           {
+            "location": "vault.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import ec, mlkem, x25519",
+            "line": 33
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return x25519.X25519PrivateKey.generate() if self.curve is None else ec.generate_private_key(self.curve)",
+            "line": 49
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return x25519.X25519PublicKey.from_public_bytes(data) if self.curve is None else ec.EllipticCurvePublicKey.from_encoded_point(self.curve, data)",
+            "line": 55
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "identifier: return kem_ok and isinstance(dh_key, (x25519.X25519PrivateKey, x25519.X25519PublicKey))",
+            "line": 63
+          },
+          {
             "location": "vpn/wireguard.py",
             "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import x25519",
-            "line": 30
+            "line": 31
           },
           {
             "location": "vpn/wireguard.py",
             "additionalContext": "call: k = x25519.X25519PrivateKey.generate()",
-            "line": 52
+            "line": 54
           },
           {
             "location": "vpn/wireguard.py",
             "additionalContext": "call: return b64(raw), b64(x25519.X25519PrivateKey.from_private_bytes(raw).public_key().public_bytes(*RAW))",
-            "line": 55
+            "line": 57
           }
         ]
       },
@@ -359,6 +371,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"vault.py#Suite.dh_generate\",\"vault.py#Suite.dh_load\",\"vault.py#Suite.owns\",\"vpn/wireguard.py#private_key\"],\"callers\":[\"vpn/wireguard.py#Client.__init__\",\"vpn/wireguard.py#Gateway.__init__\"],\"modules\":[\"vault\",\"vpn.wireguard\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -420,6 +436,10 @@
           "value": "Classical key exchange: quantum-vulnerable; NIST IR 8547 disallows it after 2035"
         },
         {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"readiness/scan.py#_legacy\"],\"callers\":[\"readiness/scan.py#probe\",\"readiness/scan.py#scan.one\"],\"modules\":[\"readiness.scan\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
+        },
+        {
           "name": "wolfpack:rationale",
           "value": "Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)"
         },
@@ -477,6 +497,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Classical key exchange: quantum-vulnerable; NIST IR 8547 disallows it after 2035"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"pki/acme.py#serve\"],\"callers\":[],\"modules\":[\"pki.acme\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -663,6 +687,10 @@
           "value": "Disallowed after 2035 (NIST IR 8547)"
         },
         {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"pki/acme.py#verify\"],\"callers\":[\"pki/acme.py#Service.parse\"],\"modules\":[\"pki.acme\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
+        },
+        {
           "name": "wolfpack:rationale",
           "value": "Breakable by Shor's algorithm on a future quantum computer; no harvest-now risk for signatures, but forgery risk once a CRQC exists"
         },
@@ -754,6 +782,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"pki/acme.py#jwk_key\",\"readiness/scan.py#key_name\"],\"callers\":[\"pki/acme.py#Service.parse\",\"readiness/scan.py#_cert_info\",\"readiness/scan.py#probe\",\"readiness/scan.py#scan.one\"],\"modules\":[\"pki.acme\",\"readiness.scan\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -1064,22 +1096,22 @@
           {
             "location": "vault.py",
             "additionalContext": "call: return {\"id\": recipient.id, \"kem\": b64(ct_kem), \"dh\": b64(ct_dh), \"key\": b64(AESGCM(kek).encrypt(b\"\\0\" * 12, dek, file_id))}",
-            "line": 168
+            "line": 169
           },
           {
             "location": "vault.py",
             "additionalContext": "call: return AESGCM(kek).decrypt(b\"\\0\" * 12, unb64(entry[\"key\"]), file_id)",
-            "line": 174
+            "line": 175
           },
           {
             "location": "vault.py",
             "additionalContext": "call: self.aes = self.aes or AESGCM(self.dek)",
-            "line": 231
+            "line": 232
           },
           {
             "location": "vault.py",
             "additionalContext": "call: aes = AESGCM(dek)",
-            "line": 286
+            "line": 290
           }
         ]
       },
@@ -1103,6 +1135,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Acceptable, but prefer 256-bit strength for long-term data"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"vault.py#Writer._emit\",\"vault.py#chunks\",\"vault.py#unwrap\",\"vault.py#wrap\"],\"callers\":[\"vault.py#Writer.__init__\",\"vault.py#_decrypt\",\"vault.py#add_recipients\",\"vault.py#decrypt\",\"vault.py#verify\"],\"modules\":[\"vault\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -1141,24 +1177,24 @@
       "evidence": {
         "occurrences": [
           {
+            "location": "pki/signers.py",
+            "additionalContext": "identifier: cipher = L_.EVP_aes_256_cbc() if passphrase else None",
+            "line": 138
+          },
+          {
             "location": "vault.py",
             "additionalContext": "import: from cryptography.hazmat.primitives.ciphers.aead import AESGCM",
-            "line": 33
+            "line": 34
           },
           {
             "location": "vault.py",
             "additionalContext": "identifier: ct = self.aes.encrypt(_nonce(unb64(self.h[\"nonce\"]), self.i, last), chunk, self.aad)",
-            "line": 232
+            "line": 233
           },
           {
             "location": "vault.py",
             "additionalContext": "identifier: pt = aes.decrypt(_nonce(prefix, i, last), ct, aad)",
-            "line": 301
-          },
-          {
-            "location": "pki/signers.py",
-            "additionalContext": "identifier: cipher = L_.EVP_aes_256_cbc() if passphrase else None",
-            "line": 138
+            "line": 305
           }
         ]
       },
@@ -1182,6 +1218,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Acceptable, but prefer 256-bit strength for long-term data"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"pki/signers.py#OpenSSLSigner.generate\",\"vault.py#Writer._emit\",\"vault.py#chunks\"],\"callers\":[\"pki/__init__.py#CA.init\",\"vault.py#_decrypt\",\"vault.py#decrypt\",\"vault.py#verify\"],\"modules\":[\"pki\",\"pki.signers\",\"vault\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -1224,14 +1264,14 @@
       "evidence": {
         "occurrences": [
           {
-            "location": "vault.py",
-            "additionalContext": "call: self.out, self.dek, self.buf, self.i = out, AESGCM.generate_key(256), bytearray(), 0",
-            "line": 206
-          },
-          {
             "location": "readiness/compliance.py",
             "additionalContext": "string: cnsa = \"ML_KEM_1024\" in kex and \"ECP_384\" in kex and all(c == \"AES_GCM_16_256\" for c in ciphers)",
             "line": 69
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: self.out, self.dek, self.buf, self.i = out, AESGCM.generate_key(256), bytearray(), 0",
+            "line": 207
           }
         ]
       },
@@ -1255,6 +1295,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Acceptable, but prefer 256-bit strength for long-term data"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"readiness/compliance.py#tunnels\",\"vault.py#Writer.__init__\"],\"callers\":[],\"modules\":[\"readiness.compliance\",\"vault\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -1288,16 +1332,6 @@
       "evidence": {
         "occurrences": [
           {
-            "location": "vault.py",
-            "additionalContext": "call: return b64(hmac.new(hashlib.sha256(b\"pqv recipients\" + dek).digest(), json.dumps(recipients, sort_keys=True).encode(), \"sha256\").digest())",
-            "line": 189
-          },
-          {
-            "location": "vault.py",
-            "additionalContext": "identifier: if h[\"v\"] >= 2 and not hmac.compare_digest(str(h.get(\"mac\", \"\")).encode(), _recipients_mac(dek, h[\"recipients\"]).encode()):",
-            "line": 193
-          },
-          {
             "location": "pki/acme.py",
             "additionalContext": "call: mac = hmac.new(unb64u(k[\"hmac\"]), f\"{eab['protected']}.{eab['payload']}\".encode(), hashlib.sha256).digest()",
             "line": 269
@@ -1316,6 +1350,16 @@
             "location": "pki/acme.py",
             "additionalContext": "string: keys[kid] = {\"hmac\": key, \"note\": note, \"created\": _iso(now()), \"used\": None}",
             "line": 474
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return b64(hmac.new(hashlib.sha256(b\"pqv recipients\" + dek).digest(), json.dumps(recipients, sort_keys=True).encode(), \"sha256\").digest())",
+            "line": 190
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "identifier: if h[\"v\"] >= 2 and not hmac.compare_digest(str(h.get(\"mac\", \"\")).encode(), _recipients_mac(dek, h[\"recipients\"]).encode()):",
+            "line": 194
           }
         ]
       },
@@ -1339,6 +1383,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"pki/acme.py#Service.check_eab\",\"pki/acme.py#create_eab\",\"vault.py#_check_recipients\",\"vault.py#_recipients_mac\"],\"callers\":[\"vault.py#Writer.__init__\",\"vault.py#_decrypt\",\"vault.py#add_recipients\",\"vault.py#chunks\",\"vault.py#decrypt\",\"vault.py#verify\"],\"modules\":[\"pki.acme\",\"vault\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -1412,6 +1460,10 @@
           "value": "Quantum-safe"
         },
         {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"pki/signers.py#sign\"],\"callers\":[\"pki/__init__.py#CA._certify\",\"pki/__init__.py#CA._crl\",\"pki/__init__.py#CA.init\"],\"modules\":[\"pki\",\"pki.signers\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
+        },
+        {
           "name": "wolfpack:rationale",
           "value": "Quantum-safe"
         },
@@ -1443,34 +1495,9 @@
       "evidence": {
         "occurrences": [
           {
-            "location": "vault.py",
-            "additionalContext": "call: return hashlib.sha256(self.kem.public_bytes_raw() + self.suite.dh_bytes(self.dh)).hexdigest()[:16]",
-            "line": 135
-          },
-          {
-            "location": "vault.py",
-            "additionalContext": "call: return b64(hmac.new(hashlib.sha256(b\"pqv recipients\" + dek).digest(), json.dumps(recipients, sort_keys=True).encode(), \"sha256\").digest())",
-            "line": 189
-          },
-          {
-            "location": "vault.py",
-            "additionalContext": "call: self.aad = hashlib.sha256(_core(self.h)).digest()",
-            "line": 213
-          },
-          {
-            "location": "vault.py",
-            "additionalContext": "call: aad = hashlib.sha256(_core(h)).digest()",
-            "line": 277
-          },
-          {
-            "location": "vault.py",
-            "additionalContext": "call: aad = hashlib.sha256(_core(h)).digest()",
-            "line": 479
-          },
-          {
             "location": "console/__init__.py",
             "additionalContext": "call: digest = base64.b64encode(hashlib.sha256(script).digest()).decode()",
-            "line": 280
+            "line": 477
           },
           {
             "location": "pki/acme.py",
@@ -1526,6 +1553,46 @@
             "location": "pki/est.py",
             "additionalContext": "call: return hashlib.sha256(cert.public_bytes(Encoding.DER)).hexdigest()",
             "line": 193
+          },
+          {
+            "location": "project.py",
+            "additionalContext": "call: return hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()",
+            "line": 114
+          },
+          {
+            "location": "project.py",
+            "additionalContext": "call: return hashlib.sha256(os.path.normcase(str(Path(path).resolve())).encode()).hexdigest()",
+            "line": 129
+          },
+          {
+            "location": "project.py",
+            "additionalContext": "call: fingerprint = certificate.fingerprint(hashes.SHA256()).hex() if certificate else ''",
+            "line": 292
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return hashlib.sha256(self.kem.public_bytes_raw() + self.suite.dh_bytes(self.dh)).hexdigest()[:16]",
+            "line": 136
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: return b64(hmac.new(hashlib.sha256(b\"pqv recipients\" + dek).digest(), json.dumps(recipients, sort_keys=True).encode(), \"sha256\").digest())",
+            "line": 190
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: self.aad = hashlib.sha256(_core(self.h)).digest()",
+            "line": 214
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: aad = hashlib.sha256(_core(h)).digest()",
+            "line": 281
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: aad = hashlib.sha256(_core(h)).digest()",
+            "line": 519
           }
         ]
       },
@@ -1549,6 +1616,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"console/__init__.py#policy\",\"pki/acme.py#Service.check_eab\",\"pki/acme.py#jwk_key\",\"pki/acme.py#thumbprint\",\"pki/acme.py#verify\",\"pki/est.py#Service.enroll\",\"pki/est.py#create_token\",\"pki/est.py#fetch_ca\",\"pki/est.py#fingerprint\",\"project.py#ProjectStore.key\",\"project.py#finding_id\",\"project.py#verify_endpoint\",\"vault.py#Recipient.id\",\"vault.py#Writer.__init__\",\"vault.py#_recipients_mac\",\"vault.py#add_recipients\",\"vault.py#chunks\"],\"callers\":[\"console/__init__.py#serve\",\"pki/acme.py#Service.new_account\",\"pki/acme.py#Service.parse\",\"project.py#ProjectStore.save.change\",\"vault.py#_check_recipients\",\"vault.py#_decrypt\",\"vault.py#decrypt\",\"vault.py#verify\"],\"modules\":[\"console\",\"pki.acme\",\"pki.est\",\"project\",\"vault\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -1582,14 +1653,14 @@
       "evidence": {
         "occurrences": [
           {
-            "location": "vault.py",
-            "additionalContext": "call: Suite(\"P-384+ML-KEM-1024/AES-256-GCM\", mlkem.MLKEM1024PrivateKey, mlkem.MLKEM1024PublicKey, ec.SECP384R1(), hashlib.sha384),",
-            "line": 68
-          },
-          {
             "location": "pki/acme.py",
             "additionalContext": "call: CURVES = {\"P-256\": (ec.SECP256R1(), hashes.SHA256(), \"ES256\"), \"P-384\": (ec.SECP384R1(), hashes.SHA384(), \"ES384\"),",
             "line": 38
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "call: Suite(\"P-384+ML-KEM-1024/AES-256-GCM\", mlkem.MLKEM1024PrivateKey, mlkem.MLKEM1024PublicKey, ec.SECP384R1(), hashlib.sha384),",
+            "line": 69
           }
         ]
       },
@@ -1646,19 +1717,19 @@
       "evidence": {
         "occurrences": [
           {
+            "location": "pki/acme.py",
+            "additionalContext": "call: \"P-521\": (ec.SECP521R1(), hashes.SHA512(), \"ES512\")}",
+            "line": 39
+          },
+          {
             "location": "vault.py",
             "additionalContext": "call: self.digest = hashlib.sha512(self.aad) if signer else None",
-            "line": 218
+            "line": 219
           },
           {
             "location": "vault.py",
             "additionalContext": "call: prefix, digest, i = unb64(h[\"nonce\"]), hashlib.sha512(aad), 0",
-            "line": 287
-          },
-          {
-            "location": "pki/acme.py",
-            "additionalContext": "call: \"P-521\": (ec.SECP521R1(), hashes.SHA512(), \"ES512\")}",
-            "line": 39
+            "line": 291
           }
         ]
       },
@@ -1682,6 +1753,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"vault.py#Writer.__init__\",\"vault.py#chunks\"],\"callers\":[\"vault.py#_decrypt\",\"vault.py#decrypt\",\"vault.py#verify\"],\"modules\":[\"vault\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -1717,7 +1792,7 @@
           {
             "location": "vault.py",
             "additionalContext": "call: Suite(\"X25519+ML-KEM-768/AES-256-GCM\", mlkem.MLKEM768PrivateKey, mlkem.MLKEM768PublicKey, None, hashlib.sha3_256),",
-            "line": 67
+            "line": 68
           }
         ]
       },
@@ -1754,73 +1829,6 @@
     },
     {
       "type": "cryptographic-asset",
-      "bom-ref": "crypto/SLH-DSA",
-      "name": "SLH-DSA",
-      "cryptoProperties": {
-        "assetType": "algorithm",
-        "algorithmProperties": {
-          "primitive": "signature",
-          "cryptoFunctions": [
-            "keygen",
-            "sign",
-            "verify"
-          ],
-          "executionEnvironment": "unknown",
-          "implementationPlatform": "unknown"
-        }
-      },
-      "evidence": {
-        "occurrences": [
-          {
-            "location": "pki/__init__.py",
-            "additionalContext": "identifier: CA_ALGORITHMS = list(PUBLIC) + signers.SLH_DSA",
-            "line": 32
-          },
-          {
-            "location": "pki/signers.py",
-            "additionalContext": "identifier: a: NIST_SIG + str(20 + i) for i, a in enumerate(SLH_DSA)}",
-            "line": 26
-          },
-          {
-            "location": "pki/signers.py",
-            "additionalContext": "string: SLH_DSA = [f\"SLH-DSA-{h}-{b}{v}\" for h in (\"SHA2\", \"SHAKE\") for b in (128, 192, 256) for v in \"sf\"]",
-            "line": 24
-          }
-        ]
-      },
-      "properties": [
-        {
-          "name": "wolfpack:tier",
-          "value": "ok"
-        },
-        {
-          "name": "wolfpack:risk-score",
-          "value": "3.4"
-        },
-        {
-          "name": "wolfpack:confidence",
-          "value": "0.9"
-        },
-        {
-          "name": "wolfpack:exposure",
-          "value": "application code"
-        },
-        {
-          "name": "wolfpack:nist-status",
-          "value": "Quantum-safe"
-        },
-        {
-          "name": "wolfpack:rationale",
-          "value": "Quantum-safe"
-        },
-        {
-          "name": "wolfpack:usage",
-          "value": "used"
-        }
-      ]
-    },
-    {
-      "type": "cryptographic-asset",
       "bom-ref": "crypto/HMAC",
       "name": "HMAC",
       "cryptoProperties": {
@@ -1839,7 +1847,7 @@
           {
             "location": "console/__init__.py",
             "additionalContext": "identifier: return hmac.compare_digest(given.encode(), app.token.encode())",
-            "line": 324
+            "line": 521
           },
           {
             "location": "pki/est.py",
@@ -1870,8 +1878,79 @@
           "value": "Quantum-safe"
         },
         {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"console/__init__.py#serve.Handler.authorised\",\"pki/est.py#Service.enroll\"],\"callers\":[],\"modules\":[\"console\",\"pki.est\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
+        },
+        {
           "name": "wolfpack:rationale",
           "value": "No known quantum break at this strength"
+        },
+        {
+          "name": "wolfpack:usage",
+          "value": "used"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/SLH-DSA",
+      "name": "SLH-DSA",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "keygen",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "pki/__init__.py",
+            "additionalContext": "identifier: CA_ALGORITHMS = list(PUBLIC) + signers.SLH_DSA",
+            "line": 31
+          },
+          {
+            "location": "pki/signers.py",
+            "additionalContext": "identifier: SLH_DSA: list[str] = [f\"SLH-DSA-{h}-{b}{v}\" for h in (\"SHA2\", \"SHAKE\") for b in (128, 192, 256) for v in \"sf\"]",
+            "line": 24
+          },
+          {
+            "location": "pki/signers.py",
+            "additionalContext": "identifier: a: NIST_SIG + str(20 + i) for i, a in enumerate(SLH_DSA)}",
+            "line": 26
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "3.15"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "0.65"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Quantum-safe"
         },
         {
           "name": "wolfpack:usage",
@@ -1905,7 +1984,7 @@
           {
             "location": "pki/__init__.py",
             "additionalContext": "string: def issue(self, common_name, kind, names=(), days=397, algorithm=\"ML-DSA-65\", out=None, passphrase=None, replace=False):",
-            "line": 313
+            "line": 250
           },
           {
             "location": "pki/acme.py",
@@ -1976,7 +2055,7 @@
           {
             "location": "pki/__init__.py",
             "additionalContext": "string: def init(cls, root, name, algorithm=\"ML-DSA-87\", days=3650, passphrase=None, parent=None, signer_config=None):",
-            "line": 208
+            "line": 143
           },
           {
             "location": "readiness/compliance.py",
@@ -2022,6 +2101,10 @@
           "value": "Quantum-safe"
         },
         {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"readiness/compliance.py#certificates\",\"readiness/scan.py#probe\"],\"callers\":[\"readiness/scan.py#scan.one\"],\"modules\":[\"readiness.compliance\",\"readiness.scan\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
+        },
+        {
           "name": "wolfpack:rationale",
           "value": "Quantum-safe"
         },
@@ -2051,9 +2134,9 @@
       "evidence": {
         "occurrences": [
           {
-            "location": "console/__init__.py",
-            "additionalContext": "string: out[\"vpn\"] = {\"tunnels\": len(tun), \"quantum_safe\": sum(t[\"state\"] == \"ESTABLISHED\" and t[\"ppk\"] and \"ML_KEM\" in t[\"key_exchange\"] for t in tun),",
-            "line": 195
+            "location": "vpn/charon.py",
+            "additionalContext": "string: and 'ML_KEM' in tunnel.get('key_exchange', '')",
+            "line": 58
           }
         ]
       },
@@ -2077,6 +2160,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"vpn/charon.py#protected\"],\"callers\":[\"vpn/controller.py#Controller.initiator_loop\",\"vpn/controller.py#Controller.metrics\"],\"modules\":[\"vpn.charon\",\"vpn.controller\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -2112,11 +2199,6 @@
       "evidence": {
         "occurrences": [
           {
-            "location": "vault.py",
-            "additionalContext": "string: Suite(\"P-384+ML-KEM-1024/AES-256-GCM\", mlkem.MLKEM1024PrivateKey, mlkem.MLKEM1024PublicKey, ec.SECP384R1(), hashlib.sha384),",
-            "line": 68
-          },
-          {
             "location": "readiness/compliance.py",
             "additionalContext": "string: cnsa = \"ML_KEM_1024\" in kex and \"ECP_384\" in kex and all(c == \"AES_GCM_16_256\" for c in ciphers)",
             "line": 69
@@ -2135,6 +2217,11 @@
             "location": "tls/__init__.py",
             "additionalContext": "string: \"cnsa2\": Policy(\"cnsa2\", \"SecP384r1MLKEM1024:MLKEM1024\", \"mldsa87\", \"TLS_AES_256_GCM_SHA384\"),",
             "line": 27
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "string: Suite(\"P-384+ML-KEM-1024/AES-256-GCM\", mlkem.MLKEM1024PrivateKey, mlkem.MLKEM1024PublicKey, ec.SECP384R1(), hashlib.sha384),",
+            "line": 69
           }
         ]
       },
@@ -2158,6 +2245,10 @@
         {
           "name": "wolfpack:nist-status",
           "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"readiness/compliance.py#tunnels\"],\"callers\":[],\"modules\":[\"readiness.compliance\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
         },
         {
           "name": "wolfpack:rationale",
@@ -2193,14 +2284,14 @@
       "evidence": {
         "occurrences": [
           {
-            "location": "vault.py",
-            "additionalContext": "string: Suite(\"X25519+ML-KEM-768/AES-256-GCM\", mlkem.MLKEM768PrivateKey, mlkem.MLKEM768PublicKey, None, hashlib.sha3_256),",
-            "line": 67
-          },
-          {
             "location": "readiness/scan.py",
             "additionalContext": "string: PQ = [\"X25519MLKEM768\", \"SecP256r1MLKEM768\", \"SecP384r1MLKEM1024\", \"MLKEM768\", \"MLKEM1024\"]",
             "line": 20
+          },
+          {
+            "location": "vault.py",
+            "additionalContext": "string: Suite(\"X25519+ML-KEM-768/AES-256-GCM\", mlkem.MLKEM768PrivateKey, mlkem.MLKEM768PublicKey, None, hashlib.sha3_256),",
+            "line": 68
           }
         ]
       },

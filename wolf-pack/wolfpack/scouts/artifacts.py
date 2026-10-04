@@ -1,6 +1,7 @@
 import base64
 import re
 import hashlib
+import warnings
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
@@ -15,8 +16,11 @@ SSH_NAMES = re.compile(r"^(id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|ssh_host_\w+_key(\
 K8S_B64 = re.compile(rb"""(?m)^\s*["']?(tls\.crt|ca\.crt|tls\.key|[\w.-]*\.(?:pem|crt))["']?\s*:\s*["']?([A-Za-z0-9+/]{80,}={0,2})["']?\s*,?$""")
 PEM = re.compile(rb"-----BEGIN ([A-Z0-9 ]+)-----\r?\n.*?-----END \1-----", re.S)
 SSH_LINE = re.compile(rb"^(?:[\w@.,*\[\]:-]+\s+)?((?:ssh|ecdsa|sk)-[\w@.-]+)\s+(AAAA[0-9A-Za-z+/=]+)", re.M)
-KEYS = [("RSA", rsa, "RSA"), ("ECC", ec, "EllipticCurve"), ("DSA", dsa, "DSA"), ("DH", dh, "DH"), ("Ed25519", ed25519, "Ed25519"),
-        ("Ed448", ed448, "Ed448"), ("X25519", x25519, "X25519"), ("X448", x448, "X448")]
+with warnings.catch_warnings():  # cryptography deprecates the finite-field DH classes; recognising a DH key is still the job
+    warnings.simplefilter("ignore")
+    KEYS = [(algo, (getattr(mod, cls + "PublicKey"), getattr(mod, cls + "PrivateKey"))) for algo, mod, cls in [
+        ("RSA", rsa, "RSA"), ("ECC", ec, "EllipticCurve"), ("DSA", dsa, "DSA"), ("DH", dh, "DH"), ("Ed25519", ed25519, "Ed25519"),
+        ("Ed448", ed448, "Ed448"), ("X25519", x25519, "X25519"), ("X448", x448, "X448")]]
 CODE_EXT = {".py", ".java", ".go", ".js", ".ts", ".c", ".cpp", ".cs", ".rs", ".rb", ".php", ".kt", ".yaml", ".yml", ".json", ".env", ".txt", ".conf", ".xml"}
 
 OID = {c.oid: a for a, c in CATALOG.items() if c.oid}
@@ -31,8 +35,8 @@ SIG_OID = {
 
 
 def key_info(k):
-    for algo, mod, cls in KEYS:
-        if isinstance(k, (getattr(mod, cls + "PublicKey"), getattr(mod, cls + "PrivateKey"))):
+    for algo, classes in KEYS:
+        if isinstance(k, classes):
             return algo, {"curve": curve(k.curve.name)} if algo == "ECC" else {"key_size": k.key_size} if hasattr(k, "key_size") else {}
     return None, {}
 

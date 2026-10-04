@@ -2,6 +2,10 @@
 
 Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; it is published only when every CI and CodeQL job passed on its commit, and its GitHub release carries the wheel, `RELEASE_READINESS.md`, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`), a CycloneDX SBOM, the tested dependency versions and build provenance. From 0.2.0 the container image is published to `ghcr.io/qubitman-hub/pqcsuite`.
 
+## Unreleased
+
+- `pqcsuite scan` and the console's project scans find private keys, certificates and other files that the project's `.gitignore` leaves out (Wolf Pack fix). The reviewed inventory `docs/cbom.json` is refreshed for code moved since 0.3.0.
+
 ## 0.3.1 (2 October 2026)
 
 - Downloaded manual links work outside the website. Aligned customer instructions point to the current suite patch and Wolf Pack 1.3.0.

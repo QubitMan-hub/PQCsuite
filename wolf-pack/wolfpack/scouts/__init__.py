@@ -1,6 +1,5 @@
 import os
 import re
-import subprocess
 from dataclasses import dataclass, field, replace
 from fnmatch import fnmatch
 from pathlib import Path
@@ -57,15 +56,6 @@ def iter_files(root, scope=Scope(), max_bytes=MAX_BYTES, skip=None):
             if size <= max_bytes and (scope.vendor or not set(folders) & skip):
                 yield p
         return
-    # Git supplies its own ignore semantics (including tracked files), without parsing patterns ourselves.
-    allowed = None
-    try:
-        result = subprocess.run(["git", "-c", "core.fsmonitor=false", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "."],
-                                capture_output=True, timeout=15)
-        if result.returncode == 0:
-            allowed = set(result.stdout.decode("utf-8", "surrogateescape").split("\0"))
-    except (OSError, subprocess.TimeoutExpired):
-        pass
     for d, dirs, files in os.walk(root):
         if scope.checkpoint:
             scope.checkpoint()
@@ -75,8 +65,6 @@ def iter_files(root, scope=Scope(), max_bytes=MAX_BYTES, skip=None):
         for f in sorted(files):
             if scope.checkpoint:
                 scope.checkpoint()
-            if allowed is not None and at + f not in allowed and not scope.vendor:
-                continue
             if scope.excluded(at + f) or scope.only is not None and at + f not in scope.only:
                 continue
             p = Path(d) / f

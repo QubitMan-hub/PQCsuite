@@ -2,6 +2,11 @@
 
 Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Suite repository; its GitHub release carries the wheel and build provenance.
 
+## Unreleased
+
+- **Gitignored files are scanned again.** 1.3.0 asked Git which files to scan, so private keys, certificates and `.env` files that a project keeps out of Git (the usual place for deployed secrets) were silently skipped, and a folder that a parent repository ignores scanned as empty. The scan no longer runs Git; leave paths out with `--exclude` or `.wolfpack.toml`.
+- Reading a finite-field DH key no longer prints cryptography's deprecation warning.
+
 ## 1.3.0 (2 October 2026)
 
 - Resolve immutable JavaScript/TypeScript ML-DSA signer-table aliases, retain classical components in candidate hybrid compositions, and separate declared cache fingerprints from password-hashing findings. Password advice recommends Argon2id/scrypt instead of a plain hash replacement.

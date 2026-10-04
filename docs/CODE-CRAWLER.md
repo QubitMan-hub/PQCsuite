@@ -22,7 +22,7 @@ Files → modules → classes → functions → calls/imports → crypto evidenc
 
 Malformed optional-parser syntax and analysis-depth failures retain existing crypto findings while reporting a relationship gap. Missing optional parsers retain the base scan and explicit missing-language counts. Unsupported languages such as Go, C/C++, Java and Rust keep their existing detectors, with no relationship adapter claimed.
 
-Traversal honors Git ignore/tracked rules, default exclusions and explicit scope, disables Git filesystem-monitor hooks, and skips symlinks. Compiled artifacts retain their distinct build-folder/size handling. Without Git the regular directory/exclusion rules apply; standalone `.gitignore` parsing is not provided. Source size remains 2 MB per file. Graph limits are 20,000 symbols, 100,000 calls/imports/aliases each, 20 alias hops, and 500 symbols per reverse caller walk. Limits/cycles do not establish complete reachability. There is no persistent source cache or whole-project time/memory quota.
+Traversal applies the default exclusions and explicit scope (`--exclude`, `.wolfpack.toml`) and skips symlinks. It does not run Git or honour `.gitignore`: deployed keys, certificates and `.env` files are usually ignored by Git, and they are exactly what the inventory must find. Compiled artifacts retain their distinct build-folder/size handling. Source size remains 2 MB per file. Graph limits are 20,000 symbols, 100,000 calls/imports/aliases each, 20 alias hops, and 500 symbols per reverse caller walk. Limits/cycles do not establish complete reachability. There is no persistent source cache or whole-project time/memory quota.
 
 ## Shared storage and privacy
 

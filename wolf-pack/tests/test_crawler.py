@@ -47,7 +47,8 @@ def test_graph_does_not_export_literals_snippets_or_docstrings():
     assert "hashlib" in encoded
 
 
-def test_shared_scope_respects_gitignore_exclusions_size_and_symlinks(tmp_path):
+def test_shared_scope_keeps_gitignored_keys_and_applies_exclusions_size_and_symlinks(tmp_path):
+    """Deployed keys and secrets are usually gitignored, and they are exactly what an inventory must find."""
     subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
     (tmp_path / '.gitignore').write_text('ignored.py\n')
     (tmp_path / 'ignored.py').write_text('import rsa')
@@ -57,7 +58,7 @@ def test_shared_scope_respects_gitignore_exclusions_size_and_symlinks(tmp_path):
     scope = snapshot(tmp_path, Scope(exclude=('large.py',)))
     names = [p.name for p in iter_files(tmp_path, scope)]
     assert 'kept.py' in names
-    assert 'ignored.py' not in names
+    assert 'ignored.py' in names
     assert 'outside.py' not in names
     assert 'large.py' not in names
     assert scope.files is not None
