@@ -31,7 +31,7 @@ pqcsuite doctor
 python -m pytest -q
 ```
 
-The shared pytest runner at the repository root runs these and Wolf Pack's tests together, including project onboarding and optional JavaScript/TypeScript AST fixtures. The base runtime remains independent of the test and web-parser extras. The suite needs `cryptography` 49 or newer (for ML-KEM and ML-DSA); an older one stops every test at import with a message saying so.
+The shared pytest runner at the repository root runs these and Wolf Pack's tests together, including project onboarding and optional JavaScript/TypeScript, Java and Go syntax-tree fixtures. The base runtime remains independent of the test and web-parser extras. The suite needs `cryptography` 49 or newer (for ML-KEM and ML-DSA); an older one stops every test at import with a message saying so.
 
 CI also lints with `ruff check .`, runs the website and console in Chromium with axe accessibility checks (`tests/browser`: `npm install`, `npx playwright install chromium`, `npx playwright test`), and scans `pqcsuite/` with Wolf Pack against the reviewed inventory in `docs/cbom.json`.
 

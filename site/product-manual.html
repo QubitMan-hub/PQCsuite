@@ -146,7 +146,7 @@ nav { display: flex; gap: 20px; flex-wrap: wrap; } :target { scroll-margin-top: 
 <tr>
 <td>Wolf Pack release wheel</td>
 <td>A fixed scanner version</td>
-<td>JavaScript/TypeScript relationships need its <code>crawler</code> extra</td>
+<td>JavaScript/TypeScript, Java and Go relationships need its <code>crawler</code> extra</td>
 </tr>
 <tr>
 <td>Published suite container</td>
@@ -297,7 +297,7 @@ pqcsuite console --config .pqcsuite/console.toml
 </table></div>
 <p>The unified suite scan removes source snippets and raw source literals from exported evidence. Standalone Wolf Pack evidence can contain snippets; inspect exports before sharing them. Paths, system names and cryptographic inventory can still be sensitive in either workflow.</p>
 <p>For Python, Wolf Pack also follows values through the code: a constant imported from a settings module, a class attribute, a <code>CONFIG[&quot;hash&quot;]</code> entry, a default argument, or a value a caller passes into a function. A key size or hash chosen in one file and used in another is therefore reported where it is used, for example RSA-1024 rather than just RSA. A value that cannot be worked out from the code is left unresolved, never guessed. A local helper that merely borrows an algorithm's name (<code>def md5(text)</code> that formats text) is not counted.</p>
-<p>Python and optional JavaScript/TypeScript adapters build relationships. Other supported languages retain crypto detectors without equivalent function graphs. Dynamic callbacks and aliases can remain unresolved. Production files consume graph budgets before tests. Console repeat scans reuse unchanged syntax, but still read files and recompute findings and cross-file relationships; not every repository scans faster.</p>
+<p>Python, and with the optional parsers JavaScript/TypeScript, Java and Go, build relationships. In Java and Go a call counts only when the source states the type: the same class or package, an import, a typed field, parameter or local variable, or a Go receiver. Other supported languages retain crypto detectors without equivalent function graphs. Dynamic callbacks and aliases can remain unresolved. Production files consume graph budgets before tests. Console repeat scans reuse unchanged syntax, but still read files and recompute findings and cross-file relationships; not every repository scans faster.</p>
 <p>If a limit is reached, open advanced coverage and inspect the named omissions. Narrow the scope or use standalone exclusions. Unified discovery is limited to 50,000 files/512 MB and a cooperative five-minute deadline; a parsing operation is not forcibly interrupted. The workspace is limited to 16 MB with a maximum 64 MB decompressed graph. Smaller scan scopes may be necessary even when disk space is available.</p>
 <h3 id="act-and-rescan">Act and rescan</h3>
 <p>Assign an owner label and due date. If accepting a temporary exception, record a reason and expiry. Exceptions remain visible and do not change the underlying cryptographic risk. Make the change in your normal development workflow, run the application's own tests, then rescan.</p>
@@ -543,7 +543,7 @@ pqcsuite vault share notes.pqv --key owner.key -r auditor.pub
 <td>Install both packages and scanning extras from the same checkout/release family</td>
 </tr>
 <tr>
-<td>JavaScript/TypeScript relationships unavailable</td>
+<td>JavaScript/TypeScript, Java or Go relationships unavailable</td>
 <td>Optional parser extra missing</td>
 <td>Install Wolf Pack's <code>crawler</code> extra; rerun the scan and inspect coverage</td>
 </tr>
@@ -607,7 +607,7 @@ pqcsuite vault share notes.pqv --key owner.key -r auditor.pub
 <p>For support, share the version/commit, OS, relevant redacted command/configuration, exact error and whether it is reproducible on the supplied demo. Remove tokens, passphrases, private keys and customer source. Do not suppress verification or use a trust-all setting just to obtain a green status.</p>
 <h2 id="what-the-evidence-does-and-does-not-prove">What the evidence does and does not prove</h2>
 <p>All products need application-specific validation. Passing automated tests or using PQ algorithms is not a blanket “secure” or “production-ready” certificate. The suite is not independently audited or FIPS 140-3 validated. Real cloud account deployments, managed Kubernetes, long-duration production loads and physical laptop sleep/roaming conditions need their own evidence. The documented three-customer pilot protocol is a plan, not three completed pilots.</p>
-<p>Team SSO/roles and native signed installers are outside current scope. Static relationships for Java/Go/C, general dynamic-dispatch resolution, hard scan-process isolation and independent source-to-deployment provenance remain gaps. The product preserves explicit uncertainty instead of treating unsupported evidence as a clean bill of health.</p>
+<p>Team SSO/roles and native signed installers are outside current scope. Static relationships for C, C#, Rust and Kotlin, general dynamic-dispatch resolution, hard scan-process isolation and independent source-to-deployment provenance remain gaps. The product preserves explicit uncertainty instead of treating unsupported evidence as a clean bill of health.</p>
 <p>No single score replaces judgment: use the detected behavior, data lifetime, deployment context, coverage and real tests together. Verify important fixes with your application's tests and an appropriate reviewer.</p>
 <h2 id="glossary-and-further-help">Glossary and further help</h2>
 <div class="manual-table" tabindex="0" role="region" aria-label="Reference table"><table>
@@ -671,4 +671,4 @@ pqcsuite vault share notes.pqv --key owner.key -r auditor.pub
 <p>Use <code>pqcsuite --help</code>, then the relevant command's <code>--help</code> for exact options. See the <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/README.md">README</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/CODE-CRAWLER.md">Code Crawler limits</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/RELEASE-READINESS.md">release gates</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PILOT.md">pilot instructions</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/SECURITY.md">security reporting</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/wolf-pack/README.md">Wolf Pack guide</a>.</p>
 <p>For guided stories using temporary data, run <code>python examples/clinic_demo.py --auto</code> or <code>python examples/bank_demo.py --auto</code> from an installed checkout. The privileged Linux VPN demo needs its documented networking prerequisites. These demos exercise real operations on example data; they do not configure your production organization.</p>
 
-<footer>Generated 2026-10-04 18:06 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>
+<footer>Generated 2026-10-04 18:18 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>

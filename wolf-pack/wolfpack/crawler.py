@@ -124,6 +124,10 @@ class CodeCrawler:
             self.coverage_files[category].append(path)
 
     def observe_source(self, path, text, language):
+        typed = {"java": "Java", "go": "Go"}.get(language) if path.endswith((".java", ".go")) else None
+        if typed:
+            from .crawler_typed import observe
+            return self.guarded(lambda: observe(self, path, text, typed), path, typed + " (analysis depth limit)")
         if language not in {"js", "python"}:
             self.gap(language + " (no relationship adapter)", path)
         if language == "js":
@@ -257,7 +261,7 @@ class CodeCrawler:
 
     def finish(self, assets):
         names = defaultdict(list)
-        families = {s["file"]: "Python" if s.get("language", "Python") == "Python" else "web" for s in self.symbols}
+        families = {s["file"]: {"Python": "Python", "Java": "java", "Go": "go"}.get(s.get("language", "Python"), "web") for s in self.symbols}
         symbols = {s["id"]: s for s in self.symbols}
         for symbol in self.symbols:
             if symbol["kind"] == "module":
@@ -268,6 +272,10 @@ class CodeCrawler:
                 names[families[symbol["file"]], symbol["module"] + "." + alias].append(symbol["id"])
             if canonical.startswith("src."):
                 names[families[symbol["file"]], canonical[4:]].append(symbol["id"])
+        go_tails = defaultdict(list)
+        for (family, canonical), ids in names.items():
+            if family == "go":
+                go_tails[canonical.rsplit("/", 1)[-1]].append((canonical, ids))
         aliases = defaultdict(list)
         for alias in self.aliases:
             aliases[alias["family"], alias["alias"]].append(alias["target"])
@@ -278,6 +286,9 @@ class CodeCrawler:
                 self.limited = True
                 return []
             matches = list(names.get((family, candidate), []))
+            if family == "go" and not matches:
+                # Go imports name the module path; files are known by folder, so match on the trailing folders.
+                matches = [i for canonical, ids in go_tails.get(candidate.rsplit("/", 1)[-1], []) if candidate.endswith("/" + canonical) for i in ids]
             for target in aliases.get((family, candidate), []):
                 matches.extend(resolve(family, target, trail + (candidate,)))
             return matches
@@ -328,7 +339,7 @@ class CodeCrawler:
                 "truncated_files": dict(self.truncated), "coverage_files": dict(self.coverage_files),
                 "coverage_file_list_limit": 1000,
                 "incremental": {"reused_syntax": self.cache_hits, "parsed_syntax": self.cache_misses, "basis": "Content-hash syntax cache; all findings and cross-file relationships recomputed"},
-                "limitations": ["Python AST and optional JavaScript/TypeScript syntax trees; other languages retain crypto detectors without call graphs.",
+                "limitations": ["Python AST and optional JavaScript/TypeScript, Java and Go syntax trees; other languages retain crypto detectors without call graphs.",
                                 "Dynamic dispatch, wildcard imports, callbacks and runtime reassignment require manual review.",
                                 "No source snippets, argument values, docstrings or runtime execution are included."]}
 

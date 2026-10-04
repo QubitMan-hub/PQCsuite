@@ -213,7 +213,8 @@ wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
       <div class="scroll" tabindex="0" role="region" aria-label="Cryptographic coverage"><table class="results"><thead><tr><th>Input</th><th>Current capability</th><th>Boundary</th></tr></thead><tbody>
         <tr><td>Python</td><td>AST functions, imports and supported callers; constants, class attributes, defaults and caller values followed across files</td><td>Dynamic dispatch and values computed at run time remain unresolved</td></tr>
         <tr><td>JavaScript / TypeScript</td><td>Optional Tree-sitter relationships</td><td>Requires the crawler extra; callbacks and runtime dispatch are incomplete</td></tr>
-        <tr><td>Java / Go and other supported source</td><td>Cryptographic detectors</td><td>No class/function relationship adapter yet</td></tr>
+        <tr><td>Java / Go</td><td>Optional Tree-sitter relationships: methods and functions, callers through declared types, imports, Go receivers and packages</td><td>Requires the crawler extra; interface, lambda and reflective calls stay unresolved</td></tr>
+        <tr><td>Other supported source (C, C#, Rust, Kotlin…)</td><td>Cryptographic detectors</td><td>No class/function relationship adapter yet</td></tr>
         <tr><td>Configs, certificates and binaries</td><td>Cryptographic inventory and evidence</td><td>Not proof of runtime reachability or deployment protection</td></tr>
       </tbody></table></div>
       <p>Production files are analyzed before tests. Repeat scans reuse unchanged syntax while recomputing findings and relationships. Coverage details identify files that could not be fully analyzed. Password-storage advice is separated from declared non-security cache fingerprints; candidate hybrids retain their classical components for review.</p>

@@ -31,7 +31,7 @@ Current state for the next contributor (any agent or person). Superseded progres
 ## Open work
 
 - A native desktop VPN client or signed installer (customer laptops currently use the terminal; installer signing is out of scope).
-- Relationship adapters for Java, Go and C#; hard resource isolation for repository scans.
+- Relationship adapters for C#, C and Kotlin (Java and Go landed in October 2026); hard resource isolation for repository scans.
 - Independent cryptographic and security review; real laptop, cloud and long-duration validation.
 
 ## Releases

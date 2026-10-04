@@ -12,6 +12,7 @@ Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Sui
 - A Python file nested too deeply to walk (Python 3.14 parses expressions that 3.11 refuses) no longer stops the scan: its relationships are rolled back and reported as a coverage gap, and the file is listed as not analysed.
 - SARIF rules for algorithms carry CWE tags (CWE-328 weak hash, CWE-326 short key, CWE-327 otherwise) and `security-severity`.
 - Dev corpus: 8 new labelled pairs (cross-file values, parameters, look-alike and dead-branch traps); full pack stays 1.000 / 1.000, held-out scores are unchanged.
+- **Java and Go caller analysis** (with the `crawler` extra): functions and their callers for Java (fields, parameters, locals, statics, constructors, imports) and Go (packages, imports matched through `go.mod` paths, receivers, typed `var`s). Untyped, interface and reflective calls stay unresolved. On the held-out Java and Go repositories 61 of 72 assets now name their enclosing functions; detection scores are unchanged.
 
 ## 1.3.0 (2 October 2026)
 

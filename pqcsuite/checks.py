@@ -197,9 +197,9 @@ def prerequisites(product='all'):
         from .project import scanner
         scanner()
         add('repository', 'ok', 'Shared repository scanner is installed')
-        missing = [name for name in ('tree_sitter', 'tree_sitter_javascript', 'tree_sitter_typescript') if importlib.util.find_spec(name) is None]
+        missing = [name for name in ('tree_sitter', 'tree_sitter_javascript', 'tree_sitter_typescript', 'tree_sitter_java', 'tree_sitter_go') if importlib.util.find_spec(name) is None]
         if missing:
-            add('repository', 'warn', 'JavaScript/TypeScript relationships are unavailable', 'From this checkout run: pip install -e "./wolf-pack[crawler]" -e ".[scan-web]"')
+            add('repository', 'warn', 'JavaScript/TypeScript, Java or Go relationships are unavailable', 'From this checkout run: pip install -e "./wolf-pack[crawler]" -e ".[scan-web]"')
     except (ImportError, ValueError):
         add('repository', 'fail', 'Shared repository scanner is unavailable', 'From this checkout run: pip install -e "./wolf-pack[crawler]" -e ".[scan-web]"')
     if product in ('all', 'vpn'):

@@ -59,7 +59,7 @@ Use **Readiness → repository → Scan** for the simplest workflow. Keep advanc
 |---|---|---|
 | Current source checkout | All workflows in this guide, development and testing | Record the Git commit; `main` can change |
 | PQC Suite release wheel | A fixed version of TLS, VPN, Vault, Readiness and console | Repository scanning also needs a compatible Wolf Pack installation |
-| Wolf Pack release wheel | A fixed scanner version | JavaScript/TypeScript relationships need its `crawler` extra |
+| Wolf Pack release wheel | A fixed scanner version | JavaScript/TypeScript, Java and Go relationships need its `crawler` extra |
 | Published suite container | TLS/readiness demonstrations and configured services | The base image does not include repository scanning; persistent data needs mounted storage |
 | Wolf Pack base container or base Action | Minimal scanner automation | Python relationships are included; JavaScript/TypeScript AST relationships need the optional parser installation |
 
@@ -198,7 +198,7 @@ The unified suite scan removes source snippets and raw source literals from expo
 
 For Python, Wolf Pack also follows values through the code: a constant imported from a settings module, a class attribute, a `CONFIG["hash"]` entry, a default argument, or a value a caller passes into a function. A key size or hash chosen in one file and used in another is therefore reported where it is used, for example RSA-1024 rather than just RSA. A value that cannot be worked out from the code is left unresolved, never guessed. A local helper that merely borrows an algorithm's name (`def md5(text)` that formats text) is not counted.
 
-Python and optional JavaScript/TypeScript adapters build relationships. Other supported languages retain crypto detectors without equivalent function graphs. Dynamic callbacks and aliases can remain unresolved. Production files consume graph budgets before tests. Console repeat scans reuse unchanged syntax, but still read files and recompute findings and cross-file relationships; not every repository scans faster.
+Python, and with the optional parsers JavaScript/TypeScript, Java and Go, build relationships. In Java and Go a call counts only when the source states the type: the same class or package, an import, a typed field, parameter or local variable, or a Go receiver. Other supported languages retain crypto detectors without equivalent function graphs. Dynamic callbacks and aliases can remain unresolved. Production files consume graph budgets before tests. Console repeat scans reuse unchanged syntax, but still read files and recompute findings and cross-file relationships; not every repository scans faster.
 
 If a limit is reached, open advanced coverage and inspect the named omissions. Narrow the scope or use standalone exclusions. Unified discovery is limited to 50,000 files/512 MB and a cooperative five-minute deadline; a parsing operation is not forcibly interrupted. The workspace is limited to 16 MB with a maximum 64 MB decompressed graph. Smaller scan scopes may be necessary even when disk space is available.
 
@@ -444,7 +444,7 @@ Keep `.pqcsuite/projects.json` (or the configured state path), console audit rec
 |---|---|---|
 | `pqcsuite` is not found | Wrong Python environment or PATH | Activate the environment or use its full executable path; reinstall in that environment |
 | Repository scanner unavailable | Suite installed without compatible Wolf Pack | Install both packages and scanning extras from the same checkout/release family |
-| JavaScript/TypeScript relationships unavailable | Optional parser extra missing | Install Wolf Pack's `crawler` extra; rerun the scan and inspect coverage |
+| JavaScript/TypeScript, Java or Go relationships unavailable | Optional parser extra missing | Install Wolf Pack's `crawler` extra; rerun the scan and inspect coverage |
 | Setup refuses an existing file | It is preserving your configuration | Use that config or choose a new output filename |
 | Add repository rejects a folder | Outside approved parent, symlink or unavailable path | Ask the local administrator to configure the intended parent; do not weaken containment checks |
 | Scan stops or cannot save | Discovery/time/graph/workspace limit, permissions or disk problem | Read the exact warning, narrow scope and export available results; preserve old state |
@@ -463,7 +463,7 @@ For support, share the version/commit, OS, relevant redacted command/configurati
 
 All products need application-specific validation. Passing automated tests or using PQ algorithms is not a blanket “secure” or “production-ready” certificate. The suite is not independently audited or FIPS 140-3 validated. Real cloud account deployments, managed Kubernetes, long-duration production loads and physical laptop sleep/roaming conditions need their own evidence. The documented three-customer pilot protocol is a plan, not three completed pilots.
 
-Team SSO/roles and native signed installers are outside current scope. Static relationships for Java/Go/C, general dynamic-dispatch resolution, hard scan-process isolation and independent source-to-deployment provenance remain gaps. The product preserves explicit uncertainty instead of treating unsupported evidence as a clean bill of health.
+Team SSO/roles and native signed installers are outside current scope. Static relationships for C, C#, Rust and Kotlin, general dynamic-dispatch resolution, hard scan-process isolation and independent source-to-deployment provenance remain gaps. The product preserves explicit uncertainty instead of treating unsupported evidence as a clean bill of health.
 
 No single score replaces judgment: use the detected behavior, data lifetime, deployment context, coverage and real tests together. Verify important fixes with your application's tests and an appropriate reviewer.
 
