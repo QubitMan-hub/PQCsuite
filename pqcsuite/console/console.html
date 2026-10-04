@@ -424,11 +424,12 @@ const RENDER = {
     const errors = rows.filter(t => t.error).length;
     if (!current()) return;
     $("#view").innerHTML = head("VPN", "Observed gateway and site-to-site status. This console does not connect this browser or change your device's routes.", "Network protection") + `<div class="metrics">
-      ${metric("IPsec protection", errors ? "Unknown" : !established.length ? "Disconnected" : protectedTunnels.length === established.length ? "PQ observed" : "Review required", errors ? "one or more gateways could not be read" : `${protectedTunnels.length}/${established.length} IKE sessions have ML-KEM + PPK and an installed encrypted tunnel`, errors ? "warn" : established.length && protectedTunnels.length === established.length ? "ok" : "warn")}
+      ${metric("IPsec protection", errors ? "Unknown" : !rows.length ? "No tunnels" : !established.length ? "Disconnected" : protectedTunnels.length === established.length ? "PQ observed" : "Review required", errors ? "one or more gateways could not be read" : !rows.length ? "no site-to-site tunnel is reported to this console" : `${protectedTunnels.length}/${established.length} IKE sessions have ML-KEM + PPK and an installed encrypted tunnel`, errors ? "warn" : !rows.length ? "" : established.length && protectedTunnels.length === established.length ? "ok" : "warn")}
       ${metric("Connected tunnels", active.length, "installed encrypted child SAs; not a device-wide protection claim")}</div>
-      <details class="guide"><summary>Connect a device or diagnose setup</summary><p>For remote access, your administrator supplies a gateway address and a certificate folder. Install WireGuard for your operating system first, then run these on the device you want to connect with the required administrator privileges.</p>
-      <pre>pqcsuite doctor
-pqcsuite vpn connect GATEWAY:PORT --cert-dir ./client
+      <details class="guide"><summary>Connect a device or diagnose setup</summary><p>Administrator: create one invitation per person and send it through a channel you trust. The person installs WireGuard and the suite, then joins from an administrator terminal; it enrolls the device and connects in one step, and says Protected once the tunnel is up.</p>
+      <pre>pqcsuite vpn invite alice --enroll https://CA-HOST:9443 --gateway GATEWAY:7443
+pqcsuite vpn join alice.pqcinvite
+pqcsuite vpn status
 pqcsuite vpn disconnect</pre><p>The connect process keeps post-quantum keys fresh. Leave it running. Use vpn install to configure a system service after confirming access. IPsec deployments also need strongSwan and a site profile; check ML-KEM support with the command below.</p>
       <pre>pqcsuite vpn check
 pqcsuite vpn status --json</pre><p>Check routes and an actual WireGuard handshake on the connected device. A recent handshake alone does not prove post-quantum key freshness or that all traffic goes through the tunnel.</p></details><div class="panel">${table(
