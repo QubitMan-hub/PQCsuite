@@ -442,18 +442,21 @@ pqcsuite vpn status --json</pre><p>Check routes and an actual WireGuard handshak
   async backups(current = () => true) {
     const rows = await api("backups");
     if (!current()) return;
-    $("#view").innerHTML = head("Backups", "Vault archive headers show the configured suite and claimed signer. Use vault verify with a recipient key to authenticate an archive before relying on it.", "Vault") + `<div class="panel">${table(
-      ["File", "Created", "Kind", "Suite", "Recipients", "Signer (unverified)", "Size"],
-      rows.map((b) => b.error ? [{ mono: b.file }, pill("unreadable", "bad"), b.error, "", "", "", ""]
-        : [{ mono: b.file.split(/[\\/]/).pop() }, { mono: b.created.slice(0, 16).replace("T", " ") }, b.kind, b.suite, b.recipients.length,
-           b.signed_by ? pill(b.signed_by.replace("CN=", ""), "mute") : pill("unsigned", "warn"), { mono: bytes(b.size) }]),
-      "No backups found. Start the console with --backups FOLDER.")}</div><details class="guide"><summary>Protect, verify, and recover an archive</summary>
-      <p>Vault protects files and folders for named recipients. This console lists archives on the server; it does not unlock them. Keep recipient private keys on a trusted machine and keep an offline recovery copy.</p>
-      <pre>pqcsuite vault keygen recipient
-pqcsuite vault encrypt ./data --out backup.pqv --recipient recipient.pub
-pqcsuite vault verify backup.pqv --key recipient.key
-pqcsuite vault decrypt backup.pqv --out recovered --key recipient.key</pre>
-      <p>Verify before relying on a backup, then test a restore to a fresh destination. For signed archives, add --ca with your trusted issuer certificate. Losing every recipient key makes recovery impossible.</p></details>`;
+    const steps = `<pre>pqcsuite vault keygen me
+pqcsuite vault keygen recovery            # keep recovery.key offline
+pqcsuite vault encrypt ./data -o backup.pqv -r me.pub -r recovery.pub
+pqcsuite vault verify backup.pqv --key me.key
+pqcsuite vault decrypt backup.pqv -o restored --key me.key</pre>`;
+    $("#view").innerHTML = head("Vault", "Files and folders sealed as .pqv archives that only the recipients you name can open: a hybrid X25519 + ML-KEM-768 key per recipient (P-384 + ML-KEM-1024 for CNSA 2.0) and AES-256-GCM for the content. This page lists archives in the folders you configured; it never unlocks them.", "Vault") +
+      (rows.length ? `<div class="panel">${table(
+        ["File", "Created", "Kind", "Suite", "Recovery", "Signer (unverified)", "Size"],
+        rows.map((b) => b.error ? [{ mono: b.file }, pill("unreadable", "bad"), b.error, "", "", "", ""]
+          : [{ mono: b.file.split(/[\\/]/).pop() }, { mono: b.created.slice(0, 16).replace("T", " ") }, b.kind, b.suite,
+             b.recipients.length > 1 ? pill(`${b.recipients.length} recipients`, "ok") : pill("1 recipient: no recovery copy", "warn"),
+             b.signed_by ? pill(b.signed_by.replace("CN=", ""), "mute") : pill("unsigned", "warn"), { mono: bytes(b.size) }]), "")}</div>
+        <div class="panel"><div class="notice">Headers are read without a key, so the suite, recipients and signer shown here are claims. Before relying on a backup, run <code>pqcsuite vault verify</code> with a recipient key, then restore it once to a fresh folder.</div></div>
+        <details class="guide"><summary>Protect, verify, and recover an archive</summary>${steps}<p>For signed archives, add --ca with your trusted issuer certificate. Losing every recipient key makes recovery impossible.</p></details>`
+      : `<div class="panel"><h2>Protect your first backup</h2><div class="notice">Make two recipients, yourself and an offline recovery key, so a lost laptop never means lost data. Encrypt for both, verify, and test a restore. Then start the console with <code>--backups FOLDER</code> to see your archives here.</div>${steps}</div>`);
   },
 
   async wolfpack(current = () => true) {

@@ -20,6 +20,13 @@ web = repositories / "web-api"
 web.mkdir()
 (web / "keys.ts").write_text('import crypto from "node:crypto";\nexport function digest(data: string) { return crypto.createHash("sha256").update(data); }')
 (web / "api.ts").write_text('import {digest} from "./keys";\nexport function checkout(data: string) { return digest(data); }')
+backups = d / "backups"
+backups.mkdir()
+(d / "ledger.csv").write_text("date,amount\n")
+for who in ("me", "recovery"):
+    run("vault", "keygen", who, "--no-passphrase")
+run("vault", "encrypt", "ledger.csv", "-o", str(backups / "ledger.pqv"), "-r", "me.pub", "-r", "recovery.pub")
+run("vault", "encrypt", "ledger.csv", "-o", str(backups / "single.pqv"), "-r", "me.pub")
 os.environ["PQCSUITE_CONSOLE_TOKEN"] = "browser-test"
 os.chdir(d)  # audit output belongs to this disposable fixture, not the checkout
-os.execv(sys.executable, [sys.executable, "-m", "pqcsuite", "console", "--ca", str(d / "ca"), "--listen", "127.0.0.1:8900", "--project", str(project), "--repositories", str(repositories), "--project-history", str(d / "history.json"), "--scan", "localhost:1"])
+os.execv(sys.executable, [sys.executable, "-m", "pqcsuite", "console", "--ca", str(d / "ca"), "--listen", "127.0.0.1:8900", "--project", str(project), "--repositories", str(repositories), "--project-history", str(d / "history.json"), "--scan", "localhost:1", "--backups", str(backups)])

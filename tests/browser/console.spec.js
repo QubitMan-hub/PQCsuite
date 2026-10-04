@@ -315,3 +315,10 @@ test('deployment verification preserves a failed observation and explains rescan
   await expect(page.locator('#view')).toContainText('Reused syntax: 2');
   expect((await new AxeBuilder({page}).analyze()).violations.filter(v=>['serious','critical'].includes(v.impact))).toEqual([]);
 });
+
+test('Vault lists real archives and flags one without a recovery recipient', async ({page}) => {
+  await signIn(page); await page.evaluate(() => (location.hash='backups'));
+  await expect(page.locator('tr').filter({hasText:'ledger.pqv'})).toContainText('2 recipients');
+  await expect(page.locator('tr').filter({hasText:'single.pqv'})).toContainText('no recovery copy');
+  await expect(page.locator('main')).toContainText('it never unlocks them');
+});
