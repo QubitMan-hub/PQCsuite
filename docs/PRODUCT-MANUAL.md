@@ -325,35 +325,31 @@ Success requires an installed encrypted child tunnel and actual application traf
 
 ### Enroll and connect a laptop
 
-Install the official WireGuard client/tools and the suite on the laptop. Obtain the enrollment URL, one-time token, trusted CA fingerprint and gateway name from the administrator through trusted channels. Do not paste secrets into support chat.
+**Administrator, once per person:** create an invitation. It holds the enrollment address, the CA fingerprint the laptop will trust, the gateway and a one-time token, so the person does not have to copy four values by hand. Add the name to the gateway's `users` list if it has one.
 
 ```sh
-pqcsuite ca enroll --guide --out device
+pqcsuite vpn invite alice --dir pki --enroll https://ca.example.com:9443 --gateway vpn.example.com:7443
 ```
 
-The guide asks for missing values and a passphrase for the encrypted device key. It pins CA trust rather than blindly accepting the first server it sees. The token is one-time and enrollment does not itself create a tunnel.
+Send `alice.pqcinvite` through a channel you trust (it is valid for 24 hours by default; `--hours` changes that).
 
-On Linux/macOS, use an administrator terminal and the executable from your installed environment. A typical Linux command is:
+**On the laptop:** install the official WireGuard client and the suite, open an administrator terminal (Windows: *Run as administrator*; Linux/macOS: `sudo`), and run:
 
 ```sh
-sudo .venv/bin/pqcsuite vpn connect vpn.example.com:7443 --cert-dir device
+pqcsuite vpn join alice.pqcinvite
 ```
 
-On Windows, open an elevated PowerShell terminal, activate the same environment and use:
+It checks administrator rights and WireGuard first, asks you to choose a passphrase for the device key, enrolls (the key never leaves the laptop and is stored encrypted), and connects. The window then says where you stand:
 
-```powershell
-pqcsuite vpn connect vpn.example.com:7443 --cert-dir device
-```
+| Message | Meaning |
+|---|---|
+| **Protected.** | The tunnel has completed a handshake using a key from the latest post-quantum key agreement. The next line names the TLS group, the gateway's certificate algorithm and how often the key is renewed. |
+| **Connecting.** | Keys are agreed; the tunnel has not completed its first handshake yet. |
+| **Not protected.** | The gateway could not be reached or refused this device; the reason follows. It retries on its own; with a full tunnel, internet traffic stays blocked meanwhile. |
 
-Replace the gateway name. Keep the process running and supply the encrypted-key passphrase when requested. Test the private application and DNS. `--no-apply` and `--once` are diagnostic modes, not proof of an active tunnel.
+From another terminal, `pqcsuite vpn status` gives the same answer (add `--details` for algorithms, handshake and key timing, or `--json`). It exits 0 only when protected. Next time, run `pqcsuite vpn join alice.pqcinvite` again: the laptop is already enrolled, so it only asks for the passphrase and connects. Ctrl+C or `pqcsuite vpn disconnect` (same privileges) takes the tunnel down and lifts the kill switch.
 
-To disconnect, use the same privilege level and environment:
-
-```sh
-pqcsuite vpn disconnect
-```
-
-Disconnect intentionally removes the tunnel and lifts its kill switch. Closing a window is not the recommended way to disconnect. The built-in `pqcsuite vpn install` cannot unlock the encrypted keys produced by guided enrollment and refuses that combination. Use interactive connect, or have an administrator configure a service with `--key-passphrase-env` and protected secret injection. Keep the key encrypted; do not place passphrases in public service files.
+The remote-access pre-shared key comes from post-quantum TLS key agreement and is mixed into WireGuard; WireGuard's own handshake stays classical. `pqcsuite vpn connect GATEWAY --cert-dir FOLDER` and `pqcsuite ca enroll --guide` remain available for administrators who enroll devices themselves. `--no-apply` and `--once` are checks, not an active tunnel. The built-in `pqcsuite vpn install` cannot unlock an encrypted device key; use interactive join or connect, or an administrator-managed service with `--key-passphrase-env` and protected secret injection.
 
 ### Split tunnel, full tunnel and recovery
 

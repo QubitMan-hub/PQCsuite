@@ -153,7 +153,10 @@ Laptops on Linux, Windows and macOS use WireGuard with a pre-shared key from the
 
 ```
 pqcsuite vpn gateway --config examples/wireguard-gateway.toml
-sudo pqcsuite vpn connect vpn.acme.example:7443 --cert-dir ~/.pqcsuite/alice     # connect now (Windows: an administrator prompt, no sudo)
+pqcsuite vpn invite alice --enroll https://ca.acme.example:9443 --gateway vpn.acme.example:7443   # administrator: one file for alice
+sudo pqcsuite vpn join alice.pqcinvite                                           # alice: enroll and connect (Windows: an administrator prompt, no sudo)
+pqcsuite vpn status                                                              # Protected / Connecting / Not protected, and why
+sudo pqcsuite vpn connect vpn.acme.example:7443 --cert-dir ~/.pqcsuite/alice     # connect a device that is already enrolled
 sudo pqcsuite vpn install vpn.acme.example:7443 --cert-dir ~/.pqcsuite/alice     # always on: at every start, restarted if it stops
 sudo pqcsuite vpn disconnect                                                      # take it down and lift the kill switch
 ```

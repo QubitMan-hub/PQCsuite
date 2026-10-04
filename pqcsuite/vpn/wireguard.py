@@ -31,7 +31,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
 from .. import build, env_passphrase, explain, read_toml, tls
-from ..pki import CAError, follow_crl, write
+from ..pki import CAError, algorithm_of, follow_crl, write
 from ..tls import hostport
 from ..tls.server import Server
 from .controller import TAG, common_name, read_line
@@ -317,7 +317,7 @@ class Client:
     stopped working is taken down so the gateway can be reached directly, then brought back with fresh keys."""
 
     def __init__(self, keyring, folder, interface="wg0", server_name=None, apply=True, config_out=None, key_passphrase=None, ca=None,
-                 tunnel=None, kill_switch=None):
+                 tunnel=None, kill_switch=None, on_status=None, status_file=None):
         self.host, self.port = hostport(keyring)
         self.server_name = server_name or self.host
         self.dir = Path(folder)
@@ -330,6 +330,9 @@ class Client:
         self.private, self.public = private_key(self.dir / "wireguard.key")
         self.applied, self.stop = None, threading.Event()
         self.due, self.failures = 0.0, 0
+        self.last = self.error = self.since = self.reported = None
+        self.details, self.on_status = {}, on_status
+        self.status_file = status_file or (Path(tunnel.folder) / f"{interface}.status.json" if apply and hasattr(tunnel, "folder") else None)
 
     def agree(self):
         ctx = tls.client_context(self.ca, self.dir / "chain.pem", self.dir / "key.pem", "strict", self.passphrase)
@@ -339,7 +342,9 @@ class Client:
             reply = read_line(conn)
             if reply.get("ok") is not True or not valid_key(str(reply.get("gateway_public", ""))):
                 raise tls.TLSError("the gateway refused the key agreement (is this certificate allowed?)")
-            psk = conn.export(LABEL, context(common_name(conn.peer_certificate()), self.name, tag, self.public, reply["gateway_public"]), 32)
+            peer = conn.peer_certificate()
+            psk = conn.export(LABEL, context(common_name(peer), self.name, tag, self.public, reply["gateway_public"]), 32)
+            self.details = {"tls_group": conn.group, "gateway_certificate": algorithm_of(peer.public_key()), "gateway": common_name(peer)}
         return reply, b64(psk)
 
     def apply(self, reply, psk):
@@ -380,16 +385,51 @@ class Client:
                 reply = self.once()
                 log.info("connected as %s through %s; next key in %ds", reply["address"], reply["endpoint"], reply["rotate_s"])
                 self.failures, self.due = 0, time.time() + reply["rotate_s"]
+                self.last, self.error, self.since = reply, None, self.since or time.time()
             except (tls.TLSError, WGError, OSError, ValueError, KeyError) as e:
                 self.failures += 1
                 retry = min(5 * 2 ** (self.failures - 1), 60)
-                log.warning("key agreement failed: %s; retrying in %ds", explain(e), retry)
+                self.error, self.since = explain(e), None
+                log.warning("key agreement failed: %s; retrying in %ds", self.error, retry)
                 if self.apply_ and self.tunnel.up_:
                     log.warning("taking the tunnel down to reach the gateway directly")
                     self.tunnel.down()
                     retry = 1
                 self.due = time.time() + retry
+        self.report()
         return max(0.5, min(5.0, self.due - time.time()))
+
+    def status(self):
+        """What a person needs to know: protected, connecting or not protected, and why. Protected means WireGuard has completed
+        a handshake within three minutes using the PSK from the latest post-quantum key agreement, not merely that keys were agreed."""
+        s = {"state": "not_protected", "gateway": f"{self.host}:{self.port}", "device": self.name, "error": self.error, "updated": time.time()}
+        if self.last and not self.error:
+            age = None
+            if self.apply_ and self.tunnel.up_:
+                try:
+                    age = self.tunnel.handshake_age(self.last["gateway_public"])
+                except (WGError, OSError):
+                    age = None
+            full = "0.0.0.0/0" in self.last["routes"]
+            s |= {"state": ("protected" if age is not None and age <= 180 else "connecting") if self.apply_ else "agreed",
+                  "address": self.last["address"], "routes": self.last["routes"], "full_tunnel": full, "kill_switch": full and self.apply_,
+                  "connected_since": self.since, "handshake_age_s": None if age is None else round(age), "next_key_s": max(0, round(self.due - time.time())),
+                  "key_agreement": self.details | {"post_quantum": "MLKEM" in str(self.details.get("tls_group", "")).upper(),
+                                                   "psk_rotation_s": self.last["rotate_s"]}}
+        return s
+
+    def report(self, s=None):
+        s = s or self.status()
+        if self.status_file:
+            try:
+                write(Path(self.status_file), json.dumps(s).encode())
+            except OSError as e:
+                log.debug("status file not written: %s", e)
+        key = (s["state"], s.get("error"), s.get("address"))
+        if key != self.reported:
+            self.reported = key
+            if self.on_status:
+                self.on_status(s)
 
     def run(self):
         while not self.stop.is_set():
@@ -400,6 +440,8 @@ class Client:
         if self.apply_:
             self.tunnel.down()
             self.kill_switch.off()
+        self.last = None
+        self.report({"state": "disconnected", "gateway": f"{self.host}:{self.port}", "device": self.name, "error": None, "updated": time.time()})
 
 
 def wg_quick(private, reply, psk):

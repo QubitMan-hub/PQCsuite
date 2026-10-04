@@ -103,6 +103,109 @@ class GatewayTest(unittest.TestCase):
         b.agree()
         self.assertEqual(self.wg.peers_[b.public]["allowed_ips"], ["10.99.0.2/32", "192.168.20.0/24"])
 
+    def test_status_says_protected_only_after_a_tunnel_handshake(self):
+        from pqcsuite.cli import describe_vpn
+
+        class Tunnel:
+            folder, up_, age = self.d, False, None
+
+            def routes(self, routes):
+                return routes
+
+            def up(self, text):
+                self.up_ = True
+
+            def down(self):
+                self.up_ = False
+
+            def wg(self):
+                return self
+
+            def set_psk(self, *args):
+                pass
+
+            def device(self):
+                return "wg0"
+
+            def handshake_age(self, peer):
+                return self.age
+
+        class KillSwitch:
+            def on(self, *args):
+                pass
+
+            def off(self):
+                pass
+        seen, tunnel = [], Tunnel()
+        c = Client(f"127.0.0.1:{self.gw.server.port}", self.d / "alice", server_name="localhost", tunnel=tunnel, kill_switch=KillSwitch(),
+                   on_status=seen.append)
+        c.step()
+        self.assertEqual(seen[-1]["state"], "connecting", "keys agreed is not yet protection")
+        tunnel.age = 4
+        c.report()
+        self.assertEqual(seen[-1]["state"], "protected")
+        self.assertTrue(seen[-1]["key_agreement"]["post_quantum"])
+        text = describe_vpn(seen[-1])
+        self.assertIn("Protected. Traffic to 10.99.0.0/24, 192.168.10.0/24 (split tunnel)", text)
+        self.assertIn("Post-quantum key agreement: TLS group", text)
+        on_disk = __import__("json").loads((self.d / "wg0.status.json").read_text())
+        self.assertEqual(on_disk["state"], "protected")
+        self.assertNotIn(c.private, (self.d / "wg0.status.json").read_text(), "no key material in the status file")
+        self.gw.shutdown()
+        c.due = 0
+        c.step()
+        self.assertEqual(seen[-1]["state"], "not_protected")
+        self.assertIn("Not protected.", describe_vpn(seen[-1]))
+        c.close()
+        self.assertEqual(seen[-1]["state"], "disconnected")
+
+    def test_invite_then_join_enrolls_and_agrees_keys_in_one_step(self):
+        import contextlib
+        import io
+        import json
+        from unittest import mock
+        from pqcsuite import cli
+        from pqcsuite.pki import est, encrypted
+        srv = est.serve(self.d / "pki", "127.0.0.1:0", self.d / "gw" / "chain.pem", self.d / "gw" / "key.pem")
+        srv.start()
+        self.addCleanup(srv.stop, 1)
+        invite = self.d / "laptop.pqcinvite"
+
+        def run(*argv):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out), self.assertRaises(SystemExit) as e:
+                cli.main(list(argv))
+            return e.exception.code, out.getvalue()
+        code, text = run("vpn", "invite", "bob", "--dir", str(self.d / "pki"), "--enroll", f"https://localhost:{srv.port}",
+                         "--gateway", f"127.0.0.1:{self.gw.server.port}", "--server-name", "localhost", "--out", str(invite))
+        self.assertEqual(code, 0, text)
+        self.assertIn("pqcsuite vpn join laptop.pqcinvite", text)
+        good = invite.read_text()
+        os.environ["PQCSUITE_TEST_PW"] = "device pass"
+        self.addCleanup(os.environ.pop, "PQCSUITE_TEST_PW", None)
+        for name, change in (("tampered", lambda i: i | {"ca_fingerprint": "00" * 32}), ("expired", lambda i: i | {"expires": "2020-01-01T00:00:00+00:00"}),
+                             ("malformed", lambda i: {"name": "x"})):
+            with self.subTest(name):
+                bad = self.d / f"{name}.pqcinvite"
+                bad.write_text(json.dumps(change(json.loads(good))))
+                code, text = run("vpn", "join", str(bad), "--no-apply", "--once", "--key-passphrase-env", "PQCSUITE_TEST_PW")
+                self.assertEqual(code, 1)
+                self.assertIn({"tampered": "do not trust", "expired": "expired", "malformed": "not a PQC Suite invitation"}[name], text)
+                self.assertFalse((self.d / name / "key.pem").exists())
+        with mock.patch.object(cli, "administrator", return_value=False):
+            code, text = run("vpn", "join", str(invite))
+        self.assertIn("needs administrator rights", text)
+        code, text = run("vpn", "join", str(invite), "--no-apply", "--once", "--key-passphrase-env", "PQCSUITE_TEST_PW")
+        self.assertEqual(code, 0, text)
+        self.assertIn("Enrolled", text)
+        self.assertIn("key agreement confirmed for 10.99.0.", text)
+        self.assertTrue(encrypted(self.d / "laptop" / "key.pem"))
+        self.assertNotIn("token", json.loads(invite.read_text()), "the used token is removed from the file")
+        code, text = run("vpn", "join", str(invite), "--no-apply", "--once", "--key-passphrase-env", "PQCSUITE_TEST_PW")
+        self.assertEqual(code, 0, "joining again reconnects with the enrolled device")
+        code, text = run("vpn", "join", str(invite), "--device", str(self.d / "other"), "--no-apply", "--once", "--key-passphrase-env", "PQCSUITE_TEST_PW")
+        self.assertIn("already used", text)
+
     def test_users_outside_the_list_are_refused(self):
         with self.assertRaisesRegex(tls.TLSError, "refused"):
             self.client("mallory").agree()

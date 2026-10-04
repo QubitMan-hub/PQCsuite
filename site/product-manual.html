@@ -404,21 +404,38 @@ pqcsuite vpn up --config examples/vpn-hq.toml
 </code></pre>
 <p>Success requires an installed encrypted child tunnel and actual application traffic across it, not only an IKE connection or a green control-plane indicator. Test a real request to an authorized private service and confirm encrypted tunnel counters/algorithms. Production service installation and network changes belong to the gateway administrator.</p>
 <h3 id="enroll-and-connect-a-laptop">Enroll and connect a laptop</h3>
-<p>Install the official WireGuard client/tools and the suite on the laptop. Obtain the enrollment URL, one-time token, trusted CA fingerprint and gateway name from the administrator through trusted channels. Do not paste secrets into support chat.</p>
-<pre><code class="language-sh">pqcsuite ca enroll --guide --out device
+<p><strong>Administrator, once per person:</strong> create an invitation. It holds the enrollment address, the CA fingerprint the laptop will trust, the gateway and a one-time token, so the person does not have to copy four values by hand. Add the name to the gateway's <code>users</code> list if it has one.</p>
+<pre><code class="language-sh">pqcsuite vpn invite alice --dir pki --enroll https://ca.example.com:9443 --gateway vpn.example.com:7443
 </code></pre>
-<p>The guide asks for missing values and a passphrase for the encrypted device key. It pins CA trust rather than blindly accepting the first server it sees. The token is one-time and enrollment does not itself create a tunnel.</p>
-<p>On Linux/macOS, use an administrator terminal and the executable from your installed environment. A typical Linux command is:</p>
-<pre><code class="language-sh">sudo .venv/bin/pqcsuite vpn connect vpn.example.com:7443 --cert-dir device
+<p>Send <code>alice.pqcinvite</code> through a channel you trust (it is valid for 24 hours by default; <code>--hours</code> changes that).</p>
+<p><strong>On the laptop:</strong> install the official WireGuard client and the suite, open an administrator terminal (Windows: <em>Run as administrator</em>; Linux/macOS: <code>sudo</code>), and run:</p>
+<pre><code class="language-sh">pqcsuite vpn join alice.pqcinvite
 </code></pre>
-<p>On Windows, open an elevated PowerShell terminal, activate the same environment and use:</p>
-<pre><code class="language-powershell">pqcsuite vpn connect vpn.example.com:7443 --cert-dir device
-</code></pre>
-<p>Replace the gateway name. Keep the process running and supply the encrypted-key passphrase when requested. Test the private application and DNS. <code>--no-apply</code> and <code>--once</code> are diagnostic modes, not proof of an active tunnel.</p>
-<p>To disconnect, use the same privilege level and environment:</p>
-<pre><code class="language-sh">pqcsuite vpn disconnect
-</code></pre>
-<p>Disconnect intentionally removes the tunnel and lifts its kill switch. Closing a window is not the recommended way to disconnect. The built-in <code>pqcsuite vpn install</code> cannot unlock the encrypted keys produced by guided enrollment and refuses that combination. Use interactive connect, or have an administrator configure a service with <code>--key-passphrase-env</code> and protected secret injection. Keep the key encrypted; do not place passphrases in public service files.</p>
+<p>It checks administrator rights and WireGuard first, asks you to choose a passphrase for the device key, enrolls (the key never leaves the laptop and is stored encrypted), and connects. The window then says where you stand:</p>
+<div class="manual-table" tabindex="0" role="region" aria-label="Reference table"><table>
+<thead>
+<tr>
+<th>Message</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Protected.</strong></td>
+<td>The tunnel has completed a handshake using a key from the latest post-quantum key agreement. The next line names the TLS group, the gateway's certificate algorithm and how often the key is renewed.</td>
+</tr>
+<tr>
+<td><strong>Connecting.</strong></td>
+<td>Keys are agreed; the tunnel has not completed its first handshake yet.</td>
+</tr>
+<tr>
+<td><strong>Not protected.</strong></td>
+<td>The gateway could not be reached or refused this device; the reason follows. It retries on its own; with a full tunnel, internet traffic stays blocked meanwhile.</td>
+</tr>
+</tbody>
+</table></div>
+<p>From another terminal, <code>pqcsuite vpn status</code> gives the same answer (add <code>--details</code> for algorithms, handshake and key timing, or <code>--json</code>). It exits 0 only when protected. Next time, run <code>pqcsuite vpn join alice.pqcinvite</code> again: the laptop is already enrolled, so it only asks for the passphrase and connects. Ctrl+C or <code>pqcsuite vpn disconnect</code> (same privileges) takes the tunnel down and lifts the kill switch.</p>
+<p>The remote-access pre-shared key comes from post-quantum TLS key agreement and is mixed into WireGuard; WireGuard's own handshake stays classical. <code>pqcsuite vpn connect GATEWAY --cert-dir FOLDER</code> and <code>pqcsuite ca enroll --guide</code> remain available for administrators who enroll devices themselves. <code>--no-apply</code> and <code>--once</code> are checks, not an active tunnel. The built-in <code>pqcsuite vpn install</code> cannot unlock an encrypted device key; use interactive join or connect, or an administrator-managed service with <code>--key-passphrase-env</code> and protected secret injection.</p>
 <h3 id="split-tunnel-full-tunnel-and-recovery">Split tunnel, full tunnel and recovery</h3>
 <p>A split tunnel protects configured private routes; unrelated internet traffic may use the normal network. Full tunnel routes internet traffic through the gateway and applies the supported kill-switch behavior. A kill switch attempts to stop traffic from escaping when protection fails. It is not identical on all platforms: the Windows block follows tunnel lifetime and can lift during tunnel recreation, while Linux/macOS rules are designed to remain during recovery.</p>
 <p>Before broad rollout, test sleep/wake, Wi-Fi changes, gateway restart, DNS/IPv6, revocation and kill switches on your actual laptop model/OS. CI tunnel tests are not a substitute for those conditions. Keep an administrator recovery route when testing network changes, and use the <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PILOT.md">pilot protocol</a> to record results.</p>
@@ -654,4 +671,4 @@ pqcsuite vault share notes.pqv --key owner.key -r auditor.pub
 <p>Use <code>pqcsuite --help</code>, then the relevant command's <code>--help</code> for exact options. See the <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/README.md">README</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/CODE-CRAWLER.md">Code Crawler limits</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/RELEASE-READINESS.md">release gates</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PILOT.md">pilot instructions</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/SECURITY.md">security reporting</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/wolf-pack/README.md">Wolf Pack guide</a>.</p>
 <p>For guided stories using temporary data, run <code>python examples/clinic_demo.py --auto</code> or <code>python examples/bank_demo.py --auto</code> from an installed checkout. The privileged Linux VPN demo needs its documented networking prerequisites. These demos exercise real operations on example data; they do not configure your production organization.</p>
 
-<footer>Generated 2026-10-04 17:36 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>
+<footer>Generated 2026-10-04 17:52 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>
