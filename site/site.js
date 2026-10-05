@@ -100,6 +100,11 @@ const TOUR = [
 ];
 const tourButton = document.getElementById("tour");
 if (tourButton && typeof Tour !== "undefined") {
-  tourButton.addEventListener("click", () => Tour.start("site", TOUR));
-  Tour.offer("site", TOUR);
+  const tour = () => Tour.start("site", TOUR);
+  tourButton.addEventListener("click", tour);
+  document.querySelectorAll('a[href$="#tour"]').forEach(a => a.addEventListener("click", e => { e.preventDefault(); tour(); }));
+  if (location.hash === "#tour") {  // "Take the tour" from another page
+    history.replaceState(null, "", location.pathname + location.search);
+    tour();
+  } else Tour.offer("site", TOUR);
 }

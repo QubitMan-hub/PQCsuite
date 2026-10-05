@@ -211,7 +211,7 @@ def render():
 </head>
 <body>
 <header class="top"><div class="in"><a href="{site}" aria-label="Acxelin PQC Suite website">{logo}</a><b>Product manual</b>
-<nav aria-label="Website"><a href="{site}">Website</a><a href="{site}#app">Download</a><a href="{site}security.html">Security</a></nav></div></header>
+<nav aria-label="Website"><a href="{site}">Website</a><a href="{site}#tour">Website tour</a><a href="{site}#app">Download</a><a href="{site}security.html">Security</a></nav></div></header>
 <div class="layout">
 <details class="toc"><summary>Contents</summary><nav aria-label="Contents"><ol>{"".join(toc)}</ol></nav></details>
 <main id="main">

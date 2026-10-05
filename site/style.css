@@ -57,6 +57,9 @@ code, .mono { font-family: var(--mono); }
 .top nav .tool { padding-left: 22px; border-left: 1px solid var(--rule); color: var(--ink); font-weight: 500; }
 .top nav .back::before { content: "\2190"; margin-right: 6px; color: var(--amber-deep); }
 .top nav .btn { padding: 11px 15px; font-size: 15px; color: #111; }
+.top nav .help { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--rule); border-radius: 50%; font: 600 15px/1 var(--display); color: var(--ink); background: var(--paper); }
+.top nav .help:hover { border-color: var(--amber); color: #000; }
+.top nav .help b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .menu { display: none; align-items: center; gap: 10px; background: none; border: 1px solid var(--rule); border-radius: 8px; padding: 9px 12px; font: 500 15px/1 var(--display); color: var(--ink); cursor: pointer; }
 .menu span, .menu span::before, .menu span::after { display: block; width: 16px; height: 2px; background: currentColor; border-radius: 1px; position: relative; transition: transform .2s, background .2s; }
 .menu span::before, .menu span::after { content: ""; position: absolute; left: 0; }
@@ -76,6 +79,9 @@ code, .mono { font-family: var(--mono); }
   .top.open nav { position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 0; padding: 6px 16px 18px; background: var(--bg); border-bottom: 1px solid var(--rule); box-shadow: 0 18px 30px -24px rgba(46, 60, 78, .5); }
   .top.open nav a:not(.btn) { display: block; padding: 13px 0; font-size: 17px; border-bottom: 1px solid var(--rule); box-shadow: none; }
   .top.open nav .tool { padding-left: 0; border-left: 0; }
+  .top.open nav .help { width: auto; height: auto; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; background: none; font: inherit; }
+  .top.open nav .help span { display: none; }
+  .top.open nav .help b { position: static; width: auto; height: auto; clip-path: none; font-weight: 400; }
   .top.open nav .btn { margin-top: 14px; justify-content: center; }
 }
 @media (max-width: 400px) { .top .wrap > nav .btn { display: none; } .top.open .wrap > nav .btn { display: inline-flex; } }

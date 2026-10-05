@@ -106,3 +106,20 @@ test("the console demo has its own tour, worded for the demo", async ({ page }) 
   await page.click(".tour-card .go");
   await expect(card(page)).toHaveCount(0);
 });
+
+test("the tour is always one click away, from every page", async ({ page }) => {
+  await page.goto(SITE);
+  await page.click("#nav a.help");
+  await expect(card(page)).toContainText("Step 1 of 10");
+  await page.keyboard.press("Escape");
+  await page.goto(SITE.replace("index.html", "security.html"));
+  await page.click("#nav a.help");
+  await expect(page).toHaveURL(/index\.html$/);
+  await expect(card(page)).toContainText("Step 1 of 10");
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(SITE.replace("index.html", "wolf-pack.html"));
+  await page.click(".menu");
+  await page.getByRole("link", { name: "Take the tour" }).click();
+  await expect(card(page)).toContainText("Step 1 of 10");
+});
