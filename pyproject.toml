@@ -49,7 +49,7 @@ pythonpath = ["wolf-pack"]
 source = ["pqcsuite"]
 
 [tool.coverage.report]
-fail_under = 82  # the CI tls job, which runs every test that needs OpenSSL 3.5 and real applications
+fail_under = 83  # CI measures 84% in the tls job, which runs every test that needs OpenSSL 3.5 and real applications
 
 [tool.ruff]
 target-version = "py311"
