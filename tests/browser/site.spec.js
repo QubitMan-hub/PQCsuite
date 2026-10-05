@@ -82,7 +82,7 @@ test("Wolf Pack is one click from the home page, links back, and opens its sampl
 test("Try it leads engineers to the tour, the install and the documentation, from every page's footer too", async ({ page }) => {
   await page.goto(SITE + "index.html");
   await page.goto(SITE + "index.html#use");
-  await expect(page.locator("#use .ways > div")).toHaveCount(3);
+  await expect(page.locator("#use .path > li")).toHaveCount(3);
   await expect(page.locator("#use pre").first()).toHaveText("docker run --rm ghcr.io/qubitman-hub/pqcsuite");
   // a backup that one key opens is refused by the product, so the site must never show one
   await expect(page.locator("#vault pre")).toContainText("-r ops.pub -r recovery.pub");

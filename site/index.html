@@ -334,22 +334,31 @@ quantum-safe asymmetric: 1/6 (17%)
 
   <section id="tested">
     <div class="wrap">
-      <div class="intro">
-        <p class="kicker">Compatibility</p>
-        <h2>Tested with the software you run</h2>
-        <p>Each of these runs behind the suite in our automated tests, on every change, and is checked with independent clients.</p>
+      <div class="tested">
+        <div class="tested-head">
+          <div class="intro">
+            <p class="kicker">Compatibility</p>
+            <h2>Tested with the software you run</h2>
+            <p>Real applications behind the suite, checked by their own clients, in our automated tests on every change.</p>
+          </div>
+          <dl class="proof">
+            <div><dt>9</dt><dd>real applications</dd></div>
+            <div><dt>0</dt><dd>mock servers: each runs for real</dd></div>
+            <div><dt>Every</dt><dd>change, before release</dd></div>
+          </dl>
+        </div>
+        <ul class="apps">
+        <li class="k-tls"><i aria-hidden="true">Nx</i><b>nginx</b><span>The OpenSSL 3.5 client, and 300 clients at once</span><em>TLS edge</em></li>
+        <li class="k-tls"><i aria-hidden="true">Br</i><b>Browsers and curl</b><span>Classical certificate for them, ML-DSA for everyone else, one port</span><em>TLS edge</em></li>
+        <li class="k-tls"><i aria-hidden="true">Pg</i><b>PostgreSQL</b><span>psql through a post-quantum tunnel with mutual TLS</span><em>TLS edge</em></li>
+        <li class="k-tls"><i aria-hidden="true">Rd</i><b>Redis</b><span>redis-cli through the same tunnel, unchanged</span><em>TLS edge</em></li>
+        <li class="k-tls"><i aria-hidden="true">Mq</i><b>MQTT (Mosquitto)</b><span>Readings published and received end to end</span><em>TLS edge</em></li>
+        <li class="k-vpn"><i aria-hidden="true">Ss</i><b>strongSwan 6.1</b><span>ML-KEM tunnels, key rotation, a revoked branch cut off</span><em>VPN</em></li>
+        <li class="k-vpn"><i aria-hidden="true">Wg</i><b>WireGuard</b><span>Laptop traffic, key rotation, a revoked user cut off</span><em>VPN</em></li>
+        <li class="k-ca"><i aria-hidden="true">Cb</i><b>certbot</b><span>An ML-DSA certificate issued over ACME</span><em>Certificates</em></li>
+        <li class="k-ops"><i aria-hidden="true">K8</i><b>Kubernetes</b><span>The Helm chart serving a post-quantum request</span><em>Deploy</em></li>
+        </ul>
       </div>
-      <ul class="apps">
-        <li><b>nginx</b><span>Checked with the OpenSSL 3.5 client, and with 300 clients at once</span></li>
-        <li><b>Browsers and curl</b><span>Classical certificate for them, ML-DSA for everyone else, same port</span></li>
-        <li><b>PostgreSQL</b><span>psql through a post-quantum tunnel with mutual TLS</span></li>
-        <li><b>Redis</b><span>redis-cli through the same tunnel, unchanged</span></li>
-        <li><b>MQTT (Mosquitto)</b><span>Readings published and received end to end</span></li>
-        <li><b>strongSwan 6.1</b><span>ML-KEM tunnels, key rotation, a revoked branch cut off</span></li>
-        <li><b>WireGuard</b><span>Laptop traffic, key rotation, a revoked user cut off</span></li>
-        <li><b>certbot</b><span>An ML-DSA certificate issued over ACME</span></li>
-        <li><b>Kubernetes</b><span>The Helm chart serving a post-quantum request in a cluster</span></li>
-      </ul>
     </div>
   </section>
 
@@ -358,34 +367,40 @@ quantum-safe asymmetric: 1/6 (17%)
       <div class="intro">
         <p class="kicker">Use it yourself</p>
         <h2>Try it, install it, read how it works</h2>
-        <p>For your engineers. Everything runs on your own machines, and nothing needs an account with us.</p>
+        <p>Three steps for your engineers. Everything runs on your own machines; nothing needs an account with us.</p>
       </div>
-      <div class="ways">
-        <div>
-          <h3>See it work in a minute</h3>
-          <p>Click through the <a href="console-demo.html">console with example data</a> in your browser, or with Docker run a certificate authority, the post-quantum edge in front of a web server, and a classical client refused.</p>
+      <ol class="path">
+        <li>
+          <span class="n" aria-hidden="true">1</span>
+          <small>No install · one minute</small>
+          <h3>See it work</h3>
+          <p>A certificate authority, the edge in front of a web server, and a classical client refused.</p>
           <pre>docker run --rm ghcr.io/qubitman-hub/pqcsuite</pre>
-        </div>
-        <div>
+          <a class="link" href="console-demo.html">Or click through the console demo</a>
+        </li>
+        <li>
+          <span class="n" aria-hidden="true">2</span>
+          <small>Python 3.11 or newer</small>
           <h3>Install it</h3>
-          <p>Python 3.11 or newer, on Windows, macOS or Linux. Download the <code>.whl</code> file from the latest <a href="https://github.com/QubitMan-hub/PQCsuite/releases/latest">release</a>, then install it. <code>pqcsuite</code> on its own lists every command; <code>doctor</code> says what works on this machine.</p>
+          <p class="os"><span>Windows</span><span>macOS</span><span>Linux</span></p>
           <pre>pip install pqcsuite-0.4.3-py3-none-any.whl
 pqcsuite doctor</pre>
-          <p>To scan your own code, also install <a href="wolf-pack.html#run">Wolf Pack</a>; the <a href="product-manual.html#install-a-release">manual</a> has both commands. Joining the VPN? Install the <a href="#app">Acxelin VPN app</a> and open the invitation file your administrator sends in it.</p>
-        </div>
-        <div>
-          <h3>Read the documentation</h3>
-          <p>Every command explains itself with <code>--help</code>. For the rest:</p>
+          <p>The wheel is on the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/latest">latest release</a>. Add <a href="wolf-pack.html#run">Wolf Pack</a> to scan code; laptops use the <a href="#app">Acxelin VPN app</a>.</p>
+        </li>
+        <li>
+          <span class="n" aria-hidden="true">3</span>
+          <small>Every command has <code>--help</code></small>
+          <h3>Read how it works</h3>
           <ul class="doclinks">
-            <li><a href="product-manual.html">Product manual: install, first steps and every product</a></li>
-            <li><a href="https://github.com/QubitMan-hub/PQCsuite#what-listens-where">What listens on the network, and how to narrow it</a></li>
-            <li><a href="architecture/pqc-suite.html">How the suite fits together (diagram)</a></li>
-            <li><a href="architecture/acxelin-vpn-desktop.html">How the Acxelin VPN app works (diagram)</a></li>
+            <li><a href="product-manual.html">Product manual</a></li>
+            <li><a href="https://github.com/QubitMan-hub/PQCsuite#what-listens-where">What listens on the network</a></li>
+            <li><a href="architecture/pqc-suite.html">How the suite fits together</a></li>
+            <li><a href="architecture/acxelin-vpn-desktop.html">How the VPN app works</a></li>
             <li><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/THREAT-MODEL.md">Threat model and runbooks</a></li>
             <li><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md">What changed in each release</a></li>
           </ul>
-        </div>
-      </div>
+        </li>
+      </ol>
     </div>
   </section>
 

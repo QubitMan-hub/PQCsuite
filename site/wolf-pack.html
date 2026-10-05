@@ -81,18 +81,18 @@
       <div class="intro">
         <p class="kicker">What it reads</p>
         <h2>You cannot migrate what you have not found</h2>
-        <p>An endpoint scan shows what your servers offer. Most cryptography lives deeper: a hash in a login module, a key size in a config file, an old OpenSSL inside a vendor binary. Wolf Pack reads all of it and hands you one list, in the CycloneDX format auditors and tools already accept.</p>
+        <p>An endpoint scan sees what servers offer. Most cryptography lives deeper. Wolf Pack reads all of it and writes one CycloneDX list.</p>
       </div>
       <ul class="sources">
-        <li><b>Source code</b><p>Python, Java and Kotlin, Go, JavaScript and TypeScript, C and C++, C#, Rust, Swift and PHP, including algorithm names passed into functions or built from pieces.</p></li>
-        <li><b>Configuration</b><p>nginx, Apache, HAProxy, sshd, openssl.cnf, Spring properties, YAML, JSON, INI and TOML.</p></li>
-        <li><b>Cloud and Kubernetes</b><p>Kubernetes TLS secrets and ingress annotations, AWS and Azure load-balancer TLS policies, and KMS key specs in Terraform.</p></li>
-        <li><b>Keys and certificates</b><p>Including private keys that were committed by mistake, and certificates that outlive 2030.</p></li>
-        <li><b>Binaries, JARs and containers</b><p>Algorithm constants, embedded OpenSSL versions and JCA names, also inside a saved Docker or OCI image.</p></li>
-        <li><b>Dependencies</b><p>Manifests for pip, npm, Maven, Gradle, Go, Cargo and NuGet, checked against what the code imports.</p></li>
-        <li><b>Live TLS and SSH</b><p>What each server negotiates, including whether it accepts hybrid ML-KEM groups.</p></li>
-        <li><b>Traffic captures</b><p>TLS and SSH handshakes in a pcap file: what clients and servers really agreed, without touching them.</p></li>
-        <li><b>Other tools' CBOMs</b><p>CycloneDX files from CBOMkit or another scanner can join the organisation inventory.</p></li>
+        <li><b>Source code</b><p>12 languages, names passed into functions or built from pieces</p><p class="chips"><span>Python</span><span>Java</span><span>Kotlin</span><span>Go</span><span>JS / TS</span><span>C / C++</span><span>C#</span><span>Rust</span><span>Swift</span><span>PHP</span></p></li>
+        <li><b>Configuration</b><p>Server and application settings</p><p class="chips"><span>nginx</span><span>Apache</span><span>HAProxy</span><span>sshd</span><span>openssl.cnf</span><span>Spring</span><span>YAML</span><span>JSON</span><span>INI</span><span>TOML</span></p></li>
+        <li><b>Cloud and Kubernetes</b><p>TLS policies and key specs</p><p class="chips"><span>TLS secrets</span><span>Ingress</span><span>AWS LB</span><span>Azure LB</span><span>KMS in Terraform</span></p></li>
+        <li><b>Keys and certificates</b><p>Including keys committed by mistake</p><p class="chips"><span>PEM</span><span>DER</span><span>OpenSSH</span><span>Expiry past 2030</span></p></li>
+        <li><b>Binaries and containers</b><p>What is built in</p><p class="chips"><span>Algorithm constants</span><span>OpenSSL versions</span><span>JCA names</span><span>OCI images</span></p></li>
+        <li><b>Dependencies</b><p>Checked against what the code imports</p><p class="chips"><span>pip</span><span>npm</span><span>Maven</span><span>Gradle</span><span>Go</span><span>Cargo</span><span>NuGet</span></p></li>
+        <li><b>Live TLS and SSH</b><p>What each server negotiates</p><p class="chips"><span>TLS groups</span><span>Hybrid ML-KEM</span><span>SSH KEX</span></p></li>
+        <li><b>Traffic captures</b><p>What really happened, without touching it</p><p class="chips"><span>pcap</span><span>TLS handshakes</span><span>SSH handshakes</span></p></li>
+        <li><b>Other tools' CBOMs</b><p>One organisation inventory</p><p class="chips"><span>CBOMkit</span><span>CycloneDX</span></p></li>
       </ul>
     </div>
   </section>
@@ -102,13 +102,21 @@
       <div class="intro">
         <p class="kicker">How it decides</p>
         <h2>Why it is called a pack</h2>
-        <p>Scanners that match names drown you in false alarms. Wolf Pack splits the work so that finding and deciding are separate jobs.</p>
+        <p>Name-matching scanners drown you in false alarms. Wolf Pack keeps finding and deciding apart.</p>
       </div>
       <div class="pack">
-        <div><span class="role">01 · scouts</span><b>Find everything</b><p>Each scout reads one kind of source and deliberately over-reports. Missing something is worse than a false lead.</p></div>
-        <div><span class="role">02 · den</span><b>Check the evidence</b><p>Mentions in comments, documentation, log messages and deny-lists are rejected. What is held back stays in the audit trail with the reason.</p></div>
-        <div><span class="role">03 · alpha</span><b>Decide what matters</b><p>Ranks each finding by how exposed it is and how long the data must stay secret, and says what to replace it with.</p></div>
+        <div><span class="role">01 · scouts</span><b>Find everything</b><p>Each scout reads one kind of source and over-reports on purpose.</p></div>
+        <div><span class="role">02 · den</span><b>Check the evidence</b><p>Comments, docs, logs and deny-lists are rejected, with the reason kept.</p></div>
+        <div><span class="role">03 · alpha</span><b>Decide what matters</b><p>Ranks by exposure and how long the data must stay secret.</p></div>
       </div>
+      <figure class="funnel">
+        <ol>
+          <li style="--w: 100%"><b>49</b><span>sightings from the scouts</span></li>
+          <li style="--w: 53%"><b>26</b><span>verified by the den</span></li>
+          <li style="--w: 33%"><b>16</b><span>assets ranked by the alpha</span></li>
+        </ol>
+        <figcaption>Real output on the sample payments API that ships with Wolf Pack: <a href="wolf-pack-sample.html">open its report</a>.</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -117,22 +125,12 @@
       <div class="intro">
         <p class="kicker">Features</p>
         <h2>From a list of findings to a finished migration</h2>
-        <p>Finding the cryptography is the first step. These features turn the list into work your team can plan, check and prove.</p>
       </div>
-      <ul class="features">
-        <li><b>How to fix it, where it was found</b><p>Each finding says what to replace it with in that language, library or config file: the JDK, Go, .NET or OpenSSL call, or the nginx and sshd line.</p><code>report.html, SARIF help</code></li>
-        <li><b>Policy and deadlines</b><p>Checks the scan against NIST IR 8547 or CNSA 2.0, or your own rules, and lists what is overdue and what falls due next.</p><code>--policy nist-ir-8547</code></li>
-        <li><b>Used or only declared</b><p>An algorithm the code calls is marked apart from one that only appears in a list of supported names, so you fix the calls first.</p><code>wolfpack:usage</code></li>
-        <li><b>One view of the organisation</b><p>Merges the scans of every system into one inventory and dashboard: weakest systems first, and where each algorithm is used.</p><code>wolfpack merge</code></li>
-        <li><b>Progress over time</b><p>Each merge can be added to a history, so the dashboard charts the quantum-safe share and the policy breaches run by run.</p><code>--history runs.jsonl</code></li>
-        <li><b>Fast checks on every pull request</b><p>Scans only the files changed since a branch, and fails the build only on cryptography that is new since the last release.</p><code>--changed-since main</code></li>
-        <li><b>An audit trail</b><p>Everything the scouts found is kept with the evidence and the reason it was accepted, held or rejected.</p><code>findings.json</code></li>
-        <li><b>Silence what you have checked</b><p>A <code>wolfpack:ignore</code> comment on a line, or an exclude pattern, keeps a reviewed finding out of later runs.</p><code>.wolfpack.toml</code></li>
-        <li><b>Values followed through the code</b><p>In Python, a key size or hash set in a settings file, a class or a caller is followed to the call that uses it, so you see RSA-1024 where the key is made.</p><code>make_key(KEY_BITS)</code></li>
-        <li><b>Security patterns</b><p>Certificate checks switched off, secrets in code, weak randomness for keys, unsigned tokens and fixed IVs, each with its CWE, in eight languages.</p><code>WPC001–WPC005</code></li>
-        <li><b>No look-alikes, no dead code</b><p>A helper that only borrows an algorithm's name is not counted, and code that can never run is held back instead of inflating the list.</p><code>def md5(text)</code></li>
-        <li><b>Code in the readiness report</b><p>Add a scan to the PQC Suite readiness report: each algorithm appears with the files, lines and functions that use it, next to your endpoints and certificates.</p><code>--wolfpack wolfpack-out</code></li>
-      </ul>
+      <div class="features">
+        <div class="col"><h3><span>Fix</span>Know exactly what to change</h3><ul><li><b>How to fix it, where it was found</b><p>The JDK, Go, .NET or OpenSSL call, or the nginx and sshd line.</p><code>report.html</code></li><li><b>Used or only declared</b><p>Calls first; names in a supported-list later.</p><code>wolfpack:usage</code></li><li><b>Values followed through code</b><p>RSA-1024 shown where the key is made, not where 1024 is set.</p><code>make_key(KEY_BITS)</code></li><li><b>No look-alikes, no dead code</b><p>A <code>def md5()</code> that does no cryptography is not counted.</p><code>def md5(text)</code></li></ul></div>
+        <div class="col"><h3><span>Gate</span>Stop new problems in CI</h3><ul><li><b>Policy and deadlines</b><p>NIST IR 8547, CNSA 2.0 or your own rules: what is overdue.</p><code>--policy nist-ir-8547</code></li><li><b>Fast pull-request checks</b><p>Only changed files; fails only on cryptography that is new.</p><code>--changed-since main</code></li><li><b>Security patterns</b><p>Checks switched off, secrets in code, weak randomness, fixed IVs.</p><code>WPC001–WPC005</code></li><li><b>Silence what you checked</b><p>A reviewed finding stays out of later runs.</p><code>.wolfpack.toml</code></li></ul></div>
+        <div class="col"><h3><span>Prove</span>Show the migration moving</h3><ul><li><b>One view of the organisation</b><p>Every system in one inventory, weakest first.</p><code>wolfpack merge</code></li><li><b>Progress over time</b><p>The quantum-safe share, charted run by run.</p><code>--history runs.jsonl</code></li><li><b>An audit trail</b><p>Every sighting with its evidence and verdict.</p><code>findings.json</code></li><li><b>In the readiness report</b><p>Code next to your endpoints and certificates.</p><code>--wolfpack wolfpack-out</code></li></ul></div>
+      </div>
     </div>
   </section>
 
@@ -146,19 +144,19 @@
       <div class="ways">
         <div>
           <h3>On a laptop</h3>
-          <p>Python 3.11 or newer, with the wheel from the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.1">latest release</a>.</p>
+          <p>Python 3.11+, wheel from the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.1">latest release</a>.</p>
           <pre>pip install wolfpack_cbom-1.4.1-py3-none-any.whl
 wolfpack scan ./payments-api</pre>
         </div>
         <div>
           <h3>In a container</h3>
-          <p>Build the image from the <code>wolf-pack</code> folder of the source, then mount the folder to scan; the results land beside it.</p>
+          <p>Build from the <code>wolf-pack</code> folder; results land beside the code.</p>
           <pre>docker build -t wolfpack wolf-pack
 docker run --rm -v "$PWD:/scan" wolfpack</pre>
         </div>
         <div>
           <h3>In GitHub Actions</h3>
-          <p>Findings show up as code scanning alerts, and the build can stop on new problems.</p>
+          <p>Code scanning alerts, and a build that stops on new problems.</p>
           <pre>- uses: QubitMan-hub/PQCsuite/wolf-pack@wolf-pack-v1.4.1
   with:
     fail-on: critical</pre>
@@ -167,8 +165,7 @@ docker run --rm -v "$PWD:/scan" wolfpack</pre>
       <div class="settings">
         <div>
           <h3>Set it up once</h3>
-          <p>A <code>.wolfpack.toml</code> in the repository keeps every run the same: what to skip, when to fail the build, which servers to probe, and how long your data must stay secret.</p>
-          <p>Against a baseline, only cryptography added since the last release fails the build, so an existing backlog does not block every merge.</p>
+          <p>A <code>.wolfpack.toml</code> keeps every run the same. Against a baseline, only cryptography added since the last release fails the build.</p>
         </div>
         <pre>exclude    = ["generated", "*.min.js"]
 fail_on    = "high"
@@ -182,7 +179,7 @@ profiles = ["nist-ir-8547"]</pre>
       <div class="settings">
         <div>
           <h3>More ways to use it</h3>
-          <p>Every command writes the same four outputs, so they combine: scan each system, then merge the results into one dashboard.</p>
+          <p>Scan each system, then merge them into one dashboard.</p>
         </div>
         <pre>wolfpack scan app-image.tar          # a saved container image
 wolfpack scan --pcap gateway.pcap    # handshakes from a capture
@@ -210,19 +207,24 @@ wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
 
   <section id="coverage">
     <div class="wrap">
-      <div class="intro"><p class="kicker">Know what was checked</p><h2>Evidence you can act on, limits you can see</h2><p>Every finding shows how far the scan could follow the code. In the local console you give findings an owner and a deadline, record time-limited exceptions, and rescan to see what is new, what remains and what is gone. A finding that disappears from the code does not prove the fix is deployed, so the console can also check a live connection to the service.</p></div>
-      <div class="scroll" tabindex="0" role="region" aria-label="Cryptographic coverage"><table class="results"><thead><tr><th>Input</th><th>Current capability</th><th>Boundary</th></tr></thead><tbody>
-        <tr><td>Python</td><td>AST functions, imports and supported callers; constants, class attributes, defaults and caller values followed across files</td><td>Dynamic dispatch and values computed at run time remain unresolved</td></tr>
-        <tr><td>JavaScript / TypeScript</td><td>Optional Tree-sitter relationships</td><td>Requires the crawler extra; callbacks and runtime dispatch are incomplete</td></tr>
-        <tr><td>Java / Go</td><td>Optional Tree-sitter relationships: methods and functions, callers through declared types, imports, Go receivers and packages</td><td>Requires the crawler extra; interface, lambda and reflective calls stay unresolved</td></tr>
-        <tr><td>Other supported source (C, C#, Rust, Kotlin…)</td><td>Cryptographic detectors</td><td>No class/function relationship adapter yet</td></tr>
-        <tr><td>Configs, certificates and binaries</td><td>Cryptographic inventory and evidence</td><td>Not proof of runtime reachability or deployment protection</td></tr>
+      <div class="intro"><p class="kicker">Know what was checked</p><h2>Evidence you can act on, limits you can see</h2><p>Every finding shows how far the scan could follow the code. Files it could not fully analyse are listed, not hidden.</p></div>
+      <div class="scroll" tabindex="0" role="region" aria-label="Cryptographic coverage"><table class="results"><thead><tr><th>Input</th><th>What it follows</th><th>Where it stops</th></tr></thead><tbody>
+        <tr><td>Python</td><td>Functions, imports and callers; values across files</td><td>Dynamic dispatch, run-time values</td></tr>
+        <tr><td>JavaScript / TypeScript</td><td>Relationships (crawler extra)</td><td>Callbacks, runtime dispatch</td></tr>
+        <tr><td>Java / Go</td><td>Methods, callers through declared types, packages (crawler extra)</td><td>Interface, lambda and reflective calls</td></tr>
+        <tr><td>C, C#, Rust, Kotlin…</td><td>Cryptographic detectors</td><td>No caller graph yet</td></tr>
+        <tr><td>Configs, certificates, binaries</td><td>Inventory and evidence</td><td>Not proof of runtime use</td></tr>
       </tbody></table></div>
-      <p>Repeat scans reuse unchanged work, and the coverage details list any file that could not be fully analysed.</p>
-      <p>Download both wheels from the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/v0.4.3">suite 0.4.3</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.1">Wolf Pack 1.4.1</a> releases, then try the local workflow:</p><pre>pip install "wolfpack_cbom-1.4.1-py3-none-any.whl[crawler]" "pqcsuite-0.4.3-py3-none-any.whl[scan-web]"
-pqcsuite console --sample-project</pre>
-      <p>For your own repository:</p><pre>pqcsuite setup --project /path/to/repository --out .pqcsuite/console.toml
-pqcsuite console --config .pqcsuite/console.toml</pre><p>The example stays on your machine. Scan it, inspect callers, assign remediation and rescan after an edit. The console saves work locally; it does not provide organization SSO or role-based access.</p>
+      <div class="settings">
+        <div>
+          <h3>Work through it in the console</h3>
+          <p>Give findings an owner and a deadline, record time-limited exceptions, rescan to see what is new and what is gone, and check the live service too. Everything stays on your machine; there is no SSO or role-based access.</p>
+        </div>
+        <pre>pip install "wolfpack_cbom-1.4.1-py3-none-any.whl[crawler]" "pqcsuite-0.4.3-py3-none-any.whl[scan-web]"
+pqcsuite console --sample-project
+pqcsuite setup --project /path/to/repository --out .pqcsuite/console.toml
+pqcsuite console --config .pqcsuite/console.toml</pre>
+      </div>
     </div>
   </section>
 
@@ -253,20 +255,22 @@ pqcsuite console --config .pqcsuite/console.toml</pre><p>The example stays on yo
       <div class="intro">
         <p class="kicker">Results</p>
         <h2>How accurate it is, measured honestly</h2>
-        <p>Scanners are usually scored on code their authors tuned them on. Wolf Pack was scored on repositories it had never seen, against labels written before it ran.</p>
+        <p>Scored on repositories it had never seen, against labels written before it ran.</p>
       </div>
-      <div class="scroll" tabindex="0">
-        <table class="results">
-          <thead><tr><th>Test</th><th>What was measured</th><th>Result</th></tr></thead>
-          <tbody>
-            <tr><td>18 unseen open-source repositories, first run</td><td>Of the algorithms it reported, how many the code really uses; of those used, how many it found</td><td><b>89%</b> precise, <b>34%</b> found</td></tr>
-            <tr><td>The same 18, version 1.2.0</td><td>After fixing the misses the first run exposed, so no longer unseen</td><td><b>80%</b> precise, <b>91%</b> found</td></tr>
-            <tr><td>10 more repositories, never used before</td><td>Findings that version 1.2.0 added, checked by hand</td><td><b>77%</b> used, <b>91%</b> used or declared</td></tr>
-            <tr><td>12 larger repositories</td><td>80 random findings, checked by hand</td><td><b>73</b> used, 7 declared, 0 wrong</td></tr>
-          </tbody>
-        </table>
+      <div class="scores">
+        <div class="headline">
+          <span>18 unseen repositories · first run</span>
+          <div class="meters">
+            <p><b>89%</b> precise<i style="--v: 89%"></i><small>of what it reported, the code really uses</small></p>
+            <p><b>34%</b> found<i style="--v: 34%"></i><small>of what the code uses, it reported</small></p>
+          </div>
+          <em>The number to quote: no one had tuned on this code.</em>
+        </div>
+        <div><span>Same 18 · version 1.2.0</span><p><b>80%</b> precise · <b>91%</b> found</p><small>After fixing the misses, so no longer unseen</small></div>
+        <div><span>10 new repositories</span><p><b>77%</b> used · <b>91%</b> used or declared</p><small>New findings, checked by hand</small></div>
+        <div><span>12 larger repositories</span><p><b>73</b> used · 7 declared · 0 wrong</p><small>80 random findings, checked by hand</small></div>
       </div>
-      <p class="note">The first row is the one to quote: it is the only result on code no one had tuned on. The hand checks were done by whoever wrote the rules, which leans towards counting a finding as right. A second set of 18 unseen repositories is pinned and pre-registered, with the version frozen before labelling, so the 1.2.0 numbers can be tested the same way.</p>
+      <p class="note">Hand checks were done by the rules' author, which leans towards counting a finding as right. A second set of 18 unseen repositories is pinned and pre-registered, so 1.2.0 can be tested the same way.</p>
     </div>
   </section>
 
