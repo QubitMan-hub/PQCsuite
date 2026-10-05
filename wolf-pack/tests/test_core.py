@@ -91,6 +91,13 @@ class Policy(unittest.TestCase):
             a.policy = []
         return compliance.evaluate(self.r.assets, self.r.endpoints, policy, date(year, 1, 1))
 
+    def test_nist_status_names_the_real_problem(self):
+        from wolfpack.elders import nist_status
+        self.assertEqual(nist_status("AES", {"key_size": 256, "mode": "GCM"}), "Quantum-safe")
+        self.assertIn("prefer 256-bit", nist_status("AES", {"key_size": 128, "mode": "GCM"}))
+        self.assertIn("prefer 256-bit", nist_status("AES", {"mode": "GCM"}), "an unknown key size is not assumed to be 256-bit")
+        self.assertIn("ECB", nist_status("AES", {"key_size": 256, "mode": "ECB"}))
+
     def test_nist_ir_8547_dates(self):
         c = self.evaluate({"profiles": ["nist-ir-8547"]})
         by = {(v["rule"], v["asset"]): v for v in c["violations"]}

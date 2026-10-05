@@ -311,6 +311,8 @@ def nist_status(algo, params):
         if bits == 112:
             return "Deprecated after 2030, disallowed after 2035 (NIST IR 8547)"
         return "Disallowed after 2035 (NIST IR 8547)"
-    if a.threat == GROVER:
+    if str(params.get("mode", "")).upper() == "ECB":
+        return "Unsafe mode: ECB shows patterns in the data; use GCM (NIST SP 800-38D)"
+    if a.threat == GROVER and (bits or 0) < 256:
         return "Acceptable, but prefer 256-bit strength for long-term data"
     return "Quantum-safe"
