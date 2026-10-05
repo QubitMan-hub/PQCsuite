@@ -24,13 +24,13 @@ Current state for the next contributor (any agent or person). Superseded progres
 ## Latest changes (October 2026)
 
 - **Code Crawler accuracy:** Python values are followed across files and through function parameters; look-alike names and unreachable code are handled by new roles `lookalikes` and `reachability`; security patterns WPC001–WPC005 (role `patterns`) reach SARIF with CWE tags, the report, `findings.json` and console assessments. Gitignored files are scanned again (keys and `.env` files live there). Measurements: `docs/CODE-CRAWLER.md`.
-- **VPN:** `vpn invite` / `vpn join` replace four hand-copied values and two commands with one file and one command; the client reports Protected / Connecting / Not protected, and `vpn status` reads the same state.
+- **VPN:** `vpn invite` / `vpn join` replace four hand-copied values and two commands with one file and one command; the client reports Protected / Connecting / Not protected, and `vpn status` reads the same state. `vpn app` puts join, connect, disconnect and status in a local browser window (`pqcsuite/vpn/app.py`, `app.html`).
 - **Readiness:** `readiness report --wolfpack FOLDER` adds code rows; the HTML report is a dashboard (do these first, per-area summary, filterable table). Code rows distinguish "action needed", "quantum-vulnerable: plan its migration", "not used for security" and "quantum-safe".
 - **Console:** project findings come first, with priority counts that filter; the Vault page explains protection and flags archives without a recovery recipient; the VPN page no longer says "Disconnected" when nothing is configured.
 
 ## Open work
 
-- A native desktop VPN client or signed installer (customer laptops currently use the terminal; installer signing is out of scope).
+- A native desktop VPN client (tray icon, start at login). Today `pqcsuite vpn app` is a browser window held open by an administrator terminal; installer signing is out of scope.
 - Relationship adapters for C#, C and Kotlin (Java and Go landed in October 2026); hard resource isolation for repository scans.
 - Independent cryptographic and security review; real laptop, cloud and long-duration validation.
 

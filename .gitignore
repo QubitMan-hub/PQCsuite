@@ -30,6 +30,7 @@ pqcsuite-out/
 # browser tests
 node_modules/
 test-results/
+.fixtures/
 playwright-report/
 
 # operating systems

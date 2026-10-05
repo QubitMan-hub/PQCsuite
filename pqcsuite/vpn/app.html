@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acxelin PQC Suite VPN</title>
+<style>
+:root {
+  --bg: #faf9f5; --panel: #ffffff; --sunken: #f4f1e8; --ink: #2e3c4e; --mute: #636e78; --line: #e6e0d2;
+  --accent: #ffbf00; --accent-ink: #111111; --accent-text: #8a6100; --focus: #1a73e8;
+  --ok: #26734d; --warn: #8a6100; --bad: #b3431f;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; --sans: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #141a22; --panel: #1b232d; --sunken: #212b37; --ink: #eef0f2; --mute: #8e98a4; --line: #2d3947;
+    --accent-text: #ffcf4d; --focus: #7fb0ff; --ok: #5ccf8e; --warn: #f2c14e; --bad: #f2877b; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #141a22; --panel: #1b232d; --sunken: #212b37; --ink: #eef0f2; --mute: #8e98a4; --line: #2d3947;
+  --accent-text: #ffcf4d; --focus: #7fb0ff; --ok: #5ccf8e; --warn: #f2c14e; --bad: #f2877b; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); padding: 32px 16px; }
+main { max-width: 520px; margin: 0 auto; display: grid; gap: 20px; }
+.kicker { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-text); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 24px; display: grid; gap: 14px; }
+#word { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -.01em; display: flex; align-items: center; gap: 12px; }
+#word::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--mute); flex: none; }
+[data-state="protected"] #word::before { background: var(--ok); }
+[data-state="connecting"] #word::before, [data-state="agreed"] #word::before { background: var(--warn); }
+[data-state="not_protected"] #word::before { background: var(--bad); }
+#line { margin: 0; }
+dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; }
+dt { color: var(--mute); }
+dd { margin: 0; overflow-wrap: anywhere; }
+.mono { font-family: var(--mono); font-size: 13px; }
+label { display: grid; gap: 4px; font-weight: 600; font-size: 14px; }
+input[type=password] { font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button, .file { font: inherit; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button:disabled { opacity: .55; cursor: default; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+#error { margin: 0; color: var(--bad); font-weight: 600; }
+.note { margin: 0; color: var(--mute); font-size: 13px; }
+summary { cursor: pointer; font-weight: 600; }
+</style>
+<main data-state="none">
+  <p class="kicker">Acxelin PQC Suite · VPN</p>
+  <section class="card" aria-live="polite">
+    <h1 id="word">Not set up</h1>
+    <p id="line">Open the invitation file your administrator sent.</p>
+    <dl id="facts" hidden></dl>
+  </section>
+  <section class="card">
+    <div class="row">
+      <label class="file" id="open">Open invitation…<input type="file" id="invite" accept=".pqcinvite,application/json"></label>
+      <span id="file" class="note"></span>
+    </div>
+    <form id="form" hidden>
+      <div style="display:grid;gap:12px">
+        <label>Device key passphrase <input type="password" id="pass" autocomplete="current-password"></label>
+        <label id="again" hidden>Type it again <input type="password" id="repeat" autocomplete="new-password"></label>
+      </div>
+    </form>
+    <div class="row">
+      <button class="primary" id="connect" type="submit" form="form" hidden>Connect</button>
+      <button id="disconnect" hidden>Disconnect</button>
+    </div>
+    <p id="error" role="alert"></p>
+    <p class="note" id="note">Closing this page does not disconnect. The VPN keeps running until you press Disconnect or stop <code>pqcsuite vpn app</code>.</p>
+  </section>
+  <details class="card" id="more" hidden>
+    <summary>Details</summary>
+    <dl id="details"></dl>
+  </details>
+</main>
+<script>
+const token = location.hash.slice(1);
+history.replaceState(null, "", location.pathname);
+const $ = id => document.getElementById(id);
+const WORDS = {protected: "Protected", connecting: "Connecting", agreed: "Keys agreed, not protected", not_protected: "Not protected", disconnected: "Disconnected"};
+let busy = false;
+
+async function call(method, path, body) {
+  const r = await fetch(path, {method, headers: {"Authorization": "Bearer " + token, "Content-Type": "application/json"}, body: body && JSON.stringify(body)});
+  const data = await r.json().catch(() => ({error: "no answer from pqcsuite vpn app; is it still running?"}));
+  if (!r.ok) { if (data.state) render(data.state); throw new Error(data.error || r.statusText); }
+  return data;
+}
+
+function list(el, rows) {
+  el.replaceChildren(...rows.filter(r => r[1] !== undefined && r[1] !== null && r[1] !== "").flatMap(([k, v, mono]) => {
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = k; dd.textContent = v; if (mono) dd.className = "mono";
+    return [dt, dd];
+  }));
+  el.hidden = !el.children.length;
+}
+
+function render(s) {
+  const st = s.status || {state: "disconnected"}, inv = s.invitation, running = st.state !== "disconnected";
+  const state = !inv && !running ? "none" : st.state;
+  document.querySelector("main").dataset.state = state;
+  $("word").textContent = state === "none" ? "Not set up" : WORDS[st.state] || st.state;
+  const scope = st.full_tunnel ? "All traffic goes through the VPN (full tunnel); if it drops, traffic is blocked rather than sent unprotected."
+    : st.routes ? "Only traffic to " + st.routes.join(", ") + " goes through the VPN (split tunnel)." : "";
+  $("line").textContent = {
+    none: "Open the invitation file your administrator sent.",
+    protected: scope,
+    connecting: "Keys agreed with the gateway; waiting for the tunnel's first handshake.",
+    agreed: "Keys were agreed, but no tunnel is configured (started with --no-apply), so this machine is not protected.",
+    not_protected: (st.error || "Not connected yet") + ". Retrying automatically." + (st.full_tunnel ? " Traffic stays blocked meanwhile." : ""),
+    disconnected: inv ? (s.enrolled ? "Enter the device key passphrase and connect." : "Choose a passphrase for this device's key, then connect. It enrolls this machine once, using the invitation.") : "",
+  }[state] || "";
+  list($("facts"), [["Gateway", st.gateway || inv?.gateway, true], ["Address", st.address, true], ["Device", st.device || inv?.name]]);
+  const k = st.key_agreement;
+  $("more").hidden = !k;
+  if (k) list($("details"), [
+    ["Key agreement", (k.post_quantum ? "Post-quantum" : "Classical (NOT post-quantum)") + ", TLS group " + k.tls_group],
+    ["Gateway certificate", k.gateway_certificate],
+    ["Pre-shared key", "renewed every " + k.psk_rotation_s + " s"],
+    ["Last handshake", st.handshake_age_s == null ? "none yet" : st.handshake_age_s + " s ago"],
+    ["Next key", st.next_key_s + " s"],
+    ["Routes", (st.routes || []).join(", "), true],
+  ]);
+  $("file").textContent = inv ? inv.file + (inv.expires && !s.enrolled ? " · usable until " + inv.expires : "") : "";
+  $("open").hidden = running;
+  $("form").hidden = $("connect").hidden = running || !inv || !!s.error;
+  $("again").hidden = s.enrolled;
+  $("pass").parentElement.firstChild.textContent = s.enrolled ? "Device key passphrase " : "Choose a passphrase for this device's key ";
+  $("pass").autocomplete = s.enrolled ? "current-password" : "new-password";
+  $("disconnect").hidden = !running;
+  if (!busy) $("error").textContent = s.error || "";
+}
+
+async function act(fn) {
+  busy = true; $("error").textContent = "";
+  document.querySelectorAll("button").forEach(b => b.disabled = true);
+  try { render(await fn()); } catch (e) { $("error").textContent = e.message; }
+  finally { busy = false; document.querySelectorAll("button").forEach(b => b.disabled = false); }
+}
+
+$("form").addEventListener("submit", e => {
+  e.preventDefault();
+  act(async () => {
+    const r = await call("POST", "/api/connect", {passphrase: $("pass").value, repeat: $("again").hidden ? null : $("repeat").value});
+    $("pass").value = $("repeat").value = "";
+    return r;
+  });
+});
+$("disconnect").addEventListener("click", () => act(() => call("POST", "/api/disconnect")));
+$("invite").addEventListener("change", e => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (f) act(async () => call("POST", "/api/invitation", {name: f.name, text: await f.text()}));
+});
+
+async function poll() {
+  if (!busy) { try { render(await call("GET", "/api/state")); } catch (e) { $("error").textContent = e.message; } }
+  setTimeout(poll, 2000);
+}
+if (token) poll(); else $("error").textContent = "Open the address printed by `pqcsuite vpn app` (it carries this window's key).";
+</script>
+</html>

@@ -32,6 +32,7 @@ include = ["pqcsuite*"]
 
 [tool.setuptools.package-data]
 "pqcsuite.console" = ["console.html"]
+"pqcsuite.vpn" = ["app.html"]
 
 [tool.distutils.build]
 build_base = "dist/.build"  # keeps `pip wheel .` from leaving build/ in the source tree

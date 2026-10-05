@@ -337,8 +337,8 @@ def cmd_vpn(a):
         path = platforms.folder() / f"{a.interface}.status.json"
         if path.exists():
             return laptop_status(path, a)
-    if a.vpn_cmd in ("invite", "join"):
-        return cmd_invite(a) if a.vpn_cmd == "invite" else cmd_join(a)
+    if a.vpn_cmd in ("invite", "join", "app"):
+        return {"invite": cmd_invite, "join": cmd_join, "app": cmd_app}[a.vpn_cmd](a)
     try:
         ch = Charon(load_config(a.config).vici if a.config else a.vici or "unix:///var/run/charon.vici")
     except CharonError:
@@ -372,9 +372,6 @@ def laptop_status(path, a):
     return 0 if s["state"] == "protected" else 1
 
 
-INVITE = ("pqcsuite_invite", "name", "enroll", "ca_fingerprint", "gateway", "server_name", "expires")
-
-
 def cmd_invite(a):
     import datetime as dt
     from cryptography.x509 import load_pem_x509_certificate
@@ -397,45 +394,14 @@ def cmd_invite(a):
     return 0
 
 
-def read_invite(path):
-    try:
-        inv = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (OSError, ValueError) as e:
-        raise ValueError(f"{path} could not be read as an invitation ({e.__class__.__name__}); ask your administrator for a new one") from None
-    import re
-    if not isinstance(inv, dict) or inv.get("pqcsuite_invite") != 1 or not all(isinstance(inv.get(k), str) for k in ("name", "enroll", "ca_fingerprint", "gateway")) \
-            or not inv["enroll"].startswith("https://") or not re.fullmatch(r"[0-9a-f]{64}", inv["ca_fingerprint"]):
-        raise ValueError(f"{path} is not a PQC Suite invitation; ask your administrator for the .pqcinvite file from `pqcsuite vpn invite`")
-    tls.hostport(inv["gateway"])
-    return inv
-
-
-def administrator():
-    if os.name == "nt":
-        import ctypes
-        return bool(ctypes.windll.shell32.IsUserAnAdmin())
-    return os.geteuid() == 0
-
-
 def cmd_join(a):
     """Enroll from an invitation (if this machine has no certificate yet) and connect, asking only for the device key passphrase."""
-    import datetime as dt
-    from .pki import est
-    from .vpn import platforms
-    inv = read_invite(a.invitation)
-    device = Path(a.device or Path(a.invitation).with_suffix(""))
+    from .vpn import join
+    inv = join.read(a.invitation)
+    device = join.device_for(a.invitation, a.device)
     if not a.no_apply:
-        if not administrator():
-            raise ValueError(f"connecting changes this machine's network, which needs administrator rights. Open an administrator terminal "
-                             f"(Windows: Run as administrator; Linux/macOS: sudo) and run: pqcsuite vpn join {a.invitation}")
-        import shutil
-        if not shutil.which(platforms.find("wg")):
-            raise ValueError(f"WireGuard is not installed: {platforms.INSTALL.get(platforms.system(), 'install wireguard-tools')}, then run this again")
-    enroll = not (device / "cert.pem").exists()
-    if enroll and "token" not in inv:
-        raise ValueError(f"this invitation was already used and {device} holds no certificate; ask your administrator for a new invitation")
-    if enroll and dt.datetime.fromisoformat(inv["expires"]) < dt.datetime.now(dt.timezone.utc):
-        raise ValueError(f"this invitation expired at {inv['expires']}; ask your administrator for a new one")
+        join.preflight(f"pqcsuite vpn join {a.invitation}")
+    enroll = join.must_enroll(inv, device)
     passphrase = env_passphrase(a.key_passphrase_env)
     if enroll:
         if passphrase is None:
@@ -443,15 +409,28 @@ def cmd_join(a):
             if not passphrase or passphrase != ask("Repeat it: ", "supply --key-passphrase-env"):
                 raise ValueError("the passphrases were empty or did not match; nothing was changed")
         print(f"Enrolling {inv['name']} with {inv['enroll']} (CA pinned by the invitation's fingerprint) ...", flush=True)
-        device.mkdir(parents=True, exist_ok=True)
-        est.fetch_ca(inv["enroll"], inv["ca_fingerprint"], device / "ca.crt")
-        cert = est.enroll(inv["enroll"], inv["token"], inv["name"], (), device, device / "ca.crt", passphrase=passphrase)
-        from .storage import write
-        write(Path(a.invitation), json.dumps({k: inv[k] for k in INVITE if k in inv}, indent=1).encode(), secret=True)
+        cert = join.enroll(inv, device, a.invitation, passphrase)
         print(f"Enrolled: certificate valid until {cert.not_valid_after_utc.date()}, key encrypted in {device}. The invitation's one-time token is used up.", flush=True)
     elif passphrase is None and encrypted(device / "key.pem"):
         passphrase = ask("Device key passphrase: ", "supply --key-passphrase-env with a protected environment variable")
     return connect(a, inv["gateway"], device, passphrase, inv.get("server_name"))
+
+
+def cmd_app(a):
+    """The VPN window: a page on 127.0.0.1 behind a one-time token; this process holds the tunnel until it is stopped."""
+    import webbrowser
+    from .vpn import app, join
+    if not a.no_apply:
+        join.preflight("pqcsuite vpn app" + (f" {a.invitation}" if a.invitation else ""))
+    window = app.App(a.invitation, interface=a.interface, apply=not a.no_apply)
+    srv = app.serve(window)
+    url = f"http://127.0.0.1:{srv.server_address[1]}/#{window.token}"
+    print(f"VPN window: {url}\nKeep this running; closing the page does not disconnect. Ctrl+C disconnects and stops it.", flush=True)
+    if not a.no_browser:
+        webbrowser.open(url)
+    run_until_signal(srv.serve_forever, lambda: threading.Thread(target=srv.shutdown).start())
+    window.disconnect()
+    return 0
 
 
 def cmd_wireguard(a):
@@ -1105,6 +1084,11 @@ def parser():
     p.add_argument("--key-passphrase-env", help="read the device key passphrase from this environment variable instead of asking")
     p.add_argument("--no-apply", action="store_true", help="enroll and agree keys, but do not configure a tunnel (a check, not a connection)")
     p.add_argument("--once", action="store_true", help="agree once and exit")
+    p = v.add_parser("app", help="a window in the browser to join, connect, disconnect and see whether this machine is protected")
+    p.add_argument("invitation", nargs="?", help="the .pqcinvite file (default: the newest in ~/.pqcsuite/vpn; the window can also open one)")
+    p.add_argument("--interface", default="wg0")
+    p.add_argument("--no-browser", action="store_true", help="print the address instead of opening it")
+    p.add_argument("--no-apply", action="store_true", help="enroll and agree keys, but do not configure a tunnel (a check, not a connection)")
     p = v.add_parser("gateway", help="WireGuard remote-access gateway: address pool, PSK from ML-DSA mutual TLS, rotation, revocation")
     p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/wireguard-gateway.toml)")
     for name, text in (("connect", "connect this machine (Linux, Windows or macOS) to a WireGuard gateway and keep its PSK fresh"),

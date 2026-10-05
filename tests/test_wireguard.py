@@ -192,7 +192,8 @@ class GatewayTest(unittest.TestCase):
                 self.assertEqual(code, 1)
                 self.assertIn({"tampered": "do not trust", "expired": "expired", "malformed": "not a PQC Suite invitation"}[name], text)
                 self.assertFalse((self.d / name / "key.pem").exists())
-        with mock.patch.object(cli, "administrator", return_value=False):
+        from pqcsuite.vpn import join
+        with mock.patch.object(join, "administrator", return_value=False):
             code, text = run("vpn", "join", str(invite))
         self.assertIn("needs administrator rights", text)
         code, text = run("vpn", "join", str(invite), "--no-apply", "--once", "--key-passphrase-env", "PQCSUITE_TEST_PW")
@@ -205,6 +206,76 @@ class GatewayTest(unittest.TestCase):
         self.assertEqual(code, 0, "joining again reconnects with the enrolled device")
         code, text = run("vpn", "join", str(invite), "--device", str(self.d / "other"), "--no-apply", "--once", "--key-passphrase-env", "PQCSUITE_TEST_PW")
         self.assertIn("already used", text)
+
+    def test_vpn_window_joins_connects_and_refuses_strangers(self):
+        import http.client
+        import json
+        from pqcsuite.pki import est, encrypted
+        from pqcsuite.vpn import app
+        srv = est.serve(self.d / "pki", "127.0.0.1:0", self.d / "gw" / "chain.pem", self.d / "gw" / "key.pem")
+        srv.start()
+        self.addCleanup(srv.stop, 1)
+        from pqcsuite.pki.est import create_token, fingerprint
+        from cryptography.x509 import load_pem_x509_certificate
+        invite = json.dumps({"pqcsuite_invite": 1, "name": "bob", "enroll": f"https://localhost:{srv.port}", "server_name": "localhost",
+                             "ca_fingerprint": fingerprint(load_pem_x509_certificate((self.d / "pki" / "ca.crt").read_bytes())),
+                             "gateway": f"127.0.0.1:{self.gw.server.port}", "expires": "2099-01-01T00:00:00+00:00",
+                             "token": create_token(self.ca, "bob", "client", hours=1)})
+        window = app.App(folder=self.d / "vpn", apply=False)
+        httpd = app.serve(window)
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        self.addCleanup(window.disconnect)
+        port = httpd.server_address[1]
+
+        def call(method, path, body=None, token=window.token, host=f"127.0.0.1:{port}"):
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+            c.request(method, path, json.dumps(body) if body is not None else None,
+                      {"Host": host, "Content-Type": "application/json"} | ({"Authorization": f"Bearer {token}"} if token else {}))
+            r = c.getresponse()
+            data = r.read()
+            c.close()
+            return r.status, (json.loads(data) if r.getheader("Content-Type") == "application/json" else data), r
+
+        status, page, r = call("GET", "/", token=None)
+        self.assertEqual(status, 200)
+        self.assertIn("script-src 'sha256-", r.getheader("Content-Security-Policy"))
+        self.assertNotIn(window.token.encode(), page, "the page itself carries no key; it comes from the address")
+        self.assertEqual(call("GET", "/api/state", host=f"attacker.example:{port}")[0], 421, "DNS rebinding is refused")
+        self.assertEqual(call("GET", "/api/state", token=None)[0], 401)
+        self.assertEqual(call("GET", "/api/state", token="guess")[0], 401)
+        self.assertEqual(call("POST", "/api/invitation", {"name": "x", "text": "{}"})[1]["error"].split(" is ")[1][:5], "not a")
+        status, state, _ = call("POST", "/api/invitation", {"name": "../../laptop.pqcinvite", "text": invite})
+        self.assertEqual(status, 200, state)
+        self.assertEqual((state["invitation"]["file"], state["enrolled"]), ("laptop.pqcinvite", False))
+        self.assertTrue((self.d / "vpn" / "laptop.pqcinvite").exists(), "a name with a path is reduced to a file name in the VPN folder")
+        status, body, _ = call("POST", "/api/connect", {"passphrase": "device pass", "repeat": "different"})
+        self.assertEqual((status, "type it twice" in body["error"]), (400, True))
+        self.assertFalse((self.d / "vpn" / "laptop" / "key.pem").exists(), "a mismatched passphrase changes nothing")
+
+        def settle(want):
+            for _ in range(100):
+                s = call("GET", "/api/state")[1]
+                if s["status"]["state"] == want:
+                    return s
+                time.sleep(0.2)
+            self.fail(f"never reached {want}: {s}")
+        status, body, _ = call("POST", "/api/connect", {"passphrase": "device pass", "repeat": "device pass"})
+        self.assertEqual(status, 200, body)
+        s = settle("agreed")
+        self.assertTrue(s["enrolled"] and encrypted(self.d / "vpn" / "laptop" / "key.pem"))
+        self.assertTrue(s["status"]["address"].startswith("10.99.0."))
+        self.assertNotIn("device pass", json.dumps(s))
+        self.assertNotIn("token", json.loads((self.d / "vpn" / "laptop.pqcinvite").read_text()))
+        self.assertEqual(call("POST", "/api/connect", {"passphrase": "device pass"})[0], 400, "a second connection is refused")
+        self.assertEqual(call("POST", "/api/disconnect", {})[1]["status"]["state"], "disconnected")
+        status, body, _ = call("POST", "/api/connect", {"passphrase": "wrong"})
+        self.assertEqual((status, "does not unlock" in body["error"]), (400, True))
+        self.assertEqual(call("POST", "/api/connect", {"passphrase": "device pass"})[0], 200)
+        settle("agreed")
+        self.assertEqual(app.App(folder=self.d / "vpn", apply=False).state()["invitation"]["file"], "laptop.pqcinvite",
+                         "reopening the window finds the invitation it saved")
 
     def test_users_outside_the_list_are_refused(self):
         with self.assertRaisesRegex(tls.TLSError, "refused"):
