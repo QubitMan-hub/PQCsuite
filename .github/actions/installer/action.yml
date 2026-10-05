@@ -1,0 +1,47 @@
+name: Acxelin VPN installer
+description: Build this runner's Acxelin VPN installer (Windows Setup, macOS disk image or Linux package), install it, and check the installed app. Leaves it in dist/installers.
+runs:
+  using: composite
+  steps:
+    - run: pip install ".[desktop]" pyinstaller==6.22.3
+      shell: bash
+    - name: OpenSSL 3.5 to ship inside the Linux package (the VPN job's cached build, read only)
+      if: runner.os == 'Linux'
+      id: openssl
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: /opt/pqc
+        key: openssl-3.5.4-strongswan-6.1.0-v2
+    - name: Build OpenSSL 3.5 when that cache is empty
+      if: runner.os == 'Linux' && steps.openssl.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        curl -fsSL -o openssl.tgz https://github.com/openssl/openssl/releases/download/openssl-3.5.4/openssl-3.5.4.tar.gz
+        echo "967311f84955316969bdb1d8d4b983718ef42338639c621ec4c34fddef355e99  openssl.tgz" | sha256sum -c -
+        tar xzf openssl.tgz && cd openssl-3.5.4 && ./Configure --prefix=/opt/pqc --libdir=lib shared no-tests && make -j4 && sudo make install_sw
+    - name: Build, install and check the Linux package
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        LD_LIBRARY_PATH=/opt/pqc/lib python packaging/build.py
+        sudo apt-get update && sudo apt-get install -y ./dist/installers/acxelin-vpn_*.deb
+        python packaging/build.py smoke /usr/bin/acxelin-vpn
+    - name: Build, install and check the Windows installer
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        choco install openssl innosetup -y --no-progress
+        python packaging/build.py --openssl "$env:ProgramFiles\OpenSSL-Win64\bin"
+        $setup = Get-ChildItem dist\installers\Acxelin-VPN-*-Setup.exe
+        Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TASKS=""' -Wait
+        python packaging/build.py smoke "$env:ProgramFiles\Acxelin VPN\acxelin-vpn.exe"
+    - name: Build, install and check the macOS disk image
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        brew install openssl@3
+        python packaging/build.py --openssl "$(brew --prefix openssl@3)/lib"
+        hdiutil attach dist/installers/Acxelin-VPN-*.dmg -mountpoint /Volumes/AcxelinVPN -nobrowse
+        ditto "/Volumes/AcxelinVPN/Acxelin VPN.app" "/Applications/Acxelin VPN.app"
+        hdiutil detach /Volumes/AcxelinVPN
+        python packaging/build.py smoke "/Applications/Acxelin VPN.app/Contents/MacOS/acxelin-vpn"

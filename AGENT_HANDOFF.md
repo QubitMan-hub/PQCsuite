@@ -30,7 +30,7 @@ Current state for the next contributor (any agent or person). Superseded progres
 
 ## Open work
 
-- Desktop app: start at login, and a check on a real customer laptop of the elevated start (UAC/polkit/macOS prompt) with a live tunnel; CI covers the tray icon on Windows and macOS and the service without elevation. A packaged installer (installer signing is out of scope).
+- Desktop app: a check on a real customer laptop of the elevated start (UAC/polkit/macOS prompt) with a live tunnel; CI covers the tray icon on Windows and macOS, start at login, the service without elevation, and building, installing and smoke-testing the installers (`packaging/`, `.github/actions/installer`). Installer signing is out of scope, so first launches show SmartScreen/Gatekeeper warnings; macOS builds are Apple silicon only; the Linux package's tray uses the X11 backend (no AppIndicator menu).
 - Relationship adapters for C#, C and Kotlin (Java and Go landed in October 2026); hard resource isolation for repository scans.
 - Independent cryptographic and security review; real laptop, cloud and long-duration validation.
 

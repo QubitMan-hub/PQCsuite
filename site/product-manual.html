@@ -434,13 +434,41 @@ pqcsuite vpn up --config examples/vpn-hq.toml
 </tr>
 </tbody>
 </table></div>
-<p><strong>Prefer an app?</strong> Install the desktop app once with <code>pip install &quot;pqcsuite[desktop]&quot;</code>, then run <code>pqcsuite vpn desktop --launcher</code> to add <strong>Acxelin VPN</strong> to the Start menu (Windows), Applications (macOS) or your desktop's application list (Linux). Open it like any other app, from a normal account rather than an administrator terminal:</p>
+<p><strong>Prefer an app?</strong> Install <strong>Acxelin VPN</strong> from the installer attached to each release. It carries everything it needs, including OpenSSL 3.5, so there is nothing else to install apart from WireGuard:</p>
+<div class="manual-table" tabindex="0" role="region" aria-label="Reference table"><table>
+<thead>
+<tr>
+<th>System</th>
+<th>File</th>
+<th>How to install</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows 10/11 (x64)</td>
+<td><code>Acxelin-VPN-VERSION-Setup.exe</code></td>
+<td>Run it and follow the steps. Leave <strong>Show Acxelin VPN in the tray when I log in</strong> ticked to start it at login. Install <a href="https://www.wireguard.com/install/">WireGuard for Windows</a> too; the installer reminds you if it is missing.</td>
+</tr>
+<tr>
+<td>macOS (Apple silicon)</td>
+<td><code>Acxelin-VPN-VERSION.dmg</code></td>
+<td>Open it and drag Acxelin VPN to Applications. Install WireGuard's tools with <code>brew install wireguard-tools</code>.</td>
+</tr>
+<tr>
+<td>Ubuntu, Debian (x64)</td>
+<td><code>acxelin-vpn_VERSION_amd64.deb</code></td>
+<td><code>sudo apt install ./acxelin-vpn_VERSION_amd64.deb</code> (this also installs WireGuard's tools).</td>
+</tr>
+</tbody>
+</table></div>
+<p>The installers are not code-signed yet, so the first launch shows a warning. On Windows, SmartScreen says &quot;Windows protected your PC&quot;: choose <strong>More info</strong>, then <strong>Run anyway</strong>. On macOS, Gatekeeper refuses to open the app: open <strong>System Settings &gt; Privacy &amp; Security</strong> and choose <strong>Open Anyway</strong>. Check the file's SHA-256 against the release before you do either. Without the installer, <code>pip install &quot;pqcsuite[desktop]&quot;</code> and <code>pqcsuite vpn desktop --launcher</code> give you the same app.</p>
+<p>Open it like any other app, from a normal account rather than an administrator terminal:</p>
 <ol>
 <li>A shield appears in the system tray (Windows taskbar corner, macOS menu bar, Linux panel). Its colour says where you stand: green with a tick is <strong>Protected</strong>, amber is <strong>Connecting</strong>, red is <strong>Not protected</strong>, grey is disconnected or not set up. Hover over it for the words.</li>
 <li>The Acxelin VPN window opens. Choose <strong>Open invitation…</strong>, pick the <code>.pqcinvite</code> file, choose a passphrase for this computer, and press <strong>Connect</strong>. The first time, your system asks for administrator approval (Windows UAC, the macOS password dialog, or the Linux administrator prompt), because the VPN changes this computer's network.</li>
 <li>Next time, open Acxelin VPN and enter only the passphrase.</li>
 </ol>
-<p>The tray icon's menu shows the current state and offers <strong>Open Acxelin VPN</strong>, <strong>Disconnect</strong> and <strong>Quit and disconnect</strong>. Closing the window leaves the VPN connected; <strong>Quit and disconnect</strong> takes it down and closes the tray. Only the background VPN service runs with administrator rights; the tray and the window run as you. The window opens as an app window in Microsoft Edge or Google Chrome when one is installed (otherwise in your default browser), uses its own browser profile, and never offers to save your passphrase. On Linux, the tray menu needs a desktop with AppIndicator support (GNOME with its AppIndicator extension, KDE, and most others); without it, clicking the shield opens the window. <code>pqcsuite vpn desktop --remove-launcher</code> removes the shortcut.</p>
+<p>The tray icon's menu shows the current state and offers <strong>Open Acxelin VPN</strong>, <strong>Disconnect</strong>, <strong>Start at login</strong> and <strong>Quit and disconnect</strong>. With <strong>Start at login</strong> ticked (or <code>pqcsuite vpn desktop --start-at-login on</code>), the shield appears when you log in; it does not open the window or ask for administrator approval until you open it to connect, and connecting still needs your passphrase. The first time the window opens, a short guided tour points at each part; the <strong>?</strong> button replays it. Closing the window leaves the VPN connected; <strong>Quit and disconnect</strong> takes it down and closes the tray. Only the background VPN service runs with administrator rights; the tray and the window run as you. The window opens as an app window in Microsoft Edge or Google Chrome when one is installed (otherwise in your default browser), uses its own browser profile, and never offers to save your passphrase. On Linux, the tray menu needs a desktop with AppIndicator support (GNOME with its AppIndicator extension, KDE, and most others); without it, clicking the shield opens the window. The Linux package always works this way: its shield opens the window and has no menu, and Disconnect is in the window; a <code>pip install</code> on a desktop with AppIndicator gets the full menu. <code>pqcsuite vpn desktop --remove-launcher</code> removes the shortcut.</p>
 <p><strong>Prefer a browser?</strong> <code>pqcsuite vpn app</code> (in an administrator terminal) serves the same window and prints its address; this needs no extra install. Running it again while it is running opens the same window. Both the app and the browser window are served only on 127.0.0.1. They open only from a one-time address (from the tray, or printed by the command) that cannot be used twice, and they refuse other host names and requests from other websites. Closing the page does not disconnect; Ctrl+C in the terminal does.</p>
 <p>From another terminal, <code>pqcsuite vpn status</code> gives the same answer (add <code>--details</code> for algorithms, handshake and key timing, or <code>--json</code>). It exits 0 only when protected. Next time, run <code>pqcsuite vpn join alice.pqcinvite</code> again: the laptop is already enrolled, so it only asks for the passphrase and connects. Ctrl+C or <code>pqcsuite vpn disconnect</code> (same privileges) takes the tunnel down and lifts the kill switch.</p>
 <p>The remote-access pre-shared key comes from post-quantum TLS key agreement and is mixed into WireGuard; WireGuard's own handshake stays classical. <code>pqcsuite vpn connect GATEWAY --cert-dir FOLDER</code> and <code>pqcsuite ca enroll --guide</code> remain available for administrators who enroll devices themselves. <code>--no-apply</code> and <code>--once</code> are checks, not an active tunnel. The built-in <code>pqcsuite vpn install</code> cannot unlock an encrypted device key; use interactive join or connect, or an administrator-managed service with <code>--key-passphrase-env</code> and protected secret injection.</p>
@@ -679,4 +707,4 @@ pqcsuite vault share notes.pqv --key owner.key -r auditor.pub
 <p>Use <code>pqcsuite --help</code>, then the relevant command's <code>--help</code> for exact options. See the <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/README.md">README</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/CODE-CRAWLER.md">Code Crawler limits</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/RELEASE-READINESS.md">release gates</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PILOT.md">pilot instructions</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/SECURITY.md">security reporting</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/wolf-pack/README.md">Wolf Pack guide</a>.</p>
 <p>For guided stories using temporary data, run <code>python examples/clinic_demo.py --auto</code> or <code>python examples/bank_demo.py --auto</code> from an installed checkout. The privileged Linux VPN demo needs its documented networking prerequisites. These demos exercise real operations on example data; they do not configure your production organization.</p>
 
-<footer>Generated 2026-10-05 04:06 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>
+<footer>Generated 2026-10-05 04:50 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>

@@ -6,6 +6,7 @@ window's loopback API with a key only this account can read. Closing the window 
 "Quit" disconnects and stops it. Needs the `desktop` extra (pystray, Pillow)."""
 import json
 import os
+import plistlib
 import secrets
 import shlex
 import shutil
@@ -110,10 +111,16 @@ def python():
     return str(quiet if os.name == "nt" and quiet.exists() else exe)
 
 
+def entry():
+    """How to start pqcsuite: the packaged app's own program, or this Python with `-m pqcsuite`."""
+    return [sys.executable] if getattr(sys, "frozen", False) else [python(), "-m", "pqcsuite"]
+
+
 def elevated(command):
     """How to run `command` (a list) with administrator rights on this system, as a list to start without waiting. The
     prompt's clean environment keeps this interpreter's import path, so a per-user or virtualenv install still loads."""
-    command = ["env", "PYTHONPATH=" + os.pathsep.join(p for p in sys.path if p), *command]
+    if not getattr(sys, "frozen", False):
+        command = ["env", "PYTHONPATH=" + os.pathsep.join(p for p in sys.path if p), *command]
     if sys.platform == "darwin":
         script = shlex.join(command) + " >/dev/null 2>&1 &"
         return ["osascript", "-e", f'do shell script "{script.replace(chr(92), chr(92) * 2).replace(chr(34), chr(92) + chr(34))}" with administrator privileges']
@@ -173,7 +180,7 @@ class Tray:
         return self.state
 
     def command(self):
-        cmd = [python(), "-m", "pqcsuite", "vpn", "app", "--no-browser", "--session", str(self.session_file), "--folder", str(self.folder),
+        cmd = [*entry(), "vpn", "app", "--no-browser", "--session", str(self.session_file), "--folder", str(self.folder),
                "--interface", self.interface]
         return cmd + (["--no-apply"] if not self.apply else []) + ([str(Path(self.invitation).resolve())] if self.invitation else [])
 
@@ -257,7 +264,15 @@ class Tray:
             pystray.MenuItem("Disconnect", self.disconnect, visible=running),
             pystray.MenuItem("Start VPN service", self.opening, visible=lambda _: self.state is None),
             pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Start at login", self.toggle_login, checked=lambda _: autostart()),
             pystray.MenuItem("Quit and disconnect", self.quit))
+
+    def toggle_login(self, *_):
+        try:
+            autostart(not autostart())
+        except OSError as e:
+            self.notify(f"Start at login could not be changed: {e}")
+        self.show()
 
     def run(self, open_window=True):
         import pystray
@@ -272,9 +287,56 @@ class Tray:
         self.icon.run(setup)
 
 
+def desktop_entry(command, extra=""):
+    """A freedesktop.org launcher; its Exec line quotes arguments with double quotes, as the specification requires."""
+    quote = lambda a: a if a and not any(c in a for c in ' \t"\'\\><~|&;$*?#()`') else '"' + "".join("\\" + c if c in '"`$\\' else c for c in a) + '"'
+    icon = folder() / "acxelin-vpn.png"
+    icon.parent.mkdir(parents=True, exist_ok=True)
+    image("protected", 256).save(icon)
+    return (f"[Desktop Entry]\nType=Application\nName={NAME}\nComment=Post-quantum VPN: connect, and see whether this computer is protected\n"
+            f"Exec={' '.join(map(quote, command))}\nIcon={icon}\nTerminal=false\nCategories=Network;Security;\n{extra}")
+
+
+def autostart(enable=None):
+    """Start the tray when this account logs in: the icon only, without opening the window or asking for administrator
+    rights (that happens when the person opens it to connect). With `enable` None, say whether it is on."""
+    command = [*entry(), "vpn", "desktop", "--background"]
+    if os.name == "nt":
+        import winreg
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run") as key:
+            try:
+                current = winreg.QueryValueEx(key, NAME)[0]
+            except FileNotFoundError:
+                current = None
+            if enable is None:
+                return current is not None
+            if enable:
+                winreg.SetValueEx(key, NAME, 0, winreg.REG_SZ, subprocess.list2cmdline(command))
+            elif current is not None:
+                winreg.DeleteValue(key, NAME)
+        return enable
+    if sys.platform == "darwin":
+        path = Path.home() / "Library" / "LaunchAgents" / "com.acxelin.vpn.plist"
+        content = plistlib.dumps({"Label": "com.acxelin.vpn", "ProgramArguments": command, "RunAtLoad": True, "ProcessType": "Interactive"})
+    else:
+        path = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "autostart" / "acxelin-vpn.desktop"
+        if enable is None:
+            return path.exists()
+        content = desktop_entry(command, "X-GNOME-Autostart-enabled=true\n").encode()
+    if enable is None:
+        return path.exists()
+    if enable:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+    else:
+        path.unlink(missing_ok=True)
+    return enable
+
+
 def launcher(remove=False):
     """Add Acxelin VPN to the Start menu, Applications or the desktop's application list (or remove it); returns its path."""
-    exe, args = python(), "-m pqcsuite vpn desktop"
+    command = [*entry(), "vpn", "desktop"]
+    exe, args = command[0], subprocess.list2cmdline(command[1:]) if os.name == "nt" else shlex.join(command[1:])
     icons = folder()
     icons.mkdir(parents=True, exist_ok=True)
     if os.name == "nt":
@@ -299,24 +361,20 @@ def launcher(remove=False):
         run = path / "Contents" / "MacOS" / "acxelin-vpn"
         run.write_text(f"#!/bin/sh\nexec {shlex.quote(exe)} {args}\n", encoding="utf-8")
         run.chmod(0o755)
-        (path / "Contents" / "Info.plist").write_text(
-            '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
-            f'<plist version="1.0"><dict><key>CFBundleName</key><string>{NAME}</string><key>CFBundleIdentifier</key><string>com.acxelin.vpn</string>'
-            '<key>CFBundleExecutable</key><string>acxelin-vpn</string><key>CFBundleIconFile</key><string>acxelin-vpn</string>'
-            '<key>CFBundlePackageType</key><string>APPL</string><key>LSUIElement</key><true/></dict></plist>\n', encoding="utf-8")
+        (path / "Contents" / "Info.plist").write_bytes(plistlib.dumps({
+            "CFBundleName": NAME, "CFBundleIdentifier": "com.acxelin.vpn", "CFBundleExecutable": "acxelin-vpn",
+            "CFBundleIconFile": "acxelin-vpn", "CFBundlePackageType": "APPL", "LSUIElement": True}))
         return path
     path = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "applications" / "acxelin-vpn.desktop"
     if remove:
         path.unlink(missing_ok=True)
         return path
-    image("protected", 256).save(icons / "acxelin-vpn.png")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"[Desktop Entry]\nType=Application\nName={NAME}\nComment=Post-quantum VPN: connect, and see whether this computer is protected\n"
-                    f"Exec={shlex.quote(exe)} {args}\nIcon={icons / 'acxelin-vpn.png'}\nTerminal=false\nCategories=Network;Security;\n", encoding="utf-8")
+    path.write_text(desktop_entry(command), encoding="utf-8")
     return path
 
 
-def main(invitation=None, interface="wg0", apply=True):
+def main(invitation=None, interface="wg0", apply=True, background=False):
     """The tray, once per account and interface; launching it again opens the window of the one already running."""
     try:
         import PIL, pystray  # noqa: F401
@@ -328,5 +386,5 @@ def main(invitation=None, interface="wg0", apply=True):
         tray.open()
         return 0
     with held:
-        tray.run()
+        tray.run(open_window=not background)
     return 0

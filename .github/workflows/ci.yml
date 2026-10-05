@@ -136,6 +136,22 @@ jobs:
           echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c - && tar xzf trivy.tgz trivy
           ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL pqcsuite:ci
           ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 pqcsuite:ci
+  installers:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: ./.github/actions/installer
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: acxelin-vpn-${{ runner.os }}
+          path: dist/installers
   vpn:
     runs-on: ubuntu-24.04
     steps:

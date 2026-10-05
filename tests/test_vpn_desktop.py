@@ -38,9 +38,9 @@ class DesktopTest(unittest.TestCase):
         tray = self.desktop.Tray(home=self.d, apply=False)
         texts = lambda: [i.text for i in tray.menu().items if i.visible and i.text and not i.text.startswith("- ")]
         tray.state = None
-        self.assertEqual(texts(), ["VPN service not running", "Open Acxelin VPN", "Start VPN service", "Quit and disconnect"])
+        self.assertEqual(texts(), ["VPN service not running", "Open Acxelin VPN", "Start VPN service", "Start at login", "Quit and disconnect"])
         tray.state = {"invitation": {"name": "bob"}, "status": {"state": "protected", "address": "10.99.0.2/24"}}
-        self.assertEqual(texts(), ["Protected · 10.99.0.2", "Open Acxelin VPN", "Disconnect", "Quit and disconnect"])
+        self.assertEqual(texts(), ["Protected · 10.99.0.2", "Open Acxelin VPN", "Disconnect", "Start at login", "Quit and disconnect"])
 
     def test_administrator_prompts_keep_the_command_intact(self):
         command = [sys.executable, "-m", "pqcsuite", "vpn", "app", "--folder", '/Users/a "b"\\c/vpn', "x'y.pqcinvite"]
@@ -122,6 +122,44 @@ class DesktopTest(unittest.TestCase):
                 self.assertTrue(Path(re.search(r"^Icon=(.*)$", text, re.M).group(1)).exists())
             self.desktop.launcher(remove=True)
             self.assertFalse(path.exists())
+
+
+    def test_start_at_login_shows_only_the_tray_and_can_be_turned_off(self):
+        env = {"XDG_CONFIG_HOME": str(self.d / "config"), "HOME": str(self.d), "USERPROFILE": str(self.d)}
+        winreg_key = None
+        if os.name == "nt":
+            import winreg
+            winreg_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, winreg_key) as k:
+                    before = winreg.QueryValueEx(k, self.desktop.NAME)[0]
+            except FileNotFoundError:
+                before = None
+            self.addCleanup(lambda: self.desktop.autostart(False) if before is None else None)
+        with mock.patch.dict(os.environ, env), mock.patch.object(Path, "home", return_value=self.d):
+            self.assertTrue(self.desktop.autostart(True))
+            self.assertTrue(self.desktop.autostart())
+            if winreg_key:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, winreg_key) as k:
+                    value = winreg.QueryValueEx(k, self.desktop.NAME)[0]
+            elif sys.platform == "darwin":
+                import plistlib
+                value = " ".join(plistlib.loads((self.d / "Library" / "LaunchAgents" / "com.acxelin.vpn.plist").read_bytes())["ProgramArguments"])
+            else:
+                value = (self.d / "config" / "autostart" / "acxelin-vpn.desktop").read_text()
+                self.assertIn("X-GNOME-Autostart-enabled=true", value)
+            self.assertIn("vpn desktop --background", value, "at login: the tray only, no window and no administrator prompt")
+            tray = self.desktop.Tray(home=self.d, apply=False)
+            item = next(i for i in tray.menu().items if i.text == "Start at login")
+            self.assertTrue(item.checked)
+            self.assertFalse(self.desktop.autostart(False))
+            self.assertFalse(self.desktop.autostart())
+            self.assertFalse(item.checked)
+
+    def test_a_launcher_path_with_spaces_and_quotes_survives(self):
+        with mock.patch.object(Path, "home", return_value=self.d):
+            text = self.desktop.desktop_entry(["/opt/Acxelin VPN/run", 'say "hi" $x', "plain"])
+        self.assertIn('Exec="/opt/Acxelin VPN/run" "say \\"hi\\" \\$x" plain', text)
 
 
 class WithoutTheExtraTest(unittest.TestCase):

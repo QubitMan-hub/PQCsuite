@@ -472,7 +472,12 @@ def cmd_desktop(a):
         path = desktop.launcher(remove=a.remove_launcher)
         print(f"removed {path}" if a.remove_launcher else f"added {desktop.NAME}: {path}")
         return 0
-    return desktop.main(a.invitation, a.interface, not a.no_apply)
+    if a.start_at_login:
+        desktop.autostart(a.start_at_login == "on")
+        print(f"{desktop.NAME} {'starts' if a.start_at_login == 'on' else 'no longer starts'} when you log in"
+              + (" (the tray icon only; connecting still asks for your passphrase)" if a.start_at_login == "on" else ""))
+        return 0
+    return desktop.main(a.invitation, a.interface, not a.no_apply, a.background)
 
 
 def cmd_wireguard(a):
@@ -1139,6 +1144,8 @@ def parser():
     p.add_argument("--no-apply", action="store_true", help="enroll and agree keys, but do not configure a tunnel (a check, not a connection)")
     p.add_argument("--launcher", action="store_true", help="add Acxelin VPN to the Start menu, Applications or the application list")
     p.add_argument("--remove-launcher", action="store_true", help="remove what --launcher added")
+    p.add_argument("--start-at-login", choices=("on", "off"), help="show the tray icon when you log in (it connects only when you ask)")
+    p.add_argument("--background", action="store_true", help="start in the tray without opening the window")
     p = v.add_parser("gateway", help="WireGuard remote-access gateway: address pool, PSK from ML-DSA mutual TLS, rotation, revocation")
     p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/wireguard-gateway.toml)")
     for name, text in (("connect", "connect this machine (Linux, Windows or macOS) to a WireGuard gateway and keep its PSK fresh"),
