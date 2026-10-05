@@ -1,4 +1,6 @@
 # Deliberately weak cryptography that Wolf Pack's benchmark and the website's sample scans must find; not product code
+# and third-party agent skills vendored for Claude Code sessions (.claude/skills), which are not shipped
 paths-ignore:
+  - .claude/skills
   - wolf-pack/bench/corpus
   - examples/wolfpack-sample

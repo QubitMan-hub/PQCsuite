@@ -1,0 +1,397 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Acxelin VPN desktop app",
+    "output": "docs/architecture/acxelin-vpn-desktop.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/QubitMan-hub/pqcsuite",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "905fb9bff2181ec138bc86fedd96070129feafce"
+    }
+  },
+  "components": [
+    {
+      "id": "person",
+      "type": "external",
+      "label": "You",
+      "sublabel": "normal user account",
+      "icon": "person",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        130,
+        64
+      ]
+    },
+    {
+      "id": "tray",
+      "type": "frontend",
+      "label": "Tray icon",
+      "sublabel": "pqcsuite vpn desktop",
+      "pos": [
+        250,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "pqcsuite/vpn/desktop.py",
+          "line": 152,
+          "end_line": 186,
+          "label": "Tray"
+        },
+        {
+          "path": "pqcsuite/vpn/desktop.py",
+          "line": 248,
+          "end_line": 275,
+          "label": "state watch + menu"
+        }
+      ]
+    },
+    {
+      "id": "window",
+      "type": "frontend",
+      "label": "VPN window",
+      "sublabel": "app.html, Edge/Chrome --app",
+      "pos": [
+        380,
+        110
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "pqcsuite/vpn/desktop.py",
+          "line": 83,
+          "end_line": 98,
+          "label": "open_window"
+        },
+        {
+          "path": "pqcsuite/vpn/app.html",
+          "line": 390,
+          "end_line": 400,
+          "label": "ticket exchange"
+        }
+      ]
+    },
+    {
+      "id": "prompt",
+      "type": "security",
+      "label": "Administrator prompt",
+      "sublabel": "UAC \u00b7 polkit \u00b7 macOS",
+      "pos": [
+        380,
+        480
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "pqcsuite/vpn/desktop.py",
+          "line": 119,
+          "end_line": 145,
+          "label": "elevated + start_service"
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "type": "backend",
+      "label": "VPN service",
+      "sublabel": "vpn app --session",
+      "tag": "administrator",
+      "pos": [
+        620,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "pqcsuite/cli.py",
+          "line": 419,
+          "end_line": 466,
+          "label": "cmd_app"
+        },
+        {
+          "path": "pqcsuite/vpn/app.py",
+          "line": 183,
+          "end_line": 230,
+          "label": "loopback API"
+        }
+      ]
+    },
+    {
+      "id": "enroll",
+      "type": "external",
+      "label": "Enrollment service",
+      "sublabel": "EST, CA pinned",
+      "pos": [
+        1190,
+        110
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "pqcsuite/vpn/join.py",
+          "line": 68,
+          "end_line": 76,
+          "label": "enroll"
+        },
+        {
+          "path": "pqcsuite/pki/est.py",
+          "line": 175,
+          "end_line": 230,
+          "label": "fetch_ca, enroll"
+        }
+      ]
+    },
+    {
+      "id": "client",
+      "type": "backend",
+      "label": "WireGuard client",
+      "sublabel": "key agreement thread",
+      "pos": [
+        910,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "pqcsuite/vpn/app.py",
+          "line": 82,
+          "end_line": 104,
+          "label": "connect"
+        },
+        {
+          "path": "pqcsuite/vpn/wireguard.py",
+          "line": 337,
+          "end_line": 370,
+          "label": "agree + apply"
+        }
+      ]
+    },
+    {
+      "id": "tunnel",
+      "type": "backend",
+      "label": "WireGuard tunnel",
+      "sublabel": "plus kill switch",
+      "pos": [
+        910,
+        480
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "pqcsuite/vpn/platforms.py",
+          "line": 109,
+          "end_line": 160,
+          "label": "Tunnel"
+        },
+        {
+          "path": "pqcsuite/vpn/wireguard.py",
+          "line": 350,
+          "end_line": 362,
+          "label": "apply PSK"
+        }
+      ]
+    },
+    {
+      "id": "gateway",
+      "type": "backend",
+      "label": "VPN gateway",
+      "sublabel": "PQ key agreement",
+      "pos": [
+        1190,
+        300
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "pqcsuite/vpn/wireguard.py",
+          "line": 167,
+          "end_line": 215,
+          "label": "Gateway.respond"
+        },
+        {
+          "path": "pqcsuite/vpn/wireguard.py",
+          "line": 246,
+          "end_line": 260,
+          "label": "TLS listener"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Runs as you",
+      "wraps": [
+        "tray",
+        "window"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Administrator rights",
+      "wraps": [
+        "service",
+        "client",
+        "tunnel"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Your organisation",
+      "wraps": [
+        "enroll",
+        "gateway"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "open-app",
+      "from": "person",
+      "to": "tray",
+      "label": "opens app",
+      "variant": "emphasis"
+    },
+    {
+      "id": "tray-api",
+      "from": "tray",
+      "to": "service",
+      "label": "loopback API",
+      "variant": "emphasis"
+    },
+    {
+      "id": "open-window",
+      "from": "tray",
+      "to": "window",
+      "label": "one-time ticket",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "window-api",
+      "from": "window",
+      "to": "service",
+      "label": "ticket \u2192 key",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "start-service",
+      "from": "tray",
+      "to": "prompt",
+      "label": "starts service",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "elevate",
+      "from": "prompt",
+      "to": "service",
+      "label": "elevated",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "bottom"
+    },
+    {
+      "id": "connect",
+      "from": "service",
+      "to": "client",
+      "label": "on Connect",
+      "variant": "emphasis"
+    },
+    {
+      "id": "enroll-once",
+      "from": "service",
+      "to": "enroll",
+      "label": "enroll once",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "key-agreement",
+      "from": "client",
+      "to": "gateway",
+      "label": "PQ TLS mTLS",
+      "variant": "security"
+    },
+    {
+      "id": "set-psk",
+      "from": "client",
+      "to": "tunnel",
+      "label": "new PSK",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "wireguard",
+      "from": "tunnel",
+      "to": "gateway",
+      "label": "WireGuard + PSK",
+      "fromSide": "right",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Least privilege",
+      "items": [
+        "Tray and window run as you; only the VPN service gets administrator rights",
+        "Closing the window leaves the VPN up; Quit stops the service",
+        "Start at login shows the tray only, with no prompt"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Loopback API",
+      "items": [
+        "127.0.0.1 only, its own Host and Origin",
+        "Browser addresses carry a one-time ticket, never the session key",
+        "Wrong keys are rate-limited"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Post-quantum keys",
+      "items": [
+        "Hybrid ML-KEM key exchange, ML-DSA certificates",
+        "PSK exported from the TLS session, renewed every rotation",
+        "WireGuard's own handshake stays classical"
+      ]
+    }
+  ]
+}

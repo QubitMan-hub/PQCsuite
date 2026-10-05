@@ -39,3 +39,6 @@ Thumbs.db
 
 # Private console workspace
 .pqcsuite/
+
+# archify working folders (finished diagrams go in docs/architecture)
+.archify/
