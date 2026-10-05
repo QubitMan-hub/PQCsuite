@@ -1,6 +1,9 @@
 # Deliberately weak cryptography that Wolf Pack's benchmark and the website's sample scans must find; not product code
-# and third-party agent skills vendored for Claude Code sessions (.claude/skills), which are not shipped
+# and third-party agent skills vendored for Claude Code sessions (.claude/skills), which are not shipped; and the diagram pages
+# archify generates into site/architecture (its viewer's lookups are Object.create(null) maps keyed by validated node IDs, so
+# the "remote property injection" results there were reviewed as false positives in October 2026)
 paths-ignore:
   - .claude/skills
+  - site/architecture
   - wolf-pack/bench/corpus
   - examples/wolfpack-sample

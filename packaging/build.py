@@ -62,7 +62,7 @@ def openssl(folder):
     names = ("libcrypto-3-x64.dll", "libssl-3-x64.dll") if os.name == "nt" else ("libcrypto.3.dylib", "libssl.3.dylib")
     for n in names:
         shutil.copy2(src / n, out / n)
-        os.chmod(out / n, 0o755)
+        os.chmod(out / n, 0o644)  # Homebrew's copies are read-only; install_name_tool and codesign need to write
     if sys.platform == "darwin":
         run("install_name_tool", "-id", "@loader_path/libcrypto.3.dylib", out / "libcrypto.3.dylib")
         run("install_name_tool", "-id", "@loader_path/libssl.3.dylib", out / "libssl.3.dylib")

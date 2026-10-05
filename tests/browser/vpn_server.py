@@ -9,6 +9,7 @@ from cryptography.x509 import load_pem_x509_certificate
 
 from pqcsuite import tls
 from pqcsuite.pki import CA, est
+from pqcsuite.storage import write
 from pqcsuite.vpn import app
 from pqcsuite.vpn.wireguard import Gateway, GatewayConfig
 
@@ -48,10 +49,10 @@ else:
     gw = Gateway(cfg, FakeWG()).start()
     srv = est.serve(d / "pki", "127.0.0.1:0", d / "gw" / "chain.pem", d / "gw" / "key.pem")
     srv.start()
-    invitation.write_text(json.dumps({
+    write(invitation, json.dumps({
         "pqcsuite_invite": 1, "name": "bob", "enroll": f"https://localhost:{srv.port}", "server_name": "localhost",
         "ca_fingerprint": est.fingerprint(load_pem_x509_certificate((d / "pki" / "ca.crt").read_bytes())),
-        "gateway": f"127.0.0.1:{gw.server.port}", "expires": "2099-01-01T00:00:00+00:00", "token": est.create_token(ca, "bob", "client", hours=1)}))
+        "gateway": f"127.0.0.1:{gw.server.port}", "expires": "2099-01-01T00:00:00+00:00", "token": est.create_token(ca, "bob", "client", hours=1)}).encode(), secret=True)
 window = app.App(folder=d / "vpn", apply=False)
 window.token = "browser-test"
 app.serve(window, ("127.0.0.1", 8901)).serve_forever()
