@@ -2,7 +2,7 @@
 
 **Acxelin Quantum · Customer guide · 2 October 2026**
 
-What to use, how to start, what success looks like, and what to do when something goes wrong. You need no cryptography background for the first steps; running a production certificate authority or VPN needs a system administrator. This edition covers **PQC Suite 0.4.3 and Wolf Pack 1.4.0**.
+What to use, how to start, what success looks like, and what to do when something goes wrong. You need no cryptography background for the first steps; running a production certificate authority or VPN needs a system administrator. This edition covers **PQC Suite 0.4.3 and Wolf Pack 1.4.1**.
 
 ## Contents
 
@@ -60,11 +60,11 @@ Each product has a page: TLS edges and certificates, VPN gateways and tunnels, V
 | Published suite container | TLS/readiness demonstrations and configured services | The base image does not include repository scanning; persistent data needs mounted storage |
 | Wolf Pack base container or base Action | Minimal scanner automation | Python relationships are included; JavaScript/TypeScript, Java and Go relationships need the optional parser installation |
 
-[Suite releases](https://github.com/QubitMan-hub/PQCsuite/releases) and [Wolf Pack 1.4.0](https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.0) are separate downloads. Suite 0.4.3 and Wolf Pack 1.4.0 are the aligned targets for this manual. Earlier releases predate the desktop app and installers; Wolf Pack 1.3.0 skipped files a project's `.gitignore` leaves out. A Git push does not modify an existing wheel or image. Use a specific container version for repeatable deployments rather than assuming `latest` is unchanged.
+[Suite releases](https://github.com/QubitMan-hub/PQCsuite/releases) and [Wolf Pack 1.4.1](https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.1) are separate downloads. Suite 0.4.3 and Wolf Pack 1.4.1 are the aligned targets for this manual. Earlier releases predate the desktop app and installers; Wolf Pack 1.3.0 skipped files a project's `.gitignore` leaves out. A Git push does not modify an existing wheel or image. Use a specific container version for repeatable deployments rather than assuming `latest` is unchanged.
 
 ### Install a release
 
-You need Python 3.11 or newer. Download both wheels, [pqcsuite-0.4.3-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/v0.4.3/pqcsuite-0.4.3-py3-none-any.whl) and [wolfpack_cbom-1.4.0-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/wolf-pack-v1.4.0/wolfpack_cbom-1.4.0-py3-none-any.whl), into a new folder. Open a terminal there and create a separate Python environment so the install does not touch your computer's other applications:
+You need Python 3.11 or newer. Download both wheels, [pqcsuite-0.4.3-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/v0.4.3/pqcsuite-0.4.3-py3-none-any.whl) and [wolfpack_cbom-1.4.1-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/wolf-pack-v1.4.1/wolfpack_cbom-1.4.1-py3-none-any.whl), into a new folder. Open a terminal there and create a separate Python environment so the install does not touch your computer's other applications:
 
 ```sh
 python -m venv .venv
@@ -73,7 +73,7 @@ python -m venv .venv
 Activate it in PowerShell with `.\.venv\Scripts\Activate.ps1`, or on macOS/Linux with `source .venv/bin/activate`. If your organization blocks PowerShell activation scripts, run `.\.venv\Scripts\python.exe` and `.\.venv\Scripts\pqcsuite.exe` directly instead. Then install and check:
 
 ```sh
-python -m pip install 'wolfpack_cbom-1.4.0-py3-none-any.whl[crawler]' 'pqcsuite-0.4.3-py3-none-any.whl[scan-web]'
+python -m pip install 'wolfpack_cbom-1.4.1-py3-none-any.whl[crawler]' 'pqcsuite-0.4.3-py3-none-any.whl[scan-web]'
 pqcsuite --version
 pqcsuite doctor
 ```

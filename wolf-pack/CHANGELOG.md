@@ -2,7 +2,7 @@
 
 Versions of Wolf Pack CBOM. A release is a tag `wolf-pack-vX.Y.Z` on the PQC Suite repository; its GitHub release carries the wheel and build provenance.
 
-## Unreleased
+## 1.4.1 (5 October 2026)
 
 - The NIST status of a cipher names its real problem: AES-256 is quantum-safe instead of being asked to "prefer 256-bit strength", and ECB mode says it shows patterns in the data rather than giving key-size advice.
 

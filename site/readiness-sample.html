@@ -47,4 +47,4 @@ footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line);
 const rows = [...document.querySelectorAll('#rows tr')]; f.hidden = false;
 const draw = () => { let shown = 0; for (const r of rows) { r.hidden = (st.value && r.dataset.status !== st.value) || !r.textContent.toLowerCase().includes(q.value.toLowerCase()); shown += !r.hidden; } n.textContent = shown + ' of ' + rows.length; };
 q.oninput = draw; st.onchange = draw; draw(); })();</script>
-<footer>Generated 2026-10-05 11:49 UTC by pqcsuite 0.4.2 · Acxelin Quantum</footer></main></html>
+<footer>Generated 2026-10-05 12:48 UTC by pqcsuite 0.4.3 · Acxelin Quantum</footer></main></html>
