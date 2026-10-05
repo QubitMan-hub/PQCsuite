@@ -30,11 +30,13 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        Write-Output "::notice title=Acxelin VPN installer::Windows build starting"
-        choco install openssl innosetup -y --no-progress
-        if ($LASTEXITCODE) { Write-Output "::error title=Acxelin VPN installer::choco install failed ($LASTEXITCODE)"; exit 1 }
-        Write-Output "::notice title=OpenSSL for the installer::$((Get-ChildItem "$env:ProgramFiles\OpenSSL-Win64\bin" -Filter *.dll).Name -join ', ')"
-        python packaging/build.py --openssl "$env:ProgramFiles\OpenSSL-Win64\bin"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $log = choco upgrade openssl innosetup -y --no-progress 2>&1 | Out-String
+        if ($LASTEXITCODE -notin 0, 3010) { Write-Output "::error title=Acxelin VPN installer::choco failed ($LASTEXITCODE): $((($log -split "`n") | Select-Object -Last 8) -join ' | ')"; exit 1 }
+        $ssl = Get-ChildItem "$env:ProgramFiles\OpenSSL*\bin\libssl-3-x64.dll", "$env:ProgramFiles\OpenSSL*\libssl-3-x64.dll" -ErrorAction SilentlyContinue | Sort-Object { [version]($_.VersionInfo.ProductVersion -replace '[^0-9.].*', '') } -Descending | Select-Object -First 1
+        if (-not $ssl) { Write-Output "::error title=Acxelin VPN installer::no libssl-3-x64.dll under $env:ProgramFiles\OpenSSL*"; exit 1 }
+        Write-Output "::notice title=Acxelin VPN installer::bundling OpenSSL $($ssl.VersionInfo.ProductVersion) from $($ssl.DirectoryName)"
+        python packaging/build.py --openssl $ssl.DirectoryName
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
         $setup = Get-ChildItem dist\installers\Acxelin-VPN-*-Setup.exe
         $install = Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TASKS=""','/LOG=setup.log' -Wait -PassThru
