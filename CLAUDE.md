@@ -2,6 +2,8 @@
 
 Acxelin PQC Suite (working name `pqcsuite`, `NAME` in `pqcsuite/__init__.py`) is company work: four post-quantum products in Python. The owner develops on Windows with PowerShell and prefers minimal code with few comments. Tell him the limits honestly; don't overclaim.
 
+Current state, open work and handoff notes: `docs/AGENT-HANDOFF.md`.
+
 ## Products and layout
 
 - **TLS 1.3 + mTLS:** `pqcsuite/tls/` (`openssl.py` ctypes bridge to OpenSSL 3.5+, policies in `__init__.py`, `server.py`, `edge.py`, `bundles.py`, `http.py`) and `pqcsuite/pki/` (CA in `__init__.py`, `signers.py` for SLH-DSA/KMS/HSM, `est.py`, `acme.py`).
