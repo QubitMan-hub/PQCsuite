@@ -38,8 +38,12 @@ VAULT_WORK = textwrap.dedent("""
 """)
 
 
-def killed(args, rnd):
+def killed(args, rnd, ready=lambda: True):
+    """Kill the worker at a random moment once `ready()` holds, so a slow machine still kills it mid-work, not mid-start-up."""
     p = subprocess.Popen([sys.executable, "-c", *args], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    deadline = time.monotonic() + 60
+    while not ready() and p.poll() is None and time.monotonic() < deadline:
+        time.sleep(0.05)
     time.sleep(rnd.uniform(0.4, 1.5))
     if p.poll() is not None:
         raise AssertionError(f"the worker died on its own: {p.stderr.read().decode()[-500:]}")
@@ -78,7 +82,7 @@ class CrashTest(unittest.TestCase):
         me = vault.Identity.generate()
         (self.d / "me.pub").write_bytes(me.public.pem())
         for round_ in range(4):
-            killed([VAULT_WORK, str(self.d / "me.pub"), str(self.d)], self.rnd)
+            killed([VAULT_WORK, str(self.d / "me.pub"), str(self.d)], self.rnd, lambda: any(self.d.glob("out-*.pqv")))
         archives = sorted(self.d.glob("out-*.pqv"))
         self.assertTrue(archives)
         for a in archives:
