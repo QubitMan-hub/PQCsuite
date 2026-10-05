@@ -4,6 +4,7 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 ## Unreleased
 
+- Website: an Acxelin VPN section with the tray states and the three installers; install commands name the release wheels instead of a source checkout (a test keeps them on the current version); the VPN product is called VPN, since it covers laptops too; the tour button sits above the headline. The manual leads with installing a release.
 - `pqcsuite scan` ends with what to change first (priority, algorithm, file and line, and the replacement) instead of internal counts, and accepts `-o` like the other commands; lists in `vault inspect` and similar output read as plain text.
 - `pqcsuite scan` and the console's project scans find private keys, certificates and other files that the project's `.gitignore` leaves out (Wolf Pack fix). The reviewed inventory `docs/cbom.json` is refreshed for code moved since 0.3.0.
 - Repository scans show which Java and Go functions reach each finding (Wolf Pack crawler extra); `doctor` reports when those parsers are missing.

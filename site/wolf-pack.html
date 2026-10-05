@@ -218,7 +218,7 @@ wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
         <tr><td>Configs, certificates and binaries</td><td>Cryptographic inventory and evidence</td><td>Not proof of runtime reachability or deployment protection</td></tr>
       </tbody></table></div>
       <p>Production files are analyzed before tests. Repeat scans reuse unchanged syntax while recomputing findings and relationships. Coverage details identify files that could not be fully analyzed. Password-storage advice is separated from declared non-security cache fingerprints; candidate hybrids retain their classical components for review.</p>
-      <p>Try the local workflow from a source checkout, or follow the product manual to install the aligned 0.3.1 / 1.3.0 release wheels:</p><pre>pip install './wolf-pack[crawler]' '.[scan-web]'
+      <p>Download both wheels from the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/v0.3.1">suite 0.3.1</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.3.0">Wolf Pack 1.3.0</a> releases, then try the local workflow:</p><pre>pip install "wolfpack_cbom-1.3.0-py3-none-any.whl[crawler]" "pqcsuite-0.3.1-py3-none-any.whl[scan-web]"
 pqcsuite console --sample-project</pre>
       <p>For your own repository:</p><pre>pqcsuite doctor --json --product repository
 pqcsuite setup --project /path/to/repository --out .pqcsuite/console.toml
@@ -314,7 +314,7 @@ pqcsuite console --config .pqcsuite/console.toml</pre><p>The example stays on yo
       <p>Post-quantum security for the traffic, tunnels and data you run today.</p>
     </div>
     <nav aria-label="Footer">
-      <div><b>PQC Suite</b><a href="index.html#tls">TLS 1.3 + mTLS</a><a href="index.html#vpn">IPsec VPN</a><a href="index.html#vault">Vault</a><a href="index.html#readiness">Readiness assessment</a><a href="index.html#faq">Questions</a></div>
+      <div><b>PQC Suite</b><a href="index.html#tls">TLS 1.3 + mTLS</a><a href="index.html#vpn">VPN</a><a href="index.html#app">Acxelin VPN app</a><a href="index.html#vault">Vault</a><a href="index.html#readiness">Readiness assessment</a><a href="index.html#faq">Questions</a></div>
       <div><b>Wolf Pack CBOM</b><a href="#features">Features</a><a href="wolf-pack-sample.html">Sample report</a><a href="wolf-pack-inventory.html">Sample dashboard</a><a href="#results">Results</a></div>
       <div><b>Documentation</b><a href="https://github.com/QubitMan-hub/PQCsuite#install">Install and first steps</a><a href="https://github.com/QubitMan-hub/PQCsuite#what-listens-where">What listens where</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/THREAT-MODEL.md">Threat model</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md">Changelog</a><a href="https://github.com/QubitMan-hub/PQCsuite/releases">Releases</a><a href="https://github.com/QubitMan-hub/PQCsuite">Source code</a></div>
       <div><b>Contact</b><a href="mailto:info@acxelinquantum.com">info@acxelinquantum.com</a><a href="https://forms.office.com/Pages/ResponsePage.aspx?id=G7il0FYBPk-mQiu5eNm4__Zpyi-xUOBMtEt0p-905AxUME9LMzZFV0JLWEFDMzdJMTM1MzYxSEVORy4u" target="_blank" rel="noopener">Book a call</a></div>

@@ -84,6 +84,14 @@ class SiteTest(unittest.TestCase):
         self.assertFalse([r for r in p.products if "wolf" in r.lower()])
         self.assertEqual(len(re.findall(r'<article class="product"', (SITE / "index.html").read_text(encoding="utf-8"))), 4)
 
+    def test_install_commands_name_the_current_wheels(self):
+        suite = re.search(r'__version__ = "(.+)"', (ROOT / "pqcsuite" / "__init__.py").read_text()).group(1)
+        wolf = re.search(r'__version__ = "(.+)"', (ROOT / "wolf-pack" / "wolfpack" / "__init__.py").read_text()).group(1)
+        for name in ("index.html", "wolf-pack.html", "product-manual.html"):
+            wheels = set(re.findall(r"(pqcsuite|wolfpack_cbom)-([\d.]+)-py3-none-any\.whl", (SITE / name).read_text(encoding="utf-8")))
+            self.assertTrue(wheels, name)
+            self.assertLessEqual(wheels, {("pqcsuite", suite), ("wolfpack_cbom", wolf)}, name)
+
     def test_wolf_pack_band_sits_between_products_and_plan(self):
         html = (SITE / "index.html").read_text(encoding="utf-8")
         band = re.search(r'<section id="also".*?</section>', html, re.S).group(0)

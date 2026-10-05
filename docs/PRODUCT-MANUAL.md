@@ -57,17 +57,36 @@ Use **Readiness → repository → Scan** for the simplest workflow. Keep advanc
 
 | Option | Use it for | Important distinction |
 |---|---|---|
-| Current source checkout | All workflows in this guide, development and testing | Record the Git commit; `main` can change |
 | PQC Suite release wheel | A fixed version of TLS, VPN, Vault, Readiness and console | Repository scanning also needs a compatible Wolf Pack installation |
 | Wolf Pack release wheel | A fixed scanner version | JavaScript/TypeScript, Java and Go relationships need its `crawler` extra |
+| Acxelin VPN installer | Laptops that only join the VPN (from 0.4.0) | See [Enroll and connect a laptop](#enroll-and-connect-a-laptop) |
+| Current source checkout | Unreleased changes, development and testing | Record the Git commit; `main` can change |
 | Published suite container | TLS/readiness demonstrations and configured services | The base image does not include repository scanning; persistent data needs mounted storage |
 | Wolf Pack base container or base Action | Minimal scanner automation | Python relationships are included; JavaScript/TypeScript AST relationships need the optional parser installation |
 
 [Suite releases](https://github.com/QubitMan-hub/PQCsuite/releases) and [Wolf Pack 1.3.0](https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.3.0) are separate downloads. Suite 0.3.1 and Wolf Pack 1.3.0 are the aligned targets for this manual. Earlier suite 0.2.2 and Wolf Pack 1.2.1 releases predate guided setup, syntax reuse and deployment observations. A Git push does not modify an existing wheel or image. Use a specific container version for repeatable deployments rather than assuming `latest` is unchanged.
 
+### Install a release
+
+You need Python 3.11 or newer. Download both wheels, [pqcsuite-0.3.1-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/v0.3.1/pqcsuite-0.3.1-py3-none-any.whl) and [wolfpack_cbom-1.3.0-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/wolf-pack-v1.3.0/wolfpack_cbom-1.3.0-py3-none-any.whl), into a new folder. Open a terminal there and create a separate Python environment so the install does not touch your computer's other applications:
+
+```sh
+python -m venv .venv
+```
+
+Activate it in PowerShell with `.\.venv\Scripts\Activate.ps1`, or on macOS/Linux with `source .venv/bin/activate`. If your organization blocks PowerShell activation scripts, run `.\.venv\Scripts\python.exe` and `.\.venv\Scripts\pqcsuite.exe` directly instead. Then install and check:
+
+```sh
+python -m pip install 'wolfpack_cbom-1.3.0-py3-none-any.whl[crawler]' 'pqcsuite-0.3.1-py3-none-any.whl[scan-web]'
+pqcsuite --version
+pqcsuite doctor
+```
+
+Release assets include build provenance, which is not the same as a code signature; the Acxelin VPN installers are not code-signed yet. The base suite wheel does not bundle Wolf Pack.
+
 ### Install the current checkout
 
-You need Git and Python 3.11 or newer. These commands install both packages in a separate Python environment so they do not replace your computer's other applications.
+For unreleased changes. You need Git and Python 3.11 or newer. These commands install both packages in a separate Python environment so they do not replace your computer's other applications.
 
 ```sh
 git clone https://github.com/QubitMan-hub/PQCsuite.git
@@ -99,19 +118,11 @@ git rev-parse HEAD
 
 Save the versions and commit with your assessment. `doctor` reports available capabilities and actions for missing prerequisites. A VPN warning on a laptop used only for code scanning is not a reason to abandon the repository scan. Use `pqcsuite doctor --json --product repository` to check just that workflow.
 
-For fixed releases, download both wheels from their release pages into a new directory, create/activate a virtual environment, and install:
-
-```sh
-python -m pip install 'wolfpack_cbom-1.3.0-py3-none-any.whl[crawler]' 'pqcsuite-0.3.1-py3-none-any.whl[scan-web]'
-```
-
-Only run that command once those exact files have been published and downloaded. Release assets include build provenance; this is different from a native Windows/macOS signed installer. Native installer signing is outside the current scope. The base suite wheel does not bundle Wolf Pack.
-
 ### Additional product prerequisites
 
 Repository scanning and Vault do not require a running VPN. TLS and the VPN key-agreement service need **OpenSSL 3.5 or newer**. Use `doctor` to verify the actual loaded library, not only an unrelated command-line executable's version. Debian 13 containers provide a suitable library. On macOS, install Homebrew `openssl@3` and point `PQCSUITE_OPENSSL` at its `lib` folder if discovery fails. On Windows, install a compatible OpenSSL build and point `PQCSUITE_OPENSSL` at its DLL folder. The Python and library architectures must match.
 
-Site-to-site VPN gateways require Linux, strongSwan with ML-KEM support, VICI, networking permissions and suitable kernel support. Install the suite's VPN extra from the checkout with `python -m pip install '.[vpn]'`. Remote laptops use the official WireGuard tools for their OS; installing Python alone does not install a tunnel driver. Real gateway addresses, certificates and routes must be supplied by the administrator.
+Site-to-site VPN gateways require Linux, strongSwan with ML-KEM support, VICI, networking permissions and suitable kernel support. Install the suite's VPN extra with `python -m pip install 'pqcsuite-0.3.1-py3-none-any.whl[vpn]'` (or `'.[vpn]'` from a checkout). Remote laptops use the official WireGuard tools for their OS; installing Python alone does not install a tunnel driver. Real gateway addresses, certificates and routes must be supplied by the administrator.
 
 ### Update without losing work
 

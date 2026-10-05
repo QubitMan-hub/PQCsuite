@@ -134,11 +134,6 @@ nav { display: flex; gap: 20px; flex-wrap: wrap; } :target { scroll-margin-top: 
 </thead>
 <tbody>
 <tr>
-<td>Current source checkout</td>
-<td>All workflows in this guide, development and testing</td>
-<td>Record the Git commit; <code>main</code> can change</td>
-</tr>
-<tr>
 <td>PQC Suite release wheel</td>
 <td>A fixed version of TLS, VPN, Vault, Readiness and console</td>
 <td>Repository scanning also needs a compatible Wolf Pack installation</td>
@@ -147,6 +142,16 @@ nav { display: flex; gap: 20px; flex-wrap: wrap; } :target { scroll-margin-top: 
 <td>Wolf Pack release wheel</td>
 <td>A fixed scanner version</td>
 <td>JavaScript/TypeScript, Java and Go relationships need its <code>crawler</code> extra</td>
+</tr>
+<tr>
+<td>Acxelin VPN installer</td>
+<td>Laptops that only join the VPN (from 0.4.0)</td>
+<td>See <a href="#enroll-and-connect-a-laptop">Enroll and connect a laptop</a></td>
+</tr>
+<tr>
+<td>Current source checkout</td>
+<td>Unreleased changes, development and testing</td>
+<td>Record the Git commit; <code>main</code> can change</td>
 </tr>
 <tr>
 <td>Published suite container</td>
@@ -161,8 +166,18 @@ nav { display: flex; gap: 20px; flex-wrap: wrap; } :target { scroll-margin-top: 
 </tbody>
 </table></div>
 <p><a href="https://github.com/QubitMan-hub/PQCsuite/releases">Suite releases</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.3.0">Wolf Pack 1.3.0</a> are separate downloads. Suite 0.3.1 and Wolf Pack 1.3.0 are the aligned targets for this manual. Earlier suite 0.2.2 and Wolf Pack 1.2.1 releases predate guided setup, syntax reuse and deployment observations. A Git push does not modify an existing wheel or image. Use a specific container version for repeatable deployments rather than assuming <code>latest</code> is unchanged.</p>
+<h3 id="install-a-release">Install a release</h3>
+<p>You need Python 3.11 or newer. Download both wheels, <a href="https://github.com/QubitMan-hub/PQCsuite/releases/download/v0.3.1/pqcsuite-0.3.1-py3-none-any.whl">pqcsuite-0.3.1-py3-none-any.whl</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/releases/download/wolf-pack-v1.3.0/wolfpack_cbom-1.3.0-py3-none-any.whl">wolfpack_cbom-1.3.0-py3-none-any.whl</a>, into a new folder. Open a terminal there and create a separate Python environment so the install does not touch your computer's other applications:</p>
+<pre><code class="language-sh">python -m venv .venv
+</code></pre>
+<p>Activate it in PowerShell with <code>.\.venv\Scripts\Activate.ps1</code>, or on macOS/Linux with <code>source .venv/bin/activate</code>. If your organization blocks PowerShell activation scripts, run <code>.\.venv\Scripts\python.exe</code> and <code>.\.venv\Scripts\pqcsuite.exe</code> directly instead. Then install and check:</p>
+<pre><code class="language-sh">python -m pip install 'wolfpack_cbom-1.3.0-py3-none-any.whl[crawler]' 'pqcsuite-0.3.1-py3-none-any.whl[scan-web]'
+pqcsuite --version
+pqcsuite doctor
+</code></pre>
+<p>Release assets include build provenance, which is not the same as a code signature; the Acxelin VPN installers are not code-signed yet. The base suite wheel does not bundle Wolf Pack.</p>
 <h3 id="install-the-current-checkout">Install the current checkout</h3>
-<p>You need Git and Python 3.11 or newer. These commands install both packages in a separate Python environment so they do not replace your computer's other applications.</p>
+<p>For unreleased changes. You need Git and Python 3.11 or newer. These commands install both packages in a separate Python environment so they do not replace your computer's other applications.</p>
 <pre><code class="language-sh">git clone https://github.com/QubitMan-hub/PQCsuite.git
 cd PQCsuite
 python -m venv .venv
@@ -181,13 +196,9 @@ pqcsuite doctor --json --product all
 git rev-parse HEAD
 </code></pre>
 <p>Save the versions and commit with your assessment. <code>doctor</code> reports available capabilities and actions for missing prerequisites. A VPN warning on a laptop used only for code scanning is not a reason to abandon the repository scan. Use <code>pqcsuite doctor --json --product repository</code> to check just that workflow.</p>
-<p>For fixed releases, download both wheels from their release pages into a new directory, create/activate a virtual environment, and install:</p>
-<pre><code class="language-sh">python -m pip install 'wolfpack_cbom-1.3.0-py3-none-any.whl[crawler]' 'pqcsuite-0.3.1-py3-none-any.whl[scan-web]'
-</code></pre>
-<p>Only run that command once those exact files have been published and downloaded. Release assets include build provenance; this is different from a native Windows/macOS signed installer. Native installer signing is outside the current scope. The base suite wheel does not bundle Wolf Pack.</p>
 <h3 id="additional-product-prerequisites">Additional product prerequisites</h3>
 <p>Repository scanning and Vault do not require a running VPN. TLS and the VPN key-agreement service need <strong>OpenSSL 3.5 or newer</strong>. Use <code>doctor</code> to verify the actual loaded library, not only an unrelated command-line executable's version. Debian 13 containers provide a suitable library. On macOS, install Homebrew <code>openssl@3</code> and point <code>PQCSUITE_OPENSSL</code> at its <code>lib</code> folder if discovery fails. On Windows, install a compatible OpenSSL build and point <code>PQCSUITE_OPENSSL</code> at its DLL folder. The Python and library architectures must match.</p>
-<p>Site-to-site VPN gateways require Linux, strongSwan with ML-KEM support, VICI, networking permissions and suitable kernel support. Install the suite's VPN extra from the checkout with <code>python -m pip install '.[vpn]'</code>. Remote laptops use the official WireGuard tools for their OS; installing Python alone does not install a tunnel driver. Real gateway addresses, certificates and routes must be supplied by the administrator.</p>
+<p>Site-to-site VPN gateways require Linux, strongSwan with ML-KEM support, VICI, networking permissions and suitable kernel support. Install the suite's VPN extra with <code>python -m pip install 'pqcsuite-0.3.1-py3-none-any.whl[vpn]'</code> (or <code>'.[vpn]'</code> from a checkout). Remote laptops use the official WireGuard tools for their OS; installing Python alone does not install a tunnel driver. Real gateway addresses, certificates and routes must be supplied by the administrator.</p>
 <h3 id="update-without-losing-work">Update without losing work</h3>
 <p>Back up your private project workspace and security configuration first. In a source checkout, inspect <code>git status</code>; preserve local changes, then use <code>git pull --ff-only</code> and repeat the package installation. If Git reports divergence, resolve it rather than resetting away someone's work. Stop and restart your console after installing an update.</p>
 <p>Workspace format 2 reads older format-1 project state. Older software cannot read format 2. Keep a pre-upgrade backup if rollback matters. Do not overwrite old security keys with new demo keys. Release upgrades do not automatically migrate a deployed gateway, replace certificates or restart every service.</p>
@@ -707,4 +718,4 @@ pqcsuite vault share notes.pqv --key owner.key -r auditor.pub
 <p>Use <code>pqcsuite --help</code>, then the relevant command's <code>--help</code> for exact options. See the <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/README.md">README</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/CODE-CRAWLER.md">Code Crawler limits</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/RELEASE-READINESS.md">release gates</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PILOT.md">pilot instructions</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/SECURITY.md">security reporting</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/wolf-pack/README.md">Wolf Pack guide</a>.</p>
 <p>For guided stories using temporary data, run <code>python examples/clinic_demo.py --auto</code> or <code>python examples/bank_demo.py --auto</code> from an installed checkout. The privileged Linux VPN demo needs its documented networking prerequisites. These demos exercise real operations on example data; they do not configure your production organization.</p>
 
-<footer>Generated 2026-10-05 04:50 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>
+<footer>Generated 2026-10-05 07:16 UTC by pqcsuite 0.3.1 · Acxelin Quantum</footer></main></body></html>

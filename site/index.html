@@ -46,13 +46,12 @@
   <div class="hero">
     <div class="wrap">
       <div>
-        <p class="kicker">Acxelin PQC Suite</p>
+        <p class="kicker">Acxelin PQC Suite<span>·</span><button class="link tour-start" id="tour" type="button">New here? Take the 1-minute tour</button></p>
         <h1>Quantum-safe traffic, tunnels and backups, <span>on the systems you already run</span>.</h1>
         <p class="lead">Four products that add NIST post-quantum cryptography in front of your services, between your sites and around your backups. Your applications stay as they are.</p>
         <div class="actions">
           <a class="btn" href="#contact">Book a free readiness scan</a>
           <a class="link" href="#products">See the four products</a>
-          <button class="link tour-start" id="tour" type="button">Take a 1-minute tour</button>
         </div>
         <p class="fine">The scan grades your public TLS and SSH endpoints and tells you what to fix first.</p>
         <div class="try">
@@ -140,7 +139,7 @@
       <p class="ca"><b>Your certificate authority</b><span>An ML-DSA root, with its key encrypted in a file, in AWS KMS or in an HSM. What each product takes from it:</span></p>
       <nav class="jump" aria-label="The four products">
         <a href="#tls"><span>Traffic</span><b>TLS 1.3 + mTLS</b><code>pqcsuite tls</code><small>Server and client certificates</small></a>
-        <a href="#vpn"><span>Tunnels</span><b>IPsec VPN</b><code>pqcsuite vpn</code><small>Gateway identities and revocation</small></a>
+        <a href="#vpn"><span>Tunnels</span><b>VPN</b><code>pqcsuite vpn</code><small>Gateway and laptop identities, revocation</small></a>
         <a href="#vault"><span>Backups</span><b>Vault</b><code>pqcsuite vault</code><small>Who signed each backup</small></a>
         <a href="#readiness"><span>Audits</span><b>Readiness assessment</b><code>pqcsuite readiness</code><small>Every certificate, in the report</small></a>
       </nav>
@@ -170,12 +169,12 @@
       </article>
 
       <article class="product" id="vpn">
-        <div class="name"><span>For offices, data centres and remote staff</span><h3>IPsec VPN</h3><p>Site-to-site tunnels with a post-quantum key exchange, and remote access for Windows, Mac and Linux laptops. Phones are not supported yet.</p></div>
+        <div class="name"><span>For offices, data centres and remote staff</span><h3>VPN</h3><p>IPsec tunnels between sites with a post-quantum key exchange, and the Acxelin VPN app for Windows, Mac and Linux laptops. Phones are not supported yet.</p></div>
         <div class="detail">
           <div><h4>What you get</h4><ul>
             <li>IKEv2 with X25519 + ML-KEM-768 on every exchange and rekey</li>
             <li>A revoked site or user loses the tunnel within about a minute, wherever it runs</li>
-            <li>A laptop joins with one invitation file and one command, then shows Protected, Connecting or Not protected</li>
+            <li>A laptop joins with one invitation file, in the <a href="#app">Acxelin VPN app</a> or with one command</li>
             <li>Laptops keep one address and a key that changes every two minutes</li>
             <li>All traffic through the tunnel if you choose, with a kill switch so nothing leaks when it drops</li>
           </ul></div>
@@ -224,6 +223,36 @@ pqcsuite vpn status</pre></div>
           <p class="with run">Grade your own sites now; each grade comes with what to do next. Scan from outside your company network, where no proxy answers in the site's place.</p>
         </div>
       </article>
+    </div>
+  </section>
+
+  <section id="app">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">For remote staff</p>
+        <h2>Acxelin VPN, the desktop app</h2>
+        <p>A shield in the system tray says whether the laptop is protected. Your administrator sends one invitation file; open it in the app and it enrolls the laptop and connects. It can start at login.</p>
+      </div>
+      <div class="app">
+        <ul class="states" aria-label="What the tray shield shows">
+          <li class="s-ok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.6 12.2 2.4 2.4 4.6-4.8"/></svg><b>Protected</b><span>Traffic goes through the tunnel</span></li>
+          <li class="s-wait"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="M12 8v4.5l2.6 1.6"/></svg><b>Connecting</b><span>Agreeing keys with the gateway</span></li>
+          <li class="s-bad"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="M12 8v4.5M12 16h.01"/></svg><b>Not protected</b><span>Retrying; with full tunnel on, nothing leaks</span></li>
+          <li class="s-off"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="M9 12h6"/></svg><b>Disconnected</b><span>You turned it off</span></li>
+        </ul>
+        <div class="get">
+          <ul class="platforms">
+            <li><b>Windows 10 and 11</b><code>Acxelin-VPN-…-Setup.exe</code></li>
+            <li><b>macOS, Apple silicon</b><code>Acxelin-VPN-….dmg</code></li>
+            <li><b>Ubuntu and Debian</b><code>acxelin-vpn_…_amd64.deb</code></li>
+          </ul>
+          <div class="actions">
+            <a class="btn" href="https://github.com/QubitMan-hub/PQCsuite/releases/latest">Download from the latest release</a>
+            <a class="link" href="product-manual.html#enroll-and-connect-a-laptop">Set it up</a>
+          </div>
+          <p class="fine">Installers come with every release from 0.4.0. They are not code-signed yet, so Windows and macOS ask you to confirm the first time. Connecting needs administrator rights once per session; the window and the tray run as you. <a href="architecture/acxelin-vpn-desktop.html">How it works</a>.</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -332,10 +361,10 @@ quantum-safe asymmetric: 1/6 (17%)
         </div>
         <div>
           <h3>Install it</h3>
-          <p>Python 3.11 or newer, on Windows, macOS or Linux, from a <a href="https://github.com/QubitMan-hub/PQCsuite/releases">release</a> or a copy of the code. <code>pqcsuite</code> on its own lists every command; <code>doctor</code> says what works on this machine.</p>
-          <pre>pip install .
-pqcsuite doctor --json --product all</pre>
-          <p>Scanning your own repositories needs Wolf Pack too (0.3.1 with Wolf Pack 1.3.0 or newer); the <a href="product-manual.html#installation-and-versions">manual</a> shows which install to use. Joining the VPN? Your administrator sends one invitation file; <code>pqcsuite vpn join alice.pqcinvite</code> enrolls the laptop and connects it.</p>
+          <p>Python 3.11 or newer, on Windows, macOS or Linux. Download the <code>.whl</code> file from the latest <a href="https://github.com/QubitMan-hub/PQCsuite/releases/latest">release</a>, then install it. <code>pqcsuite</code> on its own lists every command; <code>doctor</code> says what works on this machine.</p>
+          <pre>pip install pqcsuite-0.3.1-py3-none-any.whl
+pqcsuite doctor</pre>
+          <p>Scanning your own repositories needs Wolf Pack too (0.3.1 with Wolf Pack 1.3.0 or newer); the <a href="product-manual.html#installation-and-versions">manual</a> shows which install to use. Joining the VPN? Install the <a href="#app">Acxelin VPN app</a> and open the invitation file your administrator sends in it.</p>
         </div>
         <div>
           <h3>Read the documentation</h3>
@@ -393,7 +422,7 @@ pqcsuite doctor --json --product all</pre>
       <p>Post-quantum security for the traffic, tunnels and data you run today.</p>
     </div>
     <nav aria-label="Footer">
-      <div><b>PQC Suite</b><a href="#tls">TLS 1.3 + mTLS</a><a href="#vpn">IPsec VPN</a><a href="#vault">Vault</a><a href="#readiness">Readiness assessment</a><a href="#faq">Questions</a></div>
+      <div><b>PQC Suite</b><a href="#tls">TLS 1.3 + mTLS</a><a href="#vpn">VPN</a><a href="#app">Acxelin VPN app</a><a href="#vault">Vault</a><a href="#readiness">Readiness assessment</a><a href="#faq">Questions</a></div>
       <div><b>Also from Acxelin</b><a href="wolf-pack.html">Wolf Pack CBOM</a><span>Finds the cryptography in your code</span><a href="wolf-pack-sample.html">Sample report</a><a href="wolf-pack-inventory.html">Sample dashboard</a></div>
       <div><b>Documentation</b><a href="https://github.com/QubitMan-hub/PQCsuite#install">Install and first steps</a><a href="https://github.com/QubitMan-hub/PQCsuite#what-listens-where">What listens where</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/THREAT-MODEL.md">Threat model</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md">Changelog</a><a href="https://github.com/QubitMan-hub/PQCsuite/releases">Releases</a><a href="https://github.com/QubitMan-hub/PQCsuite">Source code</a></div>
       <div><b>Contact</b><a href="mailto:info@acxelinquantum.com">info@acxelinquantum.com</a><a href="https://forms.office.com/Pages/ResponsePage.aspx?id=G7il0FYBPk-mQiu5eNm4__Zpyi-xUOBMtEt0p-905AxUME9LMzZFV0JLWEFDMzdJMTM1MzYxSEVORy4u" target="_blank" rel="noopener">Book a call</a></div>
