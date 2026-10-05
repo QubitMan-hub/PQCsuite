@@ -220,7 +220,7 @@ wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
         <tr><td>Configs, certificates and binaries</td><td>Cryptographic inventory and evidence</td><td>Not proof of runtime reachability or deployment protection</td></tr>
       </tbody></table></div>
       <p>Repeat scans reuse unchanged work, and the coverage details list any file that could not be fully analysed.</p>
-      <p>Download both wheels from the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/v0.4.1">suite 0.4.1</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.0">Wolf Pack 1.4.0</a> releases, then try the local workflow:</p><pre>pip install "wolfpack_cbom-1.4.0-py3-none-any.whl[crawler]" "pqcsuite-0.4.1-py3-none-any.whl[scan-web]"
+      <p>Download both wheels from the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/v0.4.2">suite 0.4.2</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.0">Wolf Pack 1.4.0</a> releases, then try the local workflow:</p><pre>pip install "wolfpack_cbom-1.4.0-py3-none-any.whl[crawler]" "pqcsuite-0.4.2-py3-none-any.whl[scan-web]"
 pqcsuite console --sample-project</pre>
       <p>For your own repository:</p><pre>pqcsuite setup --project /path/to/repository --out .pqcsuite/console.toml
 pqcsuite console --config .pqcsuite/console.toml</pre><p>The example stays on your machine. Scan it, inspect callers, assign remediation and rescan after an edit. The console saves work locally; it does not provide organization SSO or role-based access.</p>
