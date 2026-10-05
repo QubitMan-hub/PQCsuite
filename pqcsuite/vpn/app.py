@@ -2,10 +2,11 @@
 whether this machine is protected. `pqcsuite vpn app` holds the tunnel; closing the page leaves it as it is.
 
 The page is reachable only on 127.0.0.1, only with the random token in the address the command opens, and only under its
-own host name (a page from elsewhere cannot borrow it through DNS rebinding). Passphrases go from the page to this process
+own host name and origin (a page from elsewhere can neither borrow it through DNS rebinding nor lock it with wrong tokens). Passphrases go from the page to this process
 and nowhere else; they are never written or logged."""
 import hmac
 import json
+import os
 import re
 import secrets
 import threading
@@ -54,6 +55,8 @@ class App:
         inv = join.parse(text, "the chosen file")
         stem = re.sub(r"[^A-Za-z0-9_-]", "_", Path(str(name)).stem)[:60] or inv["name"]
         path = self.folder / f"{stem}.pqcinvite"
+        if self.client:
+            raise ValueError("disconnect before opening another invitation")
         if path.exists() and join.read(path)["name"] != inv["name"]:
             raise ValueError(f"{path.name} already holds an invitation for someone else; rename the file and open it again")
         if not path.exists():
@@ -117,6 +120,27 @@ class App:
             return 500, {"error": f"{e.__class__.__name__}: {explain(e)}", "state": self.state()}
 
 
+def claim(folder, interface):
+    """One window per interface. Returns the open lock file to keep while this process runs, or None and the address the
+    running window recorded, so a second launch reopens that window instead of starting a client that fights over the tunnel."""
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    f = open(folder / f"{interface}.app.lock", "a+b")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            f.seek(0)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        url = folder / f"{interface}.app.url"
+        return None, url.read_text(encoding="utf-8").strip() if url.exists() else None
+    return f, None
+
+
 def serve(app, listen=("127.0.0.1", 0)):
     html = resources.files(__package__).joinpath("app.html").read_bytes()
     csp, backoff = policy(html), Backoff()
@@ -135,8 +159,11 @@ def serve(app, listen=("127.0.0.1", 0)):
 
         def route(self, method):
             port = self.server.server_address[1]
-            if self.headers.get("Host") not in (f"127.0.0.1:{port}", f"localhost:{port}"):
+            hosts = (f"127.0.0.1:{port}", f"localhost:{port}")
+            if self.headers.get("Host") not in hosts:
                 return self.reply(421, {"error": "wrong host"})
+            if self.headers.get("Origin") not in (None, *(f"http://{h}" for h in hosts)):
+                return self.reply(403, {"error": "requests from other sites are refused"})
             path = self.path.split("?")[0]
             if method == "GET" and path == "/":
                 return self.reply(200, html, "text/html; charset=utf-8")

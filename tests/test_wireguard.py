@@ -269,6 +269,7 @@ class GatewayTest(unittest.TestCase):
         self.assertNotIn("device pass", json.dumps(s))
         self.assertNotIn("token", json.loads((self.d / "vpn" / "laptop.pqcinvite").read_text()))
         self.assertEqual(call("POST", "/api/connect", {"passphrase": "device pass"})[0], 400, "a second connection is refused")
+        self.assertIn("disconnect before", call("POST", "/api/invitation", {"name": "x", "text": invite})[1]["error"])
         self.assertEqual(call("POST", "/api/disconnect", {})[1]["status"]["state"], "disconnected")
         status, body, _ = call("POST", "/api/connect", {"passphrase": "wrong"})
         self.assertEqual((status, "does not unlock" in body["error"]), (400, True))

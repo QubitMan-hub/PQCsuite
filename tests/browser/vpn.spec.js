@@ -31,11 +31,13 @@ test("open an invitation, enroll, connect, disconnect", async ({ browser }) => {
     if (scheme === "light") {
       await expect(page.locator("#word")).toHaveText("Not set up");
       await page.setInputFiles("#invite", INVITATION);
-      await expect(page.locator("#file")).toContainText("laptop.pqcinvite");
+      await expect(page.locator("#inv-name")).toHaveText("laptop.pqcinvite");
       await page.fill("#pass", "device pass");
       await page.fill("#repeat", "something else");
       await page.click("#connect");
-      await expect(page.locator("#error")).toContainText("type it twice");
+      await expect(page.locator("#error")).toContainText("different");
+      await page.click("#again .show");
+      await expect(page.locator("#repeat")).toHaveAttribute("type", "text");
       await page.fill("#pass", "device pass");
       await page.fill("#repeat", "device pass");
       await page.click("#connect");
@@ -48,6 +50,9 @@ test("open an invitation, enroll, connect, disconnect", async ({ browser }) => {
       await page.click("#connect");
     }
     await expect(page.locator("#word")).toHaveText("Keys agreed, not protected", { timeout: 30000 });
+    await expect(page).toHaveTitle(/Keys agreed, not protected/);
+    await page.reload();
+    await expect(page.locator("#word")).toHaveText("Keys agreed, not protected");
     await expect(page.locator("#facts")).toContainText("10.99.0.");
     await page.click("#more summary");
     await expect(page.locator("#details")).toContainText("Post-quantum");

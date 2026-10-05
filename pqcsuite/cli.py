@@ -419,17 +419,33 @@ def cmd_join(a):
 def cmd_app(a):
     """The VPN window: a page on 127.0.0.1 behind a one-time token; this process holds the tunnel until it is stopped."""
     import webbrowser
+    from .storage import write
     from .vpn import app, join
+    window = app.App(a.invitation, interface=a.interface, apply=not a.no_apply)
+    held, running = app.claim(window.folder, a.interface)
+    if not held:
+        if not running:
+            raise ValueError(f"another `pqcsuite vpn app` holds {a.interface} but left no address; stop it, or use --interface")
+        print(f"The VPN window for {a.interface} is already running: {running}", flush=True)
+        if not a.no_browser:
+            webbrowser.open(running)
+        return 0
     if not a.no_apply:
         join.preflight("pqcsuite vpn app" + (f" {a.invitation}" if a.invitation else ""))
-    window = app.App(a.invitation, interface=a.interface, apply=not a.no_apply)
     srv = app.serve(window)
     url = f"http://127.0.0.1:{srv.server_address[1]}/#{window.token}"
-    print(f"VPN window: {url}\nKeep this running; closing the page does not disconnect. Ctrl+C disconnects and stops it.", flush=True)
+    record = window.folder / f"{a.interface}.app.url"
+    write(record, url.encode(), secret=True)
+    print(f"VPN window: {url}\nKeep this running; closing the window does not disconnect. Ctrl+C disconnects and stops it.", flush=True)
     if not a.no_browser:
         webbrowser.open(url)
-    run_until_signal(srv.serve_forever, lambda: threading.Thread(target=srv.shutdown).start())
-    window.disconnect()
+    try:
+        run_until_signal(srv.serve_forever, lambda: threading.Thread(target=srv.shutdown).start())
+    finally:
+        window.disconnect()
+        srv.server_close()
+        record.unlink(missing_ok=True)
+        held.close()
     return 0
 
 
