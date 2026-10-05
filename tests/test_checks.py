@@ -139,5 +139,18 @@ class ChecksTest(unittest.TestCase):
             self.assertIn("Repository scans: Wolf Pack is not installed. Install it", out.getvalue())
             self.assertEqual(done.exception.code, code, "only a product asked for by name makes doctor fail")
 
+    def test_repository_doctor_does_not_need_openssl_35(self):
+        import contextlib
+        import io
+        from unittest import mock
+        from pqcsuite import cli
+        ok = [{'product': 'repository', 'level': 'ok', 'message': 'Wolf Pack is installed', 'action': ''}]
+        for product, code in (("repository", 0), ("tls", 3), ("all", 3)):
+            with mock.patch.object(checks, "prerequisites", return_value=ok), \
+                    mock.patch.object(cli.tls, "lib", side_effect=cli.tls.TLSError("OpenSSL 3.0 has no ML-KEM")), \
+                    contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit) as done:
+                cli.main(["doctor", "--product", product])
+            self.assertEqual(done.exception.code, code)
+
 if __name__ == "__main__":
     unittest.main()

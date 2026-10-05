@@ -71,7 +71,7 @@ def cmd_doctor(a):
         broken = False
     except tls.TLSError as e:
         print(f"TLS edge, VPN key agreement and readiness scans: not available: {e}")
-        broken = True
+        broken = a.product in ('all', 'tls', 'vpn')
     from . import checks
     names = {'repository': 'Repository scans', 'vpn': 'VPN'}
     rows = [r for r in checks.prerequisites(a.product) if r['product'] in names]
