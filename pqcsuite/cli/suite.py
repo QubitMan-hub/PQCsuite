@@ -5,7 +5,7 @@ import sys
 import threading
 from pathlib import Path
 
-from .. import NAME, __version__, explain, tls
+from .. import NAME, __version__, explain, serve_http, tls
 from ..pki import CA
 from .common import run_until_signal
 
@@ -88,21 +88,9 @@ def cmd_try(a):
     """A self-contained tour, nothing to set up: a CA, a plain web server, the post-quantum edge in front of it, a
     post-quantum client that gets through and a classical one that does not. Everything lives in a temporary folder."""
     import tempfile
-    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from ..tls.edge import Edge, Route
     from ..tls.openssl import Context
     tls.lib()  # say at once when this machine's OpenSSL cannot do post-quantum TLS, not halfway through the tour
-
-    class Hello(BaseHTTPRequestHandler):
-        def do_GET(self):
-            body = b"Hello from a web server that knows nothing about post-quantum cryptography\n"
-            self.send_response(200)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-        def log_message(self, *args):
-            pass
     logging.getLogger(NAME).setLevel(logging.ERROR)
     step = lambda n, text: print(f"\n{n}. {text}")
     with tempfile.TemporaryDirectory() as d:
@@ -110,8 +98,8 @@ def cmd_try(a):
         step(1, "A private certificate authority (ML-DSA-87 root) issues the edge an ML-DSA-65 certificate.")
         ca = CA.init(d / "pki", "Try Root")
         ca.issue("localhost", "server", ["127.0.0.1"], out=d / "edge")
-        web = ThreadingHTTPServer(("127.0.0.1", 0), Hello)
-        threading.Thread(target=web.serve_forever, daemon=True).start()
+        web = serve_http("127.0.0.1:0", {"/": ("text/plain; charset=utf-8",
+                                               lambda: "Hello from a web server that knows nothing about post-quantum cryptography\n")})
         step(2, f"An ordinary web server starts on 127.0.0.1:{web.server_address[1]}. It has no post-quantum support.")
         edge = Edge(Route("try", "terminate", "127.0.0.1:0", f"127.0.0.1:{web.server_address[1]}", cert=str(d / "edge" / "chain.pem"),
                           key=str(d / "edge" / "key.pem"))).start()

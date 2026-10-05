@@ -5,7 +5,7 @@ import sys
 import threading
 
 from .. import ConfigWatch, env_passphrase, explain, tls
-from .common import ca_passphrase, run_until_signal, show, tls_client_args
+from .common import ca_passphrase, policy, run_until_signal, show, tls_client_args
 
 
 def cmd_tls(a):
@@ -112,7 +112,7 @@ def add(sub):
                    help="terminate: post-quantum TLS in front of --target; originate: plain local clients reach a remote edge at --target")
     p.add_argument("--listen", default="0.0.0.0:8443", help="host:port (default: every interface, port 8443)")
     p.add_argument("--target", help="upstream host:port (terminate) or remote edge host:port (originate)")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict", help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024 and ML-DSA-87 only")
+    policy(p)
     for flag, text in (("--cert", "the edge's certificate chain (chain.pem)"), ("--key", "its private key (key.pem)"),
                        ("--key-passphrase-env", "the key's passphrase is in this environment variable"),
                        ("--ca", "CA certificate that client certificates (terminate) or the remote edge (originate) must chain to"),
@@ -134,7 +134,7 @@ def add(sub):
     p.add_argument("--out", help="folder to create (default: SERVICE-pqc)")
     p.add_argument("--ca", help="use this existing CA folder instead of creating one")
     p.add_argument("--mtls", action="store_true", help="clients must present a certificate from the CA")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict", help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024 and ML-DSA-87 only")
+    policy(p)
     p = t.add_parser("serve", help="an echo server, for testing clients")
     p.set_defaults(func=cmd_tls)
     p.add_argument("--listen", default="0.0.0.0:8443", help="host:port (default: every interface, port 8443)")
@@ -144,7 +144,7 @@ def add(sub):
     p.add_argument("--ca", help="CA that signs client certificates")
     p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
     p.add_argument("--crl", help="refuse revoked client certificates")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict", help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024 and ML-DSA-87 only")
+    policy(p)
     p = t.add_parser("connect", help="handshake, optionally send a message, print what was negotiated")
     p.set_defaults(func=cmd_tls)
     tls_client_args(p)

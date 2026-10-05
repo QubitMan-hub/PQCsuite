@@ -92,7 +92,7 @@ def main():
         try:
             wait(lambda: socket.socket().connect_ex(("127.0.0.1", metrics)) == 0, 30)
             app = App(Settings(ca=str(d / "pki"), edges=[f"http://127.0.0.1:{metrics}"], backups=[str(backups)], project_roots=[str(project)],
-                               project_state=str(d / "projects.json"), scan_targets=list(names)[:2]))
+                               project_state=str(d / "projects.json"), audit_log=str(d / "audit.jsonl"), scan_targets=list(names)[:2]))
             app.handle("POST", "/api/scan", {"targets": "\n".join(list(names)[:2])})
             wait(lambda: not app.scanning)
             app.handle("POST", "/api/projects/scan", {"project": 0})

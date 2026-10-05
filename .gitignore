@@ -45,3 +45,4 @@ Thumbs.db
 
 # archify receipts (local paths; regenerate with finalize)
 site/architecture/*.json
+console-audit.jsonl

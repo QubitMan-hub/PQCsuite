@@ -75,6 +75,10 @@ def run_until_signal(run, stop, reload=None):
 def tls_client_args(p):
     p.add_argument("target", help="host:port")
     p.add_argument("--server-name", help="name the certificate must match (default: host)")
-    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict", help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024 and ML-DSA-87 only")
+    policy(p)
     p.add_argument("--timeout", type=float, default=10.0)
     p.add_argument("--json", action="store_true")
+
+
+def policy(p):
+    p.add_argument("--policy", choices=list(tls.POLICIES), default="strict", help="strict: post-quantum only (default); transition: also classical clients; cnsa2: ML-KEM-1024 and ML-DSA-87 only")
