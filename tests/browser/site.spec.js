@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 const AxeBuilder = require("@axe-core/playwright").default;
 
 const SITE = "http://127.0.0.1:8765/";
-const PAGES = ["index.html", "wolf-pack.html", "security.html", "404.html", "wolf-pack-sample.html", "wolf-pack-inventory.html", "product-manual.html"];
+const PAGES = ["index.html", "wolf-pack.html", "security.html", "console-demo.html", "readiness-sample.html", "404.html", "wolf-pack-sample.html", "wolf-pack-inventory.html", "product-manual.html"];
 const WIDTHS = [1280, 900, 390, 360];
 
 const serious = async page =>
@@ -106,4 +106,18 @@ test("fonts come from the site", async ({ page }) => {
   await page.goto(SITE + "index.html", { waitUntil: "networkidle" });
   expect([...hosts]).toEqual(["127.0.0.1:8765"]);
   expect(await page.evaluate(async () => (await document.fonts.ready, [...document.fonts].filter(f => f.status === "loaded").map(f => f.family)))).toContain("Host Grotesk");
+});
+
+test("the console demo shows example data, stays in the browser and refuses changes", async ({ page }) => {
+  const hosts = new Set();
+  page.on("request", r => hosts.add(new URL(r.url()).host));
+  await page.goto(SITE + "console-demo.html#certificates");
+  await expect(page.locator(".demo-bar")).toContainText("invented example data");
+  await expect(page.getByText("CN=Example Bank Root")).toBeVisible();
+  await page.locator("button:has-text('Revoke')").first().click();
+  await page.locator("button:has-text('Confirm')").click();
+  await expect(page.getByText("changes are switched off")).toBeVisible();
+  await page.click('nav a[href="#readiness"]');
+  await expect(page.getByText(/payments-api · Last completed/)).toBeVisible();
+  expect([...hosts]).toEqual(["127.0.0.1:8765"]);
 });

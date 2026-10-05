@@ -181,11 +181,11 @@ def to_html(rep, title="Post-quantum readiness"):
            "headers; authenticate archives with vault verify and a recipient key before relying on their integrity or signer.")
     body = (f"<div class=tiles>{tiles}</div>"
             f"<section class=panel><h2>Do these first</h2><ul class=todo>{todo}</ul>{f'<p><small>{more} more below.</small></p>' if more > 0 else ''}</section>"
-            f"<section class=panel><h2>By area</h2><div class=scroll><table><thead><tr><th>Area</th><th>Assets</th>"
+            f"<section class=panel><h2>By area</h2><div class=scroll tabindex=0 role=region aria-label='Assets by area'><table><thead><tr><th>Area</th><th>Assets</th>"
             + "".join(f"<th>{e(v)}</th>" for v in STATUS.values()) + f"<th>CNSA 2.0 deadline</th></tr></thead><tbody>{areas}</tbody></table></div></section>"
             f"<section class=panel><h2>Every asset</h2><div class=filters hidden><label>Search<input id=q type=search placeholder='name, file, algorithm'></label>"
             f"<label>Status<select id=st><option value=''>All</option>{options}</select></label><span id=n role=status></span></div>"
-            f"<div class=scroll><table><thead><tr><th>Area</th><th>Asset</th><th>Status</th><th>NIST IR 8547</th><th>CNSA 2.0</th><th>Evidence</th></tr></thead>"
+            f"<div class=scroll tabindex=0 role=region aria-label='Every asset'><table><thead><tr><th>Area</th><th>Asset</th><th>Status</th><th>NIST IR 8547</th><th>CNSA 2.0</th><th>Evidence</th></tr></thead>"
             f"<tbody id=rows>{rows}</tbody></table></div></section>" + DASHBOARD)
     return page(title, "Readiness assessment", e(sub), body)
 

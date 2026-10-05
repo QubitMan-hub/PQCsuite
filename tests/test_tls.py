@@ -165,6 +165,10 @@ class TLSTest(unittest.TestCase):
         with socket.create_connection(("127.0.0.1", s.port)) as raw:
             raw.settimeout(6)
             self.assertEqual(raw.recv(10), b"")
+        for _ in range(50):  # the socket closes inside the timed-out handshake, a moment before the failure is counted
+            if "handshake_failed" in s.stats.snapshot():
+                break
+            time.sleep(0.05)
         self.assertEqual(s.stats.snapshot()["handshake_failed"], 1)
 
     def test_one_host_opening_silent_sockets_cannot_lock_others_out(self):

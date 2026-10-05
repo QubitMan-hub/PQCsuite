@@ -247,7 +247,7 @@ def report_html(results, title="Post-quantum readiness"):
         ("post-quantum key exchange", f"{s['pq_key_exchange']}/{s['endpoints']}"), ("ML-DSA certificates", s["pq_certificates"]),
         ("meet CNSA 2.0", s["cnsa2"]), ("expire within 30 days", s["expiring_30d"])))
     body = (f"<div class=tiles>{tiles}</div><section class=panel><h2>What the grades mean</h2><ul>{legend}</ul></section>"
-            "<section class=panel><h2>Endpoints</h2><div class=scroll><table><thead><tr><th>Endpoint</th><th>Grade</th><th>Negotiated</th>"
+            "<section class=panel><h2>Endpoints</h2><div class=scroll tabindex=0 role=region aria-label='Endpoints'><table><thead><tr><th>Endpoint</th><th>Grade</th><th>Negotiated</th>"
             f"<th>Accepted key exchanges</th><th>Certificate key and issuer</th><th>Expires</th></tr></thead><tbody>{rows}</tbody></table></div></section>")
     return page(title, "Readiness assessment", f"{s['endpoints']} endpoints scanned for post-quantum key exchange and certificates.", body)
 

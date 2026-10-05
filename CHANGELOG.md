@@ -8,6 +8,8 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 - Website: a Security and trust page (what stays on your side, how to check a download, what a release has passed, what is not validated yet, how to report a vulnerability); real screenshots of the console and the VPN app; a four-link menu (Products, Download, Security, Manual).
 - Manual: redesigned as a guide with a contents sidebar that follows your place, task cards to start from, numbered chapters, callouts, copyable commands and the real screenshots; advanced sections fold away and print in full. Shorter wording at the start, and the VPN steps name the app's real button.
 - Website: a sample audit report (site/readiness-sample.html) made by `examples/readiness-sample/make_report.py` from real scans of invented systems: a CA, three endpoints graded A, B and C, two-key backups and the Wolf Pack example applications. Its rows also show Wolf Pack's corrected wording for AES-256 and ECB.
+- Website: the console in the browser, no install (site/console-demo.html, made by `scripts/console_demo.py`): the real console page answering from a recording of a real console over invented systems; nothing is scanned or sent, and changes say the demo is read-only.
+- The readiness reports' scrolling tables can be reached and scrolled with the keyboard.
 
 ## 0.4.2 (5 October 2026)
 
