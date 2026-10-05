@@ -106,6 +106,11 @@ class Scenario(unittest.TestCase):
         self.spawn("runuser", "-u", "postgres", "--", PG_BIN / "postgres", "-D", data, "-p", port, "-k", data,
                    "-c", "listen_addresses=127.0.0.1")
         wait_port(port)
+        deadline = time.monotonic() + 30  # the port opens before the server accepts connections
+        while subprocess.run([PG_BIN / "pg_isready", "-h", "127.0.0.1", "-p", str(port)], capture_output=True).returncode:
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"PostgreSQL on {port} never accepted connections")
+            time.sleep(0.2)
         return port
 
     def pqc(self, *args, log):

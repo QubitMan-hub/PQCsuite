@@ -76,7 +76,9 @@ jobs:
       - run: pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]" && pqcsuite doctor
       - run: python -m coverage run -m pytest -q
       - name: Coverage floor
-        run: python -m coverage report --skip-covered --sort=cover
+        run: |
+          python -m coverage report --skip-covered --sort=cover
+          echo "::notice title=Coverage::pqcsuite/ line coverage $(python -m coverage report --format=total)%"
       - run: python examples/clinic_demo.py --auto
       - run: python examples/bank_demo.py --auto
   audit:
