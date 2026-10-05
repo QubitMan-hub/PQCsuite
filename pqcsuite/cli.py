@@ -48,7 +48,7 @@ def show(obj, as_json):
         print(json.dumps(obj, indent=1, default=str))
     else:
         for k, v in obj.items():
-            print(f"{k:>14}  {v}")
+            print(f"{k:>14}  {', '.join(map(str, v)) if isinstance(v, (list, tuple)) else v}")
 
 
 def cmd_doctor(a):
@@ -661,10 +661,23 @@ def cmd_project_scan(a):
     result = scan(a.path, a.out, a.history, lambda stage: print(stage, file=sys.stderr))
     for note in result["notes"]:
         print(f"Warning: {note}", file=sys.stderr)
-    summary = result["summary"]
-    print(f"{result['project']}: {summary['crypto_assets']} cryptographic assets, {summary['functions']} functions, "
-          f"{summary['resolved_calls']}/{summary['calls']} statically resolved calls")
-    print(f"Open {Path(a.out) / 'report.html'}; assessment.json and relationships.json contain migration evidence")
+    summary, order = result["summary"], ("critical", "high", "medium", "low", "ok")
+    n = summary["crypto_assets"]
+    counts = ", ".join(f"{summary['priorities'][t]} {t}" for t in order if summary["priorities"].get(t))
+    print(f"{result['project']}: {n} cryptographic asset{'' if n == 1 else 's'}{f' ({counts})' if counts else ''}")
+    first = sorted((x for x in result["assets"] if x["tier"] in ("critical", "high") and not x["test_only"]), key=lambda x: order.index(x["tier"]))
+    if first:
+        print("Change first:")
+        for x in first[:5]:
+            where = f"{x['locations'][0][0]}:{x['locations'][0][1]}" if x["locations"] else ""
+            print(f"  {x['tier']:8} {x['name']:16} {where:28} -> {x['action']}")
+        tests = sum(x["tier"] in ("critical", "high") and x["test_only"] for x in result["assets"])
+        more = ([f"{len(first) - 5} more"] if len(first) > 5 else []) + ([f"{tests} in test code"] if tests else [])
+        if more:
+            print(f"  ({' and '.join(more)}: see the report)")
+    elif n:
+        print("Nothing needs changing first; the report lists what to plan for.")
+    print(f"Report: {Path(a.out) / 'report.html'} (open it in a browser); assessment.json holds the evidence")
     if a.open:
         webbrowser.open((Path(a.out) / "report.html").resolve().as_uri())
     return 0
@@ -1235,7 +1248,7 @@ def parser():
     p = sub.add_parser("scan", help="scan a local project: code relationships, cryptographic inventory and migration priorities")
     p.set_defaults(func=cmd_project_scan)
     p.add_argument("path", nargs="?", default=".", help="project folder (default: current folder)")
-    p.add_argument("--out", default="pqcsuite-out", help="private local reports folder")
+    p.add_argument("-o", "--out", default="pqcsuite-out", help="private local reports folder")
     p.add_argument("--open", action="store_true", help="open the completed offline report")
     p.add_argument("--history", help="keep the last 100 scan summaries in this local JSON file")
 

@@ -4,6 +4,7 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 ## Unreleased
 
+- `pqcsuite scan` ends with what to change first (priority, algorithm, file and line, and the replacement) instead of internal counts, and accepts `-o` like the other commands; lists in `vault inspect` and similar output read as plain text.
 - `pqcsuite scan` and the console's project scans find private keys, certificates and other files that the project's `.gitignore` leaves out (Wolf Pack fix). The reviewed inventory `docs/cbom.json` is refreshed for code moved since 0.3.0.
 - Repository scans show which Java and Go functions reach each finding (Wolf Pack crawler extra); `doctor` reports when those parsers are missing.
 - **Readiness report as a dashboard.** `readiness report --html` opens with what needs action, a "Do these first" list (critical first, each with where it is and the next step), a summary per area (certificates, endpoints, tunnels, backups, code) with its CNSA 2.0 deadline, and a searchable, filterable table of every asset. Code rows are classified correctly: quantum-vulnerable algorithms Wolf Pack ranks lower (ECDH, ECDSA, X25519) are "quantum-vulnerable: plan its migration" instead of being labelled quantum-safe, a hash the code declares as not for security is labelled as such, and certificate entries no longer appear as algorithms.
