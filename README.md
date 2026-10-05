@@ -5,7 +5,7 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 | Product | What it does | Command |
 |---|---|---|
 | **TLS 1.3 + mTLS** | Post-quantum TLS in front of any TCP service, mutual TLS between services, and a CA with EST and ACME enrollment | `pqcsuite tls`, `pqcsuite ca` |
-| **IPsec VPN** | Site-to-site IPsec with hybrid ML-KEM and ML-DSA authentication, plus WireGuard remote access | `pqcsuite vpn` |
+| **VPN** | Site-to-site IPsec with hybrid ML-KEM and ML-DSA authentication, plus WireGuard remote access and the Acxelin VPN desktop app | `pqcsuite vpn` |
 | **Vault** | Quantum-safe encryption for files, folders and backups | `pqcsuite vault` |
 | **Readiness assessment** | TLS and SSH endpoint grades, and compliance evidence for NIST IR 8547 and CNSA 2.0 | `pqcsuite readiness` |
 
@@ -15,7 +15,7 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 
 ## Scan one project
 
-From a source checkout, install the scanner alongside the suite:
+Install the scanner alongside the suite, from a source checkout as below or from the two release wheels (see [Install a release](docs/PRODUCT-MANUAL.md#install-a-release)):
 
 ```sh
 pip install './wolf-pack[crawler]' '.[scan-web]'
@@ -131,7 +131,7 @@ pqcsuite tls connect app.acme.example:8443 --ca pki/ca.crt --send hello
 - **EST (RFC 7030):** `ca serve` on post-quantum TLS; `ca token` makes one-time tokens bound to a name. Machines run `ca enroll` with the token in `PQCSUITE_ENROLL_TOKEN` (the key never leaves them) and renew from cron over mutual TLS.
 - **ACME (RFC 8555):** `ca acme` with http-01, external account binding and an allow-list. The CSR must carry an ML-DSA key (`ca csr`, then `certbot --csr`). Clients that generate RSA or ECDSA keys, such as cert-manager, are refused with a clear error.
 
-## IPsec VPN
+## VPN
 
 ```
 pqcsuite ca issue site hq.acme.example --san 203.0.113.10 --out hq
