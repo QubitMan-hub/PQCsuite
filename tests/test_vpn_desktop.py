@@ -163,6 +163,57 @@ class DesktopTest(unittest.TestCase):
         self.assertIn('Exec="/opt/Acxelin VPN/run" "say \\"hi\\" \\$x" plain', text)
 
 
+    def test_a_service_that_will_not_start_is_explained_in_the_menu_and_a_notice(self):
+        tray = self.desktop.Tray(home=self.d, apply=True)
+        tray.icon = mock.Mock()
+        refused = "administrator rights were not given, so the VPN cannot change this computer's network"
+        with mock.patch.object(tray, "start", side_effect=ValueError(refused)), mock.patch.object(self.desktop, "open_window") as window:
+            tray.open()
+        window.assert_not_called()
+        tray.icon.notify.assert_called_once_with(f"The VPN service did not start: {refused}", "Acxelin VPN")
+        self.assertIn(refused, [i.text for i in tray.menu().items if i.visible])
+        tray.problem = None
+        with mock.patch.object(tray, "start", return_value=False):
+            tray.open()
+        self.assertIn("did not answer; choose Start VPN service", tray.icon.notify.call_args.args[0])
+
+    def test_windows_refusing_the_administrator_prompt_is_an_error(self):
+        import ctypes
+        shell = mock.Mock()
+        with mock.patch.object(self.desktop.os, "name", "nt"), mock.patch.object(ctypes, "windll", mock.Mock(shell32=shell), create=True), \
+                mock.patch("pqcsuite.vpn.join.administrator", return_value=False):
+            shell.ShellExecuteW.return_value = 5
+            with self.assertRaisesRegex(ValueError, "administrator rights were not given"):
+                self.desktop.start_service(["C:/py/pythonw.exe", "-m", "pqcsuite", "vpn", "app"], True)
+            shell.ShellExecuteW.return_value = 42
+            self.assertIsNone(self.desktop.start_service(["C:/py/pythonw.exe", "-m", "pqcsuite"], True))
+        self.assertEqual(shell.ShellExecuteW.call_args.args[1:4], ("runas", "C:/py/pythonw.exe", "-m pqcsuite"))
+
+    def test_a_service_that_went_away_does_not_break_the_tray(self):
+        tray = self.desktop.Tray(home=self.d, apply=False)
+        tray.icon = mock.Mock()
+        tray.icon.notify.side_effect = NotImplementedError("this tray host has no notifications")
+        tray.session = {"port": 1, "token": "t"}
+        with mock.patch.object(self.desktop.app, "request", side_effect=ConnectionRefusedError("refused")):
+            tray.disconnect()
+            self.assertIsNone(tray.refresh())
+            tray.quit()
+        self.assertTrue(tray.stop.is_set())
+        tray.icon.stop.assert_called_once()
+        self.assertEqual(tray.icon.title, "Acxelin VPN: VPN service not running")
+
+    def test_the_tray_tells_the_person_when_protection_changes(self):
+        tray = self.desktop.Tray(home=self.d, apply=False)
+        tray.icon, tray.stop = mock.Mock(), mock.Mock()
+        tray.stop.wait.side_effect = [False, False, False, True]
+        states = iter([{"invitation": {"name": "bob"}, "status": {"state": s, "address": "10.99.0.2/24", "error": e}}
+                       for s, e in (("protected", None), ("protected", None), ("not_protected", "gateway did not answer"))])
+        tray.refresh = lambda: setattr(tray, "state", next(states)) or tray.state
+        tray.watch()
+        self.assertEqual(tray.icon.notify.call_count, 1)
+        self.assertIn("gateway did not answer", tray.icon.notify.call_args.args[0])
+
+
 class WithoutTheExtraTest(unittest.TestCase):
     def test_says_how_to_get_it(self):
         from pqcsuite.vpn import desktop

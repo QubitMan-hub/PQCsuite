@@ -209,6 +209,208 @@ class TunnelHealthTest(unittest.TestCase):
 
 
 
+class CharonFailureTest(unittest.TestCase):
+    """strongSwan missing, not answering, or refusing a request."""
+
+    def test_without_the_extra_or_a_running_charon_the_error_says_what_to_do(self):
+        import socket
+        import types
+        from unittest import mock
+        from pqcsuite.vpn.charon import CharonError, connect
+        with mock.patch.dict(sys.modules, {"vici": None}), self.assertRaisesRegex(CharonError, r'pip install "pqcsuite\[vpn\]"'):
+            connect("unix:///var/run/charon.vici")
+        fake = types.SimpleNamespace(Session=lambda sock: sock)
+        with mock.patch.dict(sys.modules, {"vici": fake}):
+            with self.assertRaisesRegex(CharonError, "unsupported VICI address http://x"):
+                connect("http://x")
+            with socket.socket() as s:
+                s.bind(("127.0.0.1", 0))
+                port = s.getsockname()[1]
+            with self.assertRaisesRegex(CharonError, "is strongSwan running"):
+                connect(f"tcp://127.0.0.1:{port}")
+            if hasattr(socket, "AF_UNIX"):
+                with self.assertRaisesRegex(CharonError, "is strongSwan running"):
+                    connect(f"unix://{tempfile.mkdtemp()}/charon.vici")
+            with socket.create_server(("127.0.0.1", 0)) as server:
+                sock = connect(f"tcp://127.0.0.1:{server.getsockname()[1]}")
+                self.assertEqual(sock.gettimeout(), 60)
+                sock.close()
+
+    def test_a_refused_request_keeps_the_session_and_reports_charon_s_words(self):
+        from unittest import mock
+        from pqcsuite.vpn import charon
+        refused = type("CommandException", (Exception,), {})
+        session = mock.Mock()
+        session.terminate.side_effect = [refused("no matching SAs found"), refused("terminating SA failed")]
+        session.load_conn.side_effect = refused("loading connection 'branch' failed")
+        with mock.patch.object(charon, "CommandException", refused), mock.patch.object(charon, "connect", return_value=session):
+            with charon.Charon("unix:///test") as ch:
+                ch.terminate("branch")
+                with self.assertRaisesRegex(charon.CharonError, "terminating SA failed"):
+                    ch.terminate("branch")
+                with self.assertRaisesRegex(charon.CharonError, "loading connection 'branch' failed"):
+                    ch.load_conn({})
+                self.assertIs(ch.session, session)
+            session.transport.socket.close.assert_called_once()
+
+    def test_what_charon_reports_is_read_as_text(self):
+        from unittest import mock
+        from pqcsuite.vpn import charon
+        session = mock.Mock()
+        session.version.return_value = {"daemon": b"charon", "version": b"6.0.2"}
+        session.get_algorithms.return_value = {"ke": {b"ML_KEM_768": b"openssl", b"CURVE_25519": b"openssl", b"ML_KEM_1024": b"openssl"}}
+        session.get_shared.return_value = {"keys": [b"psk-branch", b"ppk-branch-aaaaaaaaaaaa"]}
+        session.initiate.return_value = iter([{"msg": b"establishing CHILD_SA net"}, {}])
+        session.list_sas.return_value = iter([{b"branch": {
+            "state": b"ESTABLISHED", "remote-host": b"10.0.0.2", "established": b"12", "encr-alg": b"AES_GCM_16", "encr-keysize": b"256",
+            "dh-group": b"CURVE_25519", "ake1": b"ML_KEM_768", "ppk": b"yes",
+            "child-sas": {b"net-1": {"state": b"INSTALLED", "encr-alg": b"AES_GCM_16", "encr-keysize": b"256", "bytes-in": b"42"}}}}])
+        with mock.patch.object(charon, "connect", return_value=session):
+            ch = charon.Charon("unix:///test")
+        self.assertEqual(ch.version(), "charon 6.0.2")
+        self.assertEqual(ch.ml_kem(), ["ML_KEM_1024", "ML_KEM_768"])
+        self.assertEqual(ch.shared_ids(), ["psk-branch", "ppk-branch-aaaaaaaaaaaa"])
+        self.assertEqual(ch.initiate("branch"), ["establishing CHILD_SA net", ""])
+        ch.load_keys("hq", "branch", b"p" * 32, b"q" * 32, "tag.ppk", "aaaaaaaaaaaa")
+        self.assertEqual([c.args[0]["id"] for c in session.load_shared.call_args_list], ["psk-branch", "ppk-branch-aaaaaaaaaaaa"])
+        ch.unload_key("psk-branch")
+        session.unload_shared.assert_called_once_with({"id": "psk-branch"})
+        [t] = ch.tunnels()
+        self.assertEqual((t["peer"], t["encryption"], t["key_exchange"], t["ppk"]), ("branch", "AES_GCM_16_256", "CURVE_25519 + ML_KEM_768", True))
+        self.assertEqual(t["children"][0], {"name": "net-1", "state": "INSTALLED", "encryption": "AES_GCM_16_256", "bytes_in": 42, "bytes_out": 0, "packets_in": 0, "packets_out": 0})
+        self.assertTrue(charon.protected(t))
+
+
+class Conn:
+    """Stands in for the peer's keyring connection after mutual TLS."""
+
+    def __init__(self, name, reply=b'{"ok": true}\n', serial=7, msg=None):
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        from unittest.mock import Mock
+        self.cert = Mock(serial_number=serial, subject=x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)]) if name else x509.Name([]))
+        self.reply, self.sent = (msg if msg is not None else reply), []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        pass
+
+    def peer_certificate(self):
+        return self.cert
+
+    def recv(self, size, timeout):
+        data, self.reply = self.reply, b""
+        return data
+
+    def sendall(self, data):
+        self.sent.append(data)
+
+    def export(self, label, context, length):
+        return b"k" * length
+
+
+class KeyAgreementFailureTest(unittest.TestCase):
+    """A peer that is not who it should be, is revoked, or refuses: no keys reach charon."""
+
+    def controller(self, *peers, **kw):
+        from unittest.mock import Mock
+        from pqcsuite.vpn.controller import Controller
+        s = site(peers=list(peers) or None, **kw) if peers else site(**kw)
+        return Controller(s, charon=Mock()), s
+
+    def agree(self, conn, revocation=None):
+        from unittest import mock
+        from pqcsuite.vpn import controller
+        ctl, s = self.controller()
+        ctl.revocation = revocation
+        with mock.patch.object(controller.tls, "client_context"), mock.patch.object(controller.tls, "connect", return_value=conn):
+            try:
+                return ctl.agree(s.peers[0])
+            finally:
+                self.charon_calls = ctl.charon.method_calls
+
+    def test_the_wrong_peer_a_revoked_peer_and_a_refusal_load_no_keys(self):
+        from unittest.mock import Mock
+        from pqcsuite import tls
+        from pqcsuite.pki import CAError
+        with self.assertRaisesRegex(tls.TLSError, "presented 'lab.acme', expected 'branch.acme'"):
+            self.agree(Conn("lab.acme"))
+        self.assertEqual(self.charon_calls, [])
+        with self.assertRaisesRegex(CAError, "revoked"):
+            self.agree(Conn("branch.acme"), Mock(check=Mock(side_effect=CAError("certificate 7 is revoked"))))
+        self.assertEqual(self.charon_calls, [])
+        with self.assertRaisesRegex(tls.TLSError, "branch.acme refused the key agreement"):
+            self.agree(Conn("branch.acme", b'{"ok": false}\n'))
+        self.assertEqual(self.charon_calls, [])
+        with self.assertRaisesRegex(tls.TLSError, "missing or too long"):
+            self.agree(Conn("branch.acme", b""))
+        tag = self.agree(Conn("branch.acme"))
+        self.assertEqual([c[0] for c in self.charon_calls], ["load_keys", "load_conn"])
+        self.assertRegex(tag, r"^[0-9a-f]{12}$")
+
+    def test_the_responder_refuses_what_it_should_not_accept(self):
+        import json
+        responder = Peer("branch.acme", "10.0.0.2", ["10.1.0.0/16"], ["10.2.0.0/16"])
+        initiator = Peer("lab.acme", "10.0.0.3", ["10.1.0.0/16"], ["10.3.0.0/16"], initiate=True, keyring="10.0.0.3:7443")
+        ctl, _ = self.controller(responder, initiator, keyring_listen="0.0.0.0:7443")
+        line = lambda **m: json.dumps({"v": 1, "site": "branch.acme", "tag": "aaaaaaaaaaaa"} | m).encode() + b"\n"
+        for name, msg in (("stranger.acme", line(site="stranger.acme")), ("lab.acme", line(site="lab.acme")), ("branch.acme", line(site="lab.acme")),
+                          ("branch.acme", line(tag="../../etc")), ("", line())):
+            conn = Conn(name, msg=msg)
+            ctl.respond(conn, ("10.9.9.9", 1))
+            self.assertEqual(conn.sent, [b'{"ok": false}\n'], name)
+        self.assertEqual(ctl.counts["key_agreements_refused"], 5)
+        self.assertEqual(ctl.charon.method_calls, [])
+        conn = Conn("branch.acme", msg=line())
+        ctl.respond(conn, ("10.0.0.2", 1))
+        self.assertEqual(conn.sent, [b'{"ok": true}\n'])
+        self.assertEqual(ctl.keys["branch.acme"], ["aaaaaaaaaaaa"])
+
+    def test_only_the_two_newest_keys_stay_loaded(self):
+        from unittest.mock import Mock
+        ctl, s = self.controller()
+        for tag in ("aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc"):
+            ctl.install(s.peers[0], tag, b"x" * 64, Mock(serial_number=1))
+        ctl.charon.unload_key.assert_called_once_with("ppk-branch.acme-aaaaaaaaaaaa")
+        self.assertEqual(ctl.keys["branch.acme"], ["bbbbbbbbbbbb", "cccccccccccc"])
+
+    def test_a_revoked_peer_is_cut_but_a_broken_crl_keeps_tunnels(self):
+        from unittest.mock import Mock
+        from pqcsuite.pki import CAError
+        from pqcsuite.vpn.controller import Controller
+        ch = FakeCharon({"psk-branch.acme", "ppk-branch.acme-aaaaaaaaaaaa", "psk-lab.acme"}, [{"peer": "branch.acme", "established_s": 1}])
+        ctl = Controller(site(), charon=ch)
+        ctl.enforce_revocations()
+        ctl.serials = {"branch.acme": 7}
+        ctl.revocation = Mock(check=Mock(side_effect=CAError("the CRL signature does not verify")))
+        ctl.enforce_revocations()
+        self.assertEqual(ch.terminated, [])
+        ctl.revocation.check.side_effect = CAError("certificate 7 is revoked")
+        ctl.enforce_revocations()
+        self.assertEqual((ch.terminated, ch.keys, ctl.serials, ctl.counts["revoked_peers"]), (["branch.acme"], {"psk-lab.acme"}, {}, 1))
+
+    def test_a_strongswan_without_ml_kem_is_refused_at_start(self):
+        from unittest.mock import Mock
+        from pqcsuite.vpn.charon import CharonError
+        responder = Peer("branch.acme", "10.0.0.2", ["10.1.0.0/16"], ["10.2.0.0/16"])
+        ctl, _ = self.controller(responder)
+        ctl.charon.version.return_value, ctl.charon.ml_kem.return_value = "charon 5.9.14", []
+        with self.assertRaisesRegex(CharonError, "no ML-KEM; build 6.0.2"):
+            ctl.start()
+        ctl.charon.load_conn.assert_not_called()
+        ctl.charon.ml_kem.return_value = ["ML_KEM_768"]
+        ctl.crl_follow = Mock()
+        ctl.start()
+        self.assertEqual(list(ctl.charon.load_conn.call_args.args[0]), ["branch.acme"])
+        ctl.charon.tunnels.return_value = []
+        self.assertEqual(ctl.status()["branch.acme"], {"initiate": False, "profile": "standard", "keys_age_s": None, "tunnel": None})
+        ctl.shutdown()
+        self.assertTrue(ctl.stop.is_set())
+        ctl.crl_follow.set.assert_called_once()
+
+
 SS = os.environ.get("PQCSUITE_STRONGSWAN")
 READY = SS and os.geteuid() == 0 and shutil.which("ip") and sys.platform == "linux"
 

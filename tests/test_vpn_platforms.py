@@ -270,12 +270,124 @@ class ClientTest(unittest.TestCase):
             self.c.step()
         self.assertTrue(self.tunnel.up_)
 
+    def test_a_tunnel_that_will_not_come_up_is_retried_with_backoff_and_reported(self):
+        self.reply()
+        self.tunnel.up = mock.Mock(side_effect=WGError("wg-quick up: Unable to access interface: Operation not permitted"))
+        waits = []
+        for _ in range(4):
+            self.c.step()
+            waits.append(round(self.c.due - time.time()))
+            self.c.due = 0
+        self.assertEqual(waits, [5, 10, 20, 40])
+        s = self.c.status()
+        self.assertEqual(s["state"], "not_protected")
+        self.assertIn("Operation not permitted", s["error"])
+        self.assertIsNone(self.kill.state, "no kill switch for a tunnel that never came up")
+
     def test_close_lifts_the_kill_switch(self):
         self.reply(routes=FULL)
         self.c.once()
         self.c.close()
         self.assertFalse(self.tunnel.up_)
         self.assertIsNone(self.kill.state)
+
+
+class ToolFailureTest(unittest.TestCase):
+    """What the client says when this machine's WireGuard tools are missing, hang or refuse."""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+
+    def test_a_missing_tool_says_how_to_install_it_on_this_platform(self):
+        for kind, hint in (("Linux", "apt install"), ("Darwin", "brew install"), ("Windows", "wireguard.com/install")):
+            with self.subTest(kind=kind), mock.patch.object(platforms, "system", return_value=kind):
+                with self.assertRaisesRegex(WGError, f"pqcsuite-no-such-tool is not installed: .*{hint}"):
+                    platforms.run(["pqcsuite-no-such-tool", "show"])
+
+    def test_a_tool_that_hangs_or_fails_is_reported_and_the_secret_file_is_removed(self):
+        kept = []
+        real = subprocess.run
+
+        def spy(cmd, **kw):
+            kept.append(Path(cmd[-1]))
+            self.assertEqual(Path(cmd[-1]).read_text(), "s3cret\n")
+            return real(cmd, **kw)
+        with mock.patch.object(platforms.subprocess, "run", spy), self.assertRaisesRegex(WGError, "bad key"):
+            platforms.run([sys.executable, "-c", "import sys; sys.exit('bad key')", SECRET], secret="s3cret")
+        self.assertFalse(kept[0].exists())
+        with mock.patch.object(platforms.subprocess, "run", side_effect=subprocess.TimeoutExpired("wg", 60)):
+            with self.assertRaisesRegex(WGError, "wg set gave no answer within 60 s"):
+                platforms.run(["wg", "set"])
+        self.assertIn("ok", platforms.run([sys.executable, "-c", "print('ok')"]))
+
+    def test_wg_commands_and_dump(self):
+        run = Recorder({("wg", "show", "wg0", "dump"): "PRIV\tPUB\t51820\toff\nGW\tPSK\t1.2.3.4:51820\t10.0.0.0/24,10.1.0.0/24\t17\t5\t6\t25\n"
+                                                         "NEW\t(none)\t(none)\t10.9.0.2/32\t0\t0\t0\toff\n"})
+        wg = platforms.WG("wg0", runner=run)
+        wg.set_private_key("PRIVATE", 51820)
+        wg.set_peer("GW", "PSK", ["10.0.0.0/24"], "1.2.3.4:51820", 25)
+        wg.remove_peer("OLD")
+        self.assertEqual(run.commands(), [["wg", "set", "wg0", "private-key", "SECRET", "listen-port", "51820"],
+                                          ["wg", "set", "wg0", "peer", "GW", "preshared-key", "SECRET", "allowed-ips", "10.0.0.0/24",
+                                           "endpoint", "1.2.3.4:51820", "persistent-keepalive", "25"],
+                                          ["wg", "set", "wg0", "peer", "OLD", "remove"]])
+        self.assertEqual([s for _, s, _ in run.calls], ["PRIVATE", "PSK", None])
+        peers = wg.peers()
+        self.assertEqual(peers["GW"], {"endpoint": "1.2.3.4:51820", "allowed_ips": ["10.0.0.0/24", "10.1.0.0/24"], "psk": True,
+                                       "latest_handshake": 17, "rx_bytes": 5, "tx_bytes": 6})
+        self.assertEqual((peers["NEW"]["endpoint"], peers["NEW"]["psk"]), (None, False))
+
+    def test_taking_down_a_tunnel_that_is_already_down_is_not_an_error(self):
+        run = Recorder(fail=[("wg-quick", "down")])
+        t = Tunnel("wg0", self.dir, run)
+        t.up("[Interface]\n")
+        t.down()
+        self.assertFalse(t.up_)
+        w = WindowsTunnel("wg0", self.dir, Recorder(fail=[("wireguard", "/uninstalltunnelservice")]))
+        w.up_ = True
+        w.down()
+        self.assertFalse(w.up_)
+
+    def test_windows_gives_up_when_the_tunnel_service_never_starts(self):
+        run = Recorder(fail=[("wg", "show")])
+        clock = iter([0, 5, 25])
+        with mock.patch.object(platforms.time, "monotonic", lambda: next(clock)), mock.patch.object(platforms.time, "sleep") as sleep:
+            with self.assertRaisesRegex(WGError, "wg show wg0"):
+                WindowsTunnel("wg0", self.dir, run).up("[Interface]\n")
+        sleep.assert_called_once_with(0.5)
+        self.assertEqual([c[0] for c in run.commands()], ["icacls", "wireguard", "wg", "wg"])
+
+    def test_windows_leaves_the_kill_switch_to_wireguard(self):
+        run = Recorder()
+        k = platforms.KillSwitch(self.dir, run)
+        k.on("wg0", (["1.2.3.4"], 51820), (["1.2.3.4"], 7443))
+        k.off()
+        self.assertEqual(run.calls, [])
+
+    def test_lifting_the_kill_switch_survives_rules_that_are_already_gone(self):
+        run = Recorder(fail=[("iptables",), ("ip6tables",)])
+        LinuxKillSwitch(self.dir, run).off()
+        self.assertIn(["iptables", "-X", "PQCSUITE-KILLSWITCH"], run.commands())
+        mac = MacKillSwitch(self.dir, Recorder(fail=[("pfctl",)]))
+        mac.token.write_text("1234")
+        mac.off()
+        self.assertFalse(mac.token.exists(), "a pf that already let go still forgets its token")
+
+    def test_each_platform_keeps_tunnels_in_a_system_folder(self):
+        for kind, tail in (("Linux", "/run/pqcsuite"), ("Darwin", "/var/run/pqcsuite"), ("Windows", "pqcsuite/vpn")):
+            with self.subTest(kind=kind), mock.patch.object(platforms, "system", return_value=kind):
+                self.assertTrue(platforms.folder().as_posix().endswith(tail))
+
+    def test_install_and_uninstall_the_service(self):
+        unit = self.dir / "pqcsuite-vpn.service"
+        with mock.patch.object(platforms, "service", lambda argv, kind=None: (unit, "x".join(argv), [["start"]], [["stop"], ["disable"]])):
+            run = Recorder()
+            self.assertEqual(platforms.install(["a", "b"], run), unit)
+            self.assertEqual((unit.read_text(), run.commands()), ("axb", [["start"]]))
+            run = Recorder(fail=[("stop",)])
+            platforms.uninstall(run)
+            self.assertFalse(unit.exists())
+            self.assertEqual(run.commands(), [["stop"], ["disable"]], "a service that is not running is still removed")
 
 
 @unittest.skipUnless(os.environ.get("PQCSUITE_REAL_WIREGUARD") == "1", "brings a real tunnel up: set PQCSUITE_REAL_WIREGUARD=1 (root or administrator)")
