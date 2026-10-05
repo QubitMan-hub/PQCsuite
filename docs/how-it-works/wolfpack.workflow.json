@@ -1,0 +1,208 @@
+{
+ "schema_version": 2,
+ "diagram_type": "workflow",
+ "meta": {
+  "title": "Wolf Pack: finding the cryptography inside your code",
+  "quality_profile": "showcase",
+  "output": "site/how-it-works/wolfpack.html",
+  "legend": {
+   "mode": "auto",
+   "entries": {
+    "frontend": {
+     "label": "Checks and measurements"
+    },
+    "backend": {
+     "label": "Protection that runs for you"
+    },
+    "security": {
+     "label": "Trust and identity"
+    },
+    "database": {
+     "label": "Your data"
+    },
+    "external": {
+     "label": "People and results"
+    },
+    "cloud": {
+     "label": "Your existing systems"
+    },
+    "messagebus": {
+     "label": "Files you hand over"
+    }
+   }
+  }
+ },
+ "lanes": [
+  {
+   "id": "code",
+   "label": "Your code"
+  },
+  {
+   "id": "pack",
+   "label": "The pack"
+  },
+  {
+   "id": "out",
+   "label": "What you get"
+  }
+ ],
+ "phases": [
+  {
+   "id": "p1",
+   "label": "Read",
+   "fromCol": 0,
+   "toCol": 1,
+   "variant": "default"
+  },
+  {
+   "id": "p2",
+   "label": "Decide",
+   "fromCol": 2,
+   "toCol": 3,
+   "variant": "emphasis"
+  },
+  {
+   "id": "p3",
+   "label": "Act",
+   "fromCol": 4,
+   "toCol": 5,
+   "variant": "dashed"
+  }
+ ],
+ "mainPath": [
+  "code",
+  "scouts",
+  "den",
+  "alpha",
+  "plan"
+ ],
+ "nodes": [
+  {
+   "id": "code",
+   "lane": "code",
+   "col": 0,
+   "type": "cloud",
+   "label": "Code, configs, keys",
+   "sublabel": "never leaves your machine",
+   "width": 156
+  },
+  {
+   "id": "scouts",
+   "lane": "pack",
+   "col": 1,
+   "type": "frontend",
+   "label": "Scouts",
+   "sublabel": "cast a wide net",
+   "width": 156
+  },
+  {
+   "id": "den",
+   "lane": "pack",
+   "col": 2,
+   "type": "security",
+   "label": "Den",
+   "sublabel": "throws out false alarms",
+   "width": 156
+  },
+  {
+   "id": "alpha",
+   "lane": "pack",
+   "col": 3,
+   "type": "backend",
+   "label": "Alpha",
+   "sublabel": "ranks what matters",
+   "width": 156
+  },
+  {
+   "id": "plan",
+   "lane": "out",
+   "col": 4,
+   "type": "external",
+   "label": "Migration list",
+   "sublabel": "fix this first",
+   "width": 156,
+   "icon": "flag"
+  },
+  {
+   "id": "cbom",
+   "lane": "out",
+   "col": 3,
+   "type": "database",
+   "label": "Inventory",
+   "sublabel": "standard CBOM file",
+   "width": 156
+  },
+  {
+   "id": "gate",
+   "lane": "code",
+   "col": 5,
+   "type": "security",
+   "label": "Build check",
+   "sublabel": "stops new weak crypto",
+   "width": 156
+  }
+ ],
+ "edges": [
+  {
+   "id": "code-scouts",
+   "from": "code",
+   "to": "scouts",
+   "variant": "emphasis",
+   "label": "read"
+  },
+  {
+   "id": "scouts-den",
+   "from": "scouts",
+   "to": "den",
+   "variant": "emphasis",
+   "label": "sightings"
+  },
+  {
+   "id": "den-alpha",
+   "from": "den",
+   "to": "alpha",
+   "variant": "emphasis",
+   "label": "verified"
+  },
+  {
+   "id": "alpha-plan",
+   "from": "alpha",
+   "to": "plan",
+   "variant": "emphasis",
+   "label": "ranked"
+  },
+  {
+   "id": "alpha-cbom",
+   "from": "alpha",
+   "to": "cbom",
+   "variant": "default",
+   "label": "write",
+   "role": "branch"
+  },
+  {
+   "id": "plan-gate",
+   "from": "plan",
+   "to": "gate",
+   "variant": "dashed",
+   "label": "keep it fixed"
+  }
+ ],
+ "cards": [
+  {
+   "dot": "cyan",
+   "title": "In plain words",
+   "items": [
+    "Scouts over-report on purpose; the den checks the evidence; the alpha decides what to fix first",
+    "Each finding names the file and line, and what to replace it with"
+   ]
+  },
+  {
+   "dot": "rose",
+   "title": "Honest limits",
+   "items": [
+    "On code it had never seen it was 89% precise but found 34% of uses",
+    "Something built into a program is not always something it uses"
+   ]
+  }
+ ]
+}

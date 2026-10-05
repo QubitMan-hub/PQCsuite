@@ -1,0 +1,212 @@
+{
+ "schema_version": 2,
+ "diagram_type": "workflow",
+ "meta": {
+  "title": "Readiness assessment: where do we stand?",
+  "quality_profile": "showcase",
+  "output": "site/how-it-works/readiness.html",
+  "legend": {
+   "mode": "auto",
+   "entries": {
+    "frontend": {
+     "label": "Checks and measurements"
+    },
+    "backend": {
+     "label": "Protection that runs for you"
+    },
+    "security": {
+     "label": "Trust and identity"
+    },
+    "database": {
+     "label": "Your data"
+    },
+    "external": {
+     "label": "People and results"
+    },
+    "cloud": {
+     "label": "Your existing systems"
+    },
+    "messagebus": {
+     "label": "Files you hand over"
+    }
+   }
+  }
+ },
+ "lanes": [
+  {
+   "id": "you",
+   "label": "You"
+  },
+  {
+   "id": "check",
+   "label": "Readiness"
+  },
+  {
+   "id": "yours",
+   "label": "Your systems"
+  }
+ ],
+ "phases": [
+  {
+   "id": "p1",
+   "label": "Ask",
+   "fromCol": 0,
+   "toCol": 1,
+   "variant": "default"
+  },
+  {
+   "id": "p2",
+   "label": "Grade",
+   "fromCol": 2,
+   "toCol": 3,
+   "variant": "emphasis"
+  },
+  {
+   "id": "p3",
+   "label": "Act and prove",
+   "fromCol": 4,
+   "toCol": 5,
+   "variant": "dashed"
+  }
+ ],
+ "mainPath": [
+  "team",
+  "scan",
+  "grade",
+  "report",
+  "auditor"
+ ],
+ "nodes": [
+  {
+   "id": "team",
+   "lane": "you",
+   "col": 0,
+   "type": "external",
+   "label": "Your team",
+   "sublabel": "lists approved addresses",
+   "width": 156,
+   "icon": "person"
+  },
+  {
+   "id": "scan",
+   "lane": "check",
+   "col": 1,
+   "type": "frontend",
+   "label": "Knock on each door",
+   "sublabel": "a polite test connection",
+   "width": 156
+  },
+  {
+   "id": "servers",
+   "lane": "yours",
+   "col": 1,
+   "type": "cloud",
+   "label": "Public servers",
+   "sublabel": "websites, APIs, SSH",
+   "width": 156
+  },
+  {
+   "id": "grade",
+   "lane": "check",
+   "col": 2,
+   "type": "frontend",
+   "label": "Grade A, B or C",
+   "sublabel": "A means quantum-safe",
+   "width": 156
+  },
+  {
+   "id": "code",
+   "lane": "yours",
+   "col": 3,
+   "type": "frontend",
+   "label": "Code results",
+   "sublabel": "from Wolf Pack",
+   "width": 156,
+   "tag": "optional"
+  },
+  {
+   "id": "report",
+   "lane": "you",
+   "col": 4,
+   "type": "external",
+   "label": "Readiness report",
+   "sublabel": "what to fix first",
+   "width": 156,
+   "icon": "flag"
+  },
+  {
+   "id": "auditor",
+   "lane": "you",
+   "col": 5,
+   "type": "external",
+   "label": "Auditors",
+   "sublabel": "NIST and CNSA 2.0 dates",
+   "width": 156,
+   "icon": "briefcase"
+  }
+ ],
+ "edges": [
+  {
+   "id": "team-scan",
+   "from": "team",
+   "to": "scan",
+   "variant": "emphasis",
+   "label": "addresses"
+  },
+  {
+   "id": "scan-servers",
+   "from": "scan",
+   "to": "servers",
+   "variant": "default",
+   "label": "which locks?",
+   "role": "branch"
+  },
+  {
+   "id": "scan-grade",
+   "from": "scan",
+   "to": "grade",
+   "variant": "emphasis",
+   "label": "results"
+  },
+  {
+   "id": "grade-report",
+   "from": "grade",
+   "to": "report",
+   "variant": "emphasis",
+   "label": "top fixes"
+  },
+  {
+   "id": "code-report",
+   "from": "code",
+   "to": "report",
+   "variant": "dashed",
+   "label": "inside the code"
+  },
+  {
+   "id": "report-auditor",
+   "from": "report",
+   "to": "auditor",
+   "variant": "emphasis",
+   "label": "evidence"
+  }
+ ],
+ "cards": [
+  {
+   "dot": "cyan",
+   "title": "What the grades mean",
+   "items": [
+    "A: only post-quantum key exchange",
+    "B: post-quantum, with a classical fallback for old clients",
+    "C: classical only, so recorded traffic is at risk"
+   ]
+  },
+  {
+   "dot": "rose",
+   "title": "What it never does",
+   "items": [
+    "It reads nothing private and changes nothing",
+    "Scan only addresses you are allowed to scan"
+   ]
+  }
+ ]
+}

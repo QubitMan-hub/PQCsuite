@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
-PAGES = ["index.html", "wolf-pack.html", "security.html", "404.html", "product-manual.html"]
+PAGES = ["index.html", "how-it-works.html", "wolf-pack.html", "security.html", "404.html", "product-manual.html"]
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 
 

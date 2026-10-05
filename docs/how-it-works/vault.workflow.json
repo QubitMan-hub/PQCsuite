@@ -1,0 +1,233 @@
+{
+ "schema_version": 2,
+ "diagram_type": "workflow",
+ "meta": {
+  "title": "Vault: backups that stay private for decades",
+  "quality_profile": "showcase",
+  "output": "site/how-it-works/vault.html",
+  "legend": {
+   "mode": "auto",
+   "entries": {
+    "frontend": {
+     "label": "Checks and measurements"
+    },
+    "backend": {
+     "label": "Protection that runs for you"
+    },
+    "security": {
+     "label": "Trust and identity"
+    },
+    "database": {
+     "label": "Your data"
+    },
+    "external": {
+     "label": "People and results"
+    },
+    "cloud": {
+     "label": "Your existing systems"
+    },
+    "messagebus": {
+     "label": "Files you hand over"
+    }
+   }
+  },
+  "viewBox": [
+   1057,
+   652
+  ]
+ },
+ "lanes": [
+  {
+   "id": "data",
+   "label": "Your data"
+  },
+  {
+   "id": "vault",
+   "label": "Vault"
+  },
+  {
+   "id": "keys",
+   "label": "Who can open it"
+  },
+  {
+   "id": "tamper",
+   "label": "Tampered",
+   "variant": "exception"
+  }
+ ],
+ "phases": [
+  {
+   "id": "p1",
+   "label": "Seal",
+   "fromCol": 0,
+   "toCol": 1,
+   "variant": "default"
+  },
+  {
+   "id": "p2",
+   "label": "Keep",
+   "fromCol": 2,
+   "toCol": 2,
+   "variant": "emphasis"
+  },
+  {
+   "id": "p3",
+   "label": "Prove and restore",
+   "fromCol": 3,
+   "toCol": 4,
+   "variant": "dashed"
+  }
+ ],
+ "mainPath": [
+  "files",
+  "seal",
+  "archive",
+  "drill",
+  "restored"
+ ],
+ "nodes": [
+  {
+   "id": "files",
+   "lane": "data",
+   "col": 0,
+   "type": "database",
+   "label": "Files and databases",
+   "sublabel": "records, statements, dumps",
+   "width": 156
+  },
+  {
+   "id": "seal",
+   "lane": "vault",
+   "col": 1,
+   "type": "backend",
+   "label": "Seal",
+   "sublabel": "locked and signed",
+   "width": 156
+  },
+  {
+   "id": "archive",
+   "lane": "vault",
+   "col": 2,
+   "type": "database",
+   "label": "Sealed archive",
+   "sublabel": "any storage, even the cloud",
+   "width": 156
+  },
+  {
+   "id": "drill",
+   "lane": "vault",
+   "col": 3,
+   "type": "frontend",
+   "label": "Restore drill",
+   "sublabel": "proves it still opens",
+   "width": 156
+  },
+  {
+   "id": "restored",
+   "lane": "data",
+   "col": 4,
+   "type": "database",
+   "label": "Restored data",
+   "sublabel": "exactly as it was",
+   "width": 156
+  },
+  {
+   "id": "ops",
+   "lane": "keys",
+   "col": 1,
+   "type": "security",
+   "label": "Operations key",
+   "sublabel": "day-to-day",
+   "width": 156
+  },
+  {
+   "id": "recovery",
+   "lane": "keys",
+   "col": 3,
+   "type": "security",
+   "label": "Recovery key",
+   "sublabel": "kept offline",
+   "width": 156
+  },
+  {
+   "id": "bad",
+   "lane": "tamper",
+   "col": 3,
+   "type": "external",
+   "label": "Altered copy",
+   "sublabel": "refused, nothing written",
+   "width": 156,
+   "icon": "failure"
+  }
+ ],
+ "edges": [
+  {
+   "id": "files-seal",
+   "from": "files",
+   "to": "seal",
+   "variant": "emphasis",
+   "label": "nightly"
+  },
+  {
+   "id": "seal-archive",
+   "from": "seal",
+   "to": "archive",
+   "variant": "emphasis",
+   "label": "store"
+  },
+  {
+   "id": "archive-drill",
+   "from": "archive",
+   "to": "drill",
+   "variant": "emphasis",
+   "label": "test"
+  },
+  {
+   "id": "drill-restored",
+   "from": "drill",
+   "to": "restored",
+   "variant": "emphasis",
+   "label": "restore"
+  },
+  {
+   "id": "ops-seal",
+   "from": "ops",
+   "to": "seal",
+   "variant": "default",
+   "label": "for two keys"
+  },
+  {
+   "id": "recovery-drill",
+   "from": "recovery",
+   "to": "drill",
+   "variant": "dashed",
+   "label": "if the first is lost"
+  },
+  {
+   "id": "archive-bad",
+   "from": "archive",
+   "to": "bad",
+   "variant": "security",
+   "label": "changed?",
+   "role": "error"
+  }
+ ],
+ "cards": [
+  {
+   "dot": "cyan",
+   "title": "In plain words",
+   "items": [
+    "Each backup is sealed so that only the keys you chose can open it, even decades from now",
+    "Every backup needs a second, offline key, so losing one never loses the data"
+   ]
+  },
+  {
+   "dot": "rose",
+   "title": "Good to know",
+   "items": [
+    "Changing a single bit makes Vault refuse the archive",
+    "You can let an auditor open one archive without sharing your key"
+   ]
+  }
+ ]
+}

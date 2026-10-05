@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How it works · Acxelin PQC Suite</title>
+<meta name="description" content="The whole Acxelin PQC Suite in plain words: why quantum computers matter for today's data, and what each product does, step by step, with a diagram for each.">
+<meta property="og:title" content="How it works · Acxelin PQC Suite">
+<meta property="og:description" content="The whole suite in plain words, step by step, with a diagram for each product.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Acxelin Quantum">
+<meta property="og:image" content="assets/og-suite.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Acxelin PQC Suite: quantum-safe traffic, tunnels and backups, on the systems you already run.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="assets/og-suite.png">
+<meta name="theme-color" content="#faf9f5">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preload" href="assets/fonts/host-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/roboto.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a href="index.html" aria-label="Acxelin PQC Suite home"><img src="assets/acxelin-quantum.svg" alt="Acxelin Quantum" width="537" height="83"></a>
+    <nav id="nav" aria-label="Main">
+      <a href="index.html#products">Products</a>
+      <a href="how-it-works.html" aria-current="page">How it works</a>
+      <a href="index.html#app">Download</a>
+      <a href="security.html">Security</a>
+      <a href="product-manual.html">Manual</a>
+      <a class="tool" href="wolf-pack.html">Wolf Pack CBOM</a>
+      <a class="help" href="index.html#tour" title="Take the tour"><span aria-hidden="true">?</span><b>Take the tour</b></a>
+      <a class="btn" href="index.html#contact">Book a free scan</a>
+    </nav>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="nav"><span></span>Menu</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="hero lost short">
+    <div class="wrap">
+      <div>
+        <p class="kicker">How it works</p>
+        <h1>The whole suite, <span>in plain words</span>.</h1>
+        <p class="lead">No code and no jargon you have to know already. Why quantum computers matter for the data you hold today, and what each product does about it, step by step.</p>
+        <div class="actions">
+          <a class="btn" href="#big-picture">Start with the big picture</a>
+          <a class="link" href="#words">Words you will meet</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="wrap jump" aria-label="On this page">
+    <a href="#readiness"><span>Find out</span><b>Readiness</b><code>where you stand</code></a>
+    <a href="#tls"><span>Protect</span><b>TLS edge</b><code>web and app traffic</code></a>
+    <a href="#vpn"><span>Protect</span><b>VPN</b><code>offices and laptops</code></a>
+    <a href="#vault"><span>Protect</span><b>Vault</b><code>backups and archives</code></a>
+  </nav>
+
+  <section id="big-picture">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">The big picture</p>
+        <h2>Why any of this matters now</h2>
+        <p>Almost everything private online is protected by locks that rely on maths problems today's computers cannot solve. A large enough quantum computer will solve them. Nobody has one yet, but anyone can record your encrypted traffic today and open it the day they do. That is why regulators want the old locks gone by 2030 and banned after 2035.</p>
+      </div>
+      <div class="how-body">
+        <div>
+          <h3>Four steps, in this order</h3>
+          <ol class="how-steps">
+            <li><b>Find out</b> where you are exposed: your servers from the outside (Readiness), and the code inside (Wolf Pack).</li>
+            <li><b>Trust</b>: set up your own authority, which gives every server, office and laptop a post-quantum ID card.</li>
+            <li><b>Protect</b> what moves and what is kept: web traffic (TLS edge), links between sites and laptops (VPN), and backups (Vault).</li>
+            <li><b>Prove</b> it: scan again and hand auditors a report with every asset and its deadline.</li>
+          </ol>
+          <p class="how-out"><b>What stays true throughout</b>Everything runs on your own machines. Nothing is sent to us, and no step depends on a service we run.</p>
+        </div>
+        <a class="how-fig" href="how-it-works/overview.html">
+          <img src="assets/how/overview.webp" alt="Diagram: your team scans, Wolf Pack looks inside the code, your own authority issues identities to the TLS edge and VPN, Vault keeps backups, and an evidence report goes to auditors." width="1200" height="669">
+          <span>Open the interactive diagram</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="readiness" class="how">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Find out · Readiness assessment</p>
+        <h2>Where do we stand today?</h2>
+        <p>Before changing anything, you need to know which of your servers still use locks a quantum computer could open, and which to fix first.</p>
+      </div>
+      <div class="how-body">
+        <div>
+          <h3>What happens</h3>
+          <ol class="how-steps"><li>You list the public addresses you are allowed to check: websites, APIs, mail and SSH servers.</li><li>Readiness knocks on each one with a polite test connection, the same way any visitor would, and asks which locks it offers.</li><li>Each server gets a grade: <b>A</b> post-quantum only, <b>B</b> post-quantum with a fallback for old visitors, <b>C</b> classical only.</li><li>Add Wolf Pack's results if you like, so the cryptography inside your code sits next to your servers.</li><li>You get a report that says what to fix first, and the dates the standards set for each item.</li></ol>
+          <p class="how-out"><b>What you end up with</b>A ranked list of what to fix, and evidence an auditor can read. It changes nothing and reads nothing private.</p>
+        </div>
+        <a class="how-fig" href="how-it-works/readiness.html">
+          <img src="assets/how/readiness.webp" alt="Diagram: your team lists addresses, Readiness tests each server, grades it A, B or C, and produces a report for auditors." width="1200" height="545">
+          <span>Open the interactive diagram</span>
+        </a>
+      </div>
+    </div>
+  </section>
+  <section id="tls" class="how">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Protect · TLS 1.3 + mTLS</p>
+        <h2>How do we protect web and app traffic?</h2>
+        <p>Your websites and APIs were built years ago and you do not want to rewrite them. You want them quantum-safe anyway.</p>
+      </div>
+      <div class="how-body">
+        <div>
+          <h3>What happens</h3>
+          <ol class="how-steps"><li>You set up your own authority. It issues ID cards (certificates) signed with post-quantum signatures.</li><li>A small TLS edge goes in front of each service. Visitors connect to the edge; the service behind it does not change.</li><li>Partners and internal systems show their own ID card, so only the ones you trust get through.</li><li>If a card is stolen, you revoke it, and the edge refuses it at the next connection.</li><li>Visitors that can only use old locks are turned away, or, if you choose the transition setting, still served while everyone else moves on.</li></ol>
+          <p class="how-out"><b>What you end up with</b>Every connection to the service uses a post-quantum lock, without touching the service itself.</p>
+        </div>
+        <a class="how-fig" href="how-it-works/tls.html">
+          <img src="assets/how/tls.webp" alt="Diagram: customers and partners connect to the TLS edge, which checks their identity against your authority and revocation list, refuses old clients, and passes safe traffic to your unchanged application." width="1200" height="766">
+          <span>Open the interactive diagram</span>
+        </a>
+      </div>
+    </div>
+  </section>
+  <section id="vpn" class="how">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Protect · VPN</p>
+        <h2>How do we link offices and laptops safely?</h2>
+        <p>Branch offices and remote staff send everything over the internet. A recording made today should stay unreadable.</p>
+      </div>
+      <div class="how-body">
+        <div>
+          <h3>What happens</h3>
+          <ol class="how-steps"><li>Your authority gives each office gateway and each staff member an identity.</li><li>Offices are linked by tunnels whose keys come from a post-quantum handshake and are renewed every hour.</li><li>For laptops, your admin sends one invitation file. Staff install the Acxelin VPN app and open it.</li><li>The app connects through the head office gateway and shows a shield: green means this laptop is protected.</li><li>If the tunnel drops, a kill switch stops traffic leaking out unprotected. A lost laptop can be revoked and is cut off within about a minute.</li></ol>
+          <p class="how-out"><b>What you end up with</b>Offices and staff connected through tunnels that a future quantum computer cannot read back.</p>
+        </div>
+        <a class="how-fig" href="how-it-works/vpn.html">
+          <img src="assets/how/vpn.webp" alt="Diagram: your authority gives identities to the head office gateway, which links to the branch office; staff open an invitation in the Acxelin VPN app, connect through the gateway and see a green shield; a lost device is revoked." width="1200" height="713">
+          <span>Open the interactive diagram</span>
+        </a>
+      </div>
+    </div>
+  </section>
+  <section id="vault" class="how">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Protect · Vault</p>
+        <h2>How do we keep backups private for decades?</h2>
+        <p>Backups, statements and medical records are kept for years. They need to stay private long after quantum computers arrive.</p>
+      </div>
+      <div class="how-body">
+        <div>
+          <h3>What happens</h3>
+          <ol class="how-steps"><li>On a schedule you set, for example every night, Vault seals your files and database dumps with a post-quantum lock and signs them.</li><li>Every backup opens with two keys: one for day-to-day work and a recovery key kept offline, so losing one never loses the data.</li><li>Sealed archives can live anywhere, even cloud storage you do not fully trust.</li><li>Restore drills prove the archives still open, without writing anything.</li><li>If even one bit of an archive is changed, Vault refuses it. You can let an auditor open one archive without sharing your key.</li></ol>
+          <p class="how-out"><b>What you end up with</b>Backups only your chosen keys can open, that you have proven you can restore.</p>
+        </div>
+        <a class="how-fig" href="how-it-works/vault.html">
+          <img src="assets/how/vault.webp" alt="Diagram: files are sealed nightly with an operations key and a recovery key, stored as sealed archives, tested with restore drills and restored; an altered copy is refused." width="1200" height="728">
+          <span>Open the interactive diagram</span>
+        </a>
+      </div>
+    </div>
+  </section>
+  <section id="wolf-pack" class="how alt">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Also from Acxelin · Wolf Pack CBOM</p>
+        <h2>What cryptography is hiding in our code?</h2>
+        <p>Servers are only half the story. Old locks also live inside your own software, configuration files, keys and the programs you depend on.</p>
+      </div>
+      <div class="how-body">
+        <div>
+          <h3>What happens</h3>
+          <ol class="how-steps"><li>Wolf Pack reads your code, configuration, keys and programs on your own machine. Nothing is uploaded.</li><li>Its <b>scouts</b> cast a wide net and report anything that looks like cryptography, on purpose more than needed.</li><li>The <b>den</b> checks the evidence and throws out false alarms, like a name in a comment.</li><li>The <b>alpha</b> ranks what is left by how exposed it is and how long the data must stay secret.</li><li>You get a migration list, a standard inventory file (a CBOM), and a build check that stops new weak cryptography.</li></ol>
+          <p class="how-out"><b>Honest limits</b>On code it had never seen, 89% of what it reported was right, but it found only 34% of what was there. It is a strong start, not a guarantee.</p>
+        </div>
+        <a class="how-fig" href="how-it-works/wolfpack.html">
+          <img src="assets/how/wolfpack.webp" alt="Diagram: your code is read by the scouts, checked by the den, ranked by the alpha, and turned into a migration list, an inventory file and a build check." width="1200" height="512">
+          <span>Open the interactive diagram</span>
+        </a>
+      </div>
+      <p class="note-line"><a href="wolf-pack.html">More about Wolf Pack</a></p>
+    </div>
+  </section>
+
+  <section id="words">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Words you will meet</p>
+        <h2>A short glossary</h2>
+      </div>
+      <dl class="glossary">
+        <div><dt>Quantum computer</dt><dd>A new kind of computer. A large one could open the locks that protect most data today.</dd></div>
+        <div><dt>Harvest now, decrypt later</dt><dd>Recording encrypted traffic today to open it once such a computer exists.</dd></div>
+        <div><dt>Post-quantum</dt><dd>New locks (ML-KEM) and signatures (ML-DSA, SLH-DSA), standardised by NIST in 2024, that a quantum computer cannot open.</dd></div>
+        <div><dt>Hybrid</dt><dd>An old and a new lock used together, so both would have to be broken. The suite's default.</dd></div>
+        <div><dt>Certificate</dt><dd>An ID card for a server, office or person, signed by an authority you trust.</dd></div>
+        <div><dt>Your own authority</dt><dd>The service that issues and revokes those ID cards for your organisation.</dd></div>
+        <div><dt>Revocation</dt><dd>Cancelling an ID card, for example when a laptop is lost.</dd></div>
+        <div><dt>CBOM</dt><dd>A cryptography bill of materials: a standard list of every algorithm a system uses.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="contact" id="contact">
+    <div class="wrap">
+      <div class="box">
+        <div>
+          <h2>See it on your own systems</h2>
+          <p>Start with a free readiness scan of addresses you choose. We go through the results with you.</p>
+        </div>
+        <dl>
+          <div><dt>Email</dt><dd><a href="mailto:info@acxelinquantum.com?subject=Readiness%20scan">info@acxelinquantum.com</a></dd></div>
+          <div><dt>Try it now</dt><dd><a href="console-demo.html">The console with example data</a></dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="brand">
+      <a href="index.html" aria-label="Acxelin PQC Suite"><img src="assets/acxelin-quantum.svg" alt="Acxelin Quantum" width="537" height="83"></a>
+      <p>Post-quantum security for the traffic, tunnels and data you run today.</p>
+    </div>
+    <nav aria-label="Footer">
+      <div><b>PQC Suite</b><a href="index.html#tls">TLS 1.3 + mTLS</a><a href="index.html#vpn">VPN</a><a href="index.html#app">Acxelin VPN app</a><a href="index.html#vault">Vault</a><a href="index.html#readiness">Readiness assessment</a><a href="index.html#faq">Questions</a><a href="security.html">Security and trust</a><a href="how-it-works.html">How it works, in plain words</a><a href="index.html#tour">Take the website tour</a></div>
+      <div><b>Also from Acxelin</b><a href="wolf-pack.html">Wolf Pack CBOM</a><span>Finds the cryptography in your code</span><a href="wolf-pack-sample.html">Sample report</a><a href="wolf-pack-inventory.html">Sample dashboard</a></div>
+      <div><b>Documentation</b><a href="https://github.com/QubitMan-hub/PQCsuite#install">Install and first steps</a><a href="https://github.com/QubitMan-hub/PQCsuite#what-listens-where">What listens where</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/THREAT-MODEL.md">Threat model</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md">Changelog</a><a href="https://github.com/QubitMan-hub/PQCsuite/releases">Releases</a><a href="https://github.com/QubitMan-hub/PQCsuite">Source code</a></div>
+      <div><b>Contact</b><a href="mailto:info@acxelinquantum.com">info@acxelinquantum.com</a><a href="https://forms.office.com/Pages/ResponsePage.aspx?id=G7il0FYBPk-mQiu5eNm4__Zpyi-xUOBMtEt0p-905AxUME9LMzZFV0JLWEFDMzdJMTM1MzYxSEVORy4u" target="_blank" rel="noopener">Book a call</a></div>
+    </nav>
+    <small>© 2026 Acxelin Quantum. ML-KEM (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205).</small>
+  </div>
+</footer>
+<script src="site.js" defer></script>

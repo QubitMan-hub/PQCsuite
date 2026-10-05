@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 const AxeBuilder = require("@axe-core/playwright").default;
 
 const SITE = "http://127.0.0.1:8765/";
-const PAGES = ["index.html", "wolf-pack.html", "security.html", "console-demo.html", "readiness-sample.html", "404.html", "wolf-pack-sample.html", "wolf-pack-inventory.html", "product-manual.html"];
+const PAGES = ["index.html", "how-it-works.html", "wolf-pack.html", "security.html", "console-demo.html", "readiness-sample.html", "404.html", "wolf-pack-sample.html", "wolf-pack-inventory.html", "product-manual.html"];
 const WIDTHS = [1280, 900, 390, 360];
 
 const serious = async page =>
@@ -86,7 +86,7 @@ test("Try it leads engineers to the tour, the install and the documentation, fro
   await expect(page.locator("#use pre").first()).toHaveText("docker run --rm ghcr.io/qubitman-hub/pqcsuite");
   // a backup that one key opens is refused by the product, so the site must never show one
   await expect(page.locator("#vault pre")).toContainText("-r ops.pub -r recovery.pub");
-  for (const name of ["index.html", "wolf-pack.html", "security.html", "404.html"]) {
+  for (const name of ["index.html", "how-it-works.html", "wolf-pack.html", "security.html", "404.html"]) {
     await page.goto(SITE + name);
     const docs = page.locator("body > footer nav div", { hasText: "Documentation" }).locator("a");
     await expect(docs).toHaveCount(6);

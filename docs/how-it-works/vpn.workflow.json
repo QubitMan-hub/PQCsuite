@@ -1,0 +1,225 @@
+{
+ "schema_version": 2,
+ "diagram_type": "workflow",
+ "meta": {
+  "title": "VPN: quantum-safe links for offices and laptops",
+  "quality_profile": "showcase",
+  "output": "site/how-it-works/vpn.html",
+  "legend": {
+   "mode": "auto",
+   "entries": {
+    "frontend": {
+     "label": "Checks and measurements"
+    },
+    "backend": {
+     "label": "Protection that runs for you"
+    },
+    "security": {
+     "label": "Trust and identity"
+    },
+    "database": {
+     "label": "Your data"
+    },
+    "external": {
+     "label": "People and results"
+    },
+    "cloud": {
+     "label": "Your existing systems"
+    },
+    "messagebus": {
+     "label": "Files you hand over"
+    }
+   }
+  },
+  "viewBox": [
+   1057,
+   652
+  ]
+ },
+ "lanes": [
+  {
+   "id": "authority",
+   "label": "Your own authority"
+  },
+  {
+   "id": "offices",
+   "label": "Offices"
+  },
+  {
+   "id": "staff",
+   "label": "Staff on the move"
+  },
+  {
+   "id": "lost",
+   "label": "Lost or stolen",
+   "variant": "exception"
+  }
+ ],
+ "phases": [
+  {
+   "id": "p1",
+   "label": "Set up",
+   "fromCol": 0,
+   "toCol": 1,
+   "variant": "default"
+  },
+  {
+   "id": "p2",
+   "label": "Connect",
+   "fromCol": 2,
+   "toCol": 3,
+   "variant": "emphasis"
+  },
+  {
+   "id": "p3",
+   "label": "Stay safe",
+   "fromCol": 4,
+   "toCol": 5,
+   "variant": "dashed"
+  }
+ ],
+ "mainPath": [
+  "ca",
+  "hq",
+  "branch"
+ ],
+ "nodes": [
+  {
+   "id": "ca",
+   "lane": "authority",
+   "col": 0,
+   "type": "security",
+   "label": "Your authority",
+   "sublabel": "proves who is who",
+   "width": 156
+  },
+  {
+   "id": "hq",
+   "lane": "offices",
+   "col": 1,
+   "type": "backend",
+   "label": "Head office gateway",
+   "sublabel": "keys renewed hourly",
+   "width": 156
+  },
+  {
+   "id": "branch",
+   "lane": "offices",
+   "col": 3,
+   "type": "backend",
+   "label": "Branch office",
+   "sublabel": "linked by a tunnel",
+   "width": 156
+  },
+  {
+   "id": "invite",
+   "lane": "staff",
+   "col": 1,
+   "type": "messagebus",
+   "label": "Invitation file",
+   "sublabel": "sent by your admin",
+   "width": 156
+  },
+  {
+   "id": "laptop",
+   "lane": "staff",
+   "col": 2,
+   "type": "frontend",
+   "label": "Acxelin VPN app",
+   "sublabel": "on the staff laptop",
+   "width": 156,
+   "icon": "person"
+  },
+  {
+   "id": "shield",
+   "lane": "staff",
+   "col": 3,
+   "type": "external",
+   "label": "Green shield",
+   "sublabel": "this laptop is protected",
+   "width": 156,
+   "icon": "success"
+  },
+  {
+   "id": "cut",
+   "lane": "lost",
+   "col": 4,
+   "type": "external",
+   "label": "Device revoked",
+   "sublabel": "cut off within a minute",
+   "width": 156,
+   "icon": "failure"
+  }
+ ],
+ "edges": [
+  {
+   "id": "ca-hq",
+   "from": "ca",
+   "to": "hq",
+   "variant": "emphasis",
+   "label": "identity"
+  },
+  {
+   "id": "hq-branch",
+   "from": "hq",
+   "to": "branch",
+   "variant": "emphasis",
+   "label": "quantum-safe tunnel"
+  },
+  {
+   "id": "ca-invite",
+   "from": "ca",
+   "to": "invite",
+   "variant": "default",
+   "label": "enrol",
+   "role": "branch"
+  },
+  {
+   "id": "invite-laptop",
+   "from": "invite",
+   "to": "laptop",
+   "variant": "emphasis",
+   "label": "open"
+  },
+  {
+   "id": "laptop-shield",
+   "from": "laptop",
+   "to": "shield",
+   "variant": "emphasis",
+   "label": "connected"
+  },
+  {
+   "id": "shield-cut",
+   "from": "shield",
+   "to": "cut",
+   "variant": "security",
+   "label": "lost laptop",
+   "role": "error"
+  },
+  {
+   "id": "laptop-hq",
+   "from": "laptop",
+   "to": "hq",
+   "label": "through the gateway",
+   "variant": "default"
+  }
+ ],
+ "cards": [
+  {
+   "dot": "cyan",
+   "title": "In plain words",
+   "items": [
+    "Offices are joined by tunnels whose keys come from a post-quantum handshake",
+    "Staff install one app, open the invitation file, and see a shield go green"
+   ]
+  },
+  {
+   "dot": "rose",
+   "title": "Safety nets",
+   "items": [
+    "If the tunnel drops, a kill switch stops traffic leaving unprotected",
+    "Revoking a person or device cuts them off without touching anyone else"
+   ]
+  }
+ ]
+}

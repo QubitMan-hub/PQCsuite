@@ -1,0 +1,231 @@
+{
+ "schema_version": 2,
+ "diagram_type": "workflow",
+ "meta": {
+  "title": "How a customer moves through the PQC Suite",
+  "quality_profile": "showcase",
+  "output": "site/how-it-works/overview.html",
+  "legend": {
+   "mode": "auto",
+   "entries": {
+    "frontend": {
+     "label": "Checks and measurements"
+    },
+    "backend": {
+     "label": "Protection that runs for you"
+    },
+    "security": {
+     "label": "Trust and identity"
+    },
+    "database": {
+     "label": "Your data"
+    },
+    "external": {
+     "label": "People and results"
+    },
+    "cloud": {
+     "label": "Your existing systems"
+    },
+    "messagebus": {
+     "label": "Files you hand over"
+    }
+   }
+  }
+ },
+ "lanes": [
+  {
+   "id": "assess",
+   "label": "Find out"
+  },
+  {
+   "id": "identity",
+   "label": "Trust"
+  },
+  {
+   "id": "protect",
+   "label": "Protect"
+  },
+  {
+   "id": "prove",
+   "label": "Prove"
+  }
+ ],
+ "phases": [
+  {
+   "id": "p1",
+   "label": "Where are we exposed?",
+   "fromCol": 0,
+   "toCol": 2,
+   "variant": "default"
+  },
+  {
+   "id": "p2",
+   "label": "Make it quantum-safe",
+   "fromCol": 3,
+   "toCol": 4,
+   "variant": "emphasis"
+  },
+  {
+   "id": "p3",
+   "label": "Show it is done",
+   "fromCol": 5,
+   "toCol": 5,
+   "variant": "dashed"
+  }
+ ],
+ "mainPath": [
+  "team",
+  "readiness",
+  "wolfpack",
+  "ca",
+  "tls",
+  "evidence"
+ ],
+ "nodes": [
+  {
+   "id": "team",
+   "lane": "assess",
+   "col": 0,
+   "type": "external",
+   "label": "Your security team",
+   "sublabel": "starts with no install",
+   "width": 156,
+   "icon": "person"
+  },
+  {
+   "id": "readiness",
+   "lane": "assess",
+   "col": 1,
+   "type": "frontend",
+   "label": "Readiness scan",
+   "sublabel": "grades servers A to C",
+   "width": 156
+  },
+  {
+   "id": "wolfpack",
+   "lane": "assess",
+   "col": 2,
+   "type": "frontend",
+   "label": "Wolf Pack",
+   "sublabel": "finds crypto in code",
+   "width": 156,
+   "tag": "what to fix first"
+  },
+  {
+   "id": "ca",
+   "lane": "identity",
+   "col": 3,
+   "type": "security",
+   "label": "Your own authority",
+   "sublabel": "post-quantum ID cards",
+   "width": 156
+  },
+  {
+   "id": "vpn",
+   "lane": "protect",
+   "col": 3,
+   "type": "backend",
+   "label": "VPN",
+   "sublabel": "offices and laptops",
+   "width": 156
+  },
+  {
+   "id": "tls",
+   "lane": "protect",
+   "col": 4,
+   "type": "backend",
+   "label": "TLS edge",
+   "sublabel": "web and app traffic",
+   "width": 156
+  },
+  {
+   "id": "vault",
+   "lane": "prove",
+   "col": 3,
+   "type": "database",
+   "label": "Vault",
+   "sublabel": "backups and archives",
+   "width": 156
+  },
+  {
+   "id": "evidence",
+   "lane": "prove",
+   "col": 5,
+   "type": "external",
+   "label": "Evidence report",
+   "sublabel": "for auditors",
+   "width": 156,
+   "icon": "flag"
+  }
+ ],
+ "edges": [
+  {
+   "id": "team-readiness",
+   "from": "team",
+   "to": "readiness",
+   "variant": "emphasis",
+   "label": "scan"
+  },
+  {
+   "id": "readiness-wolfpack",
+   "from": "readiness",
+   "to": "wolfpack",
+   "variant": "emphasis",
+   "label": "look inside"
+  },
+  {
+   "id": "wolfpack-ca",
+   "from": "wolfpack",
+   "to": "ca",
+   "variant": "emphasis",
+   "label": "plan"
+  },
+  {
+   "id": "ca-tls",
+   "from": "ca",
+   "to": "tls",
+   "variant": "emphasis",
+   "label": "identities"
+  },
+  {
+   "id": "ca-vpn",
+   "from": "ca",
+   "to": "vpn",
+   "variant": "default",
+   "label": "identities",
+   "role": "branch"
+  },
+  {
+   "id": "tls-evidence",
+   "from": "tls",
+   "to": "evidence",
+   "variant": "emphasis",
+   "label": "re-scan"
+  },
+  {
+   "id": "vault-evidence",
+   "from": "vault",
+   "to": "evidence",
+   "variant": "dashed",
+   "label": "restore drills"
+  }
+ ],
+ "cards": [
+  {
+   "dot": "rose",
+   "title": "Why now",
+   "items": [
+    "Traffic recorded today can be decrypted once quantum computers are big enough",
+    "Regulators move off RSA and elliptic curves by 2030 and ban them after 2035"
+   ]
+  },
+  {
+   "dot": "cyan",
+   "title": "What stays true throughout",
+   "items": [
+    "Everything runs on your own machines; nothing is sent to Acxelin",
+    "Each step works on its own, so you can start anywhere"
+   ]
+  }
+ ]
+}
