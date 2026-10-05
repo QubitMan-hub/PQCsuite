@@ -5,6 +5,8 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 ## 0.4.1 (5 October 2026)
 
 - The Linux Acxelin VPN package carries OpenSSL 3.5.9 instead of 3.5.4. The Windows and macOS installers already took the newest OpenSSL at build time.
+- `pqcsuite doctor` also says whether repository scanning (Wolf Pack) and this machine's VPN role are ready, and `--product` works without `--json`; its install hints fit release wheels, not only a source checkout. `vault inspect` says `none` instead of Python's `None`.
+- Website and manual: plainer Wolf Pack coverage and limits (Java and Go caller analysis included), install and build steps on every way to run Wolf Pack, and the documentation list starts with the product manual.
 
 ## 0.4.0 (5 October 2026)
 

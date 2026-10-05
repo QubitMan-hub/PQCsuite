@@ -125,5 +125,19 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(run("--strict", "--config", broken), 2)
 
 
+    def test_plain_doctor_names_repository_scans_and_fails_when_that_product_is_missing(self):
+        import contextlib
+        import io
+        from unittest import mock
+        from pqcsuite import cli
+        missing = [{'product': 'repository', 'level': 'fail', 'message': 'Wolf Pack is not installed', 'action': 'Install it'}]
+        for product, code in (("all", 0), ("repository", 3)):
+            out = io.StringIO()
+            with mock.patch.object(checks, "prerequisites", return_value=missing), mock.patch.object(cli.tls, "lib"), \
+                    mock.patch.object(cli.tls, "client_context"), contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as done:
+                cli.main(["doctor", "--product", product])
+            self.assertIn("Repository scans: Wolf Pack is not installed. Install it", out.getvalue())
+            self.assertEqual(done.exception.code, code, "only a product asked for by name makes doctor fail")
+
 if __name__ == "__main__":
     unittest.main()

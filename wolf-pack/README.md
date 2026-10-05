@@ -6,7 +6,7 @@ Base installation: Python code, one required dependency (`cryptography`), runs o
 
 Current product site: [Wolf Pack CBOM](https://qubitman-hub.github.io/PQCsuite/wolf-pack.html), published from the root `site/` folder. [`site/index.html`](site/index.html) retains the historical 1.2.1 animated demonstration and links to the current workflow.
 
-Optional web relationships use maintained Tree-sitter bindings and JavaScript/TypeScript grammars: install `pip install ".[crawler]"` from this folder. This adds three optional parser dependencies; the base package and existing crypto detectors remain usable without them. Unsupported or invalid syntax reports a relationship coverage gap. Python package re-exports and direct CommonJS export aliases feed the shared graph; dynamic dispatch remains unresolved.
+Optional relationships for JavaScript/TypeScript, Java and Go use maintained Tree-sitter bindings and grammars: install `pip install ".[crawler]"` from this folder. This adds optional parser dependencies; the base package and existing crypto detectors remain usable without them. Unsupported or invalid syntax reports a relationship coverage gap. Python package re-exports and direct CommonJS export aliases feed the shared graph; dynamic dispatch remains unresolved.
 
 ## Quick start (PowerShell)
 
@@ -258,4 +258,4 @@ The suite console combines repository inventory, supported caller relationships 
 
 Production files precede tests in the relationship budget. Console repeat scans reuse bounded syntax trees; findings and relationships are recomputed. Unresolved dynamic aliases, unsupported languages and truncated files remain visible. Password-hasher findings recommend Argon2id/scrypt, declared cache hashes stay separate, and candidate hybrids preserve their classical components. Advanced endpoint verification proves one authenticated PQ connection, not source provenance or a complete migration. See [Code Crawler](../docs/CODE-CRAWLER.md) for boundaries.
 
-The base GitHub Action and Wolf Pack container install the minimal scanner. Python relationships are included; JavaScript/TypeScript crypto detection remains available, but their AST relationships require the `crawler` extra. To use those relationships in CI, install `./wolf-pack[crawler]` and invoke `wolfpack scan` in a Python job, as this repository’s test workflow does. Existing published image tags do not track unreleased `main` automatically.
+The base GitHub Action and Wolf Pack container install the minimal scanner. Python relationships are included; JavaScript/TypeScript, Java and Go crypto detection remains available, but their function relationships require the `crawler` extra. To use those relationships in CI, install `./wolf-pack[crawler]` and invoke `wolfpack scan` in a Python job, as this repository’s test workflow does. Existing published image tags do not track unreleased `main` automatically.

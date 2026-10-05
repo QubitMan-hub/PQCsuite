@@ -161,7 +161,7 @@ nav { display: flex; gap: 20px; flex-wrap: wrap; } :target { scroll-margin-top: 
 <tr>
 <td>Wolf Pack base container or base Action</td>
 <td>Minimal scanner automation</td>
-<td>Python relationships are included; JavaScript/TypeScript AST relationships need the optional parser installation</td>
+<td>Python relationships are included; JavaScript/TypeScript, Java and Go relationships need the optional parser installation</td>
 </tr>
 </tbody>
 </table></div>
@@ -353,7 +353,7 @@ pqcsuite console --config .pqcsuite/console.toml
 <p>For broader configured evidence:</p>
 <pre><code class="language-sh">pqcsuite readiness report --ca pki --targets hosts.txt --backups backups --html evidence.html
 </code></pre>
-<p>To include cryptography found in your own code, add one or more Wolf Pack output folders. Each algorithm becomes a row that names the files and lines where it is used and, for Python and JavaScript/TypeScript, the functions that reach it; high-severity security patterns such as switched-off certificate checks become rows that need action:</p>
+<p>To include cryptography found in your own code, add one or more Wolf Pack output folders. Each algorithm becomes a row that names the files and lines where it is used and, for Python, JavaScript/TypeScript, Java and Go, the functions that reach it; high-severity security patterns such as switched-off certificate checks become rows that need action:</p>
 <pre><code class="language-sh">wolfpack scan &quot;PATH_TO_REPOSITORY&quot; -o wolfpack-out
 pqcsuite readiness report --targets hosts.txt --wolfpack wolfpack-out --html evidence.html
 </code></pre>
@@ -718,4 +718,4 @@ pqcsuite vault share notes.pqv --key owner.key -r auditor.pub
 <p>Use <code>pqcsuite --help</code>, then the relevant command's <code>--help</code> for exact options. See the <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/README.md">README</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/CODE-CRAWLER.md">Code Crawler limits</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/RELEASE-READINESS.md">release gates</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/PILOT.md">pilot instructions</a>, <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/SECURITY.md">security reporting</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/wolf-pack/README.md">Wolf Pack guide</a>.</p>
 <p>For guided stories using temporary data, run <code>python examples/clinic_demo.py --auto</code> or <code>python examples/bank_demo.py --auto</code> from an installed checkout. The privileged Linux VPN demo needs its documented networking prerequisites. These demos exercise real operations on example data; they do not configure your production organization.</p>
 
-<footer>Generated 2026-10-05 08:19 UTC by pqcsuite 0.4.1 · Acxelin Quantum</footer></main></body></html>
+<footer>Generated 2026-10-05 08:40 UTC by pqcsuite 0.4.1 · Acxelin Quantum</footer></main></body></html>

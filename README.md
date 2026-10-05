@@ -29,7 +29,7 @@ The Readiness page provides **Add repository → Scan → Assign remediation →
 
 Unified scans stop at 50,000 discovered files or 512 MB of discovered files, with a five-minute cooperative time budget. Cancel in the console to preserve the preceding assessment. Checks occur between analysis operations; parsing a file or resolving relationships is not forcibly interrupted. Persistent state is bounded to 16 MB and 5,000 current/historical findings per project. Storage failures leave completed results available in the session with a visible warning.
 
-Python relationships reuse Wolf Pack's existing AST. Optional JavaScript/TypeScript syntax trees feed the same graph and impact engine; other languages retain their crypto detectors with explicit relationship gaps. Dynamic dispatch and business ownership require review. Source stays on your machine and is never executed by the scan. See [Code Crawler](docs/CODE-CRAWLER.md) for evidence limits and measured validation. Use the aligned PQC Suite 0.4.1 / Wolf Pack 1.4.0 release family or install both packages from this checkout; see the product manual for installation channels.
+Python relationships reuse Wolf Pack's existing AST. Optional JavaScript/TypeScript, Java and Go syntax trees feed the same graph and impact engine; other languages retain their crypto detectors with explicit relationship gaps. Dynamic dispatch and business ownership require review. Source stays on your machine and is never executed by the scan. See [Code Crawler](docs/CODE-CRAWLER.md) for evidence limits and measured validation. Use the aligned PQC Suite 0.4.1 / Wolf Pack 1.4.0 release family or install both packages from this checkout; see the product manual for installation channels.
 
 ## Try it in one minute
 
@@ -51,10 +51,10 @@ Scan from outside your company network: a TLS-inspecting proxy answers in the si
 
 ## Install
 
-Python 3.11+, on Windows, macOS or Linux. In a clone of this repository, or with the wheel from a [release](https://github.com/QubitMan-hub/PQCsuite/releases) (`pip install pqcsuite-X.Y.Z-py3-none-any.whl`):
+Python 3.11+, on Windows, macOS or Linux. Download the wheel from the [latest release](https://github.com/QubitMan-hub/PQCsuite/releases/latest), or use `pip install .` in a clone of this repository. Laptops that only join the VPN can use the Acxelin VPN installer from the same release instead.
 
 ```
-pip install .                  # on IPsec gateways: pip install ".[vpn]"; AWS KMS keys: ".[kms]"
+pip install pqcsuite-0.4.1-py3-none-any.whl   # on IPsec gateways add [vpn]; AWS KMS keys: [kms]
 pqcsuite                       # every command, and where to start
 pqcsuite doctor                # what works on this machine
 pqcsuite doctor --ca pki --config edge.toml   # preflight: CA key protection, CRL freshness, expiring certificates, risky settings

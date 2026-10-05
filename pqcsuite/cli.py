@@ -48,7 +48,7 @@ def show(obj, as_json):
         print(json.dumps(obj, indent=1, default=str))
     else:
         for k, v in obj.items():
-            print(f"{k:>14}  {', '.join(map(str, v)) if isinstance(v, (list, tuple)) else v}")
+            print(f"{k:>14}  {', '.join(map(str, v)) if isinstance(v, (list, tuple)) else 'none' if v is None else v}")
 
 
 def cmd_doctor(a):
@@ -72,6 +72,12 @@ def cmd_doctor(a):
     except tls.TLSError as e:
         print(f"TLS edge, VPN key agreement and readiness scans: not available: {e}")
         broken = True
+    from . import checks
+    names = {'repository': 'Repository scans', 'vpn': 'VPN'}
+    rows = [r for r in checks.prerequisites(a.product) if r['product'] in names]
+    for r in rows:
+        print(f"{names[r['product']]}: {r['message']}" + (f". {r['action']}" if r['action'] else ''))
+    broken = broken or (a.product != 'all' and any(r['level'] == 'fail' for r in rows))
     fails = warns = 0
     if a.check_updates:
         from . import latest_release
@@ -82,7 +88,6 @@ def cmd_doctor(a):
         else:
             print(f"updates: {latest['version']} is out: {latest['url']}" if latest and latest["newer"] else f"updates: {__version__} is the newest release")
     if a.ca or a.config or a.backups:
-        from . import checks
         results = ([r for d in a.ca for r in checks.ca(d)] + [r for f in a.config for r in checks.config(f)]
                    + [r for d in a.backups for r in checks.backups(d)])
         mark = {"ok": "ok  ", "warn": "WARN", "fail": "FAIL"}
@@ -853,7 +858,7 @@ def cmd_report(a):
         Path(a.json).write_text(compliance.to_json(rep), encoding="utf-8")
     s = rep["status"]
     print(f"{rep['assets']} assets: {s['action']} need action, {s['plan']} quantum-vulnerable to plan, {s['transition']} with classical fallback, "
-          f"{s['ready']} quantum-safe" + (f", {s['note']} not used for security" if s['note'] else "") + f"; {rep['cnsa2_compliant']} meet CNSA 2.0")
+          f"{s['ready']} quantum-safe" + (f", {s['note']} not used for security" if s['note'] else "") + f"; {rep['cnsa2_compliant']} {'meets' if rep['cnsa2_compliant'] == 1 else 'meet'} CNSA 2.0")
     return 0 if not s["action"] else 2
 
 
@@ -944,7 +949,7 @@ def tls_client_args(p):
 
 
 def parser():
-    ap = argparse.ArgumentParser(prog=NAME, description="Post-quantum products: TLS 1.3 + mTLS, IPsec VPN, Vault and Readiness assessment.")
+    ap = argparse.ArgumentParser(prog=NAME, description="Post-quantum products: TLS 1.3 + mTLS, VPN, Vault and Readiness assessment.")
     ap.add_argument("--version", action="version", version=f"{NAME} {__version__}")
     ap.add_argument("--log-json", action="store_true", help="structured JSON logs")
     ap.add_argument("-v", "--verbose", action="store_true")
@@ -953,7 +958,7 @@ def parser():
                        epilog="exit codes: 0 safe, 1 warnings (with --strict), 2 unsafe configuration, 3 broken installation")
     p.set_defaults(func=cmd_doctor)
     p.add_argument("--json", action="store_true", help="structured local prerequisite checks and actionable diagnostics")
-    p.add_argument("--product", choices=["all", "repository", "tls", "vault", "vpn"], default="all", help="with --json: select capability checks")
+    p.add_argument("--product", choices=["all", "repository", "tls", "vault", "vpn"], default="all", help="only this product's checks")
     p.add_argument("--check-updates", action="store_true", help="also ask GitHub whether a newer release is out (the only request it makes)")
     p.add_argument("--ca", action="append", default=[], metavar="DIR", help="check a CA: key protection, CRL freshness, certificates expiring")
     p.add_argument("--backups", action="append", default=[], metavar="DIR",
@@ -1118,7 +1123,7 @@ def parser():
     p.add_argument("--algorithm", choices=list(ALGORITHMS), default="ML-DSA-65")
     p.add_argument("--key-passphrase-env")
 
-    v = sub.add_parser("vpn", help="IPsec VPN: post-quantum site-to-site (strongSwan) and WireGuard remote access").add_subparsers(dest="vpn_cmd", required=True)
+    v = sub.add_parser("vpn", help="VPN: post-quantum site-to-site IPsec (strongSwan), and remote access for laptops (WireGuard, the Acxelin VPN app)").add_subparsers(dest="vpn_cmd", required=True)
     p = v.add_parser("up", help="run a site: key agreement, rotation, revocation, metrics")
     p.add_argument("--config", required=True, help="site TOML (see examples/vpn-hq.toml)")
     for name, text in (("status", "is this machine protected? (laptop) or tunnels, algorithms and traffic (site)"),

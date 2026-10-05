@@ -62,7 +62,7 @@ Use **Readiness → repository → Scan** for the simplest workflow. Keep advanc
 | Acxelin VPN installer | Laptops that only join the VPN (from 0.4.0) | See [Enroll and connect a laptop](#enroll-and-connect-a-laptop) |
 | Current source checkout | Unreleased changes, development and testing | Record the Git commit; `main` can change |
 | Published suite container | TLS/readiness demonstrations and configured services | The base image does not include repository scanning; persistent data needs mounted storage |
-| Wolf Pack base container or base Action | Minimal scanner automation | Python relationships are included; JavaScript/TypeScript AST relationships need the optional parser installation |
+| Wolf Pack base container or base Action | Minimal scanner automation | Python relationships are included; JavaScript/TypeScript, Java and Go relationships need the optional parser installation |
 
 [Suite releases](https://github.com/QubitMan-hub/PQCsuite/releases) and [Wolf Pack 1.4.0](https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.0) are separate downloads. Suite 0.4.1 and Wolf Pack 1.4.0 are the aligned targets for this manual. Earlier releases predate the desktop app and installers; Wolf Pack 1.3.0 skipped files a project's `.gitignore` leaves out. A Git push does not modify an existing wheel or image. Use a specific container version for repeatable deployments rather than assuming `latest` is unchanged.
 
@@ -254,7 +254,7 @@ For broader configured evidence:
 pqcsuite readiness report --ca pki --targets hosts.txt --backups backups --html evidence.html
 ```
 
-To include cryptography found in your own code, add one or more Wolf Pack output folders. Each algorithm becomes a row that names the files and lines where it is used and, for Python and JavaScript/TypeScript, the functions that reach it; high-severity security patterns such as switched-off certificate checks become rows that need action:
+To include cryptography found in your own code, add one or more Wolf Pack output folders. Each algorithm becomes a row that names the files and lines where it is used and, for Python, JavaScript/TypeScript, Java and Go, the functions that reach it; high-severity security patterns such as switched-off certificate checks become rows that need action:
 
 ```sh
 wolfpack scan "PATH_TO_REPOSITORY" -o wolfpack-out

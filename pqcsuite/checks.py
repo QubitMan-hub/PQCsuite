@@ -196,17 +196,17 @@ def prerequisites(product='all'):
     try:
         from .project import scanner
         scanner()
-        add('repository', 'ok', 'Shared repository scanner is installed')
+        add('repository', 'ok', 'Wolf Pack is installed')
         missing = [name for name in ('tree_sitter', 'tree_sitter_javascript', 'tree_sitter_typescript', 'tree_sitter_java', 'tree_sitter_go') if importlib.util.find_spec(name) is None]
         if missing:
-            add('repository', 'warn', 'JavaScript/TypeScript, Java or Go relationships are unavailable', 'From this checkout run: pip install -e "./wolf-pack[crawler]" -e ".[scan-web]"')
+            add('repository', 'warn', 'JavaScript/TypeScript, Java or Go relationships are unavailable', 'Install Wolf Pack with its crawler extra: pip install "wolfpack_cbom-VERSION-py3-none-any.whl[crawler]" (from a checkout: pip install -e "./wolf-pack[crawler]")')
     except (ImportError, ValueError):
-        add('repository', 'fail', 'Shared repository scanner is unavailable', 'From this checkout run: pip install -e "./wolf-pack[crawler]" -e ".[scan-web]"')
+        add('repository', 'fail', 'Wolf Pack is not installed, so repository scans are unavailable', 'Install Wolf Pack with its crawler extra: pip install "wolfpack_cbom-VERSION-py3-none-any.whl[crawler]" (from a checkout: pip install -e "./wolf-pack[crawler]")')
     if product in ('all', 'vpn'):
         if sys.platform.startswith('linux') and importlib.util.find_spec('vici') and shutil.which('swanctl') and shutil.which('ip'):
             add('vpn', 'ok', 'IPsec control tools found; kernel support and tunnel traffic still require deployment tests')
         else:
-            add('vpn', 'warn', 'IPsec gateway prerequisites are incomplete or this is a client platform', 'Use a Linux strongSwan gateway with VICI and iproute2; Windows/macOS devices use the remote WireGuard client')
+            add('vpn', 'warn', 'This machine is not set up as an IPsec gateway (fine for a laptop)', 'Gateways need Linux with strongSwan, VICI and iproute2; laptops use the Acxelin VPN app or pqcsuite vpn join')
         if not shutil.which('wg'):
             add('vpn', 'warn', 'WireGuard command was not found on PATH', 'Install the official WireGuard tools for this platform before device enrollment')
         if not all(importlib.util.find_spec(m) for m in ('pystray', 'PIL')):
