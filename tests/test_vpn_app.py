@@ -64,16 +64,16 @@ class SingleWindowTest(unittest.TestCase):
     def test_a_second_launch_reopens_the_running_window(self):
         with TemporaryDirectory() as d:
             held, running = app.claim(d, "wg0")
-            self.addCleanup(held.close)
-            self.assertIsNone(running)
-            self.assertEqual(app.claim(d, "wg0"), (None, None))
-            (Path(d) / "wg0.app.url").write_text("http://127.0.0.1:5555/#key")
-            out = io.StringIO()
-            with mock.patch.object(app.App, "__init__", lambda s, *a, **k: setattr(s, "folder", Path(d))), \
-                    mock.patch("webbrowser.open") as browser, contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
-                cli.main(["vpn", "app"])
-            self.assertEqual(e.exception.code, 0)
-            browser.assert_called_once_with("http://127.0.0.1:5555/#key")
-            self.assertIn("already running", out.getvalue())
-            other, _ = app.claim(d, "wg1")
-            other.close()
+            with held:
+                self.assertIsNone(running)
+                self.assertEqual(app.claim(d, "wg0"), (None, None))
+                (Path(d) / "wg0.app.url").write_text("http://127.0.0.1:5555/#key")
+                out = io.StringIO()
+                with mock.patch.object(app.App, "__init__", lambda s, *a, **k: setattr(s, "folder", Path(d))), \
+                        mock.patch("webbrowser.open") as browser, contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
+                    cli.main(["vpn", "app"])
+                self.assertEqual(e.exception.code, 0)
+                browser.assert_called_once_with("http://127.0.0.1:5555/#key")
+                self.assertIn("already running", out.getvalue())
+                with app.claim(d, "wg1")[0]:
+                    pass
