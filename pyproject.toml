@@ -32,6 +32,7 @@ pqcsuite = "pqcsuite.cli:main"
 include = ["pqcsuite*"]
 
 [tool.setuptools.package-data]
+"pqcsuite" = ["tour.js"]
 "pqcsuite.console" = ["console.html"]
 "pqcsuite.vpn" = ["app.html"]
 

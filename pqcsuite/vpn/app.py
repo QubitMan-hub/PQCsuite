@@ -18,7 +18,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from .. import HTTP_IDLE, content_length, explain
-from ..console import Backoff, policy
+from ..console import Backoff, policy, with_tour
 from ..pki import encrypted
 from ..storage import write
 from . import join
@@ -180,7 +180,7 @@ def request(port, token, method, path, body=None, timeout=10):
 
 
 def serve(app, listen=("127.0.0.1", 0)):
-    html = resources.files(__package__).joinpath("app.html").read_bytes()
+    html = with_tour(resources.files(__package__).joinpath("app.html").read_bytes())
     csp, backoff = policy(html), Backoff()
 
     class Handler(BaseHTTPRequestHandler):

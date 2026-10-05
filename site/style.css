@@ -42,6 +42,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .btn:active { transform: translateY(1px); box-shadow: 0 2px 0 #e5a500; }
 .link { font: 500 16px/1 var(--display); color: var(--ink); text-decoration: none; border-bottom: 2px solid var(--amber); padding-bottom: 3px; }
 .link:hover { color: #000; }
+button.link { background: none; border: 0; border-bottom: 2px solid var(--amber); border-radius: 0; padding: 0 0 3px; cursor: pointer; }
 code, .mono { font-family: var(--mono); }
 
 /* header */

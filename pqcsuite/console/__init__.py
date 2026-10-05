@@ -468,7 +468,12 @@ class App:
 
 
 def page():
-    return resources.files(__package__).joinpath("console.html").read_bytes()
+    return with_tour(resources.files(__package__).joinpath("console.html").read_bytes())
+
+
+def with_tour(html):
+    """Put the shared guided tour (pqcsuite/tour.js) at the start of the page's one inline script, so its hash covers both."""
+    return html.replace(b"<script>", b"<script>\n" + resources.files("pqcsuite").joinpath("tour.js").read_bytes(), 1)
 
 
 def policy(html):

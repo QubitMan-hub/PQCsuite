@@ -161,14 +161,30 @@ function shell() {
   $("#app").innerHTML = `<div class="shell"><nav aria-label="Console">
     <div class="brand">${logo()}<small>PQC Suite console</small></div>
     <div class="links">${NAV.map(([g, v]) => (g ? `<div class="group">${g}</div>` : "") + Object.entries(v).map(([k, t]) => `<a href="#${k}" data-view="${k}">${t}</a>`).join("")).join("")}</div>
-    <div class="foot"><button class="quiet" id="theme" type="button" aria-label="Toggle theme">Theme</button><button class="quiet" id="logout" type="button">Sign out</button></div>
+    <div class="foot"><button class="quiet" id="tour" type="button">Tour</button><button class="quiet" id="theme" type="button" aria-label="Toggle theme">Theme</button><button class="quiet" id="logout" type="button">Sign out</button></div>
   </nav><main id="view"></main></div>`;
   $("#logout").onclick = () => { try { sessionStorage.removeItem("pqc-token"); } catch (e) {} ; token = null; localInventory = null; login(); };
   $("#theme").onclick = () => { const r = document.documentElement; const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
     r.dataset.theme = dark ? "light" : "dark"; };
+  $("#tour").onclick = () => Tour.start("console", TOUR);
   onhashchange = route;
   route();
+  Tour.offer("console", TOUR);
 }
+
+const visit = (view) => () => { if (location.hash !== "#" + view) location.hash = view; return new Promise((r) => setTimeout(r, 350)); };
+const TOUR = [
+  { title: "Welcome to the PQC Suite console", text: "This is where you run the four Acxelin products on this server. Nine short steps show you each part. Use Next, or the arrow keys; Esc closes the tour." },
+  { target: "nav .links", title: "Everything is in this menu", text: "Overview comes first, then one page per product. Wolf Pack CBOM, which scans your source code, sits on its own below them." },
+  { target: 'nav a[data-view="overview"]', before: visit("overview"), title: "Step one: Overview", text: "One tile per product: certificates expiring within 30 days, connections through your edges, remote users online, tunnels using ML-KEM, backups, and how many endpoints offer post-quantum key exchange. Amber or red means look closer; each tile opens its page." },
+  { target: 'nav a[data-view="edges"]', before: visit("edges"), title: "TLS 1.3 edges", text: "Post-quantum front doors for your existing services. Each edge accepts post-quantum TLS from clients and forwards to your application unchanged." },
+  { target: 'nav a[data-view="certificates"]', before: visit("certificates"), title: "Certificates", text: "Your own certificate authority with ML-DSA signatures: every certificate it issued, when each expires, and how to issue, renew or revoke one." },
+  { target: 'nav a[data-view="vpn"]', before: visit("vpn"), title: "VPN", text: "Site-to-site tunnels and the laptops connected through WireGuard. Each connection shows whether its keys are post-quantum and when they last changed." },
+  { target: 'nav a[data-view="backups"]', before: visit("backups"), title: "Vault", text: "Backups encrypted with hybrid post-quantum keys. Archives without a recovery key are flagged, so a lost key never means lost data." },
+  { target: 'nav a[data-view="readiness"]', before: visit("readiness"), title: "Readiness", text: "Scans of your TLS and SSH endpoints: which already offer post-quantum key exchange, what changed since the last scan, and what to fix first." },
+  { target: 'nav a[data-view="wolfpack"]', before: visit("wolfpack"), title: "Wolf Pack CBOM", text: "The cryptography inside your own code: which algorithms each repository uses, where, and which functions reach them." },
+  { target: "nav .foot", before: visit("overview"), title: "You are ready", text: "Tour replays this guide, Theme switches light and dark, and Sign out ends your session. Your work stays on this server." },
+];
 
 function route() {
   if (!token || !$("#view")) return;

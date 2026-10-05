@@ -99,6 +99,15 @@ class SiteTest(unittest.TestCase):
         self.assertRegex(html, r"async wolfpack\(")
 
 
+    def test_the_website_tour_is_the_same_as_the_console_and_vpn_window_tour(self):
+        self.assertEqual((SITE / "tour.js").read_bytes(), (ROOT / "pqcsuite" / "tour.js").read_bytes(), "copy pqcsuite/tour.js to site/tour.js")
+        from pqcsuite.console import page, policy
+        served = page()
+        self.assertEqual(served.count(b"<script>"), 1)
+        self.assertIn(b"const Tour =", served.split(b"<script>")[1], "the tour runs inside the one inline script the policy hashes")
+        self.assertIn("sha256-", policy(served))
+
+
 class PublishTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
