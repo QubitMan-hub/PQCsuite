@@ -42,3 +42,6 @@ Thumbs.db
 
 # archify working folders (finished diagrams go in docs/architecture)
 .archify/
+
+# archify receipts (local paths; regenerate with finalize)
+site/architecture/*.json

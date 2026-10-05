@@ -3,7 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Acxelin VPN desktop app",
-    "output": "docs/architecture/acxelin-vpn-desktop.html",
+    "output": "site/architecture/acxelin-vpn-desktop.html",
     "quality_profile": "showcase",
     "locale": "en",
     "repository": {
@@ -35,11 +35,11 @@
       "label": "Tray icon",
       "sublabel": "pqcsuite vpn desktop",
       "pos": [
-        250,
+        240,
         300
       ],
       "size": [
-        150,
+        170,
         64
       ],
       "sources": [
@@ -63,7 +63,7 @@
       "label": "VPN window",
       "sublabel": "app.html, Edge/Chrome --app",
       "pos": [
-        380,
+        240,
         110
       ],
       "size": [
@@ -91,7 +91,7 @@
       "label": "Administrator prompt",
       "sublabel": "UAC \u00b7 polkit \u00b7 macOS",
       "pos": [
-        380,
+        240,
         480
       ],
       "size": [
@@ -297,7 +297,7 @@
       "to": "window",
       "label": "one-time ticket",
       "fromSide": "top",
-      "toSide": "left"
+      "toSide": "bottom"
     },
     {
       "id": "window-api",
@@ -314,7 +314,7 @@
       "label": "starts service",
       "variant": "dashed",
       "fromSide": "bottom",
-      "toSide": "left"
+      "toSide": "top"
     },
     {
       "id": "elevate",
