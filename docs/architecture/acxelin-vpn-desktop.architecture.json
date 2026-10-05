@@ -123,9 +123,9 @@
       ],
       "sources": [
         {
-          "path": "pqcsuite/cli.py",
-          "line": 419,
-          "end_line": 466,
+          "path": "pqcsuite/cli/vpn.py",
+          "line": 118,
+          "end_line": 165,
           "label": "cmd_app"
         },
         {

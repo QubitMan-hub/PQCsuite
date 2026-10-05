@@ -104,7 +104,7 @@ class GatewayTest(unittest.TestCase):
         self.assertEqual(self.wg.peers_[b.public]["allowed_ips"], ["10.99.0.2/32", "192.168.20.0/24"])
 
     def test_status_says_protected_only_after_a_tunnel_handshake(self):
-        from pqcsuite.cli import describe_vpn
+        from pqcsuite.cli.vpn import describe_vpn
 
         class Tunnel:
             folder, up_, age = self.d, False, None
