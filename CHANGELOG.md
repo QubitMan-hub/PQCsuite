@@ -2,6 +2,10 @@
 
 Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; it is published only when every CI and CodeQL job passed on its commit, and its GitHub release carries the wheel, `RELEASE_READINESS.md`, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`), a CycloneDX SBOM, the tested dependency versions and build provenance. From 0.2.0 the container image is published to `ghcr.io/qubitman-hub/pqcsuite`.
 
+## Unreleased
+
+- Acxelin VPN window: fits a 768-pixel-high laptop screen (Windows at 100% or 125% scaling) without scrolling to Connect; a compact shield until the first connection; status and actions side by side in a wide window; the Windows title bar takes the app's colour. The console says "1 expires".
+
 ## 0.4.2 (5 October 2026)
 
 - `pqcsuite doctor --product repository` (and `vault`) no longer reports a broken installation on a machine without OpenSSL 3.5, such as Ubuntu 24.04: scanning code does not need post-quantum TLS. Found by the new weekly download check on its first run.

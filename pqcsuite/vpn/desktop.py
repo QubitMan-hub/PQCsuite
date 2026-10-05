@@ -93,7 +93,7 @@ def open_window(url, profile):
     current["profile"] = current.get("profile", {}) | {"password_manager_enabled": False}
     prefs.parent.mkdir(parents=True, exist_ok=True)
     prefs.write_text(json.dumps(current), encoding="utf-8")
-    subprocess.Popen([exe, f"--app={url}", f"--user-data-dir={profile}", "--window-size=620,860", "--no-first-run", "--no-default-browser-check"],
+    subprocess.Popen([exe, f"--app={url}", f"--user-data-dir={profile}", "--window-size=540,780", "--no-first-run", "--no-default-browser-check"],
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **detached())
     return True
 
