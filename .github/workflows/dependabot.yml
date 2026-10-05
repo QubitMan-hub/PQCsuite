@@ -1,0 +1,36 @@
+name: dependabot
+on:
+  workflow_run:
+    workflows: [ci, codeql, wolf-pack]
+    types: [completed]
+permissions: {}
+jobs:
+  merge-patch:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.actor.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      actions: write
+    steps:
+      - name: Merge a single patch-version update once every check on it passed, then run CI and CodeQL on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          pr=$(gh api "repos/$GH_REPO/commits/$SHA/pulls" --jq '[.[] | select(.state == "open" and .user.login == "dependabot[bot]" and .head.sha == env.SHA)][0].number // empty')
+          [ -n "$pr" ] || { echo "no open Dependabot pull request at $SHA"; exit 0; }
+          title=$(gh pr view "$pr" --json title --jq .title)
+          v='([0-9]+)\.([0-9]+)\.([0-9]+)'
+          if ! [[ "$title" =~ ^Bump\ [^\ ]+\ from\ $v\ to\ $v( in\ .*)?$ ]] \
+             || [ "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}" != "${BASH_REMATCH[4]}.${BASH_REMATCH[5]}" ]; then
+            echo "not a single patch update, left for review: $title"; exit 0
+          fi
+          bad=$(gh api "repos/$GH_REPO/commits/$SHA/check-runs?per_page=100" \
+            --jq '[.check_runs[] | select(.status != "completed" or (.conclusion | IN("success", "skipped", "neutral") | not)) | .name] | join(", ")')
+          [ -z "$bad" ] || { echo "waiting on or failed: $bad"; exit 0; }
+          gh pr merge "$pr" --squash --match-head-commit "$SHA"
+          gh workflow run ci.yml --ref main
+          gh workflow run codeql.yml --ref main

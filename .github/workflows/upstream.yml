@@ -1,0 +1,32 @@
+name: upstream
+on:
+  schedule:
+    - cron: "41 3 * * 2"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Open an issue when the OpenSSL 3.5 or strongSwan we build with has a newer release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          latest() { git ls-remote --tags --refs "$1" | sed 's|.*refs/tags/||' | grep -E "$2" | sed -E "s/$2/\1/" | sort -V | tail -1; }
+          check() {
+            [ -n "$3" ] || { echo "::error::could not read $1's releases"; exit 1; }
+            echo "$1: building with $2, latest $3"
+            [ "$2" = "$3" ] && return
+            title="Update $1 from $2 to $3"
+            [ "$(gh issue list --state open --search "in:title \"$title\"" --json number --jq length)" = 0 ] || return 0
+            gh issue create --title "$title" --body "$4"
+          }
+          ssl=$(grep -oP 'openssl-\K3\.5\.\d+' .github/workflows/ci.yml | head -1)
+          check OpenSSL "$ssl" "$(latest https://github.com/openssl/openssl.git '^openssl-(3\.5\.[0-9]+)$')" \
+            "The Linux Acxelin VPN package and CI build OpenSSL $ssl. Change the version and its SHA-256 (published next to the release) in .github/workflows/ci.yml and .github/actions/installer/action.yml, then release so the installers carry it. Windows and macOS installers take the newest OpenSSL from their package managers at each release."
+          ss=$(grep -oP '^ARG STRONGSWAN=\K\S+' docker/vpn-gateway.Dockerfile)
+          check strongSwan "$ss" "$(latest https://github.com/strongswan/strongswan.git '^([0-9]+\.[0-9]+\.[0-9]+)$')" \
+            "The VPN gateway image and CI build strongSwan $ss. Change STRONGSWAN and STRONGSWAN_SHA256 in docker/vpn-gateway.Dockerfile and the matching lines in .github/workflows/ci.yml, check its ML-KEM support with pqcsuite vpn check, then release."

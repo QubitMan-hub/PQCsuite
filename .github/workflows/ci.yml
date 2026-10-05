@@ -4,6 +4,7 @@ on:
     paths-ignore: ["wolf-pack/docs/**", "wolf-pack/eval/**"]
   pull_request:
     paths-ignore: ["wolf-pack/docs/**", "wolf-pack/eval/**"]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -164,19 +165,19 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /opt/pqc
-          key: openssl-3.5.4-strongswan-6.1.0-v2
+          key: openssl-3.5.9-strongswan-6.1.0-v2
       - name: Build OpenSSL 3.5 and strongSwan 6.1
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update && sudo apt-get install -y build-essential libgmp-dev pkg-config
           # OpenSSL's hash is the one openssl.org publishes; strongSwan's GitHub release has none, so its hash is pinned from the
           # first download and guards against the file changing since
-          curl -fsSL -o openssl.tgz https://github.com/openssl/openssl/releases/download/openssl-3.5.4/openssl-3.5.4.tar.gz
+          curl -fsSL -o openssl.tgz https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz
           curl -fsSL -o strongswan.tbz https://github.com/strongswan/strongswan/releases/download/6.1.0/strongswan-6.1.0.tar.bz2
-          printf '%s  %s\n' 967311f84955316969bdb1d8d4b983718ef42338639c621ec4c34fddef355e99 openssl.tgz \
+          printf '%s  %s\n' 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a openssl.tgz \
             fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4 strongswan.tbz | sha256sum -c -
           tar xzf openssl.tgz && tar xjf strongswan.tbz
-          (cd openssl-3.5.4 && ./Configure --prefix=/opt/pqc --libdir=lib shared no-tests && make -j4 && sudo make install_sw)
+          (cd openssl-3.5.9 && ./Configure --prefix=/opt/pqc --libdir=lib shared no-tests && make -j4 && sudo make install_sw)
           cd strongswan-6.1.0 && PKG_CONFIG_PATH=/opt/pqc/lib/pkgconfig CPPFLAGS=-I/opt/pqc/include LDFLAGS="-L/opt/pqc/lib -Wl,-rpath,/opt/pqc/lib" \
             ./configure --prefix=/opt/pqc --disable-defaults --enable-openssl --enable-ml --enable-vici --enable-swanctl --enable-charon \
             --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce --enable-hmac \

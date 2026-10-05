@@ -2,6 +2,10 @@
 
 Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; it is published only when every CI and CodeQL job passed on its commit, and its GitHub release carries the wheel, `RELEASE_READINESS.md`, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`), a CycloneDX SBOM, the tested dependency versions and build provenance. From 0.2.0 the container image is published to `ghcr.io/qubitman-hub/pqcsuite`.
 
+## 0.4.1 (5 October 2026)
+
+- The Linux Acxelin VPN package carries OpenSSL 3.5.9 instead of 3.5.4. The Windows and macOS installers already took the newest OpenSSL at build time.
+
 ## 0.4.0 (5 October 2026)
 
 - Website: an Acxelin VPN section with the tray states and the three installers; install commands name the release wheels instead of a source checkout (a test keeps them on the current version); the VPN product is called VPN, since it covers laptops too; the tour button sits above the headline. The manual leads with installing a release.

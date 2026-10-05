@@ -1,0 +1,40 @@
+name: downloads
+on:
+  schedule:
+    - cron: "11 5 * * 3"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  customer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Every release link on the website and in the manual opens
+        run: |
+          grep -ohE 'https://github\.com/QubitMan-hub/PQCsuite/releases[^"<> )]*' site/index.html site/wolf-pack.html docs/PRODUCT-MANUAL.md | sort -u | while read -r url; do
+            curl -fsSL -r 0-0 -o /dev/null "$url" && echo "ok $url" || { echo "::error::broken link $url"; exit 1; }
+          done
+      - name: Install the latest releases the way a customer does, and scan the sample project
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          suite=$(gh release view --json tagName --jq .tagName)
+          wolf=$(gh release list --limit 50 --json tagName --jq '[.[] | select(.tagName | startswith("wolf-pack-v"))][0].tagName')
+          echo "suite $suite, Wolf Pack $wolf"
+          mkdir dl && cd dl
+          gh release download "$suite" -p 'pqcsuite-*.whl' -p 'acxelin-vpn_*_amd64.deb'
+          gh release download "$wolf" -p 'wolfpack_cbom-*.whl'
+          python3 -m venv v
+          v/bin/pip install "$(ls wolfpack_cbom-*.whl)[crawler]" "$(ls pqcsuite-*.whl)[scan-web]"
+          v/bin/pqcsuite --version
+          v/bin/pqcsuite doctor --product repository
+          v/bin/pqcsuite scan ../examples/wolfpack-sample/payments-api -o out
+          test -s out/report.html
+          echo "SUITE=${suite#v}" >> "$GITHUB_ENV"
+      - name: Install the Linux app package and check it starts
+        run: |
+          sudo apt-get update && sudo apt-get install -y ./dl/acxelin-vpn_*_amd64.deb
+          dl/v/bin/python packaging/build.py smoke /usr/bin/acxelin-vpn
+      - name: The published container image runs
+        run: docker run --rm "ghcr.io/qubitman-hub/pqcsuite:$SUITE" --version

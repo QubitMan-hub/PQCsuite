@@ -12,7 +12,7 @@ from dataclasses import MISSING
 from pathlib import Path
 
 NAME = "pqcsuite"
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 HTTP_IDLE = 30  # seconds an HTTP client may stay silent before its connection is closed
 RELEASES = "https://api.github.com/repos/QubitMan-hub/PQCsuite/releases?per_page=50"
 
