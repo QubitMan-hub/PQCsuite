@@ -4,7 +4,7 @@
 
 This guide explains what to use, how to start, what a successful result looks like, and what to do when something goes wrong. You do not need to understand cryptographic algorithms to follow the first steps. Running a production certificate authority or VPN does require a system administrator.
 
-The release family covered here is **PQC Suite 0.3.1 and Wolf Pack 1.3.0**. Check the release links in [Installation and versions](#installation-and-versions) before downloading: a release is available only after its publication workflow succeeds. Old releases remain old snapshots.
+The release family covered here is **PQC Suite 0.4.0 and Wolf Pack 1.4.0**. Check the release links in [Installation and versions](#installation-and-versions) before downloading: a release is available only after its publication workflow succeeds. Old releases remain old snapshots.
 
 ## Contents
 
@@ -64,11 +64,11 @@ Use **Readiness → repository → Scan** for the simplest workflow. Keep advanc
 | Published suite container | TLS/readiness demonstrations and configured services | The base image does not include repository scanning; persistent data needs mounted storage |
 | Wolf Pack base container or base Action | Minimal scanner automation | Python relationships are included; JavaScript/TypeScript AST relationships need the optional parser installation |
 
-[Suite releases](https://github.com/QubitMan-hub/PQCsuite/releases) and [Wolf Pack 1.3.0](https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.3.0) are separate downloads. Suite 0.3.1 and Wolf Pack 1.3.0 are the aligned targets for this manual. Earlier suite 0.2.2 and Wolf Pack 1.2.1 releases predate guided setup, syntax reuse and deployment observations. A Git push does not modify an existing wheel or image. Use a specific container version for repeatable deployments rather than assuming `latest` is unchanged.
+[Suite releases](https://github.com/QubitMan-hub/PQCsuite/releases) and [Wolf Pack 1.4.0](https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.0) are separate downloads. Suite 0.4.0 and Wolf Pack 1.4.0 are the aligned targets for this manual. Earlier releases predate the desktop app and installers; Wolf Pack 1.3.0 skipped files a project's `.gitignore` leaves out. A Git push does not modify an existing wheel or image. Use a specific container version for repeatable deployments rather than assuming `latest` is unchanged.
 
 ### Install a release
 
-You need Python 3.11 or newer. Download both wheels, [pqcsuite-0.3.1-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/v0.3.1/pqcsuite-0.3.1-py3-none-any.whl) and [wolfpack_cbom-1.3.0-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/wolf-pack-v1.3.0/wolfpack_cbom-1.3.0-py3-none-any.whl), into a new folder. Open a terminal there and create a separate Python environment so the install does not touch your computer's other applications:
+You need Python 3.11 or newer. Download both wheels, [pqcsuite-0.4.0-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/v0.4.0/pqcsuite-0.4.0-py3-none-any.whl) and [wolfpack_cbom-1.4.0-py3-none-any.whl](https://github.com/QubitMan-hub/PQCsuite/releases/download/wolf-pack-v1.4.0/wolfpack_cbom-1.4.0-py3-none-any.whl), into a new folder. Open a terminal there and create a separate Python environment so the install does not touch your computer's other applications:
 
 ```sh
 python -m venv .venv
@@ -77,7 +77,7 @@ python -m venv .venv
 Activate it in PowerShell with `.\.venv\Scripts\Activate.ps1`, or on macOS/Linux with `source .venv/bin/activate`. If your organization blocks PowerShell activation scripts, run `.\.venv\Scripts\python.exe` and `.\.venv\Scripts\pqcsuite.exe` directly instead. Then install and check:
 
 ```sh
-python -m pip install 'wolfpack_cbom-1.3.0-py3-none-any.whl[crawler]' 'pqcsuite-0.3.1-py3-none-any.whl[scan-web]'
+python -m pip install 'wolfpack_cbom-1.4.0-py3-none-any.whl[crawler]' 'pqcsuite-0.4.0-py3-none-any.whl[scan-web]'
 pqcsuite --version
 pqcsuite doctor
 ```
@@ -122,7 +122,7 @@ Save the versions and commit with your assessment. `doctor` reports available ca
 
 Repository scanning and Vault do not require a running VPN. TLS and the VPN key-agreement service need **OpenSSL 3.5 or newer**. Use `doctor` to verify the actual loaded library, not only an unrelated command-line executable's version. Debian 13 containers provide a suitable library. On macOS, install Homebrew `openssl@3` and point `PQCSUITE_OPENSSL` at its `lib` folder if discovery fails. On Windows, install a compatible OpenSSL build and point `PQCSUITE_OPENSSL` at its DLL folder. The Python and library architectures must match.
 
-Site-to-site VPN gateways require Linux, strongSwan with ML-KEM support, VICI, networking permissions and suitable kernel support. Install the suite's VPN extra with `python -m pip install 'pqcsuite-0.3.1-py3-none-any.whl[vpn]'` (or `'.[vpn]'` from a checkout). Remote laptops use the official WireGuard tools for their OS; installing Python alone does not install a tunnel driver. Real gateway addresses, certificates and routes must be supplied by the administrator.
+Site-to-site VPN gateways require Linux, strongSwan with ML-KEM support, VICI, networking permissions and suitable kernel support. Install the suite's VPN extra with `python -m pip install 'pqcsuite-0.4.0-py3-none-any.whl[vpn]'` (or `'.[vpn]'` from a checkout). Remote laptops use the official WireGuard tools for their OS; installing Python alone does not install a tunnel driver. Real gateway addresses, certificates and routes must be supplied by the administrator.
 
 ### Update without losing work
 

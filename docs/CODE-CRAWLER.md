@@ -12,7 +12,7 @@ The administrator selects a local parent folder once. Customers choose **Add rep
 
 The default queue focuses on accepted production assets. Advanced views expose test-only/declared assets, language/file coverage, unresolved calls and JSON downloads. History summaries survive console restarts. Source findings and endpoint observations remain distinct evidence; no code-to-deployment mapping or universal readiness score is invented.
 
-Wolf Pack 1.3.0 is checkout code, unreleased by this change. For a base Python-only installation use `./wolf-pack` and `.[scan]`. Web relationships add three optional dependencies: Tree-sitter plus JavaScript/TypeScript grammars, with native bindings. No new required runtime dependency was added to either package.
+Released in Wolf Pack 1.4.0. For a base Python-only installation use `./wolf-pack` and `.[scan]`. Web relationships add three optional dependencies: Tree-sitter plus JavaScript/TypeScript grammars, with native bindings. No new required runtime dependency was added to either package.
 
 ## One shared pipeline
 

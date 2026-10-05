@@ -218,7 +218,7 @@ wolfpack merge scans/ --name "Example Bank" --history runs.jsonl</pre>
         <tr><td>Configs, certificates and binaries</td><td>Cryptographic inventory and evidence</td><td>Not proof of runtime reachability or deployment protection</td></tr>
       </tbody></table></div>
       <p>Production files are analyzed before tests. Repeat scans reuse unchanged syntax while recomputing findings and relationships. Coverage details identify files that could not be fully analyzed. Password-storage advice is separated from declared non-security cache fingerprints; candidate hybrids retain their classical components for review.</p>
-      <p>Download both wheels from the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/v0.3.1">suite 0.3.1</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.3.0">Wolf Pack 1.3.0</a> releases, then try the local workflow:</p><pre>pip install "wolfpack_cbom-1.3.0-py3-none-any.whl[crawler]" "pqcsuite-0.3.1-py3-none-any.whl[scan-web]"
+      <p>Download both wheels from the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/v0.4.0">suite 0.4.0</a> and <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/wolf-pack-v1.4.0">Wolf Pack 1.4.0</a> releases, then try the local workflow:</p><pre>pip install "wolfpack_cbom-1.4.0-py3-none-any.whl[crawler]" "pqcsuite-0.4.0-py3-none-any.whl[scan-web]"
 pqcsuite console --sample-project</pre>
       <p>For your own repository:</p><pre>pqcsuite doctor --json --product repository
 pqcsuite setup --project /path/to/repository --out .pqcsuite/console.toml
