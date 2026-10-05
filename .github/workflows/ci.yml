@@ -74,7 +74,9 @@ jobs:
           apt-get update && apt-get install -y --no-install-recommends git openssl curl nginx postgresql redis-server redis-tools \
             mosquitto mosquitto-clients openssh-server
       - run: pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]" && pqcsuite doctor
-      - run: python -m pytest -q
+      - run: python -m coverage run -m pytest -q
+      - name: Coverage floor
+        run: python -m coverage report --skip-covered --sort=cover
       - run: python examples/clinic_demo.py --auto
       - run: python examples/bank_demo.py --auto
   audit:

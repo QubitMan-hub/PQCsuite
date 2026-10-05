@@ -21,7 +21,7 @@ Build outputs (`dist/`), package metadata (`*.egg-info/`), test caches/results a
 Python 3.11+, from a clone:
 
 ```
-pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]"   # [test]: pytest and hypothesis; [integration]: certbot and acme, for the ACME tests (leave it out for a lighter setup)
+pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]"   # [test]: pytest, hypothesis and coverage; [integration]: certbot and acme, for the ACME tests (leave it out for a lighter setup)
 pqcsuite doctor
 ```
 
@@ -33,7 +33,7 @@ python -m pytest -q
 
 The shared pytest runner at the repository root runs these and Wolf Pack's tests together, including project onboarding and optional JavaScript/TypeScript, Java and Go syntax-tree fixtures. The base runtime remains independent of the test and web-parser extras. The suite needs `cryptography` 49 or newer (for ML-KEM and ML-DSA); an older one stops every test at import with a message saying so.
 
-CI also lints with `ruff check .`, runs the website and console in Chromium with axe accessibility checks (`tests/browser`: `npm install`, `npx playwright install chromium`, `npx playwright test`), and scans `pqcsuite/` with Wolf Pack against the reviewed inventory in `docs/cbom.json`.
+CI measures line coverage of `pqcsuite/` in the job with OpenSSL 3.5 and real applications (`python -m coverage run -m pytest -q`, then `python -m coverage report`) and fails below the floor in `pyproject.toml`; raise the floor when coverage rises, never lower it to pass. CI also lints with `ruff check .`, runs the website and console in Chromium with axe accessibility checks (`tests/browser`: `npm install`, `npx playwright install chromium`, `npx playwright test`), and scans `pqcsuite/` with Wolf Pack against the reviewed inventory in `docs/cbom.json`.
 
 `tests/test_docs.py` keeps the documentation honest: a command or option quoted in the README, `docs/`, the examples or the website that the CLI does not have, or a link that leads nowhere, fails the build. Fix the documentation, or the product, in the same change.
 

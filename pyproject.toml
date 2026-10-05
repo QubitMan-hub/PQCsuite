@@ -22,7 +22,7 @@ scan-web = ["wolfpack-cbom[crawler]>=1.4.0"]
 vpn = ["vici>=6.0"]
 desktop = ["pystray>=0.19.5", "pillow>=11"]
 kms = ["boto3>=1.35"]
-test = ["hypothesis>=6.100", "pytest>=9"]
+test = ["coverage>=7.6", "hypothesis>=6.100", "pytest>=9"]
 integration = ["acme>=4", "certbot>=4; sys_platform != 'win32'"]  # the ACME tests against certbot's client
 
 [project.scripts]
@@ -44,6 +44,12 @@ testpaths = ["tests", "wolf-pack/tests"]
 # the Wolf Pack corpus is deliberately weak code to scan, never tests to run
 norecursedirs = ["corpus", ".*", "build", "dist", "*.egg", "venv", "node_modules"]
 pythonpath = ["wolf-pack"]
+
+[tool.coverage.run]
+source = ["pqcsuite"]
+
+[tool.coverage.report]
+fail_under = 82  # the CI tls job, which runs every test that needs OpenSSL 3.5 and real applications
 
 [tool.ruff]
 target-version = "py311"
