@@ -131,7 +131,6 @@ class App:
                 return 200, {"ticket": self.ticket()}
             if method == "POST" and path == "/api/quit" and self.on_quit:
                 self.disconnect()
-                self.on_quit()
                 return 200, {"stopping": True}
             return 404, {"error": "not found"}
         except (ValueError, OSError) as e:
@@ -172,6 +171,8 @@ def request(port, token, method, path, body=None, timeout=10):
                   {"Host": f"127.0.0.1:{port}", "Authorization": f"Bearer {token}", "Content-Type": "application/json"})
         r = c.getresponse()
         data = json.loads(r.read() or b"{}")
+    except http.client.HTTPException as e:  # a service that stopped mid-answer is as unreachable as one that never answered
+        raise ConnectionError(f"the VPN service stopped answering ({e.__class__.__name__})") from None
     finally:
         c.close()
     if r.status != 200:
@@ -222,6 +223,9 @@ def serve(app, listen=("127.0.0.1", 0)):
             if body is None:
                 return self.reply(400, {"error": "bad request"})
             self.reply(*app.handle(method, path, body))
+            if method == "POST" and path == "/api/quit" and app.on_quit:
+                self.wfile.flush()
+                app.on_quit()  # only once the answer has gone out, so the caller sees it before the service stops
 
         def body(self):
             n = content_length(self.headers)

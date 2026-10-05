@@ -255,7 +255,8 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except SystemExit as e:
-        if e.code not in (None, 0) and os.environ.get("GITHUB_ACTIONS") == "true":  # the reason, where CI shows it
-            print("::error title=Acxelin VPN installer::" + str(e.code).replace("%", "%25").replace("\r", "").replace("\n", "%0A"), flush=True)
+    except (SystemExit, Exception) as e:
+        reason = e.code if isinstance(e, SystemExit) else f"{e.__class__.__name__}: {e}"
+        if reason not in (None, 0) and os.environ.get("GITHUB_ACTIONS") == "true":  # the reason, where CI shows it
+            print("::error title=Acxelin VPN installer::" + str(reason).replace("%", "%25").replace("\r", "").replace("\n", "%0A"), flush=True)
         raise

@@ -76,10 +76,10 @@ class WindowServerTest(unittest.TestCase):
         self.assertEqual(exchange(None)[0], 401)
 
     def test_quit_disconnects_and_stops_the_service(self):
-        stopped = []
-        self.window.on_quit = lambda: stopped.append(True)
+        stopped = threading.Event()
+        self.window.on_quit = stopped.set
         self.assertEqual(app.request(self.port, self.window.token, "POST", "/api/quit"), {"stopping": True})
-        self.assertEqual(stopped, [True])
+        self.assertTrue(stopped.wait(5), "the service stops after its answer has gone out")
         with self.assertRaises(ValueError):
             app.request(self.port, "wrong", "GET", "/api/state")
 

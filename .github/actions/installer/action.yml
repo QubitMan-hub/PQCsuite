@@ -3,7 +3,7 @@ description: Build this runner's Acxelin VPN installer (Windows Setup, macOS dis
 runs:
   using: composite
   steps:
-    - run: pip install ".[desktop]" pyinstaller==6.22.3
+    - run: pip install ".[desktop]" pyinstaller==6.22.3 || { echo "::error title=Acxelin VPN installer::pip install failed"; exit 1; }
       shell: bash
     - name: OpenSSL 3.5 to ship inside the Linux package (the VPN job's cached build, read only)
       if: runner.os == 'Linux'
@@ -30,6 +30,7 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
+        Write-Output "::notice title=Acxelin VPN installer::Windows build starting"
         choco install openssl innosetup -y --no-progress
         if ($LASTEXITCODE) { Write-Output "::error title=Acxelin VPN installer::choco install failed ($LASTEXITCODE)"; exit 1 }
         Write-Output "::notice title=OpenSSL for the installer::$((Get-ChildItem "$env:ProgramFiles\OpenSSL-Win64\bin" -Filter *.dll).Name -join ', ')"
