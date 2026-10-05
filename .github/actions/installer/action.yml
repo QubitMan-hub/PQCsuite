@@ -31,9 +31,13 @@ runs:
       shell: pwsh
       run: |
         choco install openssl innosetup -y --no-progress
+        if ($LASTEXITCODE) { Write-Output "::error title=Acxelin VPN installer::choco install failed ($LASTEXITCODE)"; exit 1 }
+        Write-Output "::notice title=OpenSSL for the installer::$((Get-ChildItem "$env:ProgramFiles\OpenSSL-Win64\bin" -Filter *.dll).Name -join ', ')"
         python packaging/build.py --openssl "$env:ProgramFiles\OpenSSL-Win64\bin"
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }
         $setup = Get-ChildItem dist\installers\Acxelin-VPN-*-Setup.exe
-        Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TASKS=""' -Wait
+        $install = Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TASKS=""','/LOG=setup.log' -Wait -PassThru
+        if ($install.ExitCode) { Write-Output "::error title=Acxelin VPN installer::Setup exited with $($install.ExitCode)"; Get-Content setup.log -Tail 30; exit 1 }
         python packaging/build.py smoke "$env:ProgramFiles\Acxelin VPN\acxelin-vpn.exe"
     - name: Build, install and check the macOS disk image
       if: runner.os == 'macOS'

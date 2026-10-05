@@ -113,7 +113,8 @@ class DesktopTest(unittest.TestCase):
             path = self.desktop.launcher()
             self.assertTrue(path.exists(), path)
             if sys.platform == "darwin":
-                self.assertIn("<key>LSUIElement</key><true/>", (path / "Contents" / "Info.plist").read_text())
+                import plistlib
+                self.assertIs(plistlib.loads((path / "Contents" / "Info.plist").read_bytes())["LSUIElement"], True)
                 self.assertTrue(os.access(path / "Contents" / "MacOS" / "acxelin-vpn", os.X_OK))
             elif os.name != "nt":
                 text = path.read_text()

@@ -26,8 +26,13 @@ NAME = "Acxelin VPN"
 
 
 def run(*cmd, **kw):
+    """Run a step, echoing its output; a failure ends the build with the step's last lines as the reason."""
     print("+", " ".join(map(str, cmd)), flush=True)
-    return subprocess.run([str(c) for c in cmd], check=True, **kw)
+    r = subprocess.run([str(c) for c in cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", **kw)
+    print(r.stdout, flush=True)
+    if r.returncode:
+        raise SystemExit(f"{Path(str(cmd[0])).name} failed ({r.returncode}): " + " | ".join(r.stdout.strip().splitlines()[-12:]))
+    return r
 
 
 def icon():
@@ -198,7 +203,11 @@ def smoke(program):
     """An installed package works: post-quantum TLS loads from the OpenSSL inside it, and its VPN service starts, answers on
     its loopback API, and stops when asked."""
     from pqcsuite.vpn import app
-    report = json.loads(subprocess.run([program, "doctor", "--json"], capture_output=True, text=True, timeout=180).stdout)
+    doctor = subprocess.run([program, "doctor", "--json"], capture_output=True, text=True, timeout=180)
+    try:
+        report = json.loads(doctor.stdout)
+    except ValueError:
+        raise SystemExit(f"{program} doctor --json gave no report ({doctor.returncode}): {(doctor.stdout + doctor.stderr)[-1500:]}") from None
     tls = [c for c in report["checks"] if c["product"] == "tls"]
     if not tls or tls[0]["level"] != "ok":
         raise SystemExit(f"post-quantum TLS is not available in the package: {tls}")
@@ -244,4 +253,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit as e:
+        if e.code not in (None, 0) and os.environ.get("GITHUB_ACTIONS") == "true":  # the reason, where CI shows it
+            print("::error title=Acxelin VPN installer::" + str(e.code).replace("%", "%25").replace("\r", "").replace("\n", "%0A"), flush=True)
+        raise
