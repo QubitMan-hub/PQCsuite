@@ -2,9 +2,7 @@
 
 **Acxelin Quantum · Customer guide · 2 October 2026**
 
-This guide explains what to use, how to start, what a successful result looks like, and what to do when something goes wrong. You do not need to understand cryptographic algorithms to follow the first steps. Running a production certificate authority or VPN does require a system administrator.
-
-The release family covered here is **PQC Suite 0.4.2 and Wolf Pack 1.4.0**. Check the release links in [Installation and versions](#installation-and-versions) before downloading: a release is available only after its publication workflow succeeds. Old releases remain old snapshots.
+What to use, how to start, what success looks like, and what to do when something goes wrong. You need no cryptography background for the first steps; running a production certificate authority or VPN needs a system administrator. This edition covers **PQC Suite 0.4.2 and Wolf Pack 1.4.0**.
 
 ## Contents
 
@@ -25,7 +23,7 @@ The release family covered here is **PQC Suite 0.4.2 and Wolf Pack 1.4.0**. Chec
 
 ## Choose the right product
 
-There are five products to consider: four in PQC Suite, plus the separate Wolf Pack CBOM product. Code Crawler is the shared analysis engine, not a sixth tool customers must operate.
+Four products in PQC Suite, plus Wolf Pack CBOM for the cryptography inside your own code.
 
 | Your question | Start here | What you get |
 |---|---|---|
@@ -41,15 +39,13 @@ A sensible order is **scan → review → choose a change → deploy it → test
 
 ## Use the website and console
 
-The [public website](https://qubitman-hub.github.io/PQCsuite/) explains the products and offers examples. It is not a hosted control panel and does not scan or upload your repository. Use the product descriptions to choose a starting point, then follow the installation instructions below.
+The [website](https://qubitman-hub.github.io/PQCsuite/) explains the products and has examples; it never scans or uploads anything. The sample report and dashboard on the [Wolf Pack page](https://qubitman-hub.github.io/PQCsuite/wolf-pack.html) are generated from invented example code.
 
-The [Wolf Pack page](https://qubitman-hub.github.io/PQCsuite/wolf-pack.html) is the separate scanner's product page. Its sample report shows one invented application; its sample dashboard combines three invented systems. They are generated scanner output, not your results and not a claim that those applications are deployed. The older animated page inside `wolf-pack/site/` is explicitly a historical demo.
+The **local console** is a page served by your own computer, normally at `http://127.0.0.1:8900`. Start it, open the address it prints, and sign in with the startup token; treat that token like an administrator password. Ctrl+C stops it.
 
-The **local console** is the browser interface running on your own computer, normally at `http://127.0.0.1:8900`. Keep its terminal running. Open the address printed there and use the startup token to sign in. Treat that token like an administrator password; do not put it in a screenshot or support request. Stop the foreground process with Ctrl+C when finished.
+Each product has a page: TLS edges and certificates, VPN gateways and tunnels, Vault backup folders, and Readiness for repository and endpoint scans. An empty page means that service is not connected yet, not that something is broken, and the VPN page shows gateways and tunnels, not whether this laptop is protected. For the simplest start, use **Readiness → repository → Scan**. The console has one administrator token; owner labels organise work but are not user accounts.
 
-The overview summarizes configured services. The TLS and certificate views show connected edges and certificate records. VPN shows configured gateway/tunnel information; it is not proof that this laptop's traffic is protected. Vault shows configured backup folders. Readiness combines repository results and separate endpoint scans. Wolf Pack has its own navigation group. A page with no configured service is not a product failure: connect that service's CA, metrics or folder first.
-
-Use **Readiness → repository → Scan** for the simplest workflow. Keep advanced views closed until you need parser coverage, test-code findings, exported evidence or deployment verification. Owner labels and deadlines organize work; they do not create user accounts or restrict permissions. The console has one administrator token, with no team SSO or roles.
+![The console's Readiness page after scanning an example project: findings ranked from critical to ok, each with its next action](../site/assets/console-readiness.webp)
 
 ## Installation and versions
 
@@ -371,8 +367,10 @@ The installers are not code-signed yet, so the first launch shows a warning. On 
 Open it like any other app, from a normal account rather than an administrator terminal:
 
 1. A shield appears in the system tray (Windows taskbar corner, macOS menu bar, Linux panel). Its colour says where you stand: green with a tick is **Protected**, amber is **Connecting**, red is **Not protected**, grey is disconnected or not set up. Hover over it for the words.
-2. The Acxelin VPN window opens. Choose **Open invitation…**, pick the `.pqcinvite` file, choose a passphrase for this computer, and press **Connect**. The first time, your system asks for administrator approval (Windows UAC, the macOS password dialog, or the Linux administrator prompt), because the VPN changes this computer's network.
+2. The Acxelin VPN window opens. Choose **Choose the invitation file** (or drag the file onto it), pick the `.pqcinvite` file, choose a passphrase for this computer, and press **Connect**. The first time, your system asks for administrator approval (Windows UAC, the macOS password dialog, or the Linux administrator prompt), because the VPN changes this computer's network.
 3. Next time, open Acxelin VPN and enter only the passphrase.
+
+![The Acxelin VPN window on first run: the invitation is open and the app asks for a passphrase for this computer](../site/assets/app-join.webp)
 
 The tray icon's menu shows the current state and offers **Open Acxelin VPN**, **Disconnect**, **Start at login** and **Quit and disconnect**. With **Start at login** ticked (or `pqcsuite vpn desktop --start-at-login on`), the shield appears when you log in; it does not open the window or ask for administrator approval until you open it to connect, and connecting still needs your passphrase. The first time the window opens, a short guided tour points at each part; the **?** button replays it. Closing the window leaves the VPN connected; **Quit and disconnect** takes it down and closes the tray. Only the background VPN service runs with administrator rights; the tray and the window run as you. The window opens as an app window in Microsoft Edge or Google Chrome when one is installed (otherwise in your default browser), uses its own browser profile, and never offers to save your passphrase. On Linux, the tray menu needs a desktop with AppIndicator support (GNOME with its AppIndicator extension, KDE, and most others); without it, clicking the shield opens the window. The Linux package always works this way: its shield opens the window and has no menu, and Disconnect is in the window; a `pip install` on a desktop with AppIndicator gets the full menu. `pqcsuite vpn desktop --remove-launcher` removes the shortcut.
 

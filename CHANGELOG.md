@@ -6,6 +6,7 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 - Acxelin VPN window: fits a 768-pixel-high laptop screen (Windows at 100% or 125% scaling) without scrolling to Connect; a compact shield until the first connection; status and actions side by side in a wide window; the Windows title bar takes the app's colour. The console says "1 expires".
 - Website: a Security and trust page (what stays on your side, how to check a download, what a release has passed, what is not validated yet, how to report a vulnerability); real screenshots of the console and the VPN app; a four-link menu (Products, Download, Security, Manual).
+- Manual: redesigned as a guide with a contents sidebar that follows your place, task cards to start from, numbered chapters, callouts, copyable commands and the real screenshots; advanced sections fold away and print in full. Shorter wording at the start, and the VPN steps name the app's real button.
 
 ## 0.4.2 (5 October 2026)
 
