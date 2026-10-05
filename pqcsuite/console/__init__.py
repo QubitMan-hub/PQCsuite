@@ -501,29 +501,51 @@ class Backoff:
             self.failures.setdefault(addr, []).append(time.monotonic())
 
 
+class Handler(BaseHTTPRequestHandler):
+    """A loopback JSON API behind one HTML page: every answer uncached, unsniffable and under the page's CSP."""
+    csp = ""
+
+    def reply(self, status, body, ctype="application/json"):
+        data = body if isinstance(body, bytes) else json.dumps(body, default=str).encode()
+        self.send_response(status)
+        for k, v in (("Content-Type", ctype), ("Content-Length", str(len(data))), ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
+                     ("Referrer-Policy", "no-referrer"), ("Content-Security-Policy", self.csp)):
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(data)
+
+    def authorised(self, token):
+        return hmac.compare_digest(self.headers.get("Authorization", "").removeprefix("Bearer ").encode(), token.encode())
+
+    def json_body(self, limit):
+        """The request's JSON object, or the (status, error) to answer instead."""
+        n = content_length(self.headers)
+        if n is None:
+            return 400, {"error": "bad Content-Length"}
+        if n > limit:
+            return 413, {"error": "request too large"}
+        try:
+            body = json.loads(self.rfile.read(n)) if n else {}
+        except ValueError:
+            return 400, {"error": "invalid JSON"}
+        return body if isinstance(body, dict) else (400, {"error": "the body must be a JSON object"})
+
+    def do_GET(self):
+        self.route("GET")
+
+    def do_POST(self):
+        self.route("POST")
+
+    def log_message(self, fmt, *args):
+        log.debug(fmt, *args)
+
+
 def serve(app):
     html = page()
-    csp, backoff = policy(html), Backoff()
+    backoff = Backoff()
 
-    class Handler(BaseHTTPRequestHandler):
-        timeout = HTTP_IDLE
-        server_version = f"{NAME}/{__version__}"
-
-        def reply(self, status, body, ctype="application/json"):
-            data = body if isinstance(body, bytes) else json.dumps(body, default=str).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("Content-Security-Policy", csp)
-            self.end_headers()
-            self.wfile.write(data)
-
-        def authorised(self):
-            given = self.headers.get("Authorization", "").removeprefix("Bearer ")
-            return hmac.compare_digest(given.encode(), app.token.encode())
+    class Console(Handler):
+        csp, server_version, timeout = policy(html), f"{NAME}/{__version__}", HTTP_IDLE
 
         def route(self, method):
             path = self.path.split("?")[0]
@@ -533,30 +555,10 @@ def serve(app):
                 return self.reply(404, {"error": "not found"})
             if backoff.blocked(self.client_address[0]):
                 return self.reply(429, {"error": "too many wrong tokens; wait a minute"})
-            if not self.authorised():
+            if not self.authorised(app.token):
                 backoff.failed(self.client_address[0])
                 return self.reply(401, {"error": "missing or wrong token"})
-            n = content_length(self.headers)
-            if n is None:
-                return self.reply(400, {"error": "bad Content-Length"})
-            if n > 1 << 20:
-                return self.reply(413, {"error": "request too large"})
-            try:
-                body = json.loads(self.rfile.read(n)) if n else {}
-            except ValueError:
-                return self.reply(400, {"error": "invalid JSON"})
-            if not isinstance(body, dict):
-                return self.reply(400, {"error": "the body must be a JSON object"})
-            self.reply(*app.handle(method, path, body))
+            body = self.json_body(1 << 20)
+            self.reply(*(app.handle(method, path, body) if isinstance(body, dict) else body))
 
-        def do_GET(self):
-            self.route("GET")
-
-        def do_POST(self):
-            self.route("POST")
-
-        def log_message(self, fmt, *args):
-            log.debug(fmt, *args)
-
-    httpd = ThreadingHTTPServer(hostport(app.s.listen, "127.0.0.1"), Handler)
-    return httpd
+    return ThreadingHTTPServer(hostport(app.s.listen, "127.0.0.1"), Console)

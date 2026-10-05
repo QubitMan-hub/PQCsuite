@@ -118,7 +118,7 @@ code, .mono { font-family: var(--mono); }
 .g-a { background: #e3f1e8; color: var(--ok); }
 .g-b { background: #fff1c7; color: var(--warn); }
 .g-c { background: #fbe5dc; color: var(--bad); }
-.g-f { background: #ece9e2; color: var(--muted); }
+.g-f { background: #ece9e2; color: #4f5963; }
 .report footer { padding: 12px 20px; background: var(--bg); border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
 
 /* built on */

@@ -4,21 +4,20 @@ whether this machine is protected. `pqcsuite vpn app` holds the tunnel; closing 
 The page is reachable only on 127.0.0.1, only with the random token in the address the command opens, and only under its
 own host name and origin (a page from elsewhere can neither borrow it through DNS rebinding nor lock it with wrong tokens). Passphrases go from the page to this process
 and nowhere else; they are never written or logged."""
-import hmac
 import json
 import os
 import re
 import secrets
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-from .. import HTTP_IDLE, content_length, explain
-from ..console import Backoff, policy, with_tour
+from .. import HTTP_IDLE, explain
+from ..console import Backoff, Handler, policy, with_tour
 from ..pki import encrypted
 from ..storage import write
 from . import join
@@ -182,19 +181,10 @@ def request(port, token, method, path, body=None, timeout=10):
 
 def serve(app, listen=("127.0.0.1", 0)):
     html = with_tour(resources.files(__package__).joinpath("app.html").read_bytes())
-    csp, backoff = policy(html), Backoff()
+    backoff = Backoff()
 
-    class Handler(BaseHTTPRequestHandler):
-        timeout = HTTP_IDLE
-
-        def reply(self, status, body, ctype="application/json"):
-            data = body if isinstance(body, bytes) else json.dumps(body, default=str).encode()
-            self.send_response(status)
-            for k, v in (("Content-Type", ctype), ("Content-Length", str(len(data))), ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
-                         ("Referrer-Policy", "no-referrer"), ("Content-Security-Policy", csp)):
-                self.send_header(k, v)
-            self.end_headers()
-            self.wfile.write(data)
+    class App(Handler):
+        csp, timeout = policy(html), HTTP_IDLE
 
         def route(self, method):
             port = self.server.server_address[1]
@@ -210,40 +200,20 @@ def serve(app, listen=("127.0.0.1", 0)):
                 return self.reply(404, {"error": "not found"})
             if backoff.blocked(self.client_address[0]):
                 return self.reply(429, {"error": "too many wrong keys; wait a minute"})
+            body = self.json_body(1 << 17)
             if method == "POST" and path == "/api/session":
-                body = self.body()
-                if body is None or not app.redeem(body.get("ticket")):
+                if not isinstance(body, dict) or not app.redeem(body.get("ticket")):
                     backoff.failed(self.client_address[0])
                     return self.reply(401, {"error": "this address was already used or has expired; run `pqcsuite vpn app` (or open the tray icon) again"})
                 return self.reply(200, {"token": app.token})
-            if not hmac.compare_digest(self.headers.get("Authorization", "").removeprefix("Bearer ").encode(), app.token.encode()):
+            if not self.authorised(app.token):
                 backoff.failed(self.client_address[0])
                 return self.reply(401, {"error": "open the address printed by `pqcsuite vpn app` again"})
-            body = self.body()
-            if body is None:
-                return self.reply(400, {"error": "bad request"})
+            if not isinstance(body, dict):
+                return self.reply(*body)
             self.reply(*app.handle(method, path, body))
             if method == "POST" and path == "/api/quit" and app.on_quit:
                 self.wfile.flush()
                 app.on_quit()  # only once the answer has gone out, so the caller sees it before the service stops
 
-        def body(self):
-            n = content_length(self.headers)
-            if n is None or n > 1 << 17:
-                return None
-            try:
-                body = json.loads(self.rfile.read(n)) if n else {}
-            except ValueError:
-                return None
-            return body if isinstance(body, dict) else {}
-
-        def do_GET(self):
-            self.route("GET")
-
-        def do_POST(self):
-            self.route("POST")
-
-        def log_message(self, *args):
-            pass
-
-    return ThreadingHTTPServer(listen, Handler)
+    return ThreadingHTTPServer(listen, App)
