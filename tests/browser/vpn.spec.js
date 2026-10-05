@@ -1,8 +1,10 @@
+const fs = require("fs");
 const path = require("path");
 const { test, expect } = require("@playwright/test");
 const AxeBuilder = require("@axe-core/playwright").default;
 
 const WINDOW = "http://127.0.0.1:8901/";
+const INVITATION = path.join(__dirname, ".fixtures", "laptop.pqcinvite");
 
 test("without the key from the address the window shows no state", async ({ page }) => {
   await page.goto(WINDOW);
@@ -10,9 +12,14 @@ test("without the key from the address the window shows no state", async ({ page
   await page.goto("about:blank");
   await page.goto(WINDOW + "#wrong");
   await expect(page.locator("#error")).toContainText("open the address printed by");
+  await page.goto("about:blank");
+  await page.goto(WINDOW + "#browser-test");
+  await expect(page.locator("#word")).toHaveText("Not set up");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
 test("open an invitation, enroll, connect, disconnect", async ({ browser }) => {
+  test.skip(!fs.existsSync(INVITATION), "the gateway behind the window needs OpenSSL 3.5 (see vpn_server.py output)");
   for (const [scheme, width] of [["light", 1280], ["dark", 390]]) {
     const page = await (await browser.newContext({ colorScheme: scheme, viewport: { width, height: 850 } })).newPage();
     const errors = [];
@@ -23,7 +30,7 @@ test("open an invitation, enroll, connect, disconnect", async ({ browser }) => {
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     if (scheme === "light") {
       await expect(page.locator("#word")).toHaveText("Not set up");
-      await page.setInputFiles("#invite", path.join(__dirname, ".fixtures", "laptop.pqcinvite"));
+      await page.setInputFiles("#invite", INVITATION);
       await expect(page.locator("#file")).toContainText("laptop.pqcinvite");
       await page.fill("#pass", "device pass");
       await page.fill("#repeat", "something else");
