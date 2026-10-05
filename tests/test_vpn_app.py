@@ -2,6 +2,7 @@
 import contextlib
 import http.client
 import io
+import json
 import threading
 import unittest
 from pathlib import Path
@@ -60,20 +61,50 @@ class WindowServerTest(unittest.TestCase):
         self.assertEqual(self.window.handle("POST", "/api/connect", {"passphrase": "x"})[1]["error"][:24], "open the invitation file")
 
 
+    def test_a_one_time_address_opens_one_window_and_expires(self):
+        def exchange(ticket):
+            c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+            c.request("POST", "/api/session", json.dumps({"ticket": ticket}), {"Host": f"127.0.0.1:{self.port}", "Content-Type": "application/json"})
+            r = c.getresponse()
+            body = json.loads(r.read())
+            c.close()
+            return r.status, body
+        ticket = self.window.ticket()
+        self.assertEqual(exchange(ticket), (200, {"token": self.window.token}))
+        self.assertEqual(exchange(ticket)[0], 401, "a used address does not open a second window")
+        self.assertEqual(exchange(self.window.ticket(ttl=-1))[0], 401, "an expired address is refused")
+        self.assertEqual(exchange(None)[0], 401)
+
+    def test_quit_disconnects_and_stops_the_service(self):
+        stopped = []
+        self.window.on_quit = lambda: stopped.append(True)
+        self.assertEqual(app.request(self.port, self.window.token, "POST", "/api/quit"), {"stopping": True})
+        self.assertEqual(stopped, [True])
+        with self.assertRaises(ValueError):
+            app.request(self.port, "wrong", "GET", "/api/state")
+
+
 class SingleWindowTest(unittest.TestCase):
-    def test_a_second_launch_reopens_the_running_window(self):
+    def test_a_second_launch_opens_the_running_window_with_a_new_one_time_address(self):
         with TemporaryDirectory() as d:
-            held, running = app.claim(d, "wg0")
+            window = app.App(folder=d, apply=False)
+            httpd = app.serve(window)
+            threading.Thread(target=httpd.serve_forever, daemon=True).start()
+            self.addCleanup(httpd.server_close)
+            self.addCleanup(httpd.shutdown)
+            port = httpd.server_address[1]
+            held, running = app.claim(d, "wg0.app")
             with held:
                 self.assertIsNone(running)
-                self.assertEqual(app.claim(d, "wg0"), (None, None))
-                (Path(d) / "wg0.app.url").write_text("http://127.0.0.1:5555/#key")
+                self.assertEqual(app.claim(d, "wg0.app"), (None, None))
+                (Path(d) / "wg0.app.json").write_text(json.dumps({"port": port, "token": window.token}))
                 out = io.StringIO()
-                with mock.patch.object(app.App, "__init__", lambda s, *a, **k: setattr(s, "folder", Path(d))), \
-                        mock.patch("webbrowser.open") as browser, contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
-                    cli.main(["vpn", "app"])
+                with mock.patch("webbrowser.open") as browser, contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
+                    cli.main(["vpn", "app", "--folder", d])
                 self.assertEqual(e.exception.code, 0)
-                browser.assert_called_once_with("http://127.0.0.1:5555/#key")
-                self.assertIn("already running", out.getvalue())
-                with app.claim(d, "wg1")[0]:
+                url = browser.call_args.args[0]
+                self.assertTrue(url.startswith(f"http://127.0.0.1:{port}/#"))
+                self.assertNotIn(window.token, url + out.getvalue(), "the session key never goes to a browser's command line")
+                self.assertTrue(window.redeem(url.split("#")[1]))
+                with app.claim(d, "wg1.app")[0]:
                     pass

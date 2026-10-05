@@ -209,4 +209,6 @@ def prerequisites(product='all'):
             add('vpn', 'warn', 'IPsec gateway prerequisites are incomplete or this is a client platform', 'Use a Linux strongSwan gateway with VICI and iproute2; Windows/macOS devices use the remote WireGuard client')
         if not shutil.which('wg'):
             add('vpn', 'warn', 'WireGuard command was not found on PATH', 'Install the official WireGuard tools for this platform before device enrollment')
+        if not all(importlib.util.find_spec(m) for m in ('pystray', 'PIL')):
+            add('vpn', 'warn', 'The desktop app (tray icon) is not installed; `pqcsuite vpn app` opens the VPN window in a browser instead', 'pip install "pqcsuite[desktop]"')
     return rows

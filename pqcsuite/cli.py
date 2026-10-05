@@ -337,8 +337,8 @@ def cmd_vpn(a):
         path = platforms.folder() / f"{a.interface}.status.json"
         if path.exists():
             return laptop_status(path, a)
-    if a.vpn_cmd in ("invite", "join", "app"):
-        return {"invite": cmd_invite, "join": cmd_join, "app": cmd_app}[a.vpn_cmd](a)
+    if a.vpn_cmd in ("invite", "join", "app", "desktop"):
+        return {"invite": cmd_invite, "join": cmd_join, "app": cmd_app, "desktop": cmd_desktop}[a.vpn_cmd](a)
     try:
         ch = Charon(load_config(a.config).vici if a.config else a.vici or "unix:///var/run/charon.vici")
     except CharonError:
@@ -417,36 +417,62 @@ def cmd_join(a):
 
 
 def cmd_app(a):
-    """The VPN window: a page on 127.0.0.1 behind a one-time token; this process holds the tunnel until it is stopped."""
+    """The VPN window's service: a page on 127.0.0.1 behind a one-time address; this process holds the tunnel until stopped.
+    With --session (how `vpn desktop` starts it, with administrator rights) the port and key come from the tray's file,
+    output goes to a log next to it, and problems are shown in the window instead of ending the process."""
     import webbrowser
     from .storage import write
     from .vpn import app, join
-    window = app.App(a.invitation, interface=a.interface, apply=not a.no_apply)
-    held, running = app.claim(window.folder, a.interface)
+    window = app.App(a.invitation, a.folder, interface=a.interface, apply=not a.no_apply)
+    held, running = app.claim(window.folder, f"{a.interface}.app")
     if not held:
         if not running:
-            raise ValueError(f"another `pqcsuite vpn app` holds {a.interface} but left no address; stop it, or use --interface")
-        print(f"The VPN window for {a.interface} is already running: {running}", flush=True)
+            raise ValueError(f"another `pqcsuite vpn app` holds {a.interface}; stop it, or use --interface")
+        url = f"http://127.0.0.1:{running['port']}/#{app.request(running['port'], running['token'], 'POST', '/api/ticket')['ticket']}"
+        print(f"The VPN window for {a.interface} is already running: {url}", flush=True)
         if not a.no_browser:
-            webbrowser.open(running)
+            webbrowser.open(url)
         return 0
-    if not a.no_apply:
+    port, record = 0, window.folder / f"{a.interface}.app.json"
+    if a.session:
+        session = json.loads(Path(a.session).read_text(encoding="utf-8"))
+        window.token, port = session["token"], int(session["port"])
+        log = os.fdopen(os.open(window.folder / f"{a.interface}.service.log", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600), "a", encoding="utf-8", buffering=1)
+        sys.stdout = sys.stderr = log
+        for h in logging.getLogger().handlers:
+            h.setStream(log)
+    elif not a.no_apply:
         join.preflight("pqcsuite vpn app" + (f" {a.invitation}" if a.invitation else ""))
-    srv = app.serve(window)
-    url = f"http://127.0.0.1:{srv.server_address[1]}/#{window.token}"
-    record = window.folder / f"{a.interface}.app.url"
-    write(record, url.encode(), secret=True)
-    print(f"VPN window: {url}\nKeep this running; closing the window does not disconnect. Ctrl+C disconnects and stops it.", flush=True)
-    if not a.no_browser:
-        webbrowser.open(url)
+    srv = app.serve(window, ("127.0.0.1", port))
+    window.on_quit = lambda: threading.Thread(target=srv.shutdown).start()
+    port = srv.server_address[1]
+    if not a.session:
+        write(record, json.dumps({"port": port, "token": window.token}).encode(), secret=True)
+    if a.session:
+        logging.getLogger(NAME).info("VPN service for the desktop app on 127.0.0.1:%s", port)
+    else:
+        url = f"http://127.0.0.1:{port}/#{window.ticket()}"
+        print(f"VPN window: {url}\nKeep this running; closing the window does not disconnect. Ctrl+C disconnects and stops it.", flush=True)
+        if not a.no_browser:
+            webbrowser.open(url)
     try:
-        run_until_signal(srv.serve_forever, lambda: threading.Thread(target=srv.shutdown).start())
+        run_until_signal(srv.serve_forever, window.on_quit)
     finally:
         window.disconnect()
         srv.server_close()
-        record.unlink(missing_ok=True)
+        if not a.session:
+            record.unlink(missing_ok=True)
         held.close()
     return 0
+
+
+def cmd_desktop(a):
+    from .vpn import desktop
+    if a.launcher or a.remove_launcher:
+        path = desktop.launcher(remove=a.remove_launcher)
+        print(f"removed {path}" if a.remove_launcher else f"added {desktop.NAME}: {path}")
+        return 0
+    return desktop.main(a.invitation, a.interface, not a.no_apply)
 
 
 def cmd_wireguard(a):
@@ -1104,7 +1130,15 @@ def parser():
     p.add_argument("invitation", nargs="?", help="the .pqcinvite file (default: the newest in ~/.pqcsuite/vpn; the window can also open one)")
     p.add_argument("--interface", default="wg0")
     p.add_argument("--no-browser", action="store_true", help="print the address instead of opening it")
+    p.add_argument("--folder", help="where invitations and this computer's keys are kept (default: ~/.pqcsuite/vpn)")
+    p.add_argument("--session", help=argparse.SUPPRESS)
     p.add_argument("--no-apply", action="store_true", help="enroll and agree keys, but do not configure a tunnel (a check, not a connection)")
+    p = v.add_parser("desktop", help="the desktop app: a tray icon that shows whether this computer is protected, and the VPN window")
+    p.add_argument("invitation", nargs="?", help="the .pqcinvite file (the window can also open one)")
+    p.add_argument("--interface", default="wg0")
+    p.add_argument("--no-apply", action="store_true", help="enroll and agree keys, but do not configure a tunnel (a check, not a connection)")
+    p.add_argument("--launcher", action="store_true", help="add Acxelin VPN to the Start menu, Applications or the application list")
+    p.add_argument("--remove-launcher", action="store_true", help="remove what --launcher added")
     p = v.add_parser("gateway", help="WireGuard remote-access gateway: address pool, PSK from ML-DSA mutual TLS, rotation, revocation")
     p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/wireguard-gateway.toml)")
     for name, text in (("connect", "connect this machine (Linux, Windows or macOS) to a WireGuard gateway and keep its PSK fresh"),

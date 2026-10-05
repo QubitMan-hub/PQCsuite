@@ -98,7 +98,6 @@ details dd { margin: 0; overflow-wrap: anywhere; }
 .pq { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--ok-wash); color: var(--ok); margin-right: 6px; }
 .pq.no { background: var(--bad-wash); color: var(--bad); }
 .note { margin: 0; color: var(--mute); font-size: 13px; text-align: center; text-wrap: balance; }
-.note code { font-family: var(--mono); font-size: 12px; }
 @media (max-width: 480px) {
   .status, .panel, details { padding-inline: 18px; }
   #word { font-size: 26px; }
@@ -165,15 +164,16 @@ details dd { margin: 0; overflow-wrap: anywhere; }
       <dl id="details"></dl>
     </details>
   </main>
-  <footer><p class="note" id="note">Closing this window does not disconnect. The VPN stays on until you press Disconnect or stop <code>pqcsuite vpn app</code>.</p></footer>
+  <footer><p class="note" id="note">Closing this window does not disconnect. The VPN stays on until you press Disconnect or quit Acxelin VPN.</p></footer>
 </div>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
 const store = (() => { try { return window.sessionStorage; } catch { return null; } })();
-let token = location.hash.slice(1);
-try { if (token) store?.setItem("vpn-key", token); else token = store?.getItem("vpn-key") || ""; } catch {}
+const ticket = location.hash.slice(1);
 history.replaceState(null, "", location.pathname);
+let token = "";
+try { token = store?.getItem("vpn-key") || ""; } catch {}
 
 const WORDS = {none: "Not set up", protected: "Protected", connecting: "Connecting…", agreed: "Keys agreed, not protected", not_protected: "Not protected", disconnected: "Disconnected"};
 let busy = false, timer = null, last = null;
@@ -315,7 +315,19 @@ async function poll() {
   timer = setTimeout(poll, document.hidden ? 10000 : 2000);
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden && timer) { stop(); poll(); } });
-if (token) poll();
-else { $("error").textContent = "Open the address printed by pqcsuite vpn app; it carries this window's key."; document.querySelectorAll("button, input").forEach(b => b.disabled = true); }
+function refuse(message) {
+  $("error").textContent = message;
+  document.querySelectorAll("button, input").forEach(b => b.disabled = true);
+}
+(async () => {
+  if (ticket) {
+    const r = await fetch("/api/session", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ticket})}).catch(() => null);
+    const data = r ? await r.json().catch(() => ({})) : {};
+    if (r?.ok) { token = data.token; try { store?.setItem("vpn-key", token); } catch {} }
+    else if (!token) return refuse(data.error || "The VPN app is not running. Open Acxelin VPN again.");
+  }
+  if (!token) return refuse("Open Acxelin VPN from its tray icon, or the address printed by pqcsuite vpn app.");
+  poll();
+})();
 </script>
 </html>

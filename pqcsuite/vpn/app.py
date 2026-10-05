@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
@@ -29,8 +30,21 @@ class App:
         self.folder = Path(folder) if folder else Path.home() / ".pqcsuite" / "vpn"
         self.invitation = Path(invitation) if invitation else self.newest()
         self.interface, self.apply = interface, apply
-        self.client = self.thread = None
-        self.lock, self.token = threading.Lock(), secrets.token_urlsafe(24)
+        self.client = self.thread = self.on_quit = None
+        self.lock, self.token, self.tickets = threading.Lock(), secrets.token_urlsafe(24), {}
+
+    def ticket(self, ttl=300):
+        """A one-time code for an address handed to a browser; it is exchanged for the session key once, so the key itself
+        never appears on a command line or in browser history."""
+        code = secrets.token_urlsafe(18)
+        with self.lock:
+            now = time.monotonic()
+            self.tickets = {k: t for k, t in self.tickets.items() if t > now} | {code: now + ttl}
+        return code
+
+    def redeem(self, code):
+        with self.lock:
+            return isinstance(code, str) and self.tickets.pop(code, 0) > time.monotonic()
 
     def newest(self):
         found = sorted(self.folder.glob("*.pqcinvite"), key=lambda p: p.stat().st_mtime) if self.folder.is_dir() else []
@@ -113,6 +127,12 @@ class App:
                 return 200, self.connect(*fields)
             if method == "POST" and path == "/api/disconnect":
                 return 200, self.disconnect()
+            if method == "POST" and path == "/api/ticket":
+                return 200, {"ticket": self.ticket()}
+            if method == "POST" and path == "/api/quit" and self.on_quit:
+                self.disconnect()
+                self.on_quit()
+                return 200, {"stopping": True}
             return 404, {"error": "not found"}
         except (ValueError, OSError) as e:
             return 400, {"error": explain(e), "state": self.state()}
@@ -120,12 +140,12 @@ class App:
             return 500, {"error": f"{e.__class__.__name__}: {explain(e)}", "state": self.state()}
 
 
-def claim(folder, interface):
-    """One window per interface. Returns the open lock file to keep while this process runs, or None and the address the
-    running window recorded, so a second launch reopens that window instead of starting a client that fights over the tunnel."""
+def claim(folder, name):
+    """One holder per name. Returns the open lock file to keep while this process runs, or None and what the running holder
+    recorded (`name`.json), so a second launch reuses it instead of starting a client that fights over the tunnel."""
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
-    f = open(folder / f"{interface}.app.lock", "a+b")
+    f = open(folder / f"{name}.lock", "a+b")
     try:
         if os.name == "nt":
             import msvcrt
@@ -136,9 +156,27 @@ def claim(folder, interface):
             fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
         f.close()
-        url = folder / f"{interface}.app.url"
-        return None, url.read_text(encoding="utf-8").strip() if url.exists() else None
+        try:
+            return None, json.loads((folder / f"{name}.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None, None
     return f, None
+
+
+def request(port, token, method, path, body=None, timeout=10):
+    """Call a running window's API (the tray, and a second `vpn app`, use this)."""
+    import http.client
+    c = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
+    try:
+        c.request(method, path, json.dumps(body or {}) if method == "POST" else None,
+                  {"Host": f"127.0.0.1:{port}", "Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+        r = c.getresponse()
+        data = json.loads(r.read() or b"{}")
+    finally:
+        c.close()
+    if r.status != 200:
+        raise ValueError(data.get("error") or f"the VPN service answered {r.status}")
+    return data
 
 
 def serve(app, listen=("127.0.0.1", 0)):
@@ -170,18 +208,30 @@ def serve(app, listen=("127.0.0.1", 0)):
             if not path.startswith("/api/"):
                 return self.reply(404, {"error": "not found"})
             if backoff.blocked(self.client_address[0]):
-                return self.reply(429, {"error": "too many wrong tokens; wait a minute"})
+                return self.reply(429, {"error": "too many wrong keys; wait a minute"})
+            if method == "POST" and path == "/api/session":
+                body = self.body()
+                if body is None or not app.redeem(body.get("ticket")):
+                    backoff.failed(self.client_address[0])
+                    return self.reply(401, {"error": "this address was already used or has expired; run `pqcsuite vpn app` (or open the tray icon) again"})
+                return self.reply(200, {"token": app.token})
             if not hmac.compare_digest(self.headers.get("Authorization", "").removeprefix("Bearer ").encode(), app.token.encode()):
                 backoff.failed(self.client_address[0])
                 return self.reply(401, {"error": "open the address printed by `pqcsuite vpn app` again"})
+            body = self.body()
+            if body is None:
+                return self.reply(400, {"error": "bad request"})
+            self.reply(*app.handle(method, path, body))
+
+        def body(self):
             n = content_length(self.headers)
             if n is None or n > 1 << 17:
-                return self.reply(400, {"error": "bad request size"})
+                return None
             try:
                 body = json.loads(self.rfile.read(n)) if n else {}
             except ValueError:
-                return self.reply(400, {"error": "invalid JSON"})
-            self.reply(*app.handle(method, path, body if isinstance(body, dict) else {}))
+                return None
+            return body if isinstance(body, dict) else {}
 
         def do_GET(self):
             self.route("GET")
