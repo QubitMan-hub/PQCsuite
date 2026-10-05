@@ -120,6 +120,15 @@ def main():
     html = page().decode()
     html = html.replace('try { token = sessionStorage.getItem("pqc-token"); } catch (e) {}', 'token = "demo";', 1)
     html = html.replace("<title>", '<meta name="robots" content="noindex">\n<title>', 1)
+    for real, demo in (('Tour.start("console", TOUR)', 'Tour.start("console-demo", TOUR)'), ('Tour.offer("console", TOUR)', 'Tour.offer("console-demo", TOUR)'),
+                       ("This is where you run the four Acxelin products on this server.",
+                        "This demo shows the console with invented example data, so you can look around without installing anything."),
+                       ("Tour replays this guide, Theme switches light and dark, and Sign out ends your session. Your work stays on this server.",
+                        "Tour replays this guide and Theme switches light and dark. Buttons that would change something are switched off in the demo; "
+                        "install PQC Suite to run the console on your own systems.")):
+        if real not in html:
+            raise SystemExit(f"the console no longer contains {real!r}; update the demo's tour wording")
+        html = html.replace(real, demo, 1)
     shim = SHIM.replace("__DATA__", data.replace("</", "<\\/")).replace("__READ_ONLY__", json.dumps(READ_ONLY))
     html = html.replace("<body>", "<body>\n" + BANNER + "\n" + shim, 1)
     (ROOT / "site" / "console-demo.html").write_text(html, encoding="utf-8")

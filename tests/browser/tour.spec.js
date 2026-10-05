@@ -75,3 +75,34 @@ test("the VPN window tour", async ({ page, request }) => {
   await page.click("#tour");
   await expect(card(page)).toContainText("Step 1 of 6");
 });
+
+test("a visitor who leaves mid-tour is not shown it again", async ({ page }) => {
+  await asNewcomer(page);
+  await page.goto(SITE);
+  await expect(card(page)).toContainText("Step 1 of 10");
+  await page.reload();
+  await expect(page.locator("#why")).toBeVisible();
+  await expect(card(page)).toHaveCount(0);
+});
+
+test("the tour scrolls to each part and settles the card beside it", async ({ page }) => {
+  await page.goto(SITE);
+  await page.click("#tour");
+  for (let i = 1; i < 6; i++) await page.click(".tour-card .go");
+  await expect(card(page)).toContainText("Step 6 of 10");
+  await expect(card(page)).not.toHaveClass(/away/);
+  const [spot, target] = await Promise.all([page.locator(".tour-spot").boundingBox(), page.locator("#products h2").boundingBox()]);
+  expect(Math.abs(spot.y + 6 - target.y)).toBeLessThan(2);
+  expect(target.y).toBeGreaterThan(0);
+  expect(target.y + target.height).toBeLessThan(page.viewportSize().height);
+});
+
+test("the console demo has its own tour, worded for the demo", async ({ page }) => {
+  await asNewcomer(page);
+  await page.goto(SITE.replace("index.html", "console-demo.html"));
+  await expect(card(page)).toContainText("invented example data");
+  for (let i = 1; i < 10; i++) { await page.click(".tour-card .go"); await expect(card(page)).toContainText(`Step ${i + 1} of 10`); }
+  await expect(card(page)).toContainText("switched off in the demo");
+  await page.click(".tour-card .go");
+  await expect(card(page)).toHaveCount(0);
+});
