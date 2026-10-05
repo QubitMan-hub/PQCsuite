@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Security and trust · Acxelin PQC Suite</title>
+<meta name="description" content="What stays on your side when you run Acxelin PQC Suite, how to check a download, what each release has passed, what has not been validated yet, and how to report a vulnerability.">
+<meta property="og:title" content="Security and trust · Acxelin PQC Suite">
+<meta property="og:description" content="Your keys, data and code stay on your systems. How to check what you download, and what has not been validated yet.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Acxelin Quantum">
+<meta property="og:image" content="assets/og-suite.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Acxelin PQC Suite: quantum-safe traffic, tunnels and backups, on the systems you already run.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="assets/og-suite.png">
+<meta name="theme-color" content="#faf9f5">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preload" href="assets/fonts/host-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/roboto.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a href="index.html" aria-label="Acxelin PQC Suite home"><img src="assets/acxelin-quantum.svg" alt="Acxelin Quantum" width="537" height="83"></a>
+    <nav id="nav" aria-label="Main">
+      <a href="index.html#products">Products</a>
+      <a href="index.html#app">Download</a>
+      <a href="security.html" aria-current="page">Security</a>
+      <a href="product-manual.html">Manual</a>
+      <a class="tool" href="wolf-pack.html">Wolf Pack CBOM</a>
+      <a class="btn" href="index.html#contact">Book a free scan</a>
+    </nav>
+    <button class="menu" type="button" aria-expanded="false" aria-controls="nav"><span></span>Menu</button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="hero lost short">
+    <div class="wrap">
+      <div>
+        <p class="kicker">Security and trust</p>
+        <h1>Your keys and your data <span>stay with you</span>.</h1>
+        <p class="lead">The suite runs on your own machines. Nothing is sent to Acxelin, nothing depends on a service we run, and we never hold a copy of your keys. This page is for the security team that has to sign that off.</p>
+        <div class="actions">
+          <a class="btn" href="#verify">Check a download</a>
+          <a class="link" href="#not-yet">What is not validated yet</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section id="yours">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">On your side</p>
+        <h2>What stays on your systems</h2>
+      </div>
+      <div class="ways trust">
+        <div>
+          <h3>Your data</h3>
+          <p>No account, no telemetry, no licence server. The suite connects only to the systems you configure: your edges, your certificate authority, your gateways and the endpoints you ask it to scan. It contacts GitHub only when you ask it to check for a new release.</p>
+        </div>
+        <div>
+          <h3>Your keys</h3>
+          <p>Certificate, server and backup keys are made and kept on your systems: in files encrypted with a passphrase by default, or in your own AWS KMS or HSM. We cannot recover a lost key, so every Vault backup must also open with a second recovery key kept offline.</p>
+        </div>
+        <div>
+          <h3>Your code</h3>
+          <p>Repository scans read your code on the machine that runs them and never execute it. The suite's saved scan results leave out source snippets. The sample reports on this site are made from invented example code.</p>
+        </div>
+      </div>
+      <div class="settings">
+        <div>
+          <h3>What listens on your network</h3>
+          <p>The TLS edge, certificate enrollment (EST) and the revocation list publisher are meant to be reached by other machines, so they listen on every interface; narrow them with <code>--listen</code> and your firewall. The console and the ACME service stay on the machine they run on. <code>pqcsuite doctor --config</code> warns when a setting widens that.</p>
+        </div>
+        <ul class="facts-list">
+          <li><b>Cryptography</b><span>ML-KEM, ML-DSA and SLH-DSA (FIPS 203, 204 and 205) through OpenSSL 3.5 and pyca/cryptography. The suite implements no algorithm itself.</span></li>
+          <li><b>Hybrid by default</b><span>By default every key exchange combines a classical algorithm with a post-quantum one, so both would have to be broken.</span></li>
+          <li><b>Fails closed</b><span>A revoked certificate is refused at its next connection; a forged or expired revocation list refuses everyone rather than letting anyone through.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="verify" class="alt">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Before you install</p>
+        <h2>Check what you download</h2>
+        <p>Every file in a release, the installers included, is built by our public GitHub workflow and carries a signed record of that build. Anyone can check it, without trusting us or this website.</p>
+      </div>
+      <div class="settings">
+        <div>
+          <h3>Confirm a file came from our build</h3>
+          <p>With the GitHub command-line tool, run this next to the downloaded file. It confirms which repository and workflow built it, and that it has not changed since.</p>
+          <p>The container image <code>ghcr.io/qubitman-hub/pqcsuite</code> carries the same signed record.</p>
+        </div>
+        <pre>gh attestation verify acxelin-vpn_0.4.2_amd64.deb \
+  --repo QubitMan-hub/PQCsuite</pre>
+      </div>
+      <div class="ways trust">
+        <div>
+          <h3>A readiness record</h3>
+          <p>What was tested on the exact commit of the release, and what has not been validated, copied from the list below.</p>
+        </div>
+        <div>
+          <h3>A dependency list (SBOM)</h3>
+          <p>Every library the release installs, in CycloneDX format, with what changed since the previous release.</p>
+        </div>
+        <div>
+          <h3>A cryptography list (CBOM)</h3>
+          <p>Every algorithm the suite's own code uses, found by Wolf Pack, so your auditors can see what it relies on.</p>
+        </div>
+      </div>
+      <p class="note-line">The Windows and macOS installers are not code-signed yet, so the first time you open them, Windows and macOS ask you to confirm. The <a href="product-manual.html#enroll-and-connect-a-laptop">manual</a> shows what to click.</p>
+    </div>
+  </section>
+
+  <section id="tested">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Every release</p>
+        <h2>What a release has passed</h2>
+        <p>A release is published only when every one of these passed on its exact commit. That is all it claims: it passed these checks.</p>
+      </div>
+      <div class="grades gates">
+        <div><b>Correct</b><p>Unit tests on Windows, macOS and Linux; the whole suite against real nginx, PostgreSQL, Redis, MQTT and SSH; the website and console in a browser with accessibility checks.</p></div>
+        <div><b>Secure</b><p>Known vulnerabilities in every dependency, a container image scan, CodeQL code analysis, and no new high-risk cryptography in the suite's own code.</p></div>
+        <div><b>Operational</b><p>A Kubernetes install serving a post-quantum request; IPsec and WireGuard tunnels with real traffic, revocation and the kill switch; a real VPN tunnel on Windows and macOS.</p></div>
+        <div><b>Then, every week</b><p>A two-hour load and revocation run, and a fresh install from the public download links, the way a customer installs.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="not-yet" class="alt">
+    <div class="wrap">
+      <div class="intro">
+        <p class="kicker">Honest limits</p>
+        <h2>What has not been validated yet</h2>
+        <p>We would rather you hear these from us. Each one is in every release's readiness record until it is done.</p>
+      </div>
+      <div class="scroll" tabindex="0" role="region" aria-label="Not yet validated"><table class="results">
+        <thead><tr><th>Area</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Independent security review</td><td>Not done. The suite's own protocol code (the VPN key agreement, the Vault format, the TLS bridge) has had no outside review.</td></tr>
+          <tr><td>FIPS 140-3</td><td>Not validated. The algorithms are the FIPS 203, 204 and 205 standards, but the product has not been through FIPS 140-3 validation.</td></tr>
+          <tr><td>Code-signed installers</td><td>Not yet. Every file carries the signed build record above; Windows and macOS still warn on first launch.</td></tr>
+          <tr><td>Cloud and managed Kubernetes</td><td>The AWS, Azure and Google Cloud images and the Helm chart are tested in CI and a local cluster, not yet in a customer's cloud account.</td></tr>
+          <tr><td>Laptops</td><td>Full tunnel, the kill switch and recovery are tested with real traffic on Linux; on Windows and macOS they have not been run on real laptops yet. Phones are not supported.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="contact" id="report">
+    <div class="wrap">
+      <div class="box">
+        <div>
+          <h2>Found a vulnerability?</h2>
+          <p>Email us with <b>security</b> in the subject. Please do not open a public issue. We reply within 24 hours.</p>
+        </div>
+        <dl>
+          <div><dt>Email</dt><dd><a href="mailto:info@acxelinquantum.com?subject=security">info@acxelinquantum.com</a></dd></div>
+          <div><dt>For reviewers</dt><dd><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/THREAT-MODEL.md">Threat model</a> · <a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/SECURITY-REVIEW.md">Review guide</a></dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="brand">
+      <a href="index.html" aria-label="Acxelin PQC Suite"><img src="assets/acxelin-quantum.svg" alt="Acxelin Quantum" width="537" height="83"></a>
+      <p>Post-quantum security for the traffic, tunnels and data you run today.</p>
+    </div>
+    <nav aria-label="Footer">
+      <div><b>PQC Suite</b><a href="index.html#tls">TLS 1.3 + mTLS</a><a href="index.html#vpn">VPN</a><a href="index.html#app">Acxelin VPN app</a><a href="index.html#vault">Vault</a><a href="index.html#readiness">Readiness assessment</a><a href="index.html#faq">Questions</a><a href="security.html">Security and trust</a></div>
+      <div><b>Also from Acxelin</b><a href="wolf-pack.html">Wolf Pack CBOM</a><span>Finds the cryptography in your code</span><a href="wolf-pack-sample.html">Sample report</a><a href="wolf-pack-inventory.html">Sample dashboard</a></div>
+      <div><b>Documentation</b><a href="https://github.com/QubitMan-hub/PQCsuite#install">Install and first steps</a><a href="https://github.com/QubitMan-hub/PQCsuite#what-listens-where">What listens where</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/docs/THREAT-MODEL.md">Threat model</a><a href="https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md">Changelog</a><a href="https://github.com/QubitMan-hub/PQCsuite/releases">Releases</a><a href="https://github.com/QubitMan-hub/PQCsuite">Source code</a></div>
+      <div><b>Contact</b><a href="mailto:info@acxelinquantum.com">info@acxelinquantum.com</a><a href="https://forms.office.com/Pages/ResponsePage.aspx?id=G7il0FYBPk-mQiu5eNm4__Zpyi-xUOBMtEt0p-905AxUME9LMzZFV0JLWEFDMzdJMTM1MzYxSEVORy4u" target="_blank" rel="noopener">Book a call</a></div>
+    </nav>
+    <small>© 2026 Acxelin Quantum. ML-KEM (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205).</small>
+  </div>
+</footer>
+<script src="site.js" defer></script>

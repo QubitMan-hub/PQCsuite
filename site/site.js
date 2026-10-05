@@ -88,7 +88,7 @@ addEventListener("scroll", () => (up.hidden = scrollY < 1200), { passive: true }
 
 const TOUR = [
   { title: "Welcome to Acxelin Quantum", text: "We make the systems you already run safe against future quantum computers. This short tour shows each part of this page in ten steps; use Next or the arrow keys, and Esc to leave." },
-  { target: "header.top .wrap", title: "Find your way", text: "The menu takes you to the products, how a project starts, the readiness grades, how to try it, common questions and the full manual. Wolf Pack CBOM has its own page." },
+  { target: "header.top .wrap", title: "Find your way", text: "The menu takes you to the products, the Acxelin VPN download, how we keep your data and keys safe, and the full manual. Wolf Pack CBOM has its own page." },
   { target: ".hero .actions", title: "The quickest start", text: "Book a free readiness scan: it grades your public TLS and SSH endpoints and tells you what to fix first. Or watch the suite work on your own computer in a minute." },
   { target: ".hero .report", title: "What a scan gives you", text: "An example readiness report. Each endpoint gets a grade from A to C, with the algorithms it offers, so you can see which traffic could be recorded now and decrypted later." },
   { target: "#why h2", title: "Why it matters now", text: "Traffic recorded today can be decrypted once quantum computers are large enough, and regulators have set dates: 2030 to move away from RSA and elliptic curves, 2035 when they are disallowed." },

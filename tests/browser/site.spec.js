@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 const AxeBuilder = require("@axe-core/playwright").default;
 
 const SITE = "http://127.0.0.1:8765/";
-const PAGES = ["index.html", "wolf-pack.html", "404.html", "wolf-pack-sample.html", "wolf-pack-inventory.html", "product-manual.html"];
+const PAGES = ["index.html", "wolf-pack.html", "security.html", "404.html", "wolf-pack-sample.html", "wolf-pack-inventory.html", "product-manual.html"];
 const WIDTHS = [1280, 900, 390, 360];
 
 const serious = async page =>
@@ -34,8 +34,8 @@ test("phone menu opens, closes on a link, and the section marker follows on desk
   await expect(page.locator(".top")).not.toHaveClass(/open/);
   await page.setViewportSize({ width: 1280, height: 850 });
   await page.goto(SITE + "index.html");
-  await page.click('#nav a[href="#plan"]');
-  await expect(page.locator('#nav a[aria-current]')).toHaveAttribute("href", "#plan");
+  await page.click('#nav a[href="#app"]');
+  await expect(page.locator('#nav a[aria-current]')).toHaveAttribute("href", "#app");
 });
 
 test("copy buttons copy the command", async ({ page, context }) => {
@@ -81,12 +81,12 @@ test("Wolf Pack is one click from the home page, links back, and opens its sampl
 
 test("Try it leads engineers to the tour, the install and the documentation, from every page's footer too", async ({ page }) => {
   await page.goto(SITE + "index.html");
-  await page.click('#nav a[href="#use"]');
+  await page.goto(SITE + "index.html#use");
   await expect(page.locator("#use .ways > div")).toHaveCount(3);
   await expect(page.locator("#use pre").first()).toHaveText("docker run --rm ghcr.io/qubitman-hub/pqcsuite");
   // a backup that one key opens is refused by the product, so the site must never show one
   await expect(page.locator("#vault pre")).toContainText("-r ops.pub -r recovery.pub");
-  for (const name of ["index.html", "wolf-pack.html", "404.html"]) {
+  for (const name of ["index.html", "wolf-pack.html", "security.html", "404.html"]) {
     await page.goto(SITE + name);
     const docs = page.locator("body > footer nav div", { hasText: "Documentation" }).locator("a");
     await expect(docs).toHaveCount(6);

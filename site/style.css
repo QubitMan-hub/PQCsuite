@@ -332,9 +332,11 @@ body > footer small { grid-column: 1 / -1; padding-top: 20px; border-top: 1px so
 .hero .kicker { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; }
 .hero .kicker button { font: inherit; color: var(--ink); }
 @media (max-width: 520px) { .hero .kicker span { display: none; } .hero .kicker { flex-direction: column; align-items: flex-start; } }
-.app { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px 48px; align-items: start; }
+.app { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1fr); gap: 32px 56px; align-items: center; }
+.app .shot { max-width: 400px; justify-self: center; }
 @media (max-width: 900px) { .app { grid-template-columns: minmax(0, 1fr); } }
-.states { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 18px; background: #1c2632; border-radius: 12px; }
+.states { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px; margin-top: 40px; background: #1c2632; border-radius: 12px; }
+@media (max-width: 900px) { .states { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .states li { display: grid; grid-template-columns: 40px 1fr; column-gap: 12px; align-items: center; padding: 14px; border-radius: 9px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .08); }
 .states svg { grid-row: span 2; width: 40px; height: 40px; fill: none; stroke: var(--c); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c) 45%, transparent)); }
 .states b { font: 500 16px/1.25 var(--display); color: #f2f4f6; }
@@ -408,4 +410,24 @@ section.alt + section { padding-top: 88px; }
 .term figcaption { font-size: 13px; color: #9aa5b1; }
 @media (max-width: 900px) { .also { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 32px 24px; } }
 
-#coverage .results td:last-child { white-space: normal; }
+#coverage .results td:last-child, #not-yet .results td:last-child { white-space: normal; }
+
+/* real product screenshots */
+.shot { margin: 0; display: grid; gap: 10px; }
+.shot img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule); box-shadow: 0 1px 0 var(--rule), 0 22px 44px -28px rgba(46, 60, 78, .45); background: var(--paper); }
+.shot figcaption { font-size: 14px; color: var(--muted); }
+
+/* security page */
+.ways.trust > div { gap: 10px; }
+.facts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.facts-list li { display: grid; gap: 2px; padding: 14px 18px; background: var(--paper); border: 1px solid var(--rule); border-left: 4px solid var(--amber); border-radius: 8px; }
+.facts-list b { font: 500 16px/1.3 var(--display); color: var(--ink); }
+.facts-list span { font-size: 15px; color: var(--muted); }
+#verify .ways { margin-top: 48px; }
+.note-line { margin-top: 28px; font-size: 15px; color: var(--muted); max-width: 70ch; }
+.gates > div { gap: 8px; }
+.gates b { font-size: 18px; }
+.hero.short .wrap { min-height: 0; }
+#yours .settings { align-items: start; }
+#not-yet .results td:first-child { white-space: nowrap; padding-right: 28px; }
+@media (max-width: 640px) { #not-yet .results { min-width: 0; font-size: 15px; } #not-yet .results td:first-child { white-space: normal; width: 36%; padding-right: 14px; } }
