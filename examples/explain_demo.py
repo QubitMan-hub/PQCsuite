@@ -1,6 +1,6 @@
 """The idea behind Acxelin PQC Suite, shown with real post-quantum cryptography: why it matters, readiness, TLS + mTLS and the VPN.
 
-    pip install cryptography
+    pip install -U cryptography
     python explain_demo.py           # pauses between steps: press Enter to go on
     python explain_demo.py --auto    # runs straight through
 
@@ -18,8 +18,9 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 
+NEEDS = "This demo needs cryptography 48 or newer, which includes ML-KEM and ML-DSA. Run:  pip install -U cryptography"
 try:
-    from cryptography.exceptions import InvalidSignature, InvalidTag
+    from cryptography.exceptions import InvalidSignature, InvalidTag, UnsupportedAlgorithm
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA65PrivateKey, MLDSA65PublicKey
     from cryptography.hazmat.primitives.asymmetric.mlkem import MLKEM768PrivateKey
@@ -28,7 +29,11 @@ try:
     from cryptography.hazmat.primitives.kdf.hkdf import HKDF
     from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 except ImportError:
-    raise SystemExit("This demo needs cryptography 49 or newer, which includes ML-KEM and ML-DSA:  pip install -U cryptography") from None
+    raise SystemExit(NEEDS) from None
+try:
+    MLKEM768PrivateKey.generate(), MLDSA65PrivateKey.generate()
+except UnsupportedAlgorithm:
+    raise SystemExit(NEEDS) from None
 
 LOG = []
 AUTO = False
@@ -220,9 +225,14 @@ def report():
         items = "".join(f'<li class="{tone.get(m, "")}">' + (f'<b class="{tone.get(m, "")}">{m}</b> ' if m else "") + f"{html.escape(t)}</li>"
                         for m, t in lines)
         sections.append(f"<section><h2>{i}. {html.escape(title)}</h2><p>{html.escape(story)}</p><ul>{items}</ul></section>")
-    out = Path(__file__).resolve().with_name("explain-demo-results.html")
-    out.write_text(PAGE.format(sections="".join(sections), when=datetime.now().strftime("%d %B %Y, %H:%M")), encoding="utf-8")
-    return out
+    page = PAGE.format(sections="".join(sections), when=datetime.now().strftime("%d %B %Y, %H:%M"))
+    for folder in (Path(__file__).resolve().parent, Path.cwd()):
+        try:
+            (folder / "explain-demo-results.html").write_text(page, encoding="utf-8")
+            return f"A summary is in {folder / 'explain-demo-results.html'}"
+        except OSError:
+            pass
+    return "(The summary page could not be saved: this folder is read-only. Unzip the folder first to keep it.)"
 
 
 def main():
@@ -232,13 +242,21 @@ def main():
     AUTO = ap.parse_args().auto
     sys.stdout.reconfigure(errors="replace")
     print("Acxelin PQC Suite: the idea, shown with real post-quantum cryptography on this computer.")
-    why_it_matters()
-    readiness()
-    tls()
-    vpn()
-    print(f"\n{'=' * 72}\nDone. A summary is in {report()}")
+    try:
+        why_it_matters()
+        readiness()
+        tls()
+        vpn()
+    except KeyboardInterrupt:
+        raise SystemExit("\nStopped.") from None
+    print(f"\n{'=' * 72}\nDone. {report()}")
     if any(m == "FAILED" for _, _, lines in LOG for m, _ in lines):
         raise SystemExit("A step did not go as expected; see FAILED above.")
+    if not AUTO:
+        try:
+            input("\n  [Enter] to close ")
+        except (EOFError, KeyboardInterrupt):
+            pass
 
 
 if __name__ == "__main__":
