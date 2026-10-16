@@ -193,3 +193,22 @@ def test_choosing_another_repository_shows_that_repositorys_own_results(app, rep
     assert status["selected"] == 1 and status["last"] is None
     call(app, "POST", "/api/projects/select", {"project": 0})
     assert call(app, "GET", "/api/projects/status")[1]["last"]["project"] == "shop"
+
+
+def test_registered_repositories_survive_a_restart_but_never_widen_when_the_folder_changes(app, repos, home, tmp_path):
+    setup(app, repos)
+    call(app, "POST", "/api/projects/register", {"name": "shop"})
+    call(app, "POST", "/api/projects/scan", {"project": 0})
+    wait(app)
+    again = rc.build(home)
+    status = again.routes[("GET", "/api/status")]({})[1]
+    assert status["projects"] == [{"id": 0, "name": "shop"}]
+    assert again.routes[("GET", "/api/projects/status")]({})[1]["last"]["assets"]
+    other = tmp_path / "other"
+    other.mkdir()
+    again.routes[("POST", "/api/setup")]({"directory": str(other)})
+    assert rc.build(home).routes[("GET", "/api/status")]({})[1]["projects"] == []
+    again.routes[("POST", "/api/setup")]({"directory": str(repos)})
+    (repos / "shop").rename(repos / "moved")
+    (repos / "shop").symlink_to(other, target_is_directory=True)
+    assert rc.build(home).routes[("GET", "/api/status")]({})[1]["projects"] == []

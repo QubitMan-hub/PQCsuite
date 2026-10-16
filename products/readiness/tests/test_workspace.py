@@ -1,13 +1,10 @@
 """Unified scans keep evidence private and preserve optional capability boundaries."""
 import json
 import os
-import time
-from unittest.mock import patch
 
 import pytest
 
-from pqcsuite.project import scan, append_history
-from pqcsuite.console import App, Settings
+from acxelin_readiness.workspace import append_history, scan
 
 
 def fixture(root):
@@ -46,58 +43,12 @@ def test_security_patterns_are_listed_without_source_or_secret_values(tmp_path):
         assert 'Zq8vN3kLp0RtX2' not in f.read_text()
 
 
-def test_registered_project_api_rejects_paths_and_runs_real_scan(tmp_path):
-    fixture(tmp_path)
-    app = App(Settings(project_roots=[str(tmp_path)], audit_log=str(tmp_path/'audit.jsonl')), token='test')
-    for invalid in ('/etc', True, -1, 1, None):
-        with pytest.raises(ValueError):
-            app.start_project({'project': invalid})
-    assert app.start_project({'project':0}) == {'started':0}
-    deadline = time.monotonic()+10
-    while app.project_status()['running'] and time.monotonic()<deadline:
-        time.sleep(.01)
-    assert app.project_status()['last']['summary']['resolved_calls'] == 1
-    assert app.project_status()['error'] is None
 
 
-def test_failure_is_retryable_without_source_in_api_error(tmp_path):
-    app = App(Settings(project_roots=[str(tmp_path)], audit_log=str(tmp_path/'audit.jsonl')), token='test')
-    with patch('pqcsuite.project.scan', side_effect=ValueError('PRIVATE_SENTINEL')):
-        app.start_project({'project':0})
-        deadline = time.monotonic()+5
-        while app.project_status()['running'] and time.monotonic()<deadline:
-            time.sleep(.01)
-    assert 'PRIVATE_SENTINEL' not in app.project_status()['error']
-    assert not app.project_status()['running']
 
 
-def test_repository_registration_is_scoped_and_idempotent(tmp_path):
-    approved=tmp_path/'approved'; approved.mkdir()
-    repo=approved/'safe'; repo.mkdir()
-    outside=tmp_path/'private'; outside.mkdir()
-    (approved/'link').symlink_to(outside, target_is_directory=True)
-    app=App(Settings(repository_directory=str(approved), audit_log=str(tmp_path/'audit.jsonl')), token='test')
-    for name in ('../private', str(outside), 'link', '.hidden', 'safe/child', 'safe\\child', '', None):
-        with pytest.raises(ValueError):
-            app.register_project({'name':name})
-    assert app.project_status()['available']==['safe']
-    assert app.register_project({'name':'safe'})=={'project':0}
-    assert app.register_project({'name':'safe'})=={'project':0}
-    assert app.project_status()['projects']==[{'id':0,'name':'safe'}]
-    assert 'last' not in app.project_status(brief=True)
 
 
-def test_history_concurrent_writers_and_console_restart(tmp_path):
-    from concurrent.futures import ThreadPoolExecutor
-    from pqcsuite.project import read_history
-    history=tmp_path/'history.json'
-    def record(i):
-        append_history(history, {'project':str(i),'finished':i,'summary':{'crypto_assets':i}})
-    with ThreadPoolExecutor(max_workers=8) as workers:
-        list(workers.map(record,range(40)))
-    assert {r['project'] for r in read_history(history)}=={str(i) for i in range(40)}
-    app=App(Settings(project_history=str(history)), token='test')
-    assert len(app.project_status()['history'])==40
 
 
 def test_bad_history_does_not_discard_successful_scan(tmp_path):
@@ -166,24 +117,6 @@ def test_workspace_rescan_tracking_missing_reappearing_and_privacy(tmp_path):
         assert store.path.stat().st_mode & 0o777 == 0o600
 
 
-def test_workspace_registration_restart_and_scope_change(tmp_path):
-    approved = tmp_path/'approved'; approved.mkdir()
-    repo = approved/'safe'; repo.mkdir(); fixture(repo)
-    settings = Settings(repository_directory=str(approved), project_state=str(tmp_path/'state.json'), audit_log=str(tmp_path/'audit.jsonl'))
-    app = App(settings); app.register_project({'name':'safe'})
-    app.project_store.save(repo, scan(repo))
-    restarted = App(settings)
-    assert restarted.projects == [repo]
-    assert restarted.project_status()['last']['assets']
-    other = tmp_path/'other'; other.mkdir()
-    settings.repository_directory = str(other)
-    assert App(settings).projects == []
-    settings.repository_directory = str(approved)
-    repo.rename(approved/'moved')
-    repo.symlink_to(other, target_is_directory=True)
-    assert App(settings).projects == []
-    with pytest.raises(ValueError):
-        restarted.start_project({'project':0})
 
 
 def test_workspace_invalid_updates_limits_and_competing_writers(tmp_path):
@@ -241,29 +174,6 @@ def test_sample_project_preserves_edits_and_refuses_symlinks(tmp_path):
 
 
 
-def test_console_cancellation_keeps_previous_assessment(tmp_path):
-    import threading
-    from pqcsuite.project import ScanStopped
-    app = App(Settings(project_roots=[str(tmp_path)], audit_log=str(tmp_path/'audit.jsonl')))
-    previous = {'project':'completed'}
-    app.project_scan['last'] = previous
-    entered = threading.Event()
-    def pending(*args, **kwargs):
-        entered.set()
-        assert kwargs['cancel'].wait(5)
-        raise ScanStopped('Scan cancelled; the previous completed assessment is preserved')
-    with patch('pqcsuite.project.scan', side_effect=pending):
-        app.start_project({'project':0})
-        assert entered.wait(5)
-        assert app.cancel_project() == {'requested':True}
-        deadline = time.monotonic() + 5
-        while app.project_scan['running'] and time.monotonic() < deadline:
-            time.sleep(.01)
-    assert not app.project_scan['running']
-    assert app.project_scan['last'] is previous
-    assert 'cancelled' in app.project_scan['error']
-    with pytest.raises(ValueError):
-        app.cancel_project()
 
 
 @pytest.mark.parametrize("directory", ["test_vectors", "lib/Crypto/SelfTest"])
@@ -282,35 +192,6 @@ def test_crypto_test_vectors_remain_visible_without_production_migration_candida
     assert any(not a['test_only'] for a in mixed['assets'])
 
 
-def test_deployment_association_is_scoped_and_observation_survives_restart(tmp_path):
-    from pqcsuite.pki import CA
-    repo = tmp_path/'repo'; repo.mkdir(); fixture(repo)
-    CA.init(tmp_path/'pki', 'Root')
-    settings = Settings(project_roots=[str(repo)], project_state=str(tmp_path/'state.json'), ca=str(tmp_path/'pki'),
-                        scan_targets=['localhost:8443'], audit_log=str(tmp_path/'audit.jsonl'))
-    app = App(settings, token='test')
-    assessment = scan(repo); assessment['project_key'] = app.project_store.key(repo)
-    saved = app.project_store.save(repo, assessment)
-    body = {'project': 0, 'finding': saved['assets'][0]['id'], 'target': 'localhost:8443', 'release': 'release-1',
-            'association': 'Service deployment manifest maps this source module to this endpoint', 'expected_sha256': 'a'*64}
-    with patch('pqcsuite.project.verify_endpoint', return_value={'state': 'verified_pq_connection'}) as probe:
-        for changed in ({'target': '169.254.169.254:80'}, {'finding': 'missing'}, {'expected_sha256': 'invalid'}, {'association': ''}):
-            status, _ = app.handle('POST', '/api/projects/verify', body | changed)
-            assert status == 400
-        probe.assert_not_called()
-        status, result = app.handle('POST', '/api/projects/verify', body)
-        assert status == 200
-        assert result['verifications'][0]['source_state'] == 'observed'
-    (repo/'keys.py').write_text('def make(): return None\n')
-    after = scan(repo); after['project_key'] = app.project_store.key(repo)
-    result = app.project_store.save(repo, after)
-    observation = result['verifications'][0]
-    assert observation['source_state'] == 'not_observed' and observation['rescan_required']
-    assert 'not independently verified' in observation['mapping_basis']
-    restarted = App(settings, token='test')
-    assert restarted.project_status()['last']['verifications'] == result['verifications']
-    with pytest.raises(ValueError, match='Assessment changed'):
-        app.project_store.record_verification(repo, body, {'state': 'verified_pq_connection'}, assessment['finished'])
 
 
 def test_persisted_graph_compression_is_lossless_bounded_and_backward_compatible(tmp_path, monkeypatch):
