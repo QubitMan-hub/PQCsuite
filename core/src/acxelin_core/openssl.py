@@ -10,6 +10,7 @@ import platform
 import re
 import select
 import time
+import warnings
 
 MIN_VERSION = 0x30500000
 TLS1_3_VERSION = 0x0304
@@ -65,10 +66,28 @@ EASIEST = ("Easiest: use the container image, which has it (docker run --rm ghcr
            "or Debian 13 or Ubuntu 25.04+, whose OpenSSL is new enough.")
 
 
+def folder_setting():
+    """ACXELIN_OPENSSL, or the old name PQCSUITE_OPENSSL (read through 1.x with a warning); the new name wins."""
+    new, old = os.environ.get("ACXELIN_OPENSSL"), os.environ.get("PQCSUITE_OPENSSL")
+    if old and not new:
+        warnings.warn("PQCSUITE_OPENSSL is the old name; set ACXELIN_OPENSSL instead", DeprecationWarning, stacklevel=2)
+    return new or old
+
+
+def available():
+    """None when OpenSSL 3.5+ loads, otherwise the reason it does not."""
+    try:
+        lib()
+    except OpenSSLUnavailable as e:
+        return str(e)
+    return None
+
+
 def _names(stem):
-    """Library file names to try, newest first. PQCSUITE_OPENSSL points at a directory holding a specific build."""
+    """Library file names to try, newest first. ACXELIN_OPENSSL points at a directory holding a specific build."""
     system = platform.system()
-    folders = [os.environ["PQCSUITE_OPENSSL"]] if os.environ.get("PQCSUITE_OPENSSL") else []
+    folder = folder_setting()
+    folders = [folder] if folder else []
     if system == "Windows":
         rx = re.compile(rf"^lib{stem}-(\d+)(?:-x64)?\.dll$", re.I)
         found = []
@@ -88,7 +107,7 @@ def _load(stem):
         except OSError:
             continue
     raise OpenSSLUnavailable(f"OpenSSL 3.5+ was not found (tried {', '.join(names) or 'nothing on PATH'}). {EASIEST} "
-                             "Or install OpenSSL 3.5+ and set PQCSUITE_OPENSSL to the folder that holds it.")
+                             "Or install OpenSSL 3.5+ and set ACXELIN_OPENSSL to the folder that holds it.")
 
 
 class _Lib:
@@ -99,8 +118,8 @@ class _Lib:
         self.version = crypto.OpenSSL_version(0).decode()
         if crypto.OpenSSL_version_num() < MIN_VERSION:
             hint = (" Or, with OpenSSL 3.5+ installed elsewhere, start pqcsuite with LD_LIBRARY_PATH set to its lib folder "
-                    "(PQCSUITE_OPENSSL cannot help here: this process has already loaded the system OpenSSL).") if platform.system() == "Linux" else \
-                   " Or install OpenSSL 3.5+ and set PQCSUITE_OPENSSL to the folder that holds it."
+                    "(ACXELIN_OPENSSL cannot help here: this process has already loaded the system OpenSSL).") if platform.system() == "Linux" else \
+                   " Or install OpenSSL 3.5+ and set ACXELIN_OPENSSL to the folder that holds it."
             raise OpenSSLUnavailable(f"this machine's {self.version} is too old: post-quantum TLS needs OpenSSL 3.5 or newer. {EASIEST}{hint}")
         ssl = _load("ssl")
         for lib_, table in ((crypto, PROTOTYPES["crypto"]), (ssl, PROTOTYPES["ssl"])):

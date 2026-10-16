@@ -53,6 +53,13 @@ def main(argv=None):
     m.add_argument("--fail-on", choices=TIERS[:-1], help="exit 2 if any system has an asset at this tier or worse")
     m.add_argument("--history", metavar="FILE", help="JSON-lines file of earlier runs: this run is added and the dashboard charts readiness over time")
     m.add_argument("-q", "--quiet", action="store_true")
+    g = sub.add_parser("grade", help="grade TLS and SSH endpoints A to F for post-quantum key exchange, with their certificates")
+    g.add_argument("targets", nargs="+", help="host (port 443), host:port, ssh://host (port 22), or .txt files with one per line")
+    g.add_argument("--json", metavar="FILE")
+    g.add_argument("--html", metavar="FILE")
+    g.add_argument("--workers", type=int, default=16)
+    g.add_argument("--timeout", type=float, default=8.0)
+    sub.add_parser("doctor", help="check what this machine can scan")
     try:
         a = ap.parse_args(argv)
     except SystemExit as e:
@@ -60,6 +67,10 @@ def main(argv=None):
 
     if a.cmd == "merge":
         return merge(a)
+    if a.cmd == "grade":
+        return grade(a)
+    if a.cmd == "doctor":
+        return doctor()
 
     cfg = settings(a.config, None if a.path is None and (a.tls or a.ssh or a.pcap) else Path(a.path or "."))
     a.exclude = cfg.get("exclude", []) + a.exclude
@@ -190,3 +201,28 @@ def settings(path, root):
         if not isinstance(v, SETTINGS[k]) or (SETTINGS[k] is list and not all(isinstance(x, str) for x in v)):
             sys.exit(f"acxelin-readiness: {f}: {k} has the wrong type")
     return cfg
+
+
+def grade(a):
+    from . import endpoints
+    results = endpoints.scan(endpoints.load_targets(a.targets), a.workers, a.timeout)
+    for r in results:
+        print(f"{r.get('grade', 'F')}  {r.get('target', '?')}  {r.get('error') or r.get('negotiated') or ''}")
+    if a.json:
+        Path(a.json).write_text(endpoints.to_json(results), encoding="utf-8")
+    if a.html:
+        Path(a.html).write_text(endpoints.report_html(results), encoding="utf-8")
+    return 0
+
+
+def doctor():
+    from acxelin_core import openssl
+    reason = openssl.available()
+    print(f"full TLS handshakes (OpenSSL 3.5+): {'available' if reason is None else 'not available: ' + reason}")
+    print("  without them, grades and group acceptance still work; certificates of post-quantum-only endpoints are reported as not observed")
+    try:
+        import tree_sitter  # noqa: F401
+        print("JavaScript, TypeScript, Java and Go relationships: available")
+    except ImportError:
+        print('JavaScript, TypeScript, Java and Go relationships: not available: pip install "acxelin-readiness[crawler]"')
+    return 0
