@@ -209,3 +209,19 @@ def test_a_console_can_listen_on_all_interfaces_in_a_container_and_still_refuses
         assert e.value.code == 421
     finally:
         server.shutdown()
+
+
+def test_a_route_can_answer_with_a_file_download_but_only_when_signed_in():
+    app = console.App(b"<script>1</script>", {("POST", "/api/file"): lambda body: (200, console.Download("a b/c.zip", b"PK\x03\x04data", "application/zip"))})
+    app.sessions.tokens.add("t")
+    server = console.serve(app, ("127.0.0.1", 0))
+    port = server.server_address[1]
+    try:
+        r = urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{port}/api/file", b"{}", {"Authorization": "Bearer t", "Content-Type": "application/json"}))
+        assert r.read() == b"PK\x03\x04data" and r.headers["Content-Type"] == "application/zip"
+        assert r.headers["Content-Disposition"] == 'attachment; filename="a_b_c.zip"' and r.headers["Cache-Control"] == "no-store"
+        with pytest.raises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{port}/api/file", b"{}", {"Content-Type": "application/json"}))
+        assert e.value.code == 401
+    finally:
+        server.shutdown()

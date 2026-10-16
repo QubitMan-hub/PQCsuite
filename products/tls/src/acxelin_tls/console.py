@@ -5,6 +5,7 @@ memory for the life of the console and is never written anywhere, so a restart l
 """
 import datetime as dt
 import functools
+import io
 import json
 import re
 import secrets
@@ -12,12 +13,14 @@ import threading
 import time
 import urllib.parse
 import urllib.request
+import zipfile
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from acxelin_core import console as core
 from acxelin_core import shell, tls
-from acxelin_core.files import write
+from acxelin_core.files import append, write
 from acxelin_core.http import explain, hostport
 from acxelin_core.pki import CA, CAError, encrypted
 from cryptography import x509
@@ -28,6 +31,9 @@ from .common import env
 
 NAME = re.compile(r"[A-Za-z0-9*._-]{1,253}")
 MAX_EDGES = 50
+NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+PQ_GROUPS = set(policies.PQC_GROUPS.split(":")) | {"MLKEM1024"}
+KEYS = {"1.2.840.10045.2.1": "ECDSA", "1.2.840.113549.1.1.1": "RSA", "1.3.101.112": "Ed25519", "1.3.101.113": "Ed448"}
 
 
 def task(fn):
@@ -64,6 +70,28 @@ class TLSConsole:
             except CAError:
                 pass
 
+    # --- audit
+
+    def audit(self, action, detail):
+        line = json.dumps({"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "action": action, **detail})
+        with self.lock:
+            self.home.mkdir(parents=True, exist_ok=True)
+            append(self.home / "audit.jsonl", line)
+
+    def activity(self, n=12):
+        try:
+            with open(self.home / "audit.jsonl", encoding="utf-8", errors="replace") as f:
+                lines = deque(f, n)
+        except FileNotFoundError:
+            return []
+        out = []
+        for line in reversed(lines):
+            try:
+                out.append(json.loads(line))
+            except ValueError:
+                pass
+        return out
+
     # --- the certificate authority
 
     def _exists(self):
@@ -95,7 +123,7 @@ class TLSConsole:
         return 200, {"configured": True, "home": str(self.home), "name": next((str(a.value) for a in ca.cert.subject if a.oid == NameOID.COMMON_NAME), ""), "algorithm": ca.algorithm,
                      "encrypted": enc, "unlocked": bool(self.passphrase) or not enc, "crl": self._crl(),
                      "counts": {"valid": sum(r.status == "valid" for r in rows), "revoked": sum(r.status == "revoked" for r in rows),
-                                "expiring": sum(r.status == "valid" and r.not_after < soon for r in rows)}}
+                                "expiring": sum(r.status == "valid" and r.not_after < soon for r in rows)}, "activity": self.activity()}
 
     @task
     def create(self, body):
@@ -131,9 +159,13 @@ class TLSConsole:
     def certificates(self, body):
         if not self._exists():
             return 200, {"certificates": []}
-        rows = sorted(CA(self.ca_dir).records(), key=lambda r: r.not_after)
-        return 200, {"certificates": [{"serial": r.serial, "common_name": r.common_name, "kind": r.kind, "algorithm": r.algorithm, "not_after": r.not_after,
-                                       "status": r.status, "reason": r.reason} for r in rows]}
+        records = CA(self.ca_dir).records()
+        current = {r.path: r.serial for r in records if r.path}
+        rows = []
+        for r in sorted(records, key=lambda r: r.not_after):
+            row = {k: v for k, v in vars(r).items() if k != "path"}
+            rows.append(row | {"has_files": bool(r.path) and current.get(r.path) == r.serial, "renewed": bool(r.path) and current[r.path] != r.serial})
+        return 200, {"certificates": rows}
 
     @task
     def issue(self, body):
@@ -152,17 +184,82 @@ class TLSConsole:
             raise ValueError("Days must be a whole number from 1 to 3650")
         folder = Path("issued") / f"{re.sub(r'[^A-Za-z0-9.-]', '_', cn)}-{secrets.token_hex(3)}"
         _, rec = ca.issue(cn, kind, names, days, out=self.home / folder)
+        self.audit("issue", {"serial": rec.serial, "common_name": cn, "kind": kind})
         return 200, {"serial": rec.serial, "common_name": cn, "kind": kind, "folder": folder.as_posix(), "files": ["chain.pem", "key.pem"]}
 
     @task
     def revoke(self, body):
         ca = self._ca()
         serial = _text(body, "serial", "the serial from the certificate list", 80)
+        reason = body.get("reason") or "unspecified"
+        if not isinstance(reason, str):
+            raise ValueError("The reason must be text")
         try:
-            ca.revoke(serial, body.get("reason") or "unspecified")
+            ca.revoke(serial, reason)
+            r = ca.find(serial)
         except CAError as e:
             raise ValueError(str(e) if "serial" in str(e).lower() else f"serial {serial}: {e}") from None
-        return 200, {"revoked": serial, "crl": self._crl()}
+        self.audit("revoke", {"serial": r.serial, "common_name": r.common_name, "reason": reason})
+        return 200, {"revoked": r.serial, "crl": self._crl()}
+
+    @staticmethod
+    def _files(r):
+        """The serial of the certificate now in the record's folder, and the folder."""
+        folder = Path(r.path)
+        try:
+            cert = x509.load_pem_x509_certificate((folder / "cert.pem").read_bytes())
+        except (OSError, ValueError):
+            raise ValueError(f"the files for {r.common_name} are no longer in {folder}") from None
+        return format(cert.serial_number, "x"), folder
+
+    def _record(self, ca, body):
+        try:
+            return ca.find(_text(body, "serial", "the serial from the certificate list", 80))
+        except CAError as e:
+            raise ValueError(str(e)) from None
+
+    @task
+    def renew(self, body):
+        ca = self._ca()
+        r = self._record(ca, body)
+        if not r.path:
+            raise ValueError("this certificate was signed from a request (CSR, EST or ACME); its key is with whoever asked for it, so renew it there")
+        current = self._files(r)[0]
+        if current != r.serial:
+            raise ValueError(f"{r.common_name}'s folder already holds a newer certificate ({current}); renew that one")
+        _, new = ca.renew(r.serial, out=r.path)
+        self.audit("renew", {"serial": r.serial, "new_serial": new.serial, "common_name": r.common_name})
+        return 200, {"renewed": r.serial, "serial": new.serial, "not_after": new.not_after}
+
+    @task
+    def maintain(self, body):
+        renewed, skipped = self._ca().maintain()
+        self.audit("maintain", {"renewed": [r.serial for r in renewed]})
+        return 200, {"renewed": [r.common_name for r in renewed], "skipped": [r.common_name for r in skipped], "crl": self._crl()}
+
+    @task
+    def download(self, body):
+        """A zip with the certificate, its chain and the CA certificate; the private key only when asked for with a JSON true,
+        never for a revoked certificate or an encrypted key, and every download is audited."""
+        ca = CA(self.ca_dir) if self._exists() else self._ca()
+        r = self._record(ca, body)
+        with_key = body.get("key") is True
+        if not r.path:
+            raise ValueError("this certificate was signed from a request (CSR, EST or ACME); the console has no files for it")
+        current, folder = self._files(r)
+        if current != r.serial:
+            raise ValueError(f"this certificate was renewed; its folder now holds {current}, download that one")
+        if with_key and r.status == "revoked":
+            raise ValueError("this certificate is revoked; its key is not handed out")
+        if with_key and encrypted(folder / "key.pem"):
+            raise ValueError("this key is encrypted with a passphrase; copy it from the CA machine")
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            for name in ("cert.pem", "chain.pem") + (("key.pem",) if with_key else ()):
+                z.writestr(name, (folder / name).read_bytes())
+            z.writestr("ca.crt", ca.anchor.read_bytes())
+        self.audit("download", {"serial": r.serial, "common_name": r.common_name, "key": with_key})
+        return 200, core.Download(f"{r.common_name}-{r.serial[:8]}.zip", buf.getvalue(), "application/zip")
 
     @task
     def refresh(self, body):
@@ -198,11 +295,20 @@ class TLSConsole:
 
     @staticmethod
     def _fetch(url):
+        """One edge's /status as routes with their quantum-safe handshake counts, or one error in words."""
         try:
-            with urllib.request.urlopen(url + "/status", timeout=3) as r:
-                return {"url": url, "status": json.loads(r.read(1 << 20)), "error": None}
+            with NO_PROXY.open(url + "/status", timeout=3) as r:
+                status = json.loads(r.read(1 << 20))
+            if not isinstance(status, dict) or not all(isinstance(v, dict) for v in status.values()):
+                raise ValueError("this address does not answer like an edge's /status")
+            routes = []
+            for name, v in status.items():
+                groups = v.get("groups") if isinstance(v.get("groups"), dict) else {}
+                routes.append({"name": name, **v, "quantum_safe": sum(c for g, c in groups.items() if g in PQ_GROUPS and isinstance(c, int))})
+            return {"url": url, "routes": routes, "error": None}
         except (OSError, ValueError) as e:
-            return {"url": url, "status": None, "error": f"cannot read {url}/status: {explain(e) if isinstance(e, OSError) else 'not an Acxelin TLS edge'}; start the edge with --metrics HOST:PORT"}
+            why = explain(e) if isinstance(e, OSError) else str(e)
+            return {"url": url, "routes": [], "error": f"cannot read {url}/status: {why}; start the edge with --metrics HOST:PORT"}
 
     @task
     def edges(self, body):
@@ -212,20 +318,79 @@ class TLSConsole:
 
     @task
     def test_edge(self, body):
-        if not self._exists():
-            raise ValueError("There is no certificate authority yet: create one first; the test trusts its certificate")
-        host, port = hostport(_text(body, "target", "the edge to test, as host:port", 300), "")
-        name = body.get("server_name") or host
+        """Connect to host:port as a client of this CA: what was negotiated, or why it failed and what the server offers instead."""
+        target = _text(body, "target", "the edge to test, as host:port", 300)
+        host, port = hostport(target, "")
+        if not host:
+            raise ValueError("Enter host:port, such as localhost:8443")
         chosen = body.get("policy") or "strict"
         if chosen not in policies.POLICIES:
             raise ValueError("Choose strict, transition or cnsa2")
-        ctx = tls.client_context(policies.policy(chosen), self.ca_dir / "ca.crt")
+        name = body.get("server_name") or None
+        if name is not None and not isinstance(name, str):
+            raise ValueError("The certificate name must be text")
+        if not self._exists():
+            raise ValueError("There is no certificate authority yet: create one first; the test trusts its certificate")
+        ca = CA(self.ca_dir)
+        cert = key = None
+        serial = body.get("client")
+        r = None
+        if serial:
+            r = self._record(ca, {"serial": serial})
+            if r.kind == "server":
+                raise ValueError(f"{r.common_name} is a server certificate; choose a client certificate")
+            if not r.path:
+                raise ValueError("the console has no key for that certificate")
+            folder = self._files(r)[1]
+            if encrypted(folder / "key.pem"):
+                raise ValueError("that client's key is encrypted; test it from the command line")
+            cert, key = str(folder / "chain.pem"), str(folder / "key.pem")
+        started = time.monotonic()
+        out = {"target": target, "policy": chosen, "client": r.serial if r else None, "client_status": r.status if r else None}
+        ctx = tls.client_context(policies.policy(chosen), ca.anchor, cert, key)
         try:
-            with tls.connect(host, port, ctx, name, 5) as c:
-                info = c.info()
+            with tls.connect(host, port, ctx, name, 5.0) as conn:
+                out |= {"ok": True, **self._named(conn.info()), "ms": round((time.monotonic() - started) * 1000)}
+                refused = self._accepted(conn)
+                if refused:
+                    out |= {"ok": False, "refused_after_handshake": True, "error": refused}
+        except (tls.TLSError, OSError) as e:
+            out |= {"ok": False, "error": explain(e) if isinstance(e, OSError) else str(e), "offers": self._probe(host, port, name),
+                    "ms": round((time.monotonic() - started) * 1000)}
         finally:
             ctx.close()
-        return 200, {k: info.get(k) for k in ("version", "cipher", "group", "peer", "peer_key")}
+        out["quantum_safe"] = out.get("group") in PQ_GROUPS
+        self.audit("test", {"target": target, "ok": out["ok"], "client": out["client"]})
+        return 200, out
+
+    @staticmethod
+    def _accepted(conn):
+        """In TLS 1.3 the server checks a client certificate after the client's side of the handshake is done, so a refusal
+        arrives on the first read: an alert, or the connection closing. Silence means the server is waiting for a request."""
+        try:
+            data = conn.recv(timeout=0.8)
+        except tls.TLSError as e:
+            return None if "timed out" in str(e) else str(e)
+        if data == b"":
+            return ("the server closed the connection right after the handshake: either it refused the client certificate "
+                    "(missing, untrusted or revoked), or the service behind it is down")
+        return None
+
+    @staticmethod
+    def _named(info):
+        return info | {"peer_key": KEYS.get(info.get("peer_key"), info.get("peer_key"))}
+
+    @staticmethod
+    def _probe(host, port, name):
+        """What the server negotiates with an unverified, anything-goes client: tells 'classical only' from 'wrong CA'."""
+        ctx = tls.client_context(policies.policy("transition"), verify=False)
+        try:
+            with tls.connect(host, port, ctx, name, 3.0) as c:
+                return TLSConsole._named(c.info())
+        except (tls.TLSError, OSError):
+            return None
+        finally:
+            ctx.close()
 
     # --- health
 
@@ -254,7 +419,8 @@ def build(home, ca_dir=None):
     t = TLSConsole(home, ca_dir)
     routes = {("GET", "/api/status"): t.status, ("POST", "/api/ca/create"): t.create, ("POST", "/api/ca/unlock"): t.unlock,
               ("GET", "/api/certificates"): t.certificates, ("POST", "/api/certificates/issue"): t.issue, ("POST", "/api/certificates/revoke"): t.revoke,
-              ("POST", "/api/crl/refresh"): t.refresh, ("GET", "/api/edges"): t.edges, ("POST", "/api/edges/add"): t.add_edge,
+              ("POST", "/api/crl/refresh"): t.refresh, ("POST", "/api/certificates/renew"): t.renew,
+              ("POST", "/api/certificates/maintain"): t.maintain, ("POST", "/api/certificates/download"): t.download, ("GET", "/api/edges"): t.edges, ("POST", "/api/edges/add"): t.add_edge,
               ("POST", "/api/edges/remove"): t.remove_edge, ("POST", "/api/edges/test"): t.test_edge, ("GET", "/api/health"): t.health}
     return core.App(page(), routes)
 
