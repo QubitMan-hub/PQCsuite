@@ -17,6 +17,7 @@ from cryptography import x509
 
 from acxelin_core import tls
 import support_tls
+from acxelin_tls.policies import CIPHERSUITES
 from acxelin_core.pki import CA
 from acxelin_tls.edge import Edge, Route, metrics_text
 from acxelin_core.server import Server
@@ -67,7 +68,7 @@ class TLSTest(unittest.TestCase):
     def test_a_client_without_post_quantum_support_gets_an_actionable_log_line(self):
         from acxelin_core.openssl import Context
         s = self.server()
-        classical = Context(False, "X25519:secp256r1", None, tls.CIPHERSUITES, None, None, None, False)
+        classical = Context(False, "X25519:secp256r1", None, CIPHERSUITES, None, None, None, False)
         with self.assertLogs("acxelin_core", "WARNING") as logs:
             with self.assertRaises(tls.TLSError):
                 tls.connect("127.0.0.1", s.port, classical, "localhost", timeout=3)
@@ -96,13 +97,13 @@ class TLSTest(unittest.TestCase):
 
     def test_strict_server_refuses_classical_key_exchange(self):
         s = self.server("strict")
-        classical = tls.Context(False, "X25519:secp256r1", None, tls.CIPHERSUITES, ca=self.cafile)
+        classical = tls.Context(False, "X25519:secp256r1", None, CIPHERSUITES, ca=self.cafile)
         with self.assertRaisesRegex(tls.TLSError, "handshake failed"):
             self.roundtrip(s.port, classical)
 
     def test_transition_server_still_serves_classical_clients(self):
         s = self.server("transition")
-        classical = tls.Context(False, "X25519", None, tls.CIPHERSUITES, ca=self.cafile)
+        classical = tls.Context(False, "X25519", None, CIPHERSUITES, ca=self.cafile)
         info, _ = self.roundtrip(s.port, classical)
         self.assertEqual(info["group"].lower(), "x25519")
         info, _ = self.roundtrip(s.port, self.client(policy="transition"))

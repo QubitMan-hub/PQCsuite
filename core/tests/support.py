@@ -24,3 +24,8 @@ def server_context(cert, key, ca=None, require_client_cert=False, **kw):
 
 def client_context(ca=None, cert=None, key=None, **kw):
     return tls.client_context(PQ, ca, cert, key, **kw)
+
+
+def echo(conn, addr):
+    while data := conn.recv(timeout=5):
+        conn.sendall(data)

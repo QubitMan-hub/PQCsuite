@@ -29,7 +29,7 @@ class Revocation:
 
     def __init__(self, crl_path, ca_path):
         if not os.path.isfile(crl_path):
-            raise ValueError(f"no CRL at {crl_path}: write one with 'pqcsuite ca crl' (every client would be refused without it)")
+            raise ValueError(f"no CRL at {crl_path}: write one with `ca crl` (every client would be refused without it)")
         with open(ca_path, "rb") as f:
             self.crl_path, self.cas = crl_path, x509.load_pem_x509_certificates(f.read())
         self.stamp, self.data = None, None

@@ -108,7 +108,7 @@ class CA:
     def __init__(self, root, passphrase=None):
         self.root = Path(root)
         if not (self.root / "ca.crt").exists():
-            raise CAError(f"no CA at {self.root}; run 'pqcsuite ca init' first")
+            raise CAError(f"no CA at {self.root}; create one first (`ca init`)")
         self.cert = x509.load_pem_x509_certificate((self.root / "ca.crt").read_bytes())
         self.ski = self.cert.extensions.get_extension_for_class(x509.SubjectKeyIdentifier).value
         self.passphrase = passphrase
@@ -372,7 +372,7 @@ def verify_crl(crl_pem, ca_certs):
     try:
         crl = x509.load_pem_x509_crl(crl_pem)
     except ValueError:
-        raise CAError("the CRL file is damaged or not a CRL; re-sign it with 'pqcsuite ca crl'") from None
+        raise CAError("the CRL file is damaged or not a CRL; re-sign it with `ca crl`") from None
     issuers = [c for c in (ca_certs if isinstance(ca_certs, (list, tuple)) else [ca_certs]) if c.subject == crl.issuer]
     if not any(signed_by(c, crl.tbs_certlist_bytes, crl.signature) for c in issuers):
         raise CAError("the CRL was not signed by this CA")
@@ -427,7 +427,7 @@ def follow_crl(url, dest, ca_path, every=60.0):
     then every `every` seconds in the background. Returns an Event that stops it. Failures are logged and the old copy is
     kept; once it expires, every client is refused (fail closed)."""
     import logging
-    log = logging.getLogger("pqcsuite.crl")
+    log = logging.getLogger(__name__)
     cas = x509.load_pem_x509_certificates(Path(ca_path).read_bytes())
     try:
         if fetch_crl(url, dest, cas):

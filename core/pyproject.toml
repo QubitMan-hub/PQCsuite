@@ -14,4 +14,4 @@ authors = [{name = "Acxelin Quantum"}]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"acxelin_core" = ["tour.js"]
+"acxelin_core" = ["tour.js", "assets/*"]

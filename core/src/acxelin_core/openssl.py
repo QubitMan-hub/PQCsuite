@@ -62,7 +62,7 @@ class OpenSSLUnavailable(TLSError):
     pass
 
 
-EASIEST = ("Easiest: use the container image, which has it (docker run --rm ghcr.io/qubitman-hub/pqcsuite, then your command), "
+EASIEST = ("Easiest: use the product's container image, which has it, "
            "or Debian 13 or Ubuntu 25.04+, whose OpenSSL is new enough.")
 
 
@@ -117,7 +117,7 @@ class _Lib:
         crypto.OpenSSL_version_num.restype = ctypes.c_ulong
         self.version = crypto.OpenSSL_version(0).decode()
         if crypto.OpenSSL_version_num() < MIN_VERSION:
-            hint = (" Or, with OpenSSL 3.5+ installed elsewhere, start pqcsuite with LD_LIBRARY_PATH set to its lib folder "
+            hint = (" Or, with OpenSSL 3.5+ installed elsewhere, start the program with LD_LIBRARY_PATH set to its lib folder "
                     "(ACXELIN_OPENSSL cannot help here: this process has already loaded the system OpenSSL).") if platform.system() == "Linux" else \
                    " Or install OpenSSL 3.5+ and set ACXELIN_OPENSSL to the folder that holds it."
             raise OpenSSLUnavailable(f"this machine's {self.version} is too old: post-quantum TLS needs OpenSSL 3.5 or newer. {EASIEST}{hint}")

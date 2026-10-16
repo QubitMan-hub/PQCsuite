@@ -16,7 +16,7 @@ from acxelin_core.pki import signers
 from acxelin_core.pki import CA, CAError, check_revocation, generate, key_pem, signed_by
 from acxelin_core.server import Server
 from support import REASON
-from tests.test_tls import echo
+from support import echo
 
 
 SPKI = serialization.PublicFormat.SubjectPublicKeyInfo
