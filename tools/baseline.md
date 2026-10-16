@@ -40,3 +40,75 @@ Each finding comes from a command run in this environment. The output is summari
 - The spec therefore cannot list Windows as a supported TLS platform until a Windows job provides OpenSSL 3.5.
 
 Also found: `PQCSUITE_REAL_WIREGUARD` (`ci.yml`, the macOS job) belongs in the spec's compatibility table with the other environment variables.
+
+## Baseline run
+
+**Commands**, from the repository root at the base commit (the tree differs only by the spec and plan documents):
+```
+python -m venv /home/claude/venv-baseline && . /home/claude/venv-baseline/bin/activate
+pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]"
+PQCSUITE_OPENSSL=/opt/pqc/lib LD_LIBRARY_PATH=/opt/pqc/lib python -m coverage run -m pytest -q -rfEs -p no:cacheprovider
+pip install ruff==0.14.0 && ruff check .
+```
+
+**Result:**
+- 446 passed, 0 failed, 0 errors, 28 skipped, and 4,188 subtests passed, in 189 s.
+- `ruff check .`: "All checks passed!"
+- The TLS tests in `tests/test_tls.py` ran (none skipped) against OpenSSL 3.5.9.
+
+**Skips (28), each with the reason the test prints:**
+
+| Count | Test | Reason |
+|---|---|---|
+| 13 | `tests/test_vpn_desktop.py` | needs the desktop extra (pystray, PIL), not part of the install command above |
+| 4 | `tests/test_scenarios.py` | needs nginx |
+| 1 each | `tests/test_scenarios.py` | needs mosquitto; needs PostgreSQL; needs redis; needs PostgreSQL and root; needs an OpenSSL 3.5+ command line on `PATH` |
+| 2 | `tests/test_vpn.py:528,543` | needs root, iproute2 and `PQCSUITE_STRONGSWAN` |
+| 2 | `tests/test_wireguard.py:447,496` | needs root, iproute2, (iptables), wireguard-tools and WireGuard (kernel or `PQCSUITE_WIREGUARD_GO`) |
+| 1 | `tests/test_vpn_platforms.py:398` | real tunnel: set `PQCSUITE_REAL_WIREGUARD=1` |
+| 1 | `tests/test_scan.py:228` | needs root and OpenSSH |
+
+These skipped areas are not covered by this baseline. Their evidence comes from CI's privileged jobs, or from Stage 4 here where F3 allows.
+
+## Dependencies
+
+Python 3.12.3 (GCC 13.3.0). System OpenSSL 3.0.13. OpenSSL 3.5.9 in `/opt/pqc`. `pip freeze`:
+```
+acme==5.8.0
+attrs==26.1.0
+certbot==5.8.0
+certifi==2026.7.22
+cffi==2.1.1
+charset-normalizer==3.5.2
+ConfigArgParse==1.8.0
+configobj==5.0.9
+coverage==7.16.2
+cryptography==50.0.2
+distro==1.9.0
+hypothesis==6.170.0
+idna==3.20
+iniconfig==2.3.1
+josepy==2.2.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+packaging==26.3
+parsedatetime==2.6
+pluggy==1.7.0
+pycparser==3.11
+Pygments==2.21.0
+pyOpenSSL==26.4.0
+pyRFC3339==2.1.1
+pytest==9.1.1
+referencing==0.37.0
+requests==2.34.2
+rpds-py==2026.9.1
+sortedcontainers==2.4.0
+tree-sitter==0.26.0
+tree-sitter-go==0.25.0
+tree-sitter-java==0.23.5
+tree-sitter-javascript==0.25.0
+tree-sitter-typescript==0.23.2
+typing_extensions==4.16.0
+urllib3==2.8.0
+-e ./wolf-pack (wolfpack-cbom 1.4.1) and -e . (pqcsuite 0.4.3), both editable from this checkout
+```
