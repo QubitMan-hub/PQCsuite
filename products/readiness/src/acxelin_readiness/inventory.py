@@ -1,4 +1,6 @@
 """The organisation's view: CBOMs from many repositories, images and endpoints (or from other tools) merged into one inventory."""
+import copy
+import hashlib
 import json
 import re
 import uuid
@@ -78,7 +80,32 @@ def load(path, taken):
                        "recommendation": prop(c, "acxelin:recommendation") or (CATALOG[algo].replace if algo else ""),
                        "occurrences": (c.get("evidence") or {}).get("occurrences", [])})
     assets.sort(key=lambda a: (RANK.get(a["tier"], len(TIERS)), a["name"]))
-    return {"name": name, "source": str(path), "tool": tool, "assets": assets, "readiness": readiness(assets)}
+    others = [{"name": c.get("name", "?"), "tier": None, "component": c, "occurrences": (c.get("evidence") or {}).get("occurrences", [])}
+              for c in bom.get("components", []) if c.get("type") == "cryptographic-asset"
+              and (c.get("cryptoProperties") or {}).get("assetType") in ("certificate", "related-crypto-material", "protocol")]
+    return {"name": name, "source": str(path), "tool": tool, "assets": assets, "others": others, "readiness": readiness(assets)}
+
+
+OBSERVED = ("nistQuantumSecurityLevel",)  # fields kept per system; on disagreement the top level is left unset and the conflict named
+
+
+def identity(c, system):
+    """What makes two CBOM entries the same asset. Algorithms are shared concepts; a certificate or public key is the same
+    asset wherever it is seen; secret material and protocol instances belong to one system and are never merged (a hash
+    of a secret would be a guessing oracle, so secrets are keyed by where they are, not by what they are)."""
+    cp = c.get("cryptoProperties") or {}
+    kind, fp = cp.get("assetType", "algorithm"), prop(c, "acxelin:fingerprint") or prop(c, "acxelin:sha256")
+    if kind == "algorithm":
+        ap = cp.get("algorithmProperties") or {}
+        return [kind, c.get("name"), *(ap.get(k) for k in ("parameterSetIdentifier", "primitive", "mode", "padding", "curve"))]
+    material = (cp.get("relatedCryptoMaterialProperties") or {}).get("type")
+    if fp and (kind == "certificate" or kind == "related-crypto-material" and material == "public-key"):
+        return [kind, fp]
+    return [kind, system, c.get("name"), sorted(o.get("location", "") for o in (c.get("evidence") or {}).get("occurrences", []))]
+
+
+def ref_of(ident):
+    return f"{ident[0]}/{hashlib.sha256(json.dumps(ident, default=str).encode()).hexdigest()[:16]}"
 
 
 def readiness(assets):
@@ -123,26 +150,43 @@ def build(org, systems):
                       "properties": [{"name": "acxelin:source", "value": s["source"]}, {"name": "acxelin:tool", "value": s["tool"]},
                                      {"name": "acxelin:pq-ready-percent", "value": str(r["percent"])},
                                      {"name": "acxelin:worst-tier", "value": r["worst"] or "none"}]})
+    observations = defaultdict(list)
     for s in systems:
         uses = []
-        for a in s["assets"]:
-            cref = f"crypto/{slug(a['name'])}"
+        for a in s["assets"] + s.get("others", []):
+            cref = ref_of(identity(a["component"], s["name"]))
             if cref not in seen:
-                c = {k: v for k, v in a["component"].items() if k in ("type", "name", "cryptoProperties")}
+                c = copy.deepcopy({k: v for k, v in a["component"].items() if k in ("type", "name", "cryptoProperties")})
                 seen[cref] = dict(c, **{"bom-ref": cref, "evidence": {"occurrences": []}, "properties": []})
                 comps.append(seen[cref])
             c = seen[cref]
             c["evidence"]["occurrences"] += [dict(o, location=f"{s['name']}: {o.get('location', '')}") for o in a["occurrences"]]
-            worst = prop(c, "acxelin:tier")
-            if a["tier"] and (worst is None or RANK[a["tier"]] < RANK[worst]):
-                c["properties"] = [p for p in c["properties"] if p["name"] != "acxelin:tier"] + [{"name": "acxelin:tier", "value": a["tier"]}]
+            ap = (a["component"].get("cryptoProperties") or {}).get("algorithmProperties") or {}
+            observations[cref] += [{"system": s["name"], "field": f, "value": ap[f]} for f in OBSERVED if f in ap]
+            if a["tier"]:
+                observations[cref].append({"system": s["name"], "field": "tier", "value": a["tier"]})
+                worst = prop(c, "acxelin:tier")
+                if worst is None or RANK[a["tier"]] < RANK[worst]:
+                    c["properties"] = [p for p in c["properties"] if p["name"] != "acxelin:tier"] + [{"name": "acxelin:tier", "value": a["tier"]}]
             uses.append(cref)
         deps.append({"ref": refs[s["name"]], "dependsOn": sorted(set(uses))})
     for c in seen.values():
+        obs = sorted(observations[c["bom-ref"]], key=lambda o: (o["field"], o["system"], str(o["value"])))
+        conflicts = sorted(f for f in OBSERVED if len({json.dumps(o["value"]) for o in obs if o["field"] == f}) > 1)
+        for f in conflicts:
+            ((c.get("cryptoProperties") or {}).get("algorithmProperties") or {}).pop(f, None)
         n = sum(1 for d in deps if c["bom-ref"] in d["dependsOn"])
         c["properties"].append({"name": "acxelin:systems", "value": str(n)})
+        if obs:
+            c["properties"].append({"name": "acxelin:observations", "value": json.dumps(obs, sort_keys=True)})
+        if conflicts:
+            c["properties"].append({"name": "acxelin:conflict", "value": ", ".join(conflicts)})
+        c["properties"].sort(key=lambda p: p["name"])
+        c["evidence"]["occurrences"].sort(key=lambda o: o.get("location", ""))
         if not c["evidence"]["occurrences"]:
             del c["evidence"]
+    comps.sort(key=lambda c: c["bom-ref"])
+    deps.sort(key=lambda d: d["ref"])
     return {"bomFormat": "CycloneDX", "specVersion": "1.6", "serialNumber": f"urn:uuid:{uuid.uuid4()}", "version": 1,
             "metadata": {"timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                          "tools": {"components": [{"type": "application", "name": "acxelin-readiness", "version": __version__}]},

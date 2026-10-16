@@ -186,7 +186,8 @@ class Inventory(unittest.TestCase):
             self.assertFalse(by["corpus"]["readiness"]["estimated"])
             bom = json.loads((d / "inv" / "cbom.json").read_text())
             refs = {c["bom-ref"] for c in bom["components"]}
-            self.assertTrue({"system/corpus", "system/billing", "crypto/RSA-1024"} <= refs)
+            self.assertTrue({"system/corpus", "system/billing"} <= refs)
+            self.assertTrue(any(c["name"] == "RSA-1024" and c["bom-ref"].startswith("algorithm/") for c in bom["components"]))
             self.assertEqual(bom["dependencies"][0], {"ref": "organisation", "dependsOn": ["system/corpus", "system/billing"]})
             self.assertIn("Where each algorithm is used", (d / "inv" / "inventory.html").read_text())
             with self.assertRaises(SystemExit) as cm:
