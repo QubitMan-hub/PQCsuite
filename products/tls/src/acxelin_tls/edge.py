@@ -279,7 +279,7 @@ def reconcile(edges, routes, reuse_port=False):
             break
 
 
-WORKER = "PQC_EDGE_WORKER"
+WORKER = "ACXELIN_TLS_EDGE_WORKER"
 
 
 class Workers:

@@ -24,3 +24,5 @@ def server_context(cert, key, ca=None, require_client_cert=False, policy_name="s
 
 def client_context(ca=None, cert=None, key=None, policy_name="strict", key_passphrase=None, verify=True):
     return tls.client_context(policies.policy(policy_name), ca, cert, key, key_passphrase, verify)
+
+CIPHERSUITES = policies.CIPHERSUITES

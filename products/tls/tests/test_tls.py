@@ -212,6 +212,138 @@ class TLSTest(unittest.TestCase):
         with self.assertRaisesRegex(tls.TLSError, "passphrase"):
             support_tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", policy_name="strict", key_passphrase=b"nope")
 
+    def test_revoking_a_client_closes_its_open_connection_and_no_other(self):
+        trudy, rec = self.ca.issue("trudy", "client")
+        s = self.server(mtls=True)
+        with tls.connect("127.0.0.1", s.port, self.client(trudy), "localhost", timeout=3) as t, \
+             tls.connect("127.0.0.1", s.port, self.client(self.alice), "localhost", timeout=3) as a:
+            t.sendall(b"ping")
+            self.assertEqual(t.recv(timeout=3), b"ping")
+            with self.assertLogs(level="WARNING") as logs:
+                self.ca.revoke(rec.serial, "keyCompromise")
+                try:
+                    cut = t.recv(timeout=5) == b""
+                except (tls.TLSError, OSError):
+                    cut = True
+            self.assertTrue(cut, "a revoked client's open connection must be closed")
+            self.assertIn("no longer accepted", "".join(logs.output))
+            a.sendall(b"still here")
+            self.assertEqual(a.recv(timeout=3), b"still here")
+        self.assertEqual(s.stats.snapshot()["revoked_closed"], 1)
+
+    @unittest.skipIf(os.name == "nt", "Windows has no per-process limit on open sockets")
+    def test_the_open_file_limit_is_raised_and_a_shortfall_named(self):
+        import resource
+        from acxelin_core.server import open_files
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        self.addCleanup(resource.setrlimit, resource.RLIMIT_NOFILE, (soft, hard))
+        if hard != resource.RLIM_INFINITY and hard > 256:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (256, hard))
+            self.assertGreater(open_files(10), 256)
+        with self.assertLogs(level="WARNING") as logs:
+            open_files(10 ** 12)
+        self.assertIn("LimitNOFILE", logs.output[0])
+
+    def test_one_address_cannot_take_the_cpu_or_the_slots_and_floods_are_not_logged_line_by_line(self):
+        s = Server(("127.0.0.1", 0), lambda: support_tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", key_passphrase=b"server-pass"),
+                   echo, max_connections=64, max_rate_per_client=5)
+        self.addCleanup(s.sock.close)
+        verdicts = [s._admit("203.0.113.5") for _ in range(30)]
+        self.assertEqual(verdicts[:10], [None] * 10, "a burst of twice the rate is allowed")
+        self.assertIn("max_rate_per_client", verdicts[-1])
+        self.assertIsNone(s._admit("198.51.100.7"), "another address is not affected")
+        self.assertTrue(all(s._admit("127.0.0.1") is None for _ in range(30)), "this machine is not rate-limited")
+        s.rate = 0
+        s.threads, s.open["192.0.2.9"] = set(range(32)), s.per_client
+        self.assertIn("max_per_client", s._admit("192.0.2.9"))
+        self.assertIsNone(s._admit("192.0.2.10"))
+        with self.assertLogs(level="WARNING") as logs:
+            for _ in range(200):
+                s._refuse("203.0.113.5", "it opens more than 5 connections a second")
+        self.assertEqual(len(logs.output), 1)
+
+    def test_mutual_tls_clients_can_resume_and_a_revoked_one_still_cannot(self):
+        from acxelin_core.openssl import lib
+        L = lib()
+        if not hasattr(L, "SSL_get1_session"):
+            self.skipTest("this binding does not expose sessions")
+        who, rec = self.ca.issue("resumer", "client")
+        s = self.server(mtls=True)
+        ctx = self.client(who)
+        with tls.connect("127.0.0.1", s.port, ctx, "localhost", timeout=3) as c:
+            c.sendall(b"one")
+            self.assertEqual(c.recv(timeout=3), b"one")
+            session = L.SSL_get1_session(c.ssl)
+        self.addCleanup(L.SSL_SESSION_free, session)
+
+        def again():
+            from acxelin_core.openssl import Connection
+            sock = socket.create_connection(("127.0.0.1", s.port), timeout=3)
+            conn = Connection(ctx, sock, 3)
+            L.SSL_set_session(conn.ssl, session)
+            conn.handshake("localhost")
+            conn.sendall(b"two")
+            return conn, conn.recv(timeout=3)
+        conn, reply = again()
+        with conn:
+            self.assertTrue(L.SSL_session_reused(conn.ssl), "the session was resumed")
+            self.assertEqual((reply, conn.group), (b"two", "X25519MLKEM768"))
+        self.ca.revoke(rec.serial)
+        time.sleep(0.05)
+        try:
+            conn, reply = again()
+            conn.close()
+        except (tls.TLSError, OSError):
+            reply = b""
+        self.assertEqual(reply, b"", "a revoked client cannot get back in by resuming")
+
+    def test_ipv6_listen_and_connect(self):
+        try:
+            socket.create_server(("::1", 0), family=socket.AF_INET6).close()
+        except OSError:
+            self.skipTest("no IPv6 on this machine")
+        srv6, _ = self.ca.issue("v6", "server", ["::1"])
+        s = Server(tls.hostport("[::1]:0"), lambda: support_tls.server_context(srv6 / "chain.pem", srv6 / "key.pem"), echo, handshake_timeout=3)
+        s.start()
+        self.addCleanup(s.stop, 1)
+        with tls.connect("::1", s.port, self.client(), timeout=3) as c:
+            c.sendall(b"six")
+            self.assertEqual((c.recv(timeout=3), c.group), (b"six", "X25519MLKEM768"))
+
+    def test_the_root_is_not_sent_so_the_first_flight_fits_tcps_initial_window(self):
+        s = self.server()
+        relay, counted = socket.create_server(("127.0.0.1", 0)), []
+
+        def forward():
+            client, _ = relay.accept()
+            server = socket.create_connection(("127.0.0.1", s.port))
+            client.settimeout(3)
+            server.settimeout(0.5)
+            got = 0
+            for _ in range(20):
+                try:
+                    data = client.recv(65536)
+                    server.sendall(data)
+                except (TimeoutError, OSError):
+                    pass
+                try:
+                    data = server.recv(65536)
+                    got += len(data)
+                    client.sendall(data)
+                except (TimeoutError, OSError):
+                    pass
+            counted.append(got)
+            client.close()
+            server.close()
+        t = threading.Thread(target=forward)
+        t.start()
+        with tls.connect("127.0.0.1", relay.getsockname()[1], self.client(), "localhost", timeout=5) as c:
+            self.assertEqual(len(c.peer_chain()), 2, "the client still verifies up to the root it trusts")
+        t.join()
+        relay.close()
+        self.assertLess(counted[0], 14600, "about 10 TCP segments: more costs a round trip on every new connection")
+        self.assertEqual((self.srv / "chain.pem").read_bytes().count(b"BEGIN CERTIFICATE"), 2, "the file keeps the root")
+
 
 class Upstream(SimpleHTTPRequestHandler):
     def do_GET(self):
@@ -374,3 +506,4 @@ class EdgeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

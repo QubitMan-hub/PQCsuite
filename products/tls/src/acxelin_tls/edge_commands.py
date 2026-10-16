@@ -69,7 +69,8 @@ def cmd_edge(a):
         routes = [Route(name="edge", mode=a.mode, listen=a.listen, target=a.target, policy=a.policy, cert=a.cert or "", key=a.key or "",
                         key_passphrase_env=a.key_passphrase_env or "", ca=a.ca or "", require_client_cert=a.require_client_cert,
                         crl=a.crl or "", crl_url=a.crl_url or "", server_name=a.server_name or "", proxy_protocol=a.proxy_protocol,
-                        fallback_cert=a.fallback_cert or "", fallback_key=a.fallback_key or "")]
+                        fallback_cert=a.fallback_cert or "", fallback_key=a.fallback_key or "", max_connections=a.max_connections,
+                        max_per_client=a.max_per_client, max_rate_per_client=a.max_rate_per_client)]
         metrics = a.metrics
     if a.workers < 1:
         raise ValueError("--workers must be 1 or more")
@@ -80,6 +81,8 @@ def cmd_edge(a):
             raise ValueError("--workers needs a fixed listen port, not 0")
         if not sys.platform.startswith("linux"):
             raise ValueError("--workers needs Linux, where the kernel spreads connections over the processes (SO_REUSEPORT)")
+    from acxelin_core.server import open_files
+    open_files(sum(2 * r.max_connections for r in routes) + 64)
     edges = [Edge(r).bind(reuse_port=shared) for r in routes]
     workers = Workers(a.workers) if a.workers > 1 and not worker else None
     if worker:
@@ -116,7 +119,7 @@ def add(sub):
     p.add_argument("--config", help="TOML file with [[edge]] routes; replaces the flags below")
     p.add_argument("--mode", choices=["terminate", "originate"], default="terminate",
                    help="terminate: post-quantum TLS in front of --target; originate: plain local clients reach a remote edge at --target")
-    p.add_argument("--listen", default="0.0.0.0:8443", help="host:port (default: every interface, port 8443)")
+    p.add_argument("--listen", default="[::]:8443", help="host:port (default: every interface, IPv4 and IPv6, port 8443)")
     p.add_argument("--target", help="upstream host:port (terminate) or remote edge host:port (originate)")
     policy(p)
     for flag, text in (("--cert", "the edge's certificate chain (chain.pem)"), ("--key", "its private key (key.pem)"),
@@ -127,7 +130,13 @@ def add(sub):
                        ("--server-name", "originate: the name in the remote edge's certificate, if not its host"),
                        ("--metrics", "host:port for /metrics (Prometheus), /healthz and /status, e.g. 127.0.0.1:9100")):
         p.add_argument(flag, help=text)
-    p.add_argument("--fallback-cert", help="with --policy transition: an ECDSA or RSA certificate for browsers that cannot verify ML-DSA")
+    p.add_argument("--fallback-cert", help="with --policy transition: a trusted classical certificate, preferred for dual-capability clients")
+    p.add_argument("--max-connections", type=int, default=512, help="open connections per route before new ones are refused (default 512)")
+    p.add_argument("--max-per-client", type=int, default=0,
+                   help="once the edge is half full, connections one address may hold (default: an eighth of --max-connections)")
+    p.add_argument("--max-rate-per-client", type=float, default=50.0,
+                   help="new connections a second one address may open (default 50, bursts of twice that); 0: no limit, "
+                        "for an edge behind a load balancer, where every client has the balancer's address")
     p.add_argument("--fallback-key", help="the fallback certificate's private key")
     p.add_argument("--require-client-cert", action="store_true", help="mutual TLS")
     p.add_argument("--proxy-protocol", action="store_true", help="send a PROXY v1 header so the upstream sees the client address")
@@ -142,7 +151,7 @@ def add(sub):
     policy(p)
     p = t.add_parser("serve", help="an echo server, for testing clients")
     p.set_defaults(func=cmd_tls)
-    p.add_argument("--listen", default="0.0.0.0:8443", help="host:port (default: every interface, port 8443)")
+    p.add_argument("--listen", default="[::]:8443", help="host:port (default: every interface, IPv4 and IPv6, port 8443)")
     p.add_argument("--cert", required=True, help="chain.pem")
     p.add_argument("--key", required=True)
     p.add_argument("--key-passphrase-env")

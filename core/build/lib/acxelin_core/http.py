@@ -38,6 +38,7 @@ def explain(e):
 def serve_http(address, routes):
     """Answers GET on a background thread. `routes` maps a path to (content type, function returning the body as text, or
     None for 404); /healthz always answers ok."""
+
     routes = {"/healthz": ("text/plain; charset=utf-8", lambda: "ok\n"), **routes}
 
     class Handler(BaseHTTPRequestHandler):
@@ -59,7 +60,7 @@ def serve_http(address, routes):
         def log_message(self, *args):
             pass
 
-    httpd = ThreadingHTTPServer(hostport(address, "127.0.0.1"), Handler)
+    httpd = http_server(address, Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd
 
@@ -134,3 +135,37 @@ def restart(module):
     logging.shutdown()
     os.execv(sys.executable, [sys.executable, "-m", module, *sys.argv[1:]])
 
+
+def nodelay(sock):
+    """Send each write at once. With Nagle's algorithm on, a reply that follows a small unacknowledged write waits up to
+    40 ms for the peer's delayed ACK, which multiplies request/response latency (databases, Redis, APIs)."""
+    try:
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    except OSError:
+        pass  # not TCP (a Unix socket in tests), or already closed
+    return sock
+
+
+def listen(address, backlog=1024, reuse_port=False):
+    """A listening socket for (host, port). An IPv6 host gets an IPv6 socket; "::" (every interface, the default) also takes
+    IPv4 clients, and falls back to IPv4 alone on a machine without IPv6."""
+    if ":" not in address[0]:
+        return socket.create_server(address, backlog=backlog, reuse_port=reuse_port)
+    try:
+        return socket.create_server(address, family=socket.AF_INET6, backlog=backlog, reuse_port=reuse_port,
+                                    dualstack_ipv6=address[0] == "::" and socket.has_dualstack_ipv6())
+    except OSError:
+        if address[0] != "::":
+            raise
+        return socket.create_server(("0.0.0.0", address[1]), backlog=backlog, reuse_port=reuse_port)  # no IPv6 here
+
+
+def http_server(listen_on, handler, server_class=None):
+    """A ThreadingHTTPServer on "host:port" (default host 127.0.0.1), on the same socket listen() gives."""
+    httpd = (server_class or ThreadingHTTPServer)(("127.0.0.1", 0), handler, bind_and_activate=False)
+    httpd.socket.close()
+    httpd.socket = listen(hostport(listen_on, "127.0.0.1"), backlog=128)
+    httpd.address_family = httpd.socket.family
+    httpd.server_address = httpd.socket.getsockname()[:2]
+    httpd.server_name, httpd.server_port = httpd.server_address
+    return httpd

@@ -18,7 +18,7 @@ from cryptography.x509.oid import NameOID
 from acxelin_core import tls
 import support_tls
 from acxelin_core.pki import CA, algorithm_of
-from acxelin_tls.policies import CIPHERSUITES
+from acxelin_tls.policies import CIPHERSUITES, PQC_GROUPS
 from acxelin_core.openssl import Context
 from support_tls import REASON
 
@@ -46,6 +46,7 @@ class DowngradeTest(unittest.TestCase):
               .add_extension(x509.SubjectAlternativeName([x509.DNSName("localhost"), x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]), False)
               .sign(key, hashes.SHA256()))
         (d / "fb.crt").write_bytes(fb.public_bytes(serialization.Encoding.PEM))
+        (d / 'both.crt').write_bytes((d / 'pki' / 'ca.crt').read_bytes() + fb.public_bytes(serialization.Encoding.PEM))
         (d / "fb.key").write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
         cls.listeners = []
 
@@ -103,14 +104,14 @@ class DowngradeTest(unittest.TestCase):
                    "cnsa2": support_tls.server_context(s87 / "chain.pem", s87 / "key.pem", policy_name="cnsa2"),
                    "classical": Context(True, CLASSICAL, None, CIPHERSUITES, str(s65 / "chain.pem"), str(s65 / "key.pem"))}
         clients = {"strict": support_tls.client_context(self.cafile, policy_name="strict"),
-                   "transition": support_tls.client_context(self.cafile, policy_name="transition"),
+                   "transition": support_tls.client_context(self.d / "both.crt", policy_name="transition"),
                    "cnsa2": support_tls.client_context(self.cafile, policy_name="cnsa2"),
-                   "classical": Context(False, CLASSICAL, None, CIPHERSUITES, ca=self.cafile)}
+                   "classical": Context(False, CLASSICAL, None, CIPHERSUITES, ca=str(self.d / "both.crt"))}
         pq65, pq87, weak = ("X25519MLKEM768", "ML-DSA-65"), ("SecP384r1MLKEM1024", "ML-DSA-87"), ("x25519", "ML-DSA-65")
         expected = {
             ("strict", "strict"): pq65, ("strict", "transition"): pq65, ("strict", "cnsa2"): REFUSED, ("strict", "classical"): REFUSED,
-            ("transition", "strict"): pq65, ("transition", "transition"): pq65, ("transition", "cnsa2"): REFUSED,
-            ("transition", "classical"): weak,
+            ("transition", "strict"): pq65, ("transition", "transition"): ("X25519MLKEM768", None), ("transition", "cnsa2"): REFUSED,
+            ("transition", "classical"): ("x25519", None),
             ("cnsa2", "strict"): pq87, ("cnsa2", "transition"): pq87, ("cnsa2", "cnsa2"): pq87, ("cnsa2", "classical"): REFUSED,
             ("classical", "strict"): REFUSED, ("classical", "transition"): weak, ("classical", "cnsa2"): REFUSED,
             ("classical", "classical"): weak,
@@ -138,6 +139,24 @@ class DowngradeTest(unittest.TestCase):
         self.assertEqual(self.attempt(mtls, support_tls.client_context(self.cafile, self.c65 / "chain.pem", self.c65 / "key.pem")),
                          ("X25519MLKEM768", "ML-DSA-65"))
 
+    def test_transition_fallback_is_trusted_by_a_dual_capability_browser_client(self):
+        port = self.serve(support_tls.server_context(self.s65 / 'chain.pem', self.s65 / 'key.pem', policy_name='transition',
+                                           fallback=(str(self.d / 'fb.crt'), str(self.d / 'fb.key'))))
+        browser = Context(False, PQC_GROUPS, 'mldsa65:ecdsa_secp256r1_sha256', CIPHERSUITES, ca=str(self.d / 'fb.crt'))
+        try:
+            with tls.connect('127.0.0.1', port, browser, 'localhost') as conn:
+                self.assertEqual(conn.recv(), b'ok')
+                self.assertEqual(conn.group, 'X25519MLKEM768')
+                self.assertEqual(conn.info()['peer_key'], '1.2.840.10045.2.1')
+        finally:
+            browser.close()
+        strict = support_tls.client_context(self.cafile)
+        try:
+            self.assertEqual(self.attempt(port, strict), ('X25519MLKEM768', 'ML-DSA-65'))
+        finally:
+            strict.close()
+
 
 if __name__ == "__main__":
     unittest.main()
+

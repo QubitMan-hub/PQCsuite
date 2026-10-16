@@ -29,3 +29,5 @@ def client_context(ca=None, cert=None, key=None, **kw):
 def echo(conn, addr):
     while data := conn.recv(timeout=5):
         conn.sendall(data)
+
+CIPHERSUITES = PQ.ciphersuites
