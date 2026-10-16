@@ -1,6 +1,6 @@
 # Four standalone products: design
 
-Revision 2, 16 October 2026. Base commit `5f8c349a102e566560708ee12b9b1574e4a6e6cc`. Status: for owner review. Revision 1 was reviewed by the owner; this revision answers that review.
+Revision 3, 16 October 2026. Base commit `5f8c349a102e566560708ee12b9b1574e4a6e6cc`. Status: architecture approved by the owner; this revision makes the five changes and two corrections from the owner's review of revision 2.
 
 ## Goal
 
@@ -22,24 +22,35 @@ Success means all of the following hold, each proven by an executed test:
 
 ## Decision record
 
-"Confirmed" means the owner chose it in this design conversation. "Proposed" means it awaits the owner's review of this document.
+Provenance says where each item comes from:
+- **Owner requirement:** written by the owner in their brief or review.
+- **Owner selection:** chosen by the owner from options I offered in this conversation.
+- **My proposal.**
+- **Inherited:** from the repository's notes.
 
-| # | Decision | Status |
-|---|---|---|
-| D1 | One shared library, `acxelin-core`, holding mechanisms only (see "Shared core") | Confirmed |
-| D2 | Acxelin VPN keeps IPsec site-to-site, WireGuard remote access and the desktop app | Confirmed |
-| D3 | The Wolf Pack concept goes. The role switchboard, the per-heuristic ablation benchmark and the evaluation kits move to git tag `research-archive-2026-10`. The dev corpus and `bench/truth.json` stay as a CI quality gate. | Confirmed |
-| D4 | One website: a shared home page, and each product's own section reached from it | Confirmed |
-| D5 | Legitimate old data stays readable through versioned readers. Insecure behaviour is not preserved. Old names are read through each product's compatibility window. | Confirmed in principle; the details below are proposed |
-| D6 | Commands `acxelin-tls`, `acxelin-vpn`, `acxelin-readiness` and `acxelin-vault` | Confirmed |
-| D6a | Packages named like the commands, core `acxelin-core`, display names Acxelin TLS, Acxelin VPN, Acxelin Readiness and Acxelin Q-Vault | Proposed |
-| D7 | All six architecture candidates are in scope. The HTTP and keyring candidates must pass "Spike criteria" or are deferred. | Confirmed (criteria proposed) |
-| D8 | Each product keeps a web interface for routine work, adapted from today's console, VPN app and desktop app (see "Product interfaces") | Confirmed by owner instruction |
-| D9 | Readiness reads other products' assets through CycloneDX CBOM files (see "CBOM contract") | Proposed |
-| D10 | The GitHub release check (`latest_release`) is removed; products do not phone home | Proposed |
-| D11 | Product consoles listen on localhost only. Remote use goes through an SSH port-forward, not another product. | Proposed |
-| D12 | Hosting: GitHub Pages from this repository, with product sections as sub-paths | Proposed |
-| D13 | Out of scope: team access (SSO, RBAC), installer code signing, independent security review | Inherited from the repository's 1 October 2026 note; not yet reconfirmed by the owner |
+Only owner requirements are settled. Everything else is **proposed** until the owner approves this specification. An owner selection approved a direction, not every extraction or deletion that follows from it.
+
+| # | Item | Provenance | Status |
+|---|---|---|---|
+| R1 | Four products: TLS/mTLS, IPsec VPN, Readiness + CBOM combined, Q-Vault | owner requirement | settled |
+| R2 | Remove the Wolf Pack name and concept | owner requirement | settled |
+| R3 | Each product complete and independently installable, configurable, testable and deployable, without another product's features | owner requirement | settled |
+| R4 | Convenient interfaces kept per product: configure, operate, view status and troubleshoot without the CLI; the CLI stays for automation | owner requirement | settled |
+| R5 | Website with each product's own pages and journey, in Acxelin's style | owner requirement | settled |
+| R6 | Tests for intended behaviour written before code changes; executed evidence at each gate | owner requirement | settled |
+| D1 | One shared library, `acxelin-core`, holding mechanisms only | owner selection | proposed |
+| D2 | Acxelin VPN keeps IPsec site-to-site, WireGuard remote access and the desktop app | owner selection | proposed |
+| D3 | Remove the role switchboard, the per-heuristic ablation benchmark and the evaluation kits to git tag `research-archive-2026-10`; keep the dev corpus and `bench/truth.json` as a CI gate | owner selection | proposed |
+| D4 | A shared home page, and each product's own section reached from it | owner selection (owner's wording) | proposed |
+| D5 | Old data readable through versioned readers; insecure behaviour not preserved; old names read through each product's compatibility window | owner selection, then refined by owner review | proposed |
+| D6 | Commands `acxelin-tls`, `acxelin-vpn`, `acxelin-readiness`, `acxelin-vault` | owner selection | proposed |
+| D6a | Packages named like the commands, core `acxelin-core`, display names Acxelin TLS, Acxelin VPN, Acxelin Readiness, Acxelin Q-Vault | my proposal | proposed |
+| D7 | All six architecture candidates; the keyring and ACME-handler candidates only if they pass "Spike criteria" | owner selection; criteria are my proposal | proposed |
+| D9 | Readiness reads other products' assets through CycloneDX CBOM files | my proposal | proposed |
+| D10 | Remove the GitHub release check (`latest_release`); products do not phone home | my proposal | proposed |
+| D11 | Consoles accept loopback host names only; remote use goes through an SSH port-forward or Docker's loopback publishing | my proposal | proposed |
+| D12 | Hosting on GitHub Pages from this repository, with product sections as sub-paths | my proposal | proposed |
+| D13 | Out of scope: team access (SSO, RBAC), installer code signing, independent security review | inherited (repository note of 1 October 2026) | proposed; not reconfirmed by the owner |
 
 ## Target layout
 
@@ -73,15 +84,21 @@ products/<name>/
 
 ### Mechanism, not policy
 
-The core holds mechanisms that two or more products use. Each product owns the policy: what to allow, which defaults, which commands and which pages. The core has no command, no config file, no page content and no product name in its code. A test greps `core/` for product names and fails if it finds one.
+The core holds mechanisms that two or more products use. Each product owns the policy: what to allow, which defaults, which commands and which pages. The core has no command, no config file and no page content. Three tests enforce the boundary:
+
+1. **Import test.** Core imports no product package, and no product imports another product.
+2. **Core alone.** Core's own test suite passes in an environment where only `acxelin-core` is installed.
+3. **Policy comes from the caller.** Each core mechanism is exercised with two different caller-supplied policies (for example two group lists, two lockout settings or two certificate profiles), and its behaviour follows the argument. Core holds no product defaults to fall back on.
+
+Boundary tests may name products. No test greps for product names.
 
 | Core module (mechanism) | Products own (policy) | Used by |
 |---|---|---|
 | `config`: TOML parsing, typed validation with clear errors, passphrase from environment | each product's settings schema and defaults | all four |
 | `files`: atomic private writes, locks | where each product keeps its state | all four |
 | `http`: threaded localhost server, idle timeout, body-size limit, JSON replies | routes | all four |
-| `console`: localhost bind, bearer token compared in constant time, lockout after 10 wrong tokens per address per minute, page shell | the page, its API routes and its actions | all four |
-| `openssl`: ctypes binding to OpenSSL 3.5+, context building from explicit group and signature lists, `Server` with reload and CRL | TLS's named policies (strict, transition); VPN's fixed strict list | TLS, VPN, Readiness (full-handshake capability only) |
+| `console`: loopback bind and host check, origin check, launch tickets, bearer token compared in constant time, lockout after 10 wrong attempts per address per minute, request logging without secrets, page shell (see "Console access and security") | the page, its API routes, its actions and its first-run setup | all four |
+| `openssl`: ctypes binding to OpenSSL 3.5+, context building from explicit group and signature lists, `Server` with reload and CRL | TLS's named policies (strict, transition); VPN's fixed strict list | TLS, VPN, Readiness (full-handshake capability) |
 | `pki`: CA issue, renew, revoke and CRL signing, chain and CRL verification, signers, EST protocol client and service | certificate profiles, lifetimes, who may enroll, and the `ca`/`est` commands | TLS and VPN issue; Vault verifies signers only |
 
 Revision 1 put CLI argument definitions in the core. They now stay in each product, because which CA operations a product offers is policy. Acxelin VPN offers a smaller CA command set than Acxelin TLS.
@@ -148,7 +165,7 @@ For platform and security teams putting post-quantum TLS 1.3 and mTLS in front o
 - **Code:** edge (`tls/edge.py`, `bundles.py`, `http.py`), ACME (`pki/acme.py`), the one-minute tour, and TLS checks from `checks.py`.
 - **Console:** see "Product interfaces".
 - **Commands:**
-  - `acxelin-tls console`, `try`, `doctor`, `status`
+  - `acxelin-tls console`, `console link`, `try`, `doctor`, `status`
   - `edge`, `bundle`, `serve`, `connect`
   - `ca init|issue|renew|sign-csr|revoke|crl|maintain|list|token|publish|serve|enroll|acme|eab|csr`
 - **Deploy:** Docker, Helm (CA + edge), the Kubernetes sidecar, and systemd units `acxelin-tls-edge.service` and `acxelin-tls-maintain.timer`. The soak and benchmark scripts move here.
@@ -161,7 +178,7 @@ For network teams connecting sites over IPsec and staff over WireGuard.
 - **Code:** `vpn/*` (charon, controller, wireguard, platforms, desktop, app, join).
 - **Interfaces:** the end-user app and desktop app, plus an administrator console.
 - **Commands:**
-  - `acxelin-vpn console`, `doctor`, `status`, `check`
+  - `acxelin-vpn console`, `console link`, `doctor`, `status`, `check`
   - `up`, `gateway`, `invite`, `join`, `app`, `desktop`, `connect`, `install`, `disconnect`, `uninstall`
   - `ca init|issue|revoke|crl|maintain|list|serve`
   - `inventory --cbom`
@@ -178,7 +195,7 @@ For network teams connecting sites over IPsec and staff over WireGuard.
 For security and compliance teams finding quantum-vulnerable cryptography and deciding what to migrate first. It merges the Wolf Pack engine with the suite's readiness assessment.
 
 - **Commands:**
-  - `acxelin-readiness console`, `setup`, `doctor`
+  - `acxelin-readiness console`, `console link`, `setup`, `doctor`
   - `scan PATH [--tls HOST:PORT] [--ssh HOST] [--open] [--history FILE]`
   - `probe`
   - `report [--certs DIR] [--targets ...] [--cbom FILE]...`
@@ -205,7 +222,7 @@ Engine renames:
 For data owners whose archives and backups must stay secret past the arrival of quantum computers.
 
 - **Recipients:** ML-KEM-768 + X25519 key pairs (ML-KEM-1024 + P-384 with `--cnsa2`). An optional signer certificate and CRL from any CA are checked with core `pki`.
-- **Commands:** `acxelin-vault console`, `doctor`, `keygen`, `encrypt`, `decrypt`, `verify`, `backup`, `share`, `inspect`, and `inventory --cbom`.
+- **Commands:** `acxelin-vault console`, `console link`, `doctor`, `keygen`, `encrypt`, `decrypt`, `verify`, `backup`, `share`, `inspect`, and `inventory --cbom`.
 - **Deploy:** pip, plus a Docker image for scheduled backups.
 
 ## Product interfaces
@@ -236,6 +253,66 @@ Vault's create, restore-drill and share actions, and the TLS connection test, ar
 3. Each journey also has an API-level pytest.
 4. Each console has a test proving it loads no other product's code, routes or names.
 5. Each console keeps the existing security tests: missing token, wrong token, lockout and non-local bind.
+
+### Console access and security
+
+All four consoles use the pattern the VPN app already ships, made common in core `console`. The suite console's habit of printing its long-lived token to the terminal is dropped, because under systemd or Docker that output lands in logs.
+
+**Launch tickets and session tokens**
+- `acxelin-<product> console` opens the browser at `http://127.0.0.1:<port>/#<ticket>`.
+- The ticket is single-use and valid for 300 seconds (the VPN app's current value).
+- It sits in the URL fragment, which browsers never send to the server, so it never appears in a request line or a server log.
+- The page redeems it once with `POST /api/session`, then removes it from the address bar and history (`history.replaceState`). A redeemed or expired ticket is refused.
+- Redemption returns a session token: 32 random bytes, kept only in that tab's `sessionStorage` and sent as a Bearer header.
+- No cookie is ever set, so no credential travels with a request on its own, and a cross-site page has nothing to ride on.
+
+**Automation token**
+- An optional long-lived token for scripts is created with `console token --new`.
+- It's written to the product's state folder with owner-only permissions (POSIX mode 0600; on Windows, an ACL for the current user only).
+- It's printed only when standard output is an interactive terminal.
+- `ACXELIN_<PRODUCT>_CONSOLE_TOKEN` supplies one from the environment.
+
+**Request checks (in this order)**
+1. **Host** must be a loopback name (`127.0.0.1`, `localhost` or `[::1]`) with any port; otherwise the reply is 421. Any port is allowed so SSH forwards to other local ports work. Attacker host names used in DNS rebinding are refused.
+2. **Origin**, when present, must be `http://` plus the same host and port; otherwise 403.
+3. A request with `Sec-Fetch-Site: cross-site` gets 403.
+4. **Lockout:** after 10 wrong tickets or tokens from one address in a minute, 429.
+5. **Token:** the token is compared in constant time.
+6. **Body limits:** body size and idle-timeout limits apply to every request.
+
+**Secrets never appear** in a URL other than the single-use ticket fragment, in a log line, in an API error, or in a VPN support ticket. Request logs record method, path without query, status and duration only. They never record headers, bodies or query strings.
+
+**Opening a console**
+- **Locally:** run `acxelin-<product> console`. It starts the console, or connects to the one already running as a service, and opens the browser already signed in. With no browser or display, it prints the launch address, but only to an interactive terminal.
+- **Through SSH** (a headless server):
+  1. On the laptop, run `ssh -L 8900:127.0.0.1:8900 server`.
+  2. In that SSH session, run `acxelin-<product> console link --port 8900`. It prints a fresh launch address to the session only.
+  3. Open that address on the laptop.
+- **From Docker:**
+  1. The product image listens on all interfaces inside the container only when started with `--container`, and is published to the host's loopback only: `docker run -p 127.0.0.1:8900:8900 ...`.
+  2. Run `docker exec -it <container> acxelin-<product> console link`. The address prints to that exec terminal, not to the container's output or `docker logs`.
+
+  If the port is published on a public interface by mistake, the host check still refuses requests (421).
+
+**First-run setup.** On first open, each console shows its product's setup page, then lands on the product's home page with live status. The acceptance test for each product does exactly this:
+1. Start from an empty state folder.
+2. Run the documented `console` command.
+3. Follow the address it opens.
+4. Complete setup.
+5. Perform one routine action.
+
+No test step, and no documented step, asks the customer to build an authenticated request by hand.
+
+**Console security acceptance tests (each console)**
+- ticket redeemed twice: refused; expired ticket: refused
+- after redemption, the address bar and history hold no ticket
+- the token is sent only in the Authorization header, and no response sets a cookie
+- `Host: evil.example` gets 421; `Host: localhost:9000` through a forwarded port is served
+- a cross-site Origin and a cross-site `Sec-Fetch-Site` each get 403 on every state-changing route
+- the lockout gives 429 after 10 wrong attempts
+- the automation token file has owner-only permissions on Linux, macOS and Windows
+- `console link` writes nothing to non-interactive output
+- secret scan: every journey is run with known ticket, token, passphrase and key values. Server logs, `docker logs`, API errors, every page URL and VPN support tickets are searched for each value as raw bytes, hex, base64 and PEM, and none may be found.
 
 ## Old command migration
 
@@ -338,8 +415,9 @@ The upgrade installs the new rules first and removes the old ones only after the
 4. Repeat the run while killing the upgrade after the new chain is installed but before the old one is removed.
 5. Repeat the run while making the new chain's installation fail.
 
-It passes when:
-- the counter of packets leaving any non-tunnel interface stays at zero throughout every run
+The probe traffic is marked (a fixed destination address and port, and a payload marker). It passes when:
+- no probe packet appears on any non-tunnel interface during or after any run
+- every other packet seen on non-tunnel interfaces matches the flows the kill switch allows: UDP to the gateway endpoint, TCP to the keyring, loopback and link-local neighbour discovery; any other cleartext packet fails the test
 - after a normal upgrade, only the new chain exists
 - after the killed run, both chains block
 - after the failed installation, the old chain is still active
@@ -408,12 +486,26 @@ The format is CycloneDX 1.6 JSON. Every export and every Readiness output must v
 
 **Unknown values.** A field that isn't known is omitted, never guessed, and named in `acxelin:unknown`. The compliance rules treat unknown parameters as unverified. That includes AES of unknown key size, which the engine counts as CNSA 2.0-compliant today; that is the correctness fix.
 
-**Merge and deduplication.**
-- Assets are identical only when assetType, name, parameterSetIdentifier, primitive, mode, padding and curve all match. Today's `inventory.build` matches on name alone and keeps the first system's properties.
-- Occurrences are unioned and prefixed with their system.
-- The asset's tier is the worst across systems.
-- If two inputs disagree on a non-identity field, the catalog's value is used and the disagreement is recorded in `acxelin:conflict`.
-- Output is sorted by `bom-ref`, so the same inputs always give the same file.
+**Asset identity.** Each asset type has its own identity, and the asset's `bom-ref` is derived from it as `<type>/<sha256 of the canonical identity>`, so references are stable across runs.
+
+| Asset type | Identity | Merged across systems? |
+|---|---|---|
+| algorithm | name, parameterSetIdentifier, primitive, mode, padding, curve | yes: an algorithm is a shared concept |
+| certificate | SHA-256 fingerprint of the DER certificate; issuer and serial number only when the DER isn't available | yes, when the same certificate is seen in two places |
+| public key | SHA-256 of its SubjectPublicKeyInfo | yes |
+| secret or symmetric key material, PSK, PPK | system, location and type | never; secret material is never hashed, because a hash of a secret is a guessing oracle |
+| protocol instance (endpoint, tunnel, interface) | system, protocol type and location (host:port, tunnel name or interface) | never; each instance belongs to one system |
+
+**Observations, not replacements**
+- Every merged asset keeps each system's observation of every field, recorded in `acxelin:observations` as system, field and value.
+- A top-level field is set only when all observations agree. When they disagree, the top-level field is omitted, every observed value stays in the observations, and the field is named in `acxelin:conflict`.
+- Catalog knowledge never overwrites an observed value. Values the catalog derives (for example the NIST level from an algorithm name) fill absent fields only and are marked `acxelin:derived`.
+- Each system's tier is kept, and the worst tier is shown for prioritisation.
+
+**Deterministic content, separate metadata.**
+- *Inventory content* means components, dependencies, properties and occurrences. It's written as canonical JSON (sorted keys, arrays sorted by `bom-ref`, then location) and is identical for identical inputs.
+- *Export metadata* means `serialNumber`, `metadata.timestamp` and tool versions. It changes on each export and is excluded from comparisons.
+- The determinism test exports twice from the same inputs, removes exactly those three metadata fields, and requires byte-identical files.
 
 **Secrets.** Exports never include private keys, PSKs, PPKs, session keys, enrollment tokens, console tokens or passphrases, in any encoding. A test exports from fixtures whose secrets are known, then searches the output for each secret as raw bytes, hex, base64 and PEM, and fails on any match.
 
@@ -423,7 +515,7 @@ The format is CycloneDX 1.6 JSON. Every export and every Readiness output must v
 
 That covers what a customer's auditors see. Configured but unexposed policies (internal mTLS upstreams, the CA's signer algorithm) are not inventoried. That limit is stated in the Readiness docs.
 
-**Pipeline test.** VPN and Vault each run export → schema validation → Readiness import → report, and check every exported asset appears with its provenance.
+**Pipeline test.** VPN and Vault each run export → schema validation → Readiness import → report. They check every exported asset appears with its provenance. A merge test feeds two systems that share one certificate, use one algorithm with different parameters, and each hold a PSK. It checks the certificate is one asset with both occurrences, the algorithms are two assets, the PSKs are two assets, and a planted disagreement shows in `acxelin:conflict` with both values kept.
 
 ## Architecture changes
 
@@ -525,31 +617,48 @@ Each removal first shows no reference outside the removal set. `pqcsuite/console
 5. Tags are per product: `core-v1.0.0`, `tls-v1.0.0`, `vpn-v1.0.0`, `readiness-v1.0.0`, `vault-v1.0.0`.
 
 **Upgrade and rollback checks (per product, in the release gate)**
-1. Install the previous release from its wheelhouse. For the first release, that's suite v0.3.1 and Wolf Pack 1.3.0.
-2. Create state: a CA, certificates, archives, invitations, configs and a scan history.
-3. Upgrade and run the journeys. All state must be readable.
-4. Roll back to the previous release and confirm the state is still readable by it.
-5. Where a new version writes something the old one can't read (for example a new format version), the check confirms that `docs/upgrade.md` documents the backup step. No new version rewrites old data in place.
+
+The test follows each product's `docs/upgrade.md` exactly, so the documented procedure is the tested one:
+
+1. Install the previous release from its wheelhouse. For the first release, that's suite v0.3.1 and Wolf Pack 1.3.0. Create representative state: a CA, issued and revoked certificates, archives, invitations, configs and a scan history.
+2. Back up with the documented backup step: stop the service, then archive the product's state and config folders.
+3. Upgrade, then run representative operations: issue a certificate, revoke one, create an archive, send an invitation and run a scan.
+4. Roll back: stop, restore the backup, and reinstall the previous release.
+5. Run the previous release's journeys and require them all to pass on the restored state.
+6. Compare the restored state with the post-upgrade state. The differences must equal the "lost on rollback" list in `docs/upgrade.md`, no more and no less.
+
+Each product's upgrade notes state what rollback loses, with the security consequences called out:
+- **Revocations** made after the upgrade are lost: a certificate revoked after upgrading becomes valid again. The notes require re-running those revocations after a rollback, and the rollback test checks the notes list them.
+- Certificates issued, invitations sent and enrollment tokens used after the upgrade.
+- Scan history recorded after the upgrade.
+- Archives written after the upgrade stay on disk. If they use a format the previous release can't read, the notes say so, and the test checks that the previous release refuses them with a clear message instead of failing obscurely.
 
 ## Stages
+
+**Transition.** The old `pqcsuite` package keeps working until Stage 6:
+- When code moves to core or a product, its old module becomes a re-export of the new location. The existing test suite therefore runs unchanged at every stage, as a regression check on top of the new tests.
+- The VPN prober's and Readiness's existing OpenSSL code moves; it isn't rewritten.
+- The re-exports are deleted in Stage 6, and nothing may import them by then.
+
+Each stage is verifiable on its own: it needs only what earlier stages delivered.
 
 A stage is approved only on executed evidence. When the right environment isn't available locally, the stage is marked **pending** until CI run links are recorded in its report. A stage is never approved on tests that were only written. Each stage report lists changes, test results (failing first, then passing), evidence links and remaining gaps, and waits for the owner.
 
 | Stage | Work | Evidence required |
 |---|---|---|
 | 0 | Environment findings, baseline record, golden fixtures, coverage map | `tools/baseline.md` committed; fixtures pass on old code |
-| 1 | Core pure-Python mechanisms (`config`, `files`, `http`, `console`), then Acxelin Readiness: renames, pipeline, contract, CBOM import, console | core tests, contract, rejection, quality-gate, install and journey tests executed |
+| 1 | Core `config`, `files`, `http`, `console` and `openssl` (moved with today's prober intact as Readiness's full-handshake capability), then Acxelin Readiness: renames, pipeline, contract, CBOM import, console | core tests (including core alone), full-handshake contract tests on OpenSSL 3.5, rejection, quality-gate, install, console-security and journey tests executed |
 | 2 | Core `pki` verification, then Acxelin Q-Vault, with its console and export | install test, Vault-without-external-OpenSSL test, golden archives, rejection and journey tests executed |
-| 3 | Core `openssl` and `pki` issuance and EST, then Acxelin TLS, with its console | TLS tests on OpenSSL 3.5, install and journey tests executed |
-| 4 | Acxelin VPN, with its console, app, desktop app and export | unit tests; network-namespace, kill-switch migration and desktop tests executed in CI |
+| 3 | Core `pki` issuance and EST, then Acxelin TLS, with its console | TLS tests on OpenSSL 3.5, install, console-security and journey tests executed |
+| 4 | Acxelin VPN, with its console, app, desktop app and export | unit tests; network-namespace, kill-switch migration, desktop and console-security tests executed in CI |
 | 5 | Website and all Playwright journeys | Playwright and axe runs executed, locally or in CI |
-| 6 | Spikes, cleanup, CI and final report | full boundary, branding and upgrade/rollback checks executed |
+| 6 | Spikes, re-export removal, cleanup, CI and final report | full boundary, branding and backup-upgrade-restore-rollback checks executed |
 
 ## Environment findings (to be established in Stage 0)
 
 Revision 1 stated in advance what this environment can and can't verify. Stage 0 establishes each of these by running it, and records the result in `tools/baseline.md`. Stage evidence plans adapt to the findings.
 
-1. Can OpenSSL 3.5.9 be built here, and do the TLS tests pass against it?
+1. Can OpenSSL 3.5.9 be built here, and do the TLS and readiness-probe tests pass against it? Stage 1 depends on this; if it can't, Stage 1's full-handshake evidence comes from CI and Stage 1 is pending until it does.
 2. Is `cryptography>=49` installable, and does its bundled OpenSSL provide ML-KEM and ML-DSA?
 3. Can strongSwan 6.1 be built, and can network namespaces be created here?
 4. Can a Playwright browser be obtained here? (The first check showed its download host blocked.)
@@ -559,4 +668,4 @@ Revision 1 stated in advance what this environment can and can't verify. Stage 0
 ## Owner decisions still needed
 
 1. **License.** The repository has none, so no one is granted any rights to use the code. This is a legal choice. If it isn't decided, each package states "All rights reserved, Acxelin Quantum", and the gap stays on the production-readiness list.
-2. **The proposed decisions** in the decision record: D5 details, D6a, D7 criteria, D9 to D13.
+2. **Approval of this specification**, which settles D1 to D13 together, or the specific changes to them.
