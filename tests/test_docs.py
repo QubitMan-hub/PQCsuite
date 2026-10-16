@@ -9,6 +9,8 @@ from pathlib import Path
 from pqcsuite.cli import parser
 
 ROOT = Path(__file__).resolve().parent.parent
+# Commands that moved to Acxelin Readiness; the old documents that still name them are replaced in Stage 6, when this list goes.
+MOVED = {"scan", "readiness"}
 DOCS = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "docs/*.md", "pqcsuite/console/console.html", "examples/*.toml", "site/*.html",
         "deploy/**/*.service", "deploy/**/*.yaml", "deploy/**/*.tpl", "deploy/**/*.hcl", "deploy/**/*.sh"]
 COMMAND = re.compile(r"(?<!-t )(?:^|(?<=[\s$/]))pqcsuite ((?:[a-z][\w-]*)(?: [a-z][\w-]*)?)([^\n;|&#)]*)")
@@ -54,6 +56,8 @@ class DocsTest(unittest.TestCase):
                         cmd = next((tuple(words[:n]) for n in (2, 1) if tuple(words[:n]) in known), None)
                         where = f"{path.relative_to(ROOT)}: pqcsuite {m.group(1)}{m.group(2)}".strip()
                         if cmd is None:
+                            if words[0] in MOVED:
+                                continue
                             wrong.append(f"{where}  (no such command)")
                             continue
                         seen += 1

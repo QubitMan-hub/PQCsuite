@@ -274,7 +274,7 @@ def load_targets(items):
             except ValueError:
                 bad.append(f"{where}: {t!r}" if where else repr(t))
     if bad:
-        raise ValueError("not a host, host:port or ssh://host: " + ", ".join(bad[:10]) + (f" and {len(bad) - 10} more" if len(bad) > 10 else ""))
+        raise ValueError("not a host, host:port or ssh://host (ports run from 0 to 65535): " + ", ".join(bad[:10]) + (f" and {len(bad) - 10} more" if len(bad) > 10 else ""))
     return targets
 
 
