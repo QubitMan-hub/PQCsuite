@@ -1,4 +1,4 @@
-"""The Acxelin look for Acxelin Readiness's HTML: the same colours, typeface and logo as the PQC Suite console, in one self-contained page."""
+"""The Acxelin look for Acxelin Readiness's HTML: Acxelin's colours, typeface and logo, in one self-contained page."""
 import base64
 import functools
 from html import escape as e

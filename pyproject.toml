@@ -51,7 +51,7 @@ fail_under = 83  # CI measures 84% in the tls job, which runs every test that ne
 
 [tool.ruff]
 target-version = "py311"
-extend-exclude = ["products/readiness/bench/corpus", "examples/wolfpack-sample/payments-api"]
+extend-exclude = ["products/readiness/bench/corpus", "products/readiness/examples/payments-api"]
 
 [tool.ruff.lint]
 ignore = ["E401", "E702", "E731", "E741"]

@@ -21,15 +21,15 @@ From a release, unpack its wheelhouse and run `pip install --no-index --find-lin
 
 | Task | Command |
 |---|---|
-| Scan a repository | `acxelin-readiness scan PATH --open` |
+| Scan a repository | `acxelin-readiness scan PATH` (then open `readiness-out/report.html`) |
 | Include live endpoints | `acxelin-readiness scan PATH --tls api.example.com:443 --ssh bastion.example.com` |
 | Grade endpoints A to F | `acxelin-readiness grade hosts.txt --html grades.html` |
-| Check against standards | `acxelin-readiness scan PATH --profile nist-ir-8547 --profile cnsa-2.0 --fail-on-policy` |
+| Check against standards | `acxelin-readiness scan PATH --policy nist-ir-8547 --policy cnsa-2.0 --fail-on-policy` |
 | Fail CI only on new cryptography | `acxelin-readiness scan . --baseline cbom.json --fail-on high` |
 | One view of many systems | `acxelin-readiness merge out-a out-b other-tool.cbom.json --name "Example Bank"` |
 | See what this machine can scan | `acxelin-readiness doctor` |
 
-Outputs land in `readiness-out/`: `cbom.json`, `readiness.sarif`, `findings.json` (every detection and its verdict), `migration.csv` and `report.html`.
+Outputs land in `readiness-out/`: `cbom.json`, `readiness.sarif`, `findings.json` (every detection and its verdict), `relationships.json` (call relationships) and `report.html`. The report has a button that downloads the migration plan as `migration.csv`.
 
 To mark a line that uses cryptography for something other than security (a cache key, a checksum), add `acxelin:ignore` with the reason in a comment on that line or the line above.
 

@@ -1,0 +1,27 @@
+<!-- title: Acxelin Readiness security -->
+<!-- description: What Acxelin Readiness reads, what it never does, how it treats hostile input, and what its console exposes. -->
+<section>
+<h1>What Acxelin Readiness does with your code</h1>
+<p class="lead">It reads the files and endpoints you name and writes reports. It never changes the scanned files and never sends their content anywhere.</p>
+<dl class="rows">
+<div><dt>Hostile input</dt><dd>A scanned repository, image or capture may be hostile. Source files over 2 MB are skipped and named in the report. Project scans stop at 50,000 files, 512 MB or 300 seconds. Container archives are unpacked with path checks, and entries that escape the target folder are refused.</dd></div>
+<div><dt>Network</dt><dd>Endpoint probes send handshakes only: no application data and no credentials. What a probe records is what the server presented, not a trust decision.</dd></div>
+<div><dt>Secrets in reports</dt><dd>Reports say where key material sits and of what kind. They never contain the key. <code>findings.json</code> holds short code snippets around each detection, so treat the output folder as sensitive as the code you scanned.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="console">
+<h2 id="console">The console</h2>
+<p>The console is for one person on one machine.</p>
+<dl class="rows">
+<div><dt>Local only</dt><dd>It listens on 127.0.0.1 and refuses requests whose host name is not a loopback name, so a web page you visit cannot reach it.</dd></div>
+<div><dt>Launch links</dt><dd>Opening it uses a link that works once, kept in the address fragment so it never reaches a server or a log, and removed from the address bar and history on arrival. The session it starts uses no cookies.</dd></div>
+<div><dt>Limits</dt><dd>After ten wrong attempts in a minute from one address it refuses further tries. Request logs record the method, path and status, never a query, header or body.</dd></div>
+<div><dt>Scope</dt><dd>It scans only repositories inside the one folder you choose at setup, and refuses symlinks and paths that leave it.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="not">
+<h2 id="not">What it cannot tell you</h2>
+<div class="note"><p>Whether cryptography it found is used correctly, whether none exists outside the scanned files, and whether a developer's claim in a comment is true. The report marks such claims as the developer's.</p></div>
+</section>

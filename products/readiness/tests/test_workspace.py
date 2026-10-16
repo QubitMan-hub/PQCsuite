@@ -15,7 +15,7 @@ def fixture(root):
 def test_scan_exports_and_history_have_evidence_without_source(tmp_path):
     fixture(tmp_path)
     stages = []
-    out = tmp_path / 'pqcsuite-out'
+    out = tmp_path / 'out'
     history = tmp_path / 'history.json'
     result = scan(tmp_path, out, history, stages.append)
     assert stages[-1] == 'Complete'
@@ -34,7 +34,7 @@ def test_scan_exports_and_history_have_evidence_without_source(tmp_path):
 
 def test_security_patterns_are_listed_without_source_or_secret_values(tmp_path):
     (tmp_path / 'client.py').write_text('import requests\nAPI_SECRET = "Zq8vN3kLp0RtX2"\nrequests.get("https://bank", verify=False)\n')
-    out = tmp_path / 'pqcsuite-out'
+    out = tmp_path / 'out'
     result = scan(tmp_path, out)
     assert {(p['rule'], p['line']) for p in result['patterns']} == {('WPC001', 3), ('WPC002', 2)}
     assert result['summary']['security_patterns'] == 2
@@ -54,15 +54,15 @@ def test_security_patterns_are_listed_without_source_or_secret_values(tmp_path):
 def test_bad_history_does_not_discard_successful_scan(tmp_path):
     fixture(tmp_path)
     history=tmp_path/'history.json'; history.write_text('{')
-    result=scan(tmp_path, out=tmp_path/"pqcsuite-out", history=history)
-    assert json.loads((tmp_path/"pqcsuite-out/assessment.json").read_text())["notes"] == result["notes"]
+    result=scan(tmp_path, out=tmp_path/"out", history=history)
+    assert json.loads((tmp_path/"out/assessment.json").read_text())["notes"] == result["notes"]
     assert result['summary']['resolved_calls']==1
     assert any('History could not be saved' in n for n in result['notes'])
     assert history.read_text()=='{'
 
 
 def test_history_read_limit_and_private_lock_symlink(tmp_path):
-    from pqcsuite.project import read_history
+    from acxelin_readiness.workspace import read_history
     history=tmp_path/'history.json'; history.write_bytes(b' '*1_000_001)
     with pytest.raises(ValueError, match='1 MB'):
         read_history(history)
@@ -77,7 +77,7 @@ def test_history_read_limit_and_private_lock_symlink(tmp_path):
 def test_history_updates_are_preserved_across_processes(tmp_path):
     import subprocess
     import sys
-    from pqcsuite.project import read_history
+    from acxelin_readiness.workspace import read_history
     history=tmp_path/'history.json'
     script='from pqcsuite.project import append_history; import sys; [append_history(sys.argv[1], {"project":sys.argv[2]+"-"+str(i), "finished":i, "summary":{}}) for i in range(20)]'
     children=[subprocess.Popen([sys.executable,'-c',script,str(history),str(i)]) for i in range(3)]
@@ -150,7 +150,7 @@ def test_cancel_and_budget_never_replace_completed_outputs(tmp_path):
     import threading
     from pqcsuite.project import ScanStopped
     fixture(tmp_path)
-    out = tmp_path/'pqcsuite-out'
+    out = tmp_path/'out'
     scan(tmp_path, out=out)
     before = (out/'assessment.json').read_bytes()
     cancelled = threading.Event(); cancelled.set()

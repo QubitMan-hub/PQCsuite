@@ -1,0 +1,20 @@
+<!-- title: Acxelin Readiness sample report -->
+<!-- description: A real report and CBOM, made by running Acxelin Readiness on a sample payments service. -->
+<section>
+<h1>A real report, from a sample payments service</h1>
+<p class="lead">The sample is a small service with Java, Go, Python, an nginx config and a certificate, written to look like the code you would scan. This is what one scan produced.</p>
+<p>Every asset is ranked, with the fix and where it appears. <a href="sample-report.html">Open the report on its own page</a>.</p>
+<iframe class="report" src="sample-report.html" title="Acxelin Readiness sample report"></iframe>
+</section>
+
+<section aria-labelledby="cbom">
+<h2 id="cbom">The CBOM it wrote</h2>
+<p>The same scan wrote a CycloneDX 1.6 CBOM. Here are the first two algorithm entries, as produced. <a href="sample-cbom.json">Download the whole file</a>.</p>
+<pre><code>{{CBOM_EXCERPT}}</code></pre>
+</section>
+
+<section aria-labelledby="again">
+<h2 id="again">Make it yourself</h2>
+<pre><code>acxelin-readiness scan products/readiness/examples/payments-api</code></pre>
+<p>Then <a href="set-up.html">set up Acxelin Readiness</a> to scan your own code.</p>
+</section>

@@ -85,7 +85,7 @@ def main():
             (d / f"{name}.csv").write_text("date,amount\n2026-10-01,1200\n")
             vault.encrypt(d / f"{name}.csv", backups / f"{name}.pqv", [ops.public, recovery.public])
         project = d / "projects" / "payments-api"
-        shutil.copytree(ROOT / "examples" / "wolfpack-sample" / "payments-api", project)
+        shutil.copytree(ROOT / "products" / "readiness" / "examples" / "payments-api", project)
         names = {f"127.0.0.1:{edge_port}": "api.examplebank.test:443", f"127.0.0.1:{legacy.server_address[1]}": "payments-switch.examplebank.test:443",
                  f"http://127.0.0.1:{metrics}": "http://edge-1.examplebank.test:9100", f"127.0.0.1:{web.server_address[1]}": "10.0.4.20:8080",
                  str(d): "/srv/example-bank"}

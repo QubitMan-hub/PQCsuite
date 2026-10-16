@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT), str(ROOT / "wolf-pack")]
+sys.path[:0] = [str(ROOT)]
 from cryptography import x509  # noqa: E402
 from cryptography.hazmat.primitives import hashes, serialization  # noqa: E402
 from cryptography.hazmat.primitives.asymmetric import ec, rsa  # noqa: E402
@@ -26,7 +26,7 @@ from pqcsuite.console import App, Settings  # noqa: E402
 from pqcsuite.pki import CA  # noqa: E402
 from pqcsuite.readiness import compliance, scan  # noqa: E402
 from pqcsuite.tls.edge import Edge, Route  # noqa: E402
-from wolfpack import cli as wolfpack  # noqa: E402
+from acxelin_readiness import cli as scanner_cli  # noqa: E402
 
 SYSTEMS = ["payments-api", "customer-portal", "batch-jobs"]
 NOTICE = ('<p class=sample><b>Sample report.</b> Every system in it is invented and ran on one test machine; the findings are the '
@@ -100,9 +100,9 @@ def main():
         rows = compliance.certificates(App(Settings(ca=str(d / "pki"))).ca().records()) + compliance.endpoints(results)
         rows += compliance.backups(App(Settings(backups=[str(backups)])).backups())
         for system in SYSTEMS:
-            out = d / "wolfpack" / system
-            if wolfpack.main(["scan", str(ROOT / "examples" / "wolfpack-sample" / system), "-o", str(out), "-q"]) not in (0, 2):
-                raise SystemExit(f"Wolf Pack could not scan {system}")
+            out = d / "code" / system
+            if scanner_cli.main(["scan", str(ROOT / "products" / "readiness" / "examples" / system), "-o", str(out), "-q"]) not in (0, 2):
+                raise SystemExit(f"the scanner could not scan {system}")
             rows += compliance.code(out)
         page = compliance.to_html(compliance.report(rows), title="Example Bank: post-quantum readiness")
         page = page.replace("<div class=tiles>", NOTICE + "<div class=tiles>", 1).replace(

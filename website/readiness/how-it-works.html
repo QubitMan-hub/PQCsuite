@@ -1,0 +1,40 @@
+<!-- title: How Acxelin Readiness works -->
+<!-- description: How a detection becomes a verified, ranked finding, how your timeline sets priority, and which standards it checks. -->
+<section>
+<h1>How a detection becomes a ranked result</h1>
+<p class="lead">Three stages, each doing one job. You can read every verdict they reach in <code>findings.json</code>.</p>
+<ol class="steps">
+<li><h2>Detectors report everything they see</h2><p>Each detector reads one kind of input and reports every possible use of cryptography, noisily on purpose. Nothing is filtered at this stage.</p></li>
+<li><h2>Verification keeps what the evidence supports</h2><p>Each detection gets a confidence from its evidence: a call outweighs a name, and a second kind of evidence raises it. Above the threshold (0.6 by default) a detection is <em>accepted</em>. Below it, it is <em>held back</em>. Known false patterns are <em>rejected</em>, and lines you mark with an <code>acxelin:ignore</code> comment are <em>suppressed</em>.</p></li>
+<li><h2>Ranking orders what to migrate first</h2><p>Accepted detections are grouped into assets. Each asset gets a tier from critical to ok, from its algorithm, its key size, whether it protects data that must stay secret, and your timeline.</p></li>
+</ol>
+</section>
+
+<section aria-labelledby="timeline">
+<h2 id="timeline">Your timeline sets the priority</h2>
+<p>An asset is urgent when the years its data must stay secret, plus the years your migration takes, run past the years until a quantum computer can break it. This is Mosca's inequality. You set the three numbers.</p>
+<div class="scroll"><table>
+<thead><tr><th>Setting</th><th>Option</th><th>Default</th></tr></thead>
+<tbody>
+<tr><td>Years the data must stay secret</td><td><code>--shelf-life</code></td><td>10</td></tr>
+<tr><td>Years your migration will take</td><td><code>--migration</code></td><td>5</td></tr>
+<tr><td>Year a cryptographically relevant quantum computer exists</td><td><code>--crqc-year</code></td><td>2035</td></tr>
+</tbody></table></div>
+</section>
+
+<section aria-labelledby="standards">
+<h2 id="standards">Standards it checks</h2>
+<dl class="rows">
+<div><dt><code>--policy nist-ir-8547</code></dt><dd>Flags quantum-vulnerable public-key cryptography with NIST's dates (deprecated after 2030, disallowed after 2035), and anything below 112 bits today.</dd></div>
+<div><dt><code>--policy cnsa-2.0</code></dt><dd>Checks the CNSA 2.0 suite: AES-256, SHA-384 and SHA-512, ML-KEM-1024 and ML-DSA-87. A key size that was not observed is reported as unverified, never as compliant.</dd></div>
+<div><dt>Your own rules</dt><dd>Forbid algorithms, set minimum key sizes and require a hybrid key exchange in a <code>[policy]</code> table in <code>.acxelin-readiness.toml</code>.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="limits">
+<h2 id="limits">Where the evidence ends</h2>
+<div class="note">
+<p>Static analysis shows what your files say, not what runs in production. A suppression comment or <code>usedforsecurity=False</code> is the developer's statement, and the report marks it as one.</p>
+<p>The precision and recall figures from the project's labelled test corpus guard against regressions. They are not a claim about code the scanner has never seen.</p>
+</div>
+</section>

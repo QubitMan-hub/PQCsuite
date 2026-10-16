@@ -4,6 +4,12 @@ from pathlib import Path
 from acxelin_readiness.workspace import ProjectStore, ScanStopped, append_history, finding_id, read_history, sample_project, scan  # noqa: F401
 
 
+def scanner():
+    """The old optional-capability check: Acxelin Readiness is now always installed with the suite."""
+    from acxelin_readiness import pipeline, report
+    return pipeline, report
+
+
 def verify_endpoint(target, ca, expected_sha256, crl=None):
     """Authenticate a strict PQ TLS connection and pin the operator's deployment certificate."""
     from cryptography.hazmat.primitives import hashes

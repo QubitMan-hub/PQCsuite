@@ -124,7 +124,7 @@ def ssh_kexinit(host, port, timeout):
                 break
         if not banner.startswith(b"SSH-"):
             raise OSError("not an SSH server")
-        s.sendall(b"SSH-2.0-pqcsuite_scan\r\n")
+        s.sendall(b"SSH-2.0-acxelin_readiness_scan\r\n")
         try:
             n, pad = struct.unpack(">IB", f.read(5))
             if n > 35000:

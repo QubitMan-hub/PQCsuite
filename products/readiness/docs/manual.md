@@ -24,7 +24,7 @@ The tier follows Mosca's inequality: an asset is urgent when the years its data 
 
 ## Standards
 
-`--profile nist-ir-8547` flags quantum-vulnerable public-key cryptography with NIST's deprecation (2030) and disallowance (2035) dates and anything below 112 bits now. `--profile cnsa-2.0` checks the CNSA 2.0 suite (AES-256, SHA-384/512, ML-KEM-1024, ML-DSA-87). A key size that wasn't observed is reported as unverified, never as compliant.
+`--policy nist-ir-8547` flags quantum-vulnerable public-key cryptography with NIST's deprecation (2030) and disallowance (2035) dates and anything below 112 bits now. `--policy cnsa-2.0` checks the CNSA 2.0 suite (AES-256, SHA-384/512, ML-KEM-1024, ML-DSA-87). A key size that wasn't observed is reported as unverified, never as compliant.
 
 Own rules go in `[policy]` in the settings file: `forbid`, `min_bits`, `require_hybrid`, `as_of`.
 
