@@ -4,21 +4,34 @@ Python's ssl module cannot choose TLS 1.3 key-exchange groups or report which on
 through libssl directly. Sockets run non-blocking under OpenSSL and every operation has a deadline.
 """
 import ctypes
+import hashlib
 import ipaddress
 import os
 import platform
 import re
 import select
+import tempfile
 import time
 import warnings
+from pathlib import Path
 
 MIN_VERSION = 0x30500000
 TLS1_3_VERSION = 0x0304
+CTRL_MODE, MODE_NO_AUTO_CHAIN = 33, 0x8
+OP_CIPHER_SERVER_PREFERENCE = 1 << 22
 CTRL_SET_GROUPS_LIST, CTRL_SET_SIGALGS_LIST, CTRL_SET_TLSEXT_HOSTNAME = 92, 98, 55
 CTRL_SET_MIN_PROTO_VERSION, CTRL_SET_MAX_PROTO_VERSION = 123, 124
 VERIFY_NONE, VERIFY_PEER, VERIFY_FAIL_IF_NO_PEER_CERT = 0, 1, 2
 X509_PURPOSE_ANY = 7
 WANT_READ, WANT_WRITE, ERROR_SYSCALL, ZERO_RETURN = 2, 3, 5, 6
+
+# Public-CA fallback first for clients offering both kinds; strict clients still select ML-DSA.
+FALLBACK_SIGALGS = (
+    'ecdsa_secp256r1_sha256:ecdsa_secp384r1_sha384:ecdsa_secp521r1_sha512:ed25519:ed448:'
+    'ecdsa_brainpoolP256r1tls13_sha256:ecdsa_brainpoolP384r1tls13_sha384:ecdsa_brainpoolP512r1tls13_sha512:'
+    'rsa_pss_rsae_sha256:rsa_pss_rsae_sha384:rsa_pss_rsae_sha512:'
+    'rsa_pss_pss_sha256:rsa_pss_pss_sha384:rsa_pss_pss_sha512:mldsa87:mldsa65:mldsa44'
+)
 
 P, I, L, S, B = ctypes.c_void_p, ctypes.c_int, ctypes.c_long, ctypes.c_char_p, ctypes.c_char_p
 PROTOTYPES = {
@@ -40,9 +53,12 @@ PROTOTYPES = {
     "ssl": [
         ("TLS_server_method", [], P), ("TLS_client_method", [], P),
         ("SSL_CTX_new", [P], P), ("SSL_CTX_free", [P], None), ("SSL_CTX_ctrl", [P, I, L, P], L),
+        ("SSL_CTX_set_options", [P, ctypes.c_uint64], ctypes.c_uint64),
         ("SSL_CTX_set_ciphersuites", [P, S], I), ("SSL_CTX_use_certificate_chain_file", [P, S], I),
         ("SSL_CTX_use_PrivateKey", [P, P], I), ("SSL_CTX_check_private_key", [P], I),
         ("SSL_CTX_load_verify_locations", [P, S, S], I), ("SSL_CTX_set_verify", [P, I, P], None), ("SSL_CTX_set_purpose", [P, I], I),
+        ("SSL_CTX_set_session_id_context", [P, B, ctypes.c_uint], I), ("SSL_get1_session", [P], P), ("SSL_set_session", [P, P], I),
+        ("SSL_SESSION_free", [P], None), ("SSL_session_reused", [P], I),
         ("SSL_new", [P], P), ("SSL_free", [P], None), ("SSL_set_fd", [P, I], I), ("SSL_ctrl", [P, I, L, P], L),
         ("SSL_set_accept_state", [P], None), ("SSL_set_connect_state", [P], None), ("SSL_do_handshake", [P], I),
         ("SSL_read", [P, P, I], I), ("SSL_write", [P, B, I], I), ("SSL_pending", [P], I), ("SSL_shutdown", [P], I),
@@ -52,6 +68,30 @@ PROTOTYPES = {
         ("SSL_export_keying_material", [P, P, ctypes.c_size_t, S, ctypes.c_size_t, B, ctypes.c_size_t, I], I),
     ],
 }
+
+
+# Calls on the data path that never block (the sockets are non-blocking) and take microseconds. They keep the GIL:
+# releasing and re-taking it around each one costs more than the call once many connections share the process.
+# Handshakes and key operations still release it, so they run on several cores at once.
+KEEP_GIL = {"ERR_clear_error", "ERR_get_error", "SSL_read", "SSL_write", "SSL_pending", "SSL_get_error", "SSL_shutdown"}
+
+
+def _self_signed(pem):
+    from cryptography import x509
+    from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
+    try:
+        c = x509.load_pem_x509_certificate(pem)
+        if c.subject != c.issuer:
+            return False
+        c.verify_directly_issued_by(c)
+        return True
+    except UnsupportedAlgorithm:
+        from .pki import signed_by
+        return signed_by(c, c.tbs_certificate_bytes, c.signature)
+    except InvalidSignature:
+        return False
+    except ValueError:
+        return False
 
 
 class TLSError(Exception):
@@ -67,8 +107,8 @@ EASIEST = ("Easiest: use the product's container image, which has it, "
 
 
 def folder_setting():
-    """ACXELIN_OPENSSL, or the old name PQCSUITE_OPENSSL (read through 1.x with a warning); the new name wins."""
-    new, old = os.environ.get("ACXELIN_OPENSSL"), os.environ.get("PQCSUITE_OPENSSL")
+    """ACXELIN_OPENSSL, or the old names PQCSUITE_OPENSSL and PQC_OPENSSL (read through 1.x with a warning); the new name wins."""
+    new, old = os.environ.get("ACXELIN_OPENSSL"), os.environ.get("PQCSUITE_OPENSSL") or os.environ.get("PQC_OPENSSL")
     if old and not new:
         warnings.warn("PQCSUITE_OPENSSL is the old name; set ACXELIN_OPENSSL instead", DeprecationWarning, stacklevel=2)
     return new or old
@@ -93,8 +133,9 @@ def _names(stem):
         found = []
         for folder in folders + os.environ.get("PATH", "").split(os.pathsep):
             if os.path.isdir(folder):
-                found += [(int(m.group(1)), os.path.join(folder, f)) for f in os.listdir(folder) if (m := rx.match(f))]
-        return [f for _, f in sorted(found, reverse=True)]
+                matches = [(int(m.group(1)), os.path.join(folder, f)) for f in os.listdir(folder) if (m := rx.match(f))]
+                found.extend(f for _, f in sorted(matches, reverse=True))
+        return found
     name = f"lib{stem}.3.dylib" if system == "Darwin" else f"lib{stem}.so.3"
     return [os.path.join(f, name) for f in folders] + [name]
 
@@ -123,8 +164,9 @@ class _Lib:
             raise OpenSSLUnavailable(f"this machine's {self.version} is too old: post-quantum TLS needs OpenSSL 3.5 or newer. {EASIEST}{hint}")
         ssl = _load("ssl")
         for lib_, table in ((crypto, PROTOTYPES["crypto"]), (ssl, PROTOTYPES["ssl"])):
+            held = ctypes.PyDLL(lib_._name, handle=lib_._handle)
             for name, args, res in table:
-                fn = getattr(lib_, name)
+                fn = getattr(held if name in KEEP_GIL else lib_, name)
                 fn.argtypes, fn.restype = args, res
                 setattr(self, name, fn)
 
@@ -177,10 +219,13 @@ def is_ip(name):
 
 class Context:
     """A TLS 1.3-only SSL_CTX. `groups` and `sigalgs` are OpenSSL list strings, e.g. "X25519MLKEM768" and "mldsa65".
-    `fallback` is (cert, key[, passphrase]) of a classical certificate that OpenSSL sends to clients that cannot verify ML-DSA."""
+    `fallback` is (cert, key[, passphrase]) of a classical certificate. With default signature algorithms it is preferred
+    for dual-capability clients; clients offering only ML-DSA still get the primary certificate."""
 
     def __init__(self, server, groups, sigalgs=None, ciphersuites=None, cert=None, key=None, key_passphrase=None,
                  ca=None, verify=True, require_client_cert=False, request_client_cert=False, any_purpose=False, fallback=None):
+        if fallback and not sigalgs:
+            sigalgs = FALLBACK_SIGALGS
         L_ = lib()
         L_.ERR_clear_error()
         self.server = server
@@ -196,18 +241,28 @@ class Context:
             if ciphersuites:
                 self._check(L_.SSL_CTX_set_ciphersuites(self.ptr, ciphersuites.encode()), f"use cipher suites {ciphersuites}")
             if cert:
-                self._check(L_.SSL_CTX_use_certificate_chain_file(self.ptr, os.fsencode(cert)), f"load certificate {cert}")
+                self._use_chain(cert)
+                # send the chain as given: with a CA file loaded, OpenSSL would otherwise rebuild it and add the root back
+                L_.SSL_CTX_ctrl(self.ptr, CTRL_MODE, MODE_NO_AUTO_CHAIN, None)
             if key:
                 self._use_key(key, key_passphrase)
             if fallback:
-                self._check(L_.SSL_CTX_use_certificate_chain_file(self.ptr, os.fsencode(fallback[0])), f"load certificate {fallback[0]}")
+                self._use_chain(fallback[0])
                 self._use_key(fallback[1], fallback[2] if len(fallback) > 2 else None)
+                L_.SSL_CTX_set_options(self.ptr, OP_CIPHER_SERVER_PREFERENCE)
             if ca:
                 self._check(L_.SSL_CTX_load_verify_locations(self.ptr, os.fsencode(ca), None), f"load CA {ca}")
             mode = VERIFY_NONE
             if verify and (not server or require_client_cert or request_client_cert):
                 mode = VERIFY_PEER | (VERIFY_FAIL_IF_NO_PEER_CERT if server and require_client_cert else 0)
             L_.SSL_CTX_set_verify(self.ptr, mode, None)
+            if server:
+                # Without it OpenSSL fails every resumed session ("session id context uninitialized") once client
+                # certificates are checked, and clients resume automatically. Derived from what the server trusts, so a
+                # session from an edge that trusted other clients, or another policy, is never resumed here.
+                sid = hashlib.sha256(b"|".join([groups.encode(), str(sigalgs).encode(), str(mode).encode(),
+                                                Path(ca).read_bytes() if ca else b""])).digest()[:32]
+                self._check(L_.SSL_CTX_set_session_id_context(self.ptr, sid, len(sid)), "set the session id context")
             if any_purpose:
                 self._check(L_.SSL_CTX_set_purpose(self.ptr, X509_PURPOSE_ANY), "accept certificates of any purpose")
         except Exception:
@@ -218,11 +273,33 @@ class Context:
         if result != 1:
             raise TLSError(f"cannot {what}: {errors('not supported by this OpenSSL')}")
 
+    def _use_chain(self, path):
+        """Load a certificate chain, leaving out a self-signed root after the first certificate: the peer has the root
+        already, and an ML-DSA root is 7 KB that pushes the handshake past TCP's initial window, an extra round trip on
+        every new connection. The file itself is not changed."""
+        load = lambda p: self._check(lib().SSL_CTX_use_certificate_chain_file(self.ptr, os.fsencode(p)), f"load certificate {path}")
+        try:
+            blocks = re.findall(rb"-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----\s*", Path(path).read_bytes(), re.S)
+        except OSError:
+            return load(path)  # OpenSSL's error names the problem
+        keep = blocks[:1] + [b for b in blocks[1:] if not _self_signed(b)]
+        if len(keep) == len(blocks):
+            return load(path)
+        fd, tmp = tempfile.mkstemp(suffix=".pem")
+        try:
+            os.write(fd, b"".join(keep))
+            os.close(fd)
+            load(tmp)
+        finally:
+            os.unlink(tmp)
+
     def _use_key(self, path, passphrase):
         L_ = lib()
         with open(path, "rb") as f:
             data = f.read()
         bio = L_.BIO_new_mem_buf(data, len(data))
+        if not bio:
+            raise TLSError(f"cannot allocate a private-key BIO: {errors()}")
         try:
             pkey = L_.PEM_read_bio_PrivateKey(bio, None, None, passphrase or b"")
         finally:
@@ -260,17 +337,25 @@ class Context:
 class Connection:
     def __init__(self, ctx, sock, timeout):
         L_ = lib()
+        if not ctx.ptr:
+            raise TLSError('TLS context is closed')
         self.ctx, self.sock, self.timeout = ctx, sock, timeout
         sock.setblocking(False)
         self.closed = False
-        self.ssl = L_.SSL_new(ctx.ptr)
-        if not self.ssl or L_.SSL_set_fd(self.ssl, sock.fileno()) != 1:
+        self._ssl = L_.SSL_new(ctx.ptr)
+        if not self._ssl or L_.SSL_set_fd(self._ssl, sock.fileno()) != 1:
             msg = errors()
-            if self.ssl:
-                L_.SSL_free(self.ssl)
-            self.ssl = None
+            if self._ssl:
+                L_.SSL_free(self._ssl)
+            self._ssl = None
             raise TLSError(msg)
         (L_.SSL_set_accept_state if ctx.server else L_.SSL_set_connect_state)(self.ssl)
+
+    @property
+    def ssl(self):
+        if self.closed or not self._ssl:
+            raise TLSError('TLS connection is closed')
+        return self._ssl
 
     def handshake(self, server_name=None):
         L_ = lib()
@@ -328,7 +413,7 @@ class Connection:
         buf = ctypes.create_string_buffer(size)
         deadline = time.monotonic() + (self.timeout if timeout is None else timeout)
         n = self._io(lambda: lib().SSL_read(self.ssl, buf, size), "read", deadline, wait)
-        return None if n is None else buf.raw[:n]
+        return None if n is None else ctypes.string_at(buf, n)
 
     def sendall(self, data):
         for i in range(0, len(data), 1 << 20):
@@ -375,7 +460,8 @@ class Connection:
     def export(self, label, context, length=32):
         """Keying material from this session (RFC 8446 section 7.5): both peers get the same bytes, nobody else can."""
         out = ctypes.create_string_buffer(length)
-        if lib().SSL_export_keying_material(self.ssl, out, length, label.encode(), len(label), context, len(context), 1) != 1:
+        label = label.encode()
+        if lib().SSL_export_keying_material(self.ssl, out, length, label, len(label), context, len(context), 1) != 1:
             raise TLSError(f"cannot export keying material: {errors()}")
         return out.raw
 
@@ -393,11 +479,15 @@ class Connection:
             return
         self.closed = True
         try:
-            if self.ssl:
-                self._shutdown()
-                lib().SSL_free(self.ssl)
+            if self._ssl:
+                try:
+                    self._shutdown()
+                except OSError:
+                    pass  # closing is best effort if the peer or socket has already gone
+                finally:
+                    lib().SSL_free(self._ssl)
         finally:
-            self.ssl = None
+            self._ssl = None
             self.sock.close()
 
     def _shutdown(self):
@@ -406,8 +496,8 @@ class Connection:
         L_, deadline = lib(), time.monotonic() + min(self.timeout, 5)
         while True:
             L_.ERR_clear_error()
-            r = L_.SSL_shutdown(self.ssl)
-            if r >= 0 or L_.SSL_get_error(self.ssl, r) != WANT_WRITE:
+            r = L_.SSL_shutdown(self._ssl)
+            if r >= 0 or L_.SSL_get_error(self._ssl, r) != WANT_WRITE:
                 break
             left = deadline - time.monotonic()
             if left <= 0 or not self._wait(False, left):

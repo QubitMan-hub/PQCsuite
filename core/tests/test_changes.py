@@ -13,11 +13,8 @@ from pathlib import Path
 
 from cryptography import x509
 
-from pqcsuite import JSON, PEM, ConfigWatch, serve_http
-from pqcsuite.console import App, Settings
+from acxelin_core.http import JSON, PEM, ConfigWatch, serve_http
 from acxelin_core.pki import CA, CAError, fetch_crl, follow_crl, shared
-from pqcsuite.vpn import Peer, Site, validate
-from pqcsuite.vpn.wireguard import GatewayConfig
 from support import wait
 
 
@@ -120,20 +117,6 @@ class CRLDistributionTest(unittest.TestCase):
         self.ca.revoke(self.rec.serial)
         self.assertTrue(wait(lambda: int(self.rec.serial, 16) in revoked(self.copy)))
 
-    def test_settings_need_somewhere_to_keep_the_copy(self):
-        site = Site("hq", "1.2.3.4", "c", "k", "a", crl_url=self.url, peers=[Peer("b", "5.6.7.8", ["10.0.0.0/24"], ["10.1.0.0/24"], True, "b:7443")])
-        with self.assertRaisesRegex(ValueError, "crl_url needs crl"):
-            validate(site)
-        cfg = GatewayConfig(name="vpn", endpoint="vpn:51820", keyring_listen="0.0.0.0:7443", pool="10.99.0.0/24", cert="c", key="k", ca="a",
-                            crl_url=self.url)
-        with self.assertRaisesRegex(ValueError, "crl_url needs crl"):
-            cfg.validate()
-        site.crl, cfg.crl = "copy.pem", "copy.pem"
-        site.crl_every = cfg.crl_every = 0
-        with self.assertRaisesRegex(ValueError, "crl_every"):
-            validate(site)
-        with self.assertRaisesRegex(ValueError, "crl_every"):
-            cfg.validate()
 
 
 class ConfigWatchTest(unittest.TestCase):
@@ -166,10 +149,6 @@ class ConfigWatchTest(unittest.TestCase):
 
 
 class ServeHTTPTest(unittest.TestCase):
-    def test_the_console_shows_a_service_that_does_not_speak_http_as_an_error(self):
-        with tempfile.TemporaryDirectory() as d:
-            app = App(Settings(audit_log=str(Path(d) / "a.jsonl"), edges=[garbage_server(self, NOT_HTTP)]))
-            self.assertIn("error", app.edges()[0])
 
     def test_routes_health_and_missing_paths(self):
         httpd = serve_http("127.0.0.1:0", {"/status": (JSON, lambda: '{"up": 1}'), "/crl.pem": (PEM, lambda: None)})

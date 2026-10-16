@@ -6,7 +6,7 @@ originate  plain local clients -> edge -> PQC TLS remote (usually another edge i
 import json
 import logging
 import os
-import selectors
+import select
 import socket
 import subprocess
 import sys
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from acxelin_core import tls
 from acxelin_core.config import build, env_passphrase, read_toml
 from acxelin_core.http import JSON, METRICS, explain, file_stamp, hostport, serve_http
-from acxelin_core.server import Server, Stats
+from acxelin_core.server import Server, Stats, is_loopback
 
 from . import policies
 
@@ -42,6 +42,8 @@ class Route:
     server_name: str = ""
     proxy_protocol: bool = False
     max_connections: int = 512
+    max_per_client: int = 0  # 0: an eighth of max_connections, at least 16
+    max_rate_per_client: float = 50.0  # new connections a second from one address; 0: no limit (behind a load balancer)
     idle_timeout: float = 3600.0
     handshake_timeout: float = 10.0
     fallback_cert: str = ""
@@ -77,24 +79,33 @@ def pump(conn, raw, idle_timeout):
     stops reading for a while (a slow link, a paused phone) gets the idle timeout too, not the short handshake deadline."""
     raw.settimeout(idle_timeout)
     conn.timeout = idle_timeout
-    with selectors.DefaultSelector() as sel:
-        sel.register(conn.sock, selectors.EVENT_READ, "tls")
-        sel.register(raw, selectors.EVENT_READ, "raw")
-        while True:
-            ready = {"tls"} if conn.pending() else {k.data for k, _ in sel.select(idle_timeout)}
-            if not ready:
-                raise TimeoutError(f"idle for {idle_timeout:g}s")
-            if "tls" in ready:
-                data = conn.recv(wait=False)
-                if data == b"":
-                    return
-                if data:
-                    raw.sendall(data)
-            if "raw" in ready:
-                data = raw.recv(65536)
-                if not data:
-                    return
-                conn.sendall(data)
+    wait = readable(conn.sock, raw)
+    while True:
+        ready = {conn.sock} if conn.pending() else wait(idle_timeout)
+        if not ready:
+            raise TimeoutError(f"idle for {idle_timeout:g}s")
+        if conn.sock in ready:
+            data = conn.recv(wait=False)
+            if data == b"":
+                return
+            if data:
+                raw.sendall(data)
+        if raw in ready:
+            data = raw.recv(65536)
+            if not data:
+                return
+            conn.sendall(data)
+
+
+def readable(*socks):
+    """A function returning which of `socks` are readable within a timeout. poll() where there is one: unlike a selector it
+    holds no file descriptor of its own, so a connection costs two, not three, of the process's open-file limit."""
+    if not hasattr(select, "poll"):
+        return lambda timeout: set(select.select(socks, [], [], timeout)[0])
+    p, by_fd = select.poll(), {s.fileno(): s for s in socks}
+    for s in socks:
+        p.register(s, select.POLLIN)
+    return lambda timeout: {by_fd[fd] for fd, _ in p.poll(timeout * 1000)}
 
 
 def proxy_header(client, local):
@@ -114,13 +125,13 @@ class Edge:
         r = self.route
         if r.mode == "terminate":
             if r.crl_url:
-                from ..pki import follow_crl
+                from acxelin_core.pki import follow_crl
                 self.crl_follow = follow_crl(r.crl_url, r.crl, r.ca, r.crl_every)
             fallback = (r.fallback_cert, r.fallback_key) if r.fallback_cert else None
             make = lambda: tls.server_context(policies.policy(r.policy), r.cert, r.key, r.ca or None, r.require_client_cert, r.passphrase(), fallback=fallback)
             try:
                 self.server = Server(hostport(r.listen), make, self._terminate, watch=[r.cert, r.key, r.ca, r.fallback_cert, r.fallback_key],
-                                     crl=r.crl or None, ca=r.ca or None, max_connections=r.max_connections,
+                                     crl=r.crl or None, ca=r.ca or None, max_connections=r.max_connections, max_per_client=r.max_per_client, max_rate_per_client=r.max_rate_per_client,
                                      handshake_timeout=r.handshake_timeout, name=r.name, reuse_port=reuse_port)
             except BaseException:
                 if self.crl_follow:
@@ -132,7 +143,7 @@ class Edge:
             self.watch = [p for p in (r.ca, r.cert, r.key) if p]
             self.stamps = [file_stamp(p) for p in self.watch]
             self.ctx = tls.client_context(policies.policy(r.policy), r.ca, r.cert or None, r.key or None, r.passphrase())
-            self.listener = socket.create_server(hostport(r.listen, "127.0.0.1"), backlog=128, reuse_port=reuse_port)
+            self.listener = tls.listen(hostport(r.listen, "127.0.0.1"), reuse_port=reuse_port)
             self.port = self.listener.getsockname()[1]
             log.info("%s: listening on %s, tunnelling to %s", r.name, r.listen, r.target)
         return self
@@ -153,7 +164,7 @@ class Edge:
     def _terminate(self, conn, addr):
         r = self.route
         try:
-            up = socket.create_connection(hostport(r.target), timeout=r.handshake_timeout)
+            up = tls.nodelay(socket.create_connection(hostport(r.target), timeout=r.handshake_timeout))
         except OSError as e:
             self.stats.add("upstream_failed")
             log.warning("%s: upstream %s unreachable: %s", r.name, r.target, explain(e))
@@ -200,6 +211,7 @@ class Edge:
         while True:
             try:
                 client, _ = self.listener.accept()
+                tls.nodelay(client)
             except OSError:
                 return
             if not slots.acquire(blocking=False):
@@ -267,7 +279,7 @@ def reconcile(edges, routes, reuse_port=False):
             break
 
 
-WORKER = "PQCSUITE_EDGE_WORKER"
+WORKER = "PQC_EDGE_WORKER"
 
 
 class Workers:
@@ -351,4 +363,8 @@ def serve_metrics(address, edges, workers=None):
                                                 "policy": e.route.policy, **totals(e, workers)} for e in edges})
     httpd = serve_http(address, {"/metrics": (METRICS, lambda: metrics_text(edges, workers)), "/status": (JSON, status)})
     log.info("metrics on http://%s:%d/metrics", *httpd.server_address[:2])
+    if not is_loopback(httpd.server_address[0]):
+        log.warning("metrics on %s are plain HTTP without a login and list every route and upstream address: make sure only "
+                    "your monitoring can reach that port (a firewall, a private network, or a container port you do not publish)",
+                    address)
     return httpd

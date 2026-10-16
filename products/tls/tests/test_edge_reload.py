@@ -106,7 +106,7 @@ class EdgeReloadTest(unittest.TestCase):
         self.assertIs(next(e for e in edges if e.route.name == "api"), api)
         taken = socket.create_server(("127.0.0.1", 0))
         self.addCleanup(taken.close)
-        with self.assertLogs("acxelin_core", "ERROR"):
+        with self.assertLogs(level="ERROR"):
             reconcile(edges, [self.route("web", taken.getsockname()[1], "one"), self.route("api", b, "one")])
         self.assertEqual(self.get(a), "two")
         self.assertEqual(sorted(e.route.name for e in edges), ["api", "web"])

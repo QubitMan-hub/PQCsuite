@@ -5,6 +5,7 @@ from pathlib import Path
 
 from cryptography import x509
 
+from .http import hostport, http_server, listen, nodelay  # noqa: F401  (the reference keeps these beside the contexts)
 from .openssl import Connection, Context, OpenSSLUnavailable, TLSError, lib  # noqa: F401
 from .pki import algorithm_of
 
@@ -38,8 +39,8 @@ def server_context(policy, cert, key, ca=None, require_client_cert=False, key_pa
                    any_purpose=False, fallback=None):
     """`request_client_cert` asks for a client certificate and verifies it if one is sent, but lets clients without one in.
     `any_purpose` accepts a client certificate whose extended key usage is not clientAuth (the chain is still verified).
-    `fallback` (cert, key) is a classical certificate for browsers and other clients that cannot verify ML-DSA yet; it needs
-    a policy that allows classical signatures."""
+    `fallback` (cert, key) is a trusted classical certificate, preferred for clients offering both signature families. It needs
+    a policy that allows classical signatures; clients offering only ML-DSA still get the primary certificate."""
     if (require_client_cert or request_client_cert) and not ca:
         raise TLSError("checking client certificates needs the CA that issued them")
     if fallback and policy.sigalgs:
@@ -58,5 +59,16 @@ def client_context(policy, ca=None, cert=None, key=None, key_passphrase=None, ve
 
 def connect(host, port, ctx, server_name=None, timeout=10.0):
     """Open a verified TLS 1.3 connection; the certificate must match `server_name` (defaults to `host`)."""
-    sock = socket.create_connection((host, port), timeout=timeout)
+    sock = nodelay(_dial(host, port, timeout))
     return ctx.wrap(sock, server_name or host, timeout)
+
+
+def _dial(host, port, timeout):
+    """For "localhost", IPv4 first: Windows tries ::1 first and, when the server listens on 127.0.0.1 only, waits two
+    seconds after the refusal before trying IPv4."""
+    if host.lower() != "localhost":
+        return socket.create_connection((host, port), timeout=timeout)
+    try:
+        return socket.create_connection(("127.0.0.1", port), timeout=timeout)
+    except ConnectionRefusedError:
+        return socket.create_connection(("::1", port), timeout=timeout)

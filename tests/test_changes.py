@@ -14,6 +14,7 @@ from cryptography import x509
 from pqcsuite import JSON, latest_release, serve_http
 from pqcsuite.console import App, Settings
 from pqcsuite.pki import CA, shared
+from pqcsuite.vpn import Peer, Site, validate
 from pqcsuite.vpn.wireguard import Gateway, GatewayConfig
 from tests.helpers import REASON, wait
 
@@ -139,3 +140,23 @@ class UpdatesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VPNSettingsTest(unittest.TestCase):
+    """VPN settings that follow a CRL need somewhere to keep the copy (moves with the VPN in Stage 3)."""
+    url = "http://127.0.0.1:9/crl.pem"
+
+    def test_settings_need_somewhere_to_keep_the_copy(self):
+        site = Site("hq", "1.2.3.4", "c", "k", "a", crl_url=self.url, peers=[Peer("b", "5.6.7.8", ["10.0.0.0/24"], ["10.1.0.0/24"], True, "b:7443")])
+        with self.assertRaisesRegex(ValueError, "crl_url needs crl"):
+            validate(site)
+        cfg = GatewayConfig(name="vpn", endpoint="vpn:51820", keyring_listen="0.0.0.0:7443", pool="10.99.0.0/24", cert="c", key="k", ca="a",
+                            crl_url=self.url)
+        with self.assertRaisesRegex(ValueError, "crl_url needs crl"):
+            cfg.validate()
+        site.crl, cfg.crl = "copy.pem", "copy.pem"
+        site.crl_every = cfg.crl_every = 0
+        with self.assertRaisesRegex(ValueError, "crl_every"):
+            validate(site)
+        with self.assertRaisesRegex(ValueError, "crl_every"):
+            cfg.validate()
