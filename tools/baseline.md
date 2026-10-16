@@ -156,3 +156,47 @@ Line coverage per destination, over the current files mapped to it in `tools/cov
 - `tools/quality_baseline.json` pins these values with the SHA-256 of `bench/truth.json`.
 
 This is a regression floor, not a quality claim. The dev corpus is tuned on by construction (`wolf-pack/CLAUDE.md`, rule 3), so a perfect score here says nothing about unseen code. The Stage 1 gate fails if either value drops below 1.000.
+
+## Golden fixtures
+
+`tools/make_fixtures.py tests/golden` wrote 34 files with today's code, plus `MANIFEST.json` (SHA-256 of each file), `README.md` and `.gitattributes` (`* -text`):
+
+| Folder | Contents |
+|---|---|
+| `pki/` | the "Golden Test CA" (ML-DSA-87); edge, signer and revoked certificates (ML-DSA-65); a CRL listing the revoked one |
+| `vault/` | `plain.txt`; an unsigned archive, an archive signed with the signer certificate, and a CNSA 2.0 archive; their recipient keys |
+| `vpn/` | an invitation in today's format |
+| `readiness/` | a three-function project (MD5 marked `wolfpack:ignore`, RSA-2048, AES-256-GCM), a `.wolfpack.toml` excluding `generated/`, and the resulting `cbom.json` and `findings.json` |
+| `configs/` | the four example TOMLs |
+
+Properties:
+- Every private key is passphrase-encrypted (`golden-test-only`); `grep -r "BEGIN PRIVATE KEY"` finds none.
+- Every certificate and the CRL reach past 2099.
+- The excluded `generated/skipped.py` doesn't appear in the scan.
+
+`tests/golden/test_golden_old_code.py`: 8 passed on today's code. Before the fixtures existed, all 8 failed.
+
+## Stage 0 summary
+
+| Finding | Result | Effect on later stages |
+|---|---|---|
+| F1 OpenSSL 3.5.9 | built; post-quantum groups present | Stage 1's full-handshake contract and Stage 3's TLS tests can run here |
+| F2 `cryptography` | 50.0.2 bundles OpenSSL 4.0.3 with ML-KEM and ML-DSA | Vault-without-external-OpenSSL can pass here |
+| F3 namespaces | namespaces, veth and iptables work; no kernel WireGuard; strongSwan not built | Stage 4 needs `wireguard-go` and a strongSwan build here, or CI evidence |
+| F4 Playwright | Chromium 141 preinstalled and working | Stages 1–5 journeys run here; the spec's "blocked" note was wrong |
+| F5 publishing | no push credentials | CI evidence needs the owner to push `restructure/stage-0` and later branches |
+| F6 Windows TLS | the TLS tests skip on Windows CI (static) | Windows stays unverified for Acxelin TLS until a Windows job provides OpenSSL 3.5 |
+
+**Baseline:**
+- Tests: 446 passed, 0 failed, 28 skipped (reasons listed); ruff clean.
+- Flaky: `test_replay.py`'s replay test (a harness race, product behaviour correct).
+- Coverage by product: core 90.8%, readiness 88.3%, tls 79.3%, vault 93.8%, vpn 74.6%.
+- Readiness quality floor: precision 1.000, recall 1.000 on 174 pairs (a regression floor, not a quality claim).
+
+**Spec corrections this stage found:**
+- The browser is available here (F4).
+- `PQCSUITE_REAL_WIREGUARD` belongs in the compatibility table.
+- Windows can't be listed as a supported TLS platform yet (F6).
+- The truth set has 174 pairs, not 166.
+
+Stage 0 changed no product code: `git diff --name-only 5f8c349 -- pqcsuite wolf-pack/wolfpack tests site .github`, excluding `tests/golden/`, is empty.

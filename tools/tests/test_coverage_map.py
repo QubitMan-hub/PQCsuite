@@ -1,3 +1,4 @@
+import subprocess
 import sys
 from pathlib import Path
 
@@ -6,12 +7,14 @@ sys.path.insert(0, str(ROOT / "tools"))
 from coverage_by_product import aggregate, load_map  # noqa: E402
 
 MAP = ROOT / "tools" / "coverage_map.toml"
+BASE = "5f8c349a102e566560708ee12b9b1574e4a6e6cc"  # the map describes the files at the base commit, before anything moves
 DESTINATIONS = {"core", "tls", "vpn", "readiness", "vault", "deleted"}
 
 
 def test_every_source_file_mapped_once():
-    files = {p.relative_to(ROOT).as_posix() for root in ("pqcsuite", "wolf-pack/wolfpack") for p in (ROOT / root).rglob("*")
-             if p.suffix in {".py", ".html", ".js"}}
+    listed = subprocess.run(["git", "ls-tree", "-r", "--name-only", BASE, "--", "pqcsuite", "wolf-pack/wolfpack"],
+                            cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
+    files = {f for f in listed if Path(f).suffix in {".py", ".html", ".js"}}
     assert set(load_map(MAP)) == files
 
 

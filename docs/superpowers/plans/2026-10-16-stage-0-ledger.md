@@ -4,3 +4,4 @@
 - Ruling: F4 corrects the spec. The browser is available, so Stage 5's Playwright evidence can be produced here and Stage 5 need not be pending on CI. Why: Chromium launched. Cost if wrong: none; it ran.
 - Ruling: OpenSSL is built in the background with `setsid`. Why: a foreground build exceeds the 300 s tool limit, and an earlier background build died with its tool call. Cost if wrong: none.
 - Ruling: coverage is re-run with `--source=pqcsuite,wolf-pack/wolfpack`. Why: `pyproject.toml` limits coverage to `pqcsuite`, so Task 2's data has no Readiness engine lines. Cost if wrong: one extra 3-minute run.
+- Ruling: the coverage-map test reads the file list at the base commit (`git ls-tree 5f8c349`), not the live tree. Why: the map describes files before they move; against the live tree it would break as soon as Stage 1 moves a file. Cost if wrong: none; later stages compare against this snapshot.
