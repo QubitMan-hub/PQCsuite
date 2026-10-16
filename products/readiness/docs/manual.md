@@ -48,7 +48,7 @@ The console listens only on this machine. From a remote server, forward a port a
 ssh -L 8900:127.0.0.1:8900 server
 acxelin-readiness console link --port 8900     # run in that SSH session; open the address it prints
 ```
-In Docker, publish to loopback only (`-p 127.0.0.1:8900:8900`) and run `docker exec -it NAME acxelin-readiness console link`.
+In Docker, start the console with `--container` and publish its port to loopback only: `docker run -v readiness:/data -p 127.0.0.1:8900:8900 acxelin-readiness console --container`, then run `docker exec -it NAME acxelin-readiness console link`.
 
 ## Exit codes
 

@@ -109,7 +109,7 @@ def test_issue_then_revoke_in_two_steps_and_the_list_shows_it(page, console):
     issue(page, "web.example.invalid")
     page.get_by_role("cell", name="web.example.invalid", exact=True).wait_for()
     assert page.get_by_text("Valid").first.is_visible()
-    assert "key stays on this computer" in page.content() and "PRIVATE KEY" not in page.content()
+    assert "PRIVATE KEY" not in page.content()
     page.get_by_role("button", name="Revoke web.example.invalid").click()
     assert page.get_by_role("button", name="Confirm revoke").is_visible()
     page.get_by_role("button", name="Confirm revoke").click()
@@ -204,3 +204,25 @@ def test_keyboard_only_creates_the_ca(page, console):
     page.keyboard.press("Enter")
     page.get_by_role("heading", name="Keyboard CA").wait_for()
     assert json.loads(json.dumps(True))
+
+
+def test_download_with_and_without_key_renew_and_see_it_all_in_recent_activity(page, console):
+    import io
+    import zipfile
+    open_console(page, console)
+    create_ca(page)
+    issue(page, "api.example.invalid")
+    page.get_by_role("button", name="Download api.example.invalid", exact=True).wait_for()
+    with page.expect_download() as d:
+        page.get_by_role("button", name="Download api.example.invalid", exact=True).click()
+    names = sorted(zipfile.ZipFile(io.BytesIO(Path(d.value.path()).read_bytes())).namelist())
+    assert names == ["ca.crt", "cert.pem", "chain.pem"] and d.value.suggested_filename.startswith("api.example.invalid-")
+    with page.expect_download() as d:
+        page.get_by_role("button", name="Download with key api.example.invalid").click()
+    assert "key.pem" in zipfile.ZipFile(io.BytesIO(Path(d.value.path()).read_bytes())).namelist()
+    page.get_by_role("button", name="Renew api.example.invalid").click()
+    page.get_by_text("Renewed", exact=True).first.wait_for()
+    page.get_by_role("button", name="Run maintenance").click()
+    page.get_by_text("Nothing needed renewing.", exact=False).wait_for()
+    activity = page.inner_text("#activity")
+    assert "Issued api.example.invalid" in activity and "Downloaded api.example.invalid (with key)" in activity and "Renewed api.example.invalid" in activity

@@ -42,6 +42,7 @@ code.cmd{background:var(--sunken);border:1px solid var(--line);border-radius:6px
 .logo{width:150px}
 .facts{display:flex;flex-wrap:wrap;gap:6px 22px;margin:0 0 6px;color:var(--ink-2)}
 .edge{border-top:1px solid var(--line);padding:14px 0}
+.acts{list-style:none;padding:0;margin:8px 0 0}.acts li{padding:6px 0;border-bottom:1px solid var(--line)}
 .edge h3{font:500 16px var(--display);margin:0 0 4px}
 .result{margin-top:16px;padding:12px 14px;background:var(--sunken);border:1px solid var(--line);border-radius:8px}
 dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 18px;margin:0}dl.kv dt{color:var(--mute)}dl.kv dd{margin:0}
@@ -123,17 +124,18 @@ async function certsView() {
     ev.preventDefault();
     try {
       const r = await call("certificates/issue", {kind: kind.value, common_name: cn.value, names: names.value, days: Number(days.value)});
-      result.replaceChildren(h("div", {class: "result"}, h("p", {class: "ok-msg"}, "Issued " + r.common_name + "."), h("p", {style: "margin:0"}, "Files are in ", h("code", {}, s.home + "/" + r.folder), ": ", h("code", {}, "chain.pem"), " and ", h("code", {}, "key.pem"), ". The key stays on this computer.")));
+      result.replaceChildren(h("div", {class: "result"}, h("p", {class: "ok-msg"}, "Issued " + r.common_name + "."), h("p", {style: "margin:0"}, "Files are in ", h("code", {}, s.home + "/" + r.folder), ": ", h("code", {}, "chain.pem"), " and ", h("code", {}, "key.pem"), ". Download them from the list.")));
       cn.value = ""; names.value = "";
       await refreshCerts();
     } catch (e) {}
   };
   const refresh = h("button", {class: "btn quiet small", id: "crl-refresh", onclick: async () => { try { await call("crl/refresh", {}); await reload(); } catch (e) {} }}, "Refresh revocation list");
+  const maintain = h("button", {class: "btn quiet small", id: "maintain", onclick: async () => { try { const r = await call("certificates/maintain", {}); say(""); await refreshCerts(); $("#crl-line").textContent = crlLine(state.status) + (r.renewed.length ? " Renewed: " + r.renewed.join(", ") + "." : " Nothing needed renewing."); } catch (e) {} }}, "Run maintenance");
   const form = h("form", {onsubmit: issue}, h("h2", {}, "Issue a certificate"), ...field("kind", "Kind", kind), ...field("cn", "Name", cn, "The name the certificate is for, such as web.example.com."),
     ...field("names", "Other names (one per line)", names), ...field("days", "Valid for (days)", days), h("div", {class: "row", style: "margin-top:16px"}, h("button", {class: "btn", type: "submit"}, "Issue certificate")), result);
   const list = h("div", {id: "cert-list"});
   panel.replaceChildren(h("h1", {}, s.name), h("div", {class: "facts", id: "facts"}, ...factSpans(s)),
-    h("div", {class: "row", style: "margin:6px 0 24px"}, h("span", {class: "state", id: "crl-line", style: "margin:0"}, crlLine(s)), refresh), h("div", {class: "split"}, form, list));
+    h("div", {class: "row", style: "margin:6px 0 24px"}, h("span", {class: "state", id: "crl-line", style: "margin:0"}, crlLine(s)), refresh, maintain), h("div", {class: "split"}, form, list));
   await refreshCerts();
 }
 async function reload() { state.status = await call("status"); const l = $("#crl-line"), f = $("#facts"); if (l) l.textContent = crlLine(state.status); if (f) f.replaceChildren(...factSpans(state.status)); }
@@ -142,13 +144,31 @@ async function refreshCerts() {
   const out = $("#cert-list");
   if (!out) return;
   let data; try { data = await call("certificates"); } catch (e) { return; }
-  const rows = data.certificates.map((c) => {
-    const act = c.status === "valid" ? revokeButton(c) : h("span", {class: "mute"}, c.reason && c.reason !== "unspecified" ? c.reason : "");
-    return h("tr", {}, h("td", {}, c.common_name), h("td", {}, c.kind), h("td", {}, c.algorithm), h("td", {}, day(c.not_after)), h("td", {}, h("span", {class: "pill " + (c.status === "valid" ? "ok" : "bad")}, c.status === "valid" ? "Valid" : "Revoked")), h("td", {}, act));
+  const rows = data.certificates.slice().reverse().map((c) => {
+    const acts = h("div", {class: "row", style: "gap:6px"});
+    if (c.has_files) acts.append(fileButton(c, false), ...(c.status === "valid" ? [fileButton(c, true), renewButton(c)] : []));
+    if (c.status === "valid") acts.append(revokeButton(c));
+    const state = c.status !== "valid" ? "Revoked" : c.renewed ? "Renewed" : "Valid";
+    return h("tr", {}, h("td", {}, c.common_name), h("td", {}, c.kind), h("td", {}, c.algorithm), h("td", {}, day(c.not_after)), h("td", {}, h("span", {class: "pill " + (state === "Valid" ? "ok" : state === "Renewed" ? "mute" : "bad")}, state)), h("td", {}, acts));
   });
-  out.replaceChildren(h("h2", {}, "Issued certificates"), data.certificates.length ? h("div", {class: "scroll"}, h("table", {}, h("thead", {}, h("tr", {}, ["Name", "Kind", "Algorithm", "Expires", "Status", "Action"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
-    : h("p", {class: "empty"}, "Nothing issued yet. Issue your first certificate on the left."));
+  out.replaceChildren(h("h2", {}, "Issued certificates"), data.certificates.length ? h("div", {class: "scroll"}, h("table", {}, h("thead", {}, h("tr", {}, ["Name", "Kind", "Algorithm", "Expires", "Status", "Actions"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
+    : h("p", {class: "empty"}, "Nothing issued yet. Issue your first certificate on the left."),
+    h("p", {class: "legend"}, "Download gives the certificate, its chain and the CA certificate. The private key is included only when you choose Download with key; every download is recorded."),
+    activityList(state.status.activity || []));
 }
+function fileButton(c, withKey) {
+  const label = withKey ? "Download with key" : "Download";
+  return h("button", {class: "btn quiet small", "aria-label": label + " " + c.common_name, onclick: async () => { try { say(""); await acx.download("certificates/download", {serial: c.serial, key: withKey}); await reload(); paintActivity(); } catch (e) { say(e.message); } }}, label);
+}
+function renewButton(c) {
+  return h("button", {class: "btn quiet small", "aria-label": "Renew " + c.common_name, onclick: async () => { try { await call("certificates/renew", {serial: c.serial}); await refreshCerts(); } catch (e) {} }}, "Renew");
+}
+const ACTIONS = {issue: "Issued", renew: "Renewed", revoke: "Revoked", download: "Downloaded", maintain: "Maintenance", test: "Tested a connection"};
+function activityList(items) {
+  return h("div", {id: "activity", style: "margin-top:26px"}, h("h2", {}, "Recent activity"), items.length ? h("ul", {class: "acts"}, items.map((a) => h("li", {}, h("span", {class: "mute"}, (a.time || "").replace("T", " ").replace("Z", " UTC")), " ",
+    (ACTIONS[a.action] || a.action) + (a.common_name ? " " + a.common_name : a.target ? " " + a.target : "") + (a.action === "download" && a.key ? " (with key)" : "")))) : h("p", {class: "empty"}, "Nothing yet."));
+}
+async function paintActivity() { const el = $("#activity"); if (el) el.replaceWith(activityList(state.status.activity || [])); }
 function revokeButton(c) {
   const b = h("button", {class: "btn danger small", "aria-label": "Revoke " + c.common_name}, "Revoke");
   let armed = false, timer;
@@ -170,18 +190,26 @@ async function edgesView() {
   const target = h("input", {type: "text", id: "t-target", placeholder: "127.0.0.1:8443", autocomplete: "off"});
   const sname = h("input", {type: "text", id: "t-name", placeholder: "web.example.com", autocomplete: "off"});
   const pol = h("select", {id: "t-policy"}, [["strict", "Post-quantum only (strict)"], ["transition", "Also classical (transition)"], ["cnsa2", "CNSA 2.0"]].map(([v, l]) => h("option", {value: v}, l)));
+  const client = h("select", {id: "t-client"}, h("option", {value: ""}, "None"));
+  call("certificates").then((d) => d.certificates.filter((c) => c.kind === "client" && c.has_files).forEach((c) => client.append(h("option", {value: c.serial}, c.common_name + (c.status === "valid" ? "" : " (revoked)"))))).catch(() => {});
   const out = h("div", {id: "t-result", "aria-live": "polite"});
+  const kv = (pairs) => h("dl", {class: "kv"}, pairs.filter(([, v]) => v).flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)]));
   const test = async (ev) => {
     ev.preventDefault();
     try {
-      const r = await call("edges/test", {target: target.value, server_name: sname.value || null, policy: pol.value});
-      out.replaceChildren(h("div", {class: "result"}, h("p", {class: "ok-msg"}, "Connected."), h("dl", {class: "kv"}, h("dt", {}, "Key exchange"), h("dd", {}, r.group), h("dt", {}, "Certificate key"), h("dd", {}, r.peer_key || "unknown"), h("dt", {}, "Cipher"), h("dd", {}, r.cipher), h("dt", {}, "Protocol"), h("dd", {}, r.version))));
+      const r = await call("edges/test", {target: target.value, server_name: sname.value || null, policy: pol.value, client: client.value || null});
+      const parts = [h("p", {class: r.ok ? "ok-msg" : "bad"}, r.ok ? (r.quantum_safe ? "Connected, quantum-safe." : "Connected, but not quantum-safe.") : "Not connected.")];
+      if (r.error) parts.push(h("p", {}, r.error));
+      if (r.group) parts.push(kv([["Key exchange", r.group], ["Certificate key", r.peer_key], ["Cipher", r.cipher], ["Protocol", r.version]]));
+      if (r.client_status === "revoked") parts.push(h("p", {}, "The client certificate you chose is revoked."));
+      if (r.offers) parts.push(h("p", {class: "legend"}, "With no checks, the server offers " + r.offers.group + " and a " + (r.offers.peer_key || "unknown") + " certificate. If that looks right, it trusts or uses a different certificate authority."));
+      out.replaceChildren(h("div", {class: "result"}, ...parts));
     } catch (e) { out.replaceChildren(); }
   };
   panel.replaceChildren(h("div", {class: "split"}, h("div", {}, h("h1", {}, "Edges"), h("p", {class: "lede"}, "Add the metrics address of each running edge (the --metrics option) to see its policy and negotiated key exchanges."),
       ...field("edge-url", "Edge metrics address", url), h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn", onclick: add}, "Add edge")), h("div", {id: "edge-list", style: "margin-top:22px"})),
     h("form", {onsubmit: test}, h("h2", {}, "Test a connection"), h("p", {class: "lede"}, "Connect to an edge as a client that trusts your certificate authority."),
-      ...field("t-target", "Host and port", target), ...field("t-name", "Certificate name (if different from the host)", sname), ...field("t-policy", "Client policy", pol),
+      ...field("t-target", "Host and port", target), ...field("t-name", "Certificate name (if different from the host)", sname), ...field("t-policy", "Client policy", pol), ...field("t-client", "Client certificate (for mutual TLS)", client),
       h("div", {class: "row", style: "margin-top:16px"}, h("button", {class: "btn", type: "submit"}, "Test connection")), out)));
   await paintEdges();
 }
@@ -192,8 +220,8 @@ async function paintEdges() {
   if (!data.edges.length) { out.replaceChildren(h("p", {class: "empty"}, "No edges added yet.")); return; }
   out.replaceChildren(...data.edges.map((e) => {
     const rm = h("button", {class: "btn quiet small", "aria-label": "Remove " + e.url, onclick: async () => { try { await call("edges/remove", {url: e.url}); await paintEdges(); } catch (x) {} }}, "Remove");
-    const body = e.error ? [h("p", {class: "bad"}, e.error)] : Object.entries(e.status).map(([name, s]) => h("div", {}, h("p", {style: "margin:0"}, h("strong", {}, name), " · policy ", s.policy, " · ", String(s.active || 0), " active"),
-      Object.entries(s.groups || {}).length ? h("p", {class: "legend", style: "margin:0"}, Object.entries(s.groups).map(([g, n]) => g + ": " + n).join(" · ")) : ""));
+    const body = e.error ? [h("p", {class: "bad"}, e.error)] : e.routes.map((s) => h("div", {}, h("p", {style: "margin:0"}, h("strong", {}, s.name), " · policy ", s.policy, " · ", String(s.active || 0), " active"),
+      h("p", {class: "legend", style: "margin:0"}, s.handshakes ? s.quantum_safe + " of " + s.handshakes + " handshakes quantum-safe" + (s.handshake_failed ? " · " + s.handshake_failed + " refused" : "") : "No handshakes yet")));
     return h("div", {class: "edge"}, h("div", {class: "row", style: "justify-content:space-between"}, h("h3", {}, e.url), rm), ...body);
   }));
 }

@@ -110,7 +110,16 @@ CLIENT_JS = b"""const acx = (() => {
     if (!r.ok) throw Object.assign(new Error(data.error || r.statusText), {status: r.status});
     return data;
   }
-  return {start, api};
+  async function download(path, body) {
+    const r = await fetch("/api/" + path, {method: "POST", headers: {"Authorization": "Bearer " + token, "Content-Type": "application/json"}, body: JSON.stringify(body)});
+    if (!r.ok) { const data = await r.json().catch(() => ({})); throw Object.assign(new Error(data.error || r.statusText), {status: r.status}); }
+    const name = ((r.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/) || [])[1] || "download";
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return name;
+  }
+  return {start, api, download};
 })();
 """
 

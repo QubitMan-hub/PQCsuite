@@ -10,6 +10,10 @@ COPY core /src/core
 COPY products/tls /src/tls
 # pip is not needed at run time and carries its own vendored packages, so it leaves the image.
 RUN pip install --no-cache-dir /src/core /src/tls && rm -rf /src && pip uninstall -y pip && acxelin-tls doctor
+# The console keeps its settings, certificates and token here; mount a volume to keep them.
+RUN mkdir -p /data && chown acxelin /data
+ENV ACXELIN_TLS_HOME=/data/console
+VOLUME /data
 USER acxelin
 WORKDIR /srv
 EXPOSE 8443 9100

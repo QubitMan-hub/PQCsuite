@@ -40,3 +40,12 @@ def test_target_problems_are_reported_in_words_and_exit_1(tmp_path):
     typo.write_text("bank.example\nbad host # typo\n")
     code, err = run("grade", "ok.example", str(typo))
     assert code == 1 and f"{typo}:2: 'bad host'" in err
+
+
+def test_console_container_flag_listens_on_every_interface_and_opens_no_browser(monkeypatch, tmp_path):
+    from acxelin_readiness import console
+    seen = {}
+    monkeypatch.setattr(console, "run", lambda home, port, open_browser, host: seen.update(home=home, open=open_browser, host=host) or 0)
+    assert cli.main(["console", "--container", "--home", str(tmp_path)]) == 0
+    assert seen == {"home": tmp_path, "open": False, "host": "0.0.0.0"}
+    assert cli.main(["console", "--no-browser", "--home", str(tmp_path)]) == 0 and seen["host"] == "127.0.0.1"

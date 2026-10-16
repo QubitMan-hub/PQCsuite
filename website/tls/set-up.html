@@ -29,7 +29,7 @@ acxelin-tls console link --port 8900</code></pre>
 <p>Run the second command in that SSH session and open the address it prints on your laptop.</p>
 <h3>In Docker</h3>
 <pre><code>docker build -f products/tls/deploy/Dockerfile -t acxelin-tls .
-docker run -p 127.0.0.1:8900:8900 acxelin-tls console --no-browser
+docker run -v acxelin-tls:/data -p 127.0.0.1:8900:8900 acxelin-tls console --container
 docker exec -it NAME acxelin-tls console link</code></pre>
 <h3>In Kubernetes</h3>
 <p>The chart does not expose the console. Forward its port, then run <code>console link</code> through <code>kubectl exec</code>. The chart's notes print both commands.</p></li>

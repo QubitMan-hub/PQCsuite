@@ -21,7 +21,9 @@ acxelin-readiness console link --port 8900</code></pre>
 <h3>In Docker</h3>
 <pre><code>docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness .
 docker run --rm -v "$PWD:/scan" acxelin-readiness</code></pre>
-<p>Publish a console port to loopback only (<code>-p 127.0.0.1:8900:8900</code>), then run <code>docker exec -it NAME acxelin-readiness console link</code>.</p></li>
+<p>For the console, start it with <code>--container</code> and publish its port to loopback only, then ask it for a link:</p>
+<pre><code>docker run -v readiness:/data -p 127.0.0.1:8900:8900 acxelin-readiness console --container
+docker exec -it NAME acxelin-readiness console link</code></pre></li>
 <li><h2>Gate pull requests</h2>
 <pre><code>- uses: QubitMan-hub/PQCsuite/products/readiness@main
   with:
