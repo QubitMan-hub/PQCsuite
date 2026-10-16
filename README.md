@@ -9,7 +9,7 @@ Post-quantum security for the traffic, tunnels and data you run today, in Python
 | **Vault** | Quantum-safe encryption for files, folders and backups | `pqcsuite vault` |
 | **Readiness assessment** | TLS and SSH endpoint grades, and compliance evidence for NIST IR 8547 and CNSA 2.0 | `pqcsuite readiness` |
 
-`pqcsuite console` shows all four on one page. Wolf Pack CBOM, the separate cryptography inventory scanner, is in [`wolf-pack/`](wolf-pack/README.md). The website is https://qubitman-hub.github.io/PQCsuite/; working on the suite itself (tests, website, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md).
+`pqcsuite console` shows all four on one page. Wolf Pack CBOM, the separate cryptography inventory scanner, is in [`wolf-pack/`](products/readiness/README.md). The website is https://qubitman-hub.github.io/PQCsuite/; working on the suite itself (tests, website, releases) is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **New here? Read the [plain-language product manual](docs/PRODUCT-MANUAL.md) or its [printable website edition](https://qubitman-hub.github.io/PQCsuite/product-manual.html).**
 
@@ -248,7 +248,7 @@ A clinic's patient portal, old records server, a doctor's laptop and nightly bac
 | [docs/PRODUCT-REVIEW.md](docs/PRODUCT-REVIEW.md) | Market map, implemented customer workflows, evidence boundaries and remaining product gaps |
 | [docs/PILOT.md](docs/PILOT.md) | Step-by-step checks that need your own cloud accounts or hardware |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Working on the suite: tests, the website and releases |
-| [wolf-pack/README.md](wolf-pack/README.md) | Wolf Pack CBOM, the cryptography inventory scanner |
+| [wolf-pack/README.md](products/readiness/README.md) | Wolf Pack CBOM, the cryptography inventory scanner |
 
 `tests/test_docs.py` checks, on every change, that every command and option quoted here, in `docs/`, in the examples and on the website exists, and that every link between them leads somewhere.
 

@@ -56,7 +56,7 @@ def cmd_report(a):
     if targets:
         rows += compliance.endpoints(scan.scan(targets, timeout=a.timeout))
     rows += compliance.tunnels(app.tunnels()) + compliance.backups(app.backups())
-    for scan_out in a.wolfpack:
+    for scan_out in a.acxelin:
         rows += compliance.code(scan_out)
     rep = compliance.report(rows)
     if a.html:

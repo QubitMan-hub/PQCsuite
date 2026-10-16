@@ -1,5 +1,0 @@
-file,used,declared,notes
-.travis.yml,-,-,
-index.js,HMAC; SHA-1; SHA-256; SHA-512,-,
-jsdoc.json,-,-,
-package.json,-,-,

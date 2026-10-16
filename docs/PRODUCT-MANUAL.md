@@ -513,6 +513,6 @@ No single score replaces judgment: use the detected behavior, data lifetime, dep
 | Recovery recipient | A separate key authorized to open an encrypted backup if routine access is lost |
 | Static evidence | What can be established by reading files, without running the target application |
 
-Use `pqcsuite --help`, then the relevant command's `--help` for exact options. See the [README](../README.md), [Code Crawler limits](CODE-CRAWLER.md), [release gates](RELEASE-READINESS.md), [pilot instructions](PILOT.md), [security reporting](../SECURITY.md) and [Wolf Pack guide](../wolf-pack/README.md).
+Use `pqcsuite --help`, then the relevant command's `--help` for exact options. See the [README](../README.md), [Code Crawler limits](CODE-CRAWLER.md), [release gates](RELEASE-READINESS.md), [pilot instructions](PILOT.md), [security reporting](../SECURITY.md) and [Wolf Pack guide](../products/readiness/README.md).
 
 For guided stories using temporary data, run `python examples/clinic_demo.py --auto` or `python examples/bank_demo.py --auto` from an installed checkout. The privileged Linux VPN demo needs its documented networking prerequisites. These demos exercise real operations on example data; they do not configure your production organization.

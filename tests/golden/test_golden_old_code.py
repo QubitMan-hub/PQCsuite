@@ -67,7 +67,7 @@ def test_invitation_parses_with_old_reader():
 
 
 def test_cbom_baseline_validates_and_ignore_comment_suppresses():
-    run = subprocess.run([sys.executable, str(ROOT / "wolf-pack/scripts/validate_cbom.py"), str(G / "readiness/baseline/cbom.json")],
+    run = subprocess.run([sys.executable, str(ROOT / "products/readiness/tools/validate_cbom.py"), str(G / "readiness/baseline/cbom.json")],
                          capture_output=True, text=True)
     assert run.returncode == 0, run.stdout + run.stderr
     sightings = json.loads((G / "readiness/baseline/findings.json").read_text())["sightings"]

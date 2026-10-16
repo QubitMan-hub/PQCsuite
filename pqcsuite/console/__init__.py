@@ -414,7 +414,7 @@ class App:
             if self.project_scan["running"]:
                 raise ValueError("A project scan is already running")
             if self.project_cache is None:
-                from wolfpack.crawler import ParseCache
+                from acxelin_readiness.crawler import ParseCache
                 self.project_cache = ParseCache()
             self.project_cancel.clear()
             self.project_scan.update(running=True, stage="Preparing project", error=None, selected=i)

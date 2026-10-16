@@ -11,8 +11,8 @@ from .storage import write, locked
 
 def scanner():
     try:
-        from wolfpack import pack, report
-        from wolfpack.crawler import CodeCrawler  # noqa: F401
+        from acxelin_readiness import pipeline as pack, report
+        from acxelin_readiness.crawler import CodeCrawler  # noqa: F401
     except ImportError:
         raise ValueError("Project scanning needs the current Wolf Pack. From the checkout run: pip install ./wolf-pack '.[scan]'") from None
     return pack, report
@@ -30,7 +30,7 @@ def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, m
         raise ValueError("Choose an existing project folder")
     pack, report = scanner()
     notify("Analyzing source and cryptography")
-    from wolfpack.scouts import Scope, ScanLimitError
+    from acxelin_readiness.detectors import Scope, ScanLimitError
     deadline = time.monotonic() + timeout
     def checkpoint():
         if cancel and cancel.is_set():
@@ -51,15 +51,15 @@ def scan(path, out=None, history=None, progress=None, exclude=(), cancel=None, m
     checkpoint()
     notify("Preparing migration results")
     # Unified results deliberately omit source snippets and literal values. No code is uploaded/executed.
-    for sighting in result.sightings:
+    for sighting in result.detections:
         sighting.snippet = ""
         sighting.params.pop("literal", None)
     for pattern in getattr(result, "patterns", []):
         pattern.snippet = ""
     assets = [{"name": a.variant, "algorithm": a.algo, "tier": a.tier, "why": a.why, "action": a.action,
                "confidence": a.confidence, "test_only": a.test_only, "declared": a.declared,
-               "uncertainty": "Algorithm inferred from names or literals; confirm the implementation and dynamic dispatch" if all(s.evidence in {"identifier", "import", "string"} for s in a.sightings) else "Static evidence; runtime use is not established",
-               "locations": sorted({(s.file, s.line) for s in a.sightings}), "impact": a.params.get("code_impact"), "hybrid_context": a.params.get("hybrid_context", [])}
+               "uncertainty": "Algorithm inferred from names or literals; confirm the implementation and dynamic dispatch" if all(s.evidence in {"identifier", "import", "string"} for s in a.detections) else "Static evidence; runtime use is not established",
+               "locations": sorted({(s.file, s.line) for s in a.detections}), "impact": a.params.get("code_impact"), "hybrid_context": a.params.get("hybrid_context", [])}
               for a in result.assets]
     patterns = [{k: v for k, v in p.as_dict().items() if k != "snippet"} for p in getattr(result, "patterns", [])][:500]
     graph = result.relationships

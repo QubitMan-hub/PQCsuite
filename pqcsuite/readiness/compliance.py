@@ -108,23 +108,23 @@ def code(path):
         if not isinstance(c, dict) or c.get("type") != "cryptographic-asset":
             continue
         props = {p.get("name"): str(p.get("value", "")) for p in c.get("properties") or [] if isinstance(p, dict)}
-        tier, name = props.get("wolfpack:tier"), str(c.get("name", "?"))
+        tier, name = props.get("acxelin:tier"), str(c.get("name", "?"))
         if tier is None:
             continue
-        nist = props.get("wolfpack:nist-status")
+        nist = props.get("acxelin:nist-status")
         safe = nist.startswith(("Quantum-safe", "Acceptable")) if nist else tier in ("ok", "low")
         status = "note" if "(declared non-security)" in name else "action" if tier in ("critical", "high") else "ready" if safe else "plan"
         nist = nist or "not classified"
         seen = [f"{o.get('location')}:{o.get('line')}" if o.get("line") else str(o.get("location")) for o in (c.get("evidence") or {}).get("occurrences") or []
                 if isinstance(o, dict)]
         try:
-            callers = json.loads(props.get("wolfpack:code-impact") or "{}").get("callers") or []
+            callers = json.loads(props.get("acxelin:code-impact") or "{}").get("callers") or []
         except (ValueError, AttributeError):
             callers = []
         where = ", ".join(seen[:3]) + (f" and {len(seen) - 3} more" if len(seen) > 3 else "")
-        detail = f"{project}: {props.get('wolfpack:usage', 'used')} in {where or 'unknown location'}; {props.get('wolfpack:exposure', 'code')}"
+        detail = f"{project}: {props.get('acxelin:usage', 'used')} in {where or 'unknown location'}; {props.get('acxelin:exposure', 'code')}"
         detail += f"; reached from {', '.join(map(str, callers[:3]))}" if callers else ""
-        detail += f"; next: {props['wolfpack:recommendation']}" if props.get("wolfpack:recommendation") else ""
+        detail += f"; next: {props['acxelin:recommendation']}" if props.get("acxelin:recommendation") else ""
         cnsa = any(name.startswith(a) for a in CNSA2_ALGORITHMS)
         out.append(_row("code", name, detail, status, nist, "compliant" if cnsa else "not a CNSA 2.0 algorithm",
                         {"project": project, "tier": tier, "locations": seen[:20], "callers": callers[:20]}))

@@ -58,7 +58,7 @@ class ComplianceTest(unittest.TestCase):
     def test_wolfpack_scan_becomes_code_rows_that_cite_locations_and_callers(self):
         import json
         d = Path(tempfile.mkdtemp())
-        props = lambda tier, **kw: [{"name": f"wolfpack:{k}", "value": v} for k, v in dict(tier=tier, **kw).items()]
+        props = lambda tier, **kw: [{"name": f"acxelin:{k}", "value": v} for k, v in dict(tier=tier, **kw).items()]
         bom = {"bomFormat": "CycloneDX", "specVersion": "1.6", "metadata": {"component": {"name": "payments"}}, "components": [
             {"type": "cryptographic-asset", "name": "RSA-1024", "evidence": {"occurrences": [{"location": "keys.py", "line": 7}]},
              "properties": props("critical", **{"nist-status": "Disallowed now", "recommendation": "ML-DSA-65",
