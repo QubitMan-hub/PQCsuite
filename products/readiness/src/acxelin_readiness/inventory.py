@@ -39,7 +39,11 @@ def estimate(algo, name):
 
 
 def prop(component, key):
-    return next((p.get("value") for p in component.get("properties", []) if p.get("name") == key), None)
+    """A CBOM property; for acxelin:* names, the old wolfpack:* name is read when the new one is absent (1.x)."""
+    props = {p.get("name"): p.get("value") for p in component.get("properties", [])}
+    if key in props:
+        return props[key]
+    return props.get("wolfpack:" + key.removeprefix("acxelin:")) if key.startswith("acxelin:") else None
 
 
 def cbom_files(paths):

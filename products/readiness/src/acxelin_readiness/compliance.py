@@ -69,8 +69,9 @@ def evaluate(assets, endpoints, policy, today=None):
                 add(a, "NIST IR 8547", f"quantum-vulnerable: {'deprecated after 2030, ' if deadline == 2030 else ''}disallowed after 2035", deadline)
         if "cnsa-2.0" in profiles and c.primitive in CNSA_SCOPE:
             size = a.params.get("key_size")
-            ok = a.algo in CNSA or a.algo == "AES" and size in (None, 256)
-            if not ok:
+            if a.algo == "AES" and size is None:
+                add(a, "CNSA 2.0", "AES key size not observed: CNSA 2.0 compliance unverified (it needs AES-256)")
+            elif not (a.algo in CNSA or a.algo == "AES" and size == 256):
                 add(a, "CNSA 2.0", "not in the CNSA 2.0 suite (AES-256, SHA-384/512, ML-KEM-1024, ML-DSA-87)", policy.get("cnsa_deadline", 2033))
         names = {a.algo.upper(), c.family.upper(), a.variant.upper()}
         if names & forbid:

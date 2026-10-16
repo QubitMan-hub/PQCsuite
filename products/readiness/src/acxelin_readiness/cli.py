@@ -72,28 +72,28 @@ def main(argv=None):
     policy = dict(cfg.get("policy", {}))
     problems = compliance.check(policy)
     if problems:
-        sys.exit("acxelin: " + "; ".join(problems))
+        sys.exit("acxelin-readiness: " + "; ".join(problems))
     policy["profiles"] = list(dict.fromkeys(policy.get("profiles", []) + a.policy))
     if a.as_of:
         policy["as_of"] = a.as_of
     a.fail_on_policy = a.fail_on_policy or policy.get("fail", False)
     if a.fail_on is not None and a.fail_on not in TIERS[:-1]:
-        sys.exit(f"acxelin: fail_on must be one of {', '.join(TIERS[:-1])}")
+        sys.exit(f"acxelin-readiness: fail_on must be one of {', '.join(TIERS[:-1])}")
     targets_only = a.path is None and (a.tls or a.ssh or a.pcap)
     root = Path(tempfile.mkdtemp()) if targets_only else Path(a.path or ".").resolve()
     if not root.exists():
-        sys.exit(f"acxelin: {a.path} does not exist")
+        sys.exit(f"acxelin-readiness: {a.path} does not exist")
     name = a.name or ((a.tls + a.ssh + [Path(p).name for p in a.pcap])[0] if targets_only else root.name)
     if a.baseline:
         try:
             pipeline.load_baseline(a.baseline)
         except (OSError, ValueError, AttributeError) as e:
-            sys.exit(f"acxelin: cannot read the baseline {a.baseline}: {e}")
+            sys.exit(f"acxelin-readiness: cannot read the baseline {a.baseline}: {e}")
     out = Path(a.out)
     try:
         out.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        sys.exit(f"acxelin: cannot write to {out}: {e}")
+        sys.exit(f"acxelin-readiness: cannot write to {out}: {e}")
     only = changed_files(root, a.changed_since) if a.changed_since else None
     h = Horizon(a.shelf_life, a.migration, a.crqc_year)
     unpacked, notes = None, []
@@ -114,7 +114,7 @@ def main(argv=None):
     try:
         write_results(out, name, r)
     except OSError as e:
-        sys.exit(f"acxelin: cannot write to {out}: {e}")
+        sys.exit(f"acxelin-readiness: cannot write to {out}: {e}")
     if not a.quiet:
         print(report.terminal(r))
         print(f"\nwrote {out / 'cbom.json'}, {out / 'report.html'}, {out / 'readiness.sarif'}, {out / 'findings.json'}, {out / 'relationships.json'}")
@@ -140,7 +140,7 @@ def changed_files(root, ref):
         top = Path(run("rev-parse", "--show-toplevel")[0])
         names = run("diff", "--name-only", ref) + run("ls-files", "--others", "--exclude-standard", "--full-name")
     except (OSError, subprocess.CalledProcessError, IndexError) as err:
-        sys.exit(f"acxelin: --changed-since needs a git repository and a valid ref ({err})")
+        sys.exit(f"acxelin-readiness: --changed-since needs a git repository and a valid ref ({err})")
     out = set()
     for n in names:
         try:
@@ -153,11 +153,11 @@ def changed_files(root, ref):
 def merge(a):
     files = inventory.cbom_files(a.cboms)
     if not files:
-        sys.exit("acxelin: no cbom.json found in " + ", ".join(a.cboms))
+        sys.exit("acxelin-readiness: no cbom.json found in " + ", ".join(a.cboms))
     try:
         systems = inventory.run(files, a.name, a.out, a.history)
     except (OSError, ValueError) as err:
-        sys.exit(f"acxelin: cannot merge: {err}")
+        sys.exit(f"acxelin-readiness: cannot merge: {err}")
     if not a.quiet:
         print(inventory.terminal(a.name, systems))
         print(f"\nwrote {Path(a.out) / 'inventory.html'}, {Path(a.out) / 'inventory.json'}, {Path(a.out) / 'cbom.json'}")
@@ -171,15 +171,22 @@ def merge(a):
 def settings(path, root):
     """Settings from --config, or from .acxelin-readiness.toml in the scanned folder. Keys are the long option names with underscores."""
     f = Path(path) if path else root / ".acxelin-readiness.toml" if root and root.is_dir() else None
+    if not path and f is not None:
+        old = root / ".wolfpack.toml"
+        if old.exists() and f.exists():
+            print(f"acxelin-readiness: {old} ignored: {f} is used (.wolfpack.toml is the old name)", file=sys.stderr)
+        elif old.exists():
+            print(f"acxelin-readiness: {old}: .wolfpack.toml is the old name; rename it to .acxelin-readiness.toml", file=sys.stderr)
+            f = old
     if f is None or (not path and not f.exists()):
         return {}
     try:
         cfg = tomllib.loads(f.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
-        sys.exit(f"acxelin: cannot read {f}: {e}")
+        sys.exit(f"acxelin-readiness: cannot read {f}: {e}")
     for k, v in cfg.items():
         if k not in SETTINGS:
-            sys.exit(f"acxelin: {f}: unknown setting {k!r} (known: {', '.join(SETTINGS)})")
+            sys.exit(f"acxelin-readiness: {f}: unknown setting {k!r} (known: {', '.join(SETTINGS)})")
         if not isinstance(v, SETTINGS[k]) or (SETTINGS[k] is list and not all(isinstance(x, str) for x in v)):
-            sys.exit(f"acxelin: {f}: {k} has the wrong type")
+            sys.exit(f"acxelin-readiness: {f}: {k} has the wrong type")
     return cfg
