@@ -145,3 +145,14 @@ Line coverage per destination, over the current files mapped to it in `tools/cov
 - `pqcsuite/project.py` (readiness; folds into the pipeline)
 
 **Low numbers:** VPN and TLS are low partly because the privileged and real-service tests listed under "Skips" don't run here.
+
+## Readiness quality
+
+**Command:** `cd wolf-pack && python -m wolfpack bench bench/corpus --json /tmp/bench.json`. The "full pack" row is the configuration with no roles switched off.
+
+**Result:**
+- 174 labelled (file, algorithm family) pairs. The repository notes say 166; the current `truth.json` has 174.
+- Precision 1.000, recall 1.000, F1 1.000; 0 false positives, 0 false negatives.
+- `tools/quality_baseline.json` pins these values with the SHA-256 of `bench/truth.json`.
+
+This is a regression floor, not a quality claim. The dev corpus is tuned on by construction (`wolf-pack/CLAUDE.md`, rule 3), so a perfect score here says nothing about unseen code. The Stage 1 gate fails if either value drops below 1.000.
