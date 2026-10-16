@@ -1,0 +1,15 @@
+# .acxelin-readiness.toml: put it at the root of the folder you scan. Every key is optional.
+exclude = ["generated", "*.min.js"]   # name globs, or path globs from the root
+include_vendor = false                # also scan vendor/, node_modules/ and similar
+tls = ["api.example.com:443"]         # live endpoints probed on every scan
+ssh = ["bastion.example.com"]
+shelf_life = 10                       # years the protected data must stay secret
+migration = 5                         # years your migration will take
+crqc_year = 2035                      # assumed year a cryptographically relevant quantum computer exists
+fail_on = "high"                      # exit 2 at this tier or worse
+
+[policy]
+profiles = ["nist-ir-8547", "cnsa-2.0"]
+forbid = ["MD5", "SHA-1"]
+min_bits = {RSA = 3072}
+require_hybrid = true
