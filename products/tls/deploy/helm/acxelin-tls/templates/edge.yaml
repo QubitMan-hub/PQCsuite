@@ -4,7 +4,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-edge
-  labels: {{- include "pqcsuite.labels" . | nindent 4 }}
+  labels: {{- include "acxelin-tls.labels" . | nindent 4 }}
 data:
   edge.toml: |
     [metrics]
@@ -17,16 +17,16 @@ data:
     listen = "0.0.0.0:{{ .port }}"
     target = {{ .target | quote }}
     policy = {{ $.Values.edge.policy | quote }}
-    cert = "/etc/pqcsuite/tls/chain.pem"
-    key = "/etc/pqcsuite/tls/key.pem"
-    ca = "/etc/pqcsuite/tls/ca.crt"
+    cert = "/etc/acxelin-tls/tls/chain.pem"
+    key = "/etc/acxelin-tls/tls/key.pem"
+    ca = "/etc/acxelin-tls/tls/ca.crt"
     {{- if .requireClientCert }}
     require_client_cert = true
     {{- if $crlUrl }}
-    crl = "/var/lib/pqcsuite/crl.pem"
+    crl = "/var/lib/acxelin-tls/crl.pem"
     crl_url = {{ $crlUrl | quote }}
     {{- else }}
-    crl = "/etc/pqcsuite/tls/crl.pem"
+    crl = "/etc/acxelin-tls/tls/crl.pem"
     {{- end }}
     {{- end }}
     {{- end }}
@@ -35,7 +35,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-edge
-  labels: {{- include "pqcsuite.labels" . | nindent 4 }}
+  labels: {{- include "acxelin-tls.labels" . | nindent 4 }}
     app.kubernetes.io/component: edge
 spec:
   replicas: {{ .Values.edge.replicas }}
@@ -45,7 +45,7 @@ spec:
       app.kubernetes.io/component: edge
   template:
     metadata:
-      labels: {{- include "pqcsuite.labels" . | nindent 8 }}
+      labels: {{- include "acxelin-tls.labels" . | nindent 8 }}
         app.kubernetes.io/component: edge
       annotations:
         checksum/config: {{ toYaml .Values.edge | sha256sum | trunc 16 }}
@@ -54,20 +54,20 @@ spec:
       {{- if .Values.edge.preflight }}
       initContainers:
         - name: preflight
-          image: {{ include "pqcsuite.image" . }}
+          image: {{ include "acxelin-tls.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
-          args: ["doctor", "--config", "/etc/pqcsuite/edge.toml"]
+          args: ["doctor", "--config", "/etc/acxelin-tls/edge.toml"]
           volumeMounts:
-            - {name: config, mountPath: /etc/pqcsuite/edge.toml, subPath: edge.toml}
-            - {name: tls, mountPath: /etc/pqcsuite/tls, readOnly: true}
+            - {name: config, mountPath: /etc/acxelin-tls/edge.toml, subPath: edge.toml}
+            - {name: tls, mountPath: /etc/acxelin-tls/tls, readOnly: true}
       {{- end }}
       containers:
         - name: edge
-          image: {{ include "pqcsuite.image" . }}
+          image: {{ include "acxelin-tls.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
-          args: ["tls", "edge", "--config", "/etc/pqcsuite/edge.toml"]
+          args: ["edge", "--config", "/etc/acxelin-tls/edge.toml"]
           ports:
             {{- range .Values.edge.routes }}
             - {name: {{ .name | trunc 15 | quote }}, containerPort: {{ .port }}}
@@ -79,9 +79,9 @@ spec:
             httpGet: {path: /healthz, port: metrics}
             periodSeconds: 20
           volumeMounts:
-            - {name: config, mountPath: /etc/pqcsuite/edge.toml, subPath: edge.toml}
-            - {name: tls, mountPath: /etc/pqcsuite/tls, readOnly: true}
-            - {name: state, mountPath: /var/lib/pqcsuite}
+            - {name: config, mountPath: /etc/acxelin-tls/edge.toml, subPath: edge.toml}
+            - {name: tls, mountPath: /etc/acxelin-tls/tls, readOnly: true}
+            - {name: state, mountPath: /var/lib/acxelin-tls}
           resources: {{- toYaml .Values.edge.resources | nindent 12 }}
       volumes:
         - name: config
@@ -98,7 +98,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}-edge
-  labels: {{- include "pqcsuite.labels" . | nindent 4 }}
+  labels: {{- include "acxelin-tls.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.edge.service.type }}
   selector:

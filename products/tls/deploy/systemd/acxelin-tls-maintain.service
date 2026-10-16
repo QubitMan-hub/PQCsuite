@@ -1,0 +1,11 @@
+[Unit]
+Description=acxelin-tls CA maintenance: renew expiring certificates, re-sign the CRL
+ConditionPathExists=/var/lib/acxelin-tls/pki/ca.crt
+
+[Service]
+Type=oneshot
+User=acxelin
+EnvironmentFile=-/etc/acxelin-tls/ca.env
+ExecStart=/opt/acxelin-tls/bin/acxelin-tls ca maintain --dir /var/lib/acxelin-tls/pki
+NoNewPrivileges=yes
+PrivateTmp=yes

@@ -4,12 +4,14 @@ import sys
 import time
 import urllib.request
 
-from pqcsuite import tls
-from pqcsuite.tls.http import HTTPError, request
+from acxelin_core import tls
+from acxelin_core.https import HTTPError, request
+
+from acxelin_tls import policies
 
 release, namespace = sys.argv[1], sys.argv[2]
 edge = f"{release}-edge.{namespace}.svc"
-ctx = tls.client_context("/data/pki/root.crt")
+ctx = tls.client_context(policies.policy("strict"), "/data/pki/root.crt")
 deadline = time.monotonic() + 60
 while True:
     try:

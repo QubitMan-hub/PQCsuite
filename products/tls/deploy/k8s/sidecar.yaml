@@ -15,9 +15,9 @@ data:
     listen = "0.0.0.0:8443"
     target = "127.0.0.1:8080"
     policy = "transition"
-    cert = "/etc/pqcsuite/tls/chain.pem"
-    key = "/etc/pqcsuite/tls/key.pem"
-    ca = "/etc/pqcsuite/tls/ca.crt"
+    cert = "/etc/acxelin-tls/tls/chain.pem"
+    key = "/etc/acxelin-tls/tls/key.pem"
+    ca = "/etc/acxelin-tls/tls/ca.crt"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -35,8 +35,8 @@ spec:
         - name: api
           image: your-registry/api:latest   # must listen on 127.0.0.1:8080
         - name: pqc-edge
-          image: ghcr.io/qubitman-hub/pqcsuite:0.2.2
-          args: ["tls", "edge", "--config", "/etc/pqcsuite/edge.toml"]
+          image: ghcr.io/qubitman-hub/acxelin-tls:0.2.2
+          args: ["edge", "--config", "/etc/acxelin-tls/edge.toml"]
           ports:
             - {name: https, containerPort: 8443}
             - {name: metrics, containerPort: 9100}
@@ -48,8 +48,8 @@ spec:
             readOnlyRootFilesystem: true
             capabilities: {drop: ["ALL"]}
           volumeMounts:
-            - {name: edge-config, mountPath: /etc/pqcsuite/edge.toml, subPath: edge.toml}
-            - {name: tls, mountPath: /etc/pqcsuite/tls, readOnly: true}
+            - {name: edge-config, mountPath: /etc/acxelin-tls/edge.toml, subPath: edge.toml}
+            - {name: tls, mountPath: /etc/acxelin-tls/tls, readOnly: true}
       volumes:
         - name: edge-config
           configMap: {name: api-edge}

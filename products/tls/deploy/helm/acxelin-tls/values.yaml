@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/qubitman-hub/pqcsuite
+  repository: ghcr.io/qubitman-hub/acxelin-tls
   tag: ""                      # defaults to the chart's appVersion
   pullPolicy: IfNotPresent
 
@@ -13,8 +13,8 @@ ca:
   # The issuing CA that EST, ACME and the console sign with. Empty: the chart creates a root and an issuing CA under it on
   # first start; the root's key stays on the volume, mounted by no service, its passphrase in <release>-ca-root-passphrase.
   # For production, make the issuing CA offline under a root that never touches the cluster:
-  #   pqcsuite ca init --dir root --name "Acme Root"                       (offline, or --kms / --signer-command)
-  #   pqcsuite ca init --dir issuing --name "Acme Issuing" --parent root
+  #   acxelin-tls ca init --dir root --name "Acme Root"                       (offline, or --kms / --signer-command)
+  #   acxelin-tls ca init --dir issuing --name "Acme Issuing" --parent root
   #   kubectl create secret generic acme-issuing --from-file=issuing/        (and put its passphrase in passphraseSecret)
   # and name that Secret here.
   issuingSecret: ""
@@ -40,7 +40,7 @@ ca:
   console:
     enabled: false
     port: 8900
-    tokenSecret: ""            # Secret with key "token"; required when the console is enabled
+    # The console listens on the pod's loopback only. Open it with kubectl port-forward (see NOTES).
   resources: {}
 
 edge:
@@ -50,9 +50,9 @@ edge:
   # set it to your CA's published crl.pem, or leave it empty and put crl.pem in the Secret.
   crlUrl: ""
   # Secret with chain.pem, key.pem and ca.crt (and crl.pem when requireClientCert and no CRL address). Create it with
-  #   pqcsuite ca issue server <name> --out edge && kubectl create secret generic edge-tls --from-file=edge/ --from-file=pki/ca.crt
+  #   acxelin-tls ca issue server <name> --out edge && kubectl create secret generic edge-tls --from-file=edge/ --from-file=pki/ca.crt
   certSecret: edge-tls
-  preflight: true              # run `pqcsuite doctor --config` first; a broken or unsafe edge.toml keeps the pod from starting
+  preflight: true              # run `acxelin-tls doctor --config` first; a broken or unsafe edge.toml keeps the pod from starting
   policy: strict               # strict, transition (also serves classical clients) or cnsa2
   routes:
     - name: web

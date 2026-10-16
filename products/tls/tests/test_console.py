@@ -172,3 +172,25 @@ def test_the_console_signs_in_over_http_and_loads_no_other_product(app, home):
     code = "import sys, acxelin_tls.console;" \
            "bad=[m for m in sys.modules if m.split('.')[0] in ('pqcsuite','acxelin_readiness','acxelin_vpn','acxelin_vault','wolfpack')]; assert not bad, bad"
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
+
+
+def test_the_console_can_manage_a_ca_folder_somewhere_else(tmp_path, home):
+    from acxelin_core.pki import CA
+    CA.init(tmp_path / "pki", "Existing CA")
+    other = tc.build(home, ca_dir=tmp_path / "pki")
+    status = call(other, "GET", "/api/status")[1]
+    assert status["configured"] and status["name"] == "Existing CA"
+    issue(other)
+    assert [r.common_name for r in CA(tmp_path / "pki").records()] == ["web.example.invalid"]
+
+
+def test_a_passphrase_in_the_environment_unlocks_without_being_typed(tmp_path, home, monkeypatch):
+    from acxelin_core.pki import CA
+    CA.init(tmp_path / "pki", "Locked CA", passphrase=PASS.encode())
+    assert call(tc.build(home, ca_dir=tmp_path / "pki"), "GET", "/api/status")[1]["unlocked"] is False
+    monkeypatch.setenv("ACXELIN_TLS_CA_PASSPHRASE", PASS)
+    app = tc.build(home, ca_dir=tmp_path / "pki")
+    assert call(app, "GET", "/api/status")[1]["unlocked"] is True
+    assert issue(app)["common_name"] == "web.example.invalid"
+    monkeypatch.setenv("ACXELIN_TLS_CA_PASSPHRASE", "wrong")
+    assert call(tc.build(home, ca_dir=tmp_path / "pki"), "GET", "/api/status")[1]["unlocked"] is False

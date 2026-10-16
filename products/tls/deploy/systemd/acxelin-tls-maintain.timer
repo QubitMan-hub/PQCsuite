@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily pqcsuite CA maintenance
+Description=Daily acxelin-tls CA maintenance
 
 [Timer]
 OnCalendar=daily

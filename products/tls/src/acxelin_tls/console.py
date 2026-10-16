@@ -24,6 +24,7 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID
 
 from . import __version__, checks, policies
+from .common import env
 
 NAME = re.compile(r"[A-Za-z0-9*._-]{1,253}")
 MAX_EDGES = 50
@@ -50,11 +51,18 @@ def _text(body, key, what, limit=253):
 
 
 class TLSConsole:
-    def __init__(self, home):
+    def __init__(self, home, ca_dir=None):
         self.home = Path(home)
-        self.ca_dir = self.home / "ca"
+        self.ca_dir = Path(ca_dir) if ca_dir else self.home / "ca"
         self.passphrase = None
         self.lock = threading.Lock()
+        given = env("ACXELIN_TLS_CA_PASSPHRASE", "PQCSUITE_CA_PASSPHRASE")  # a service's secret, so nobody types it into a browser
+        if given and self._exists() and encrypted(self.ca_dir / "ca.key"):
+            try:
+                CA(self.ca_dir, given.encode()).signer
+                self.passphrase = given.encode()
+            except CAError:
+                pass
 
     # --- the certificate authority
 
@@ -242,8 +250,8 @@ def page():
     return shell.render((Path(__file__).parent / "console.html").read_text(encoding="utf-8"))
 
 
-def build(home):
-    t = TLSConsole(home)
+def build(home, ca_dir=None):
+    t = TLSConsole(home, ca_dir)
     routes = {("GET", "/api/status"): t.status, ("POST", "/api/ca/create"): t.create, ("POST", "/api/ca/unlock"): t.unlock,
               ("GET", "/api/certificates"): t.certificates, ("POST", "/api/certificates/issue"): t.issue, ("POST", "/api/certificates/revoke"): t.revoke,
               ("POST", "/api/crl/refresh"): t.refresh, ("GET", "/api/edges"): t.edges, ("POST", "/api/edges/add"): t.add_edge,
@@ -251,10 +259,10 @@ def build(home):
     return core.App(page(), routes)
 
 
-def run(home, port=8900, open_browser=True):
+def run(home, port=8900, open_browser=True, ca_dir=None):
     """Start the console and sign this browser in: the launch address carries a single-use ticket in its fragment."""
     import webbrowser
-    app = build(home)
+    app = build(home, ca_dir)
     server = core.start(app, home, port)
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}/#{app.sessions.ticket()}"
@@ -281,7 +289,7 @@ def cmd_console(a):
         except (OSError, ValueError) as e:
             sys.exit(f"acxelin-tls: no console is running on port {a.port} ({e}); start one with `acxelin-tls console`")
         return 0
-    return run(home, a.port, open_browser=not a.no_browser)
+    return run(home, a.port, open_browser=not a.no_browser, ca_dir=a.ca)
 
 
 def add(sub):
@@ -290,4 +298,5 @@ def add(sub):
     p.add_argument("action", nargs="?", choices=["link"])
     p.add_argument("--port", type=int, default=8900)
     p.add_argument("--home", metavar="DIR", help="where the console keeps the CA, issued certificates and its token (default: ~/.acxelin-tls)")
+    p.add_argument("--ca", metavar="DIR", help="manage this CA folder (default: HOME/ca)")
     p.add_argument("--no-browser", action="store_true", help="do not open a browser; print the launch address instead")
