@@ -3,9 +3,6 @@
 It listens on localhost and wants a bearer token on every API call. Put `pqcsuite tls edge --policy transition` in front of it for
 remote access: browsers already do X25519MLKEM768, though they cannot verify ML-DSA certificates yet.
 """
-import base64
-import hashlib
-import hmac
 import http.client
 import json
 import logging
@@ -15,14 +12,15 @@ import threading
 import time
 import urllib.request
 from dataclasses import dataclass, field
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 
-from .. import HTTP_IDLE, NAME, __version__, build, content_length, read_toml
+from .. import HTTP_IDLE, NAME, __version__, build, read_toml
 from ..pki import CA, CAError, append, encrypted
 from ..tls import hostport
 from ..vpn.charon import protected
+from acxelin_core.console import Backoff, Handler, policy, with_tour  # noqa: F401  (moved to core)
 
 log = logging.getLogger("pqcsuite.console")
 NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -471,73 +469,12 @@ def page():
     return with_tour(resources.files(__package__).joinpath("console.html").read_bytes())
 
 
-def with_tour(html):
-    """Put the shared guided tour (pqcsuite/tour.js) at the start of the page's one inline script, so its hash covers both."""
-    return html.replace(b"<script>", b"<script>\n" + resources.files("pqcsuite").joinpath("tour.js").read_bytes(), 1)
 
 
-def policy(html):
-    """The page's one inline script is allowed by its hash, so no other script can run even if markup were ever injected."""
-    script = html.split(b"<script>", 1)[1].split(b"</script>", 1)[0]
-    digest = base64.b64encode(hashlib.sha256(script).digest()).decode()
-    return f"default-src 'self'; img-src 'self' data:; font-src data:; style-src 'self' 'unsafe-inline'; script-src 'sha256-{digest}'; frame-ancestors 'none'"
 
 
-class Backoff:
-    """After 10 wrong tokens from one address within a minute, that address is refused until the minute is over."""
-
-    def __init__(self, limit=10, window=60.0):
-        self.limit, self.window, self.lock, self.failures = limit, window, threading.Lock(), {}
-
-    def blocked(self, addr):
-        with self.lock:
-            recent = [t for t in self.failures.pop(addr, []) if time.monotonic() - t < self.window]
-            if recent:
-                self.failures[addr] = recent
-            return len(recent) >= self.limit
-
-    def failed(self, addr):
-        with self.lock:
-            self.failures.setdefault(addr, []).append(time.monotonic())
 
 
-class Handler(BaseHTTPRequestHandler):
-    """A loopback JSON API behind one HTML page: every answer uncached, unsniffable and under the page's CSP."""
-    csp = ""
-
-    def reply(self, status, body, ctype="application/json"):
-        data = body if isinstance(body, bytes) else json.dumps(body, default=str).encode()
-        self.send_response(status)
-        for k, v in (("Content-Type", ctype), ("Content-Length", str(len(data))), ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
-                     ("Referrer-Policy", "no-referrer"), ("Content-Security-Policy", self.csp)):
-            self.send_header(k, v)
-        self.end_headers()
-        self.wfile.write(data)
-
-    def authorised(self, token):
-        return hmac.compare_digest(self.headers.get("Authorization", "").removeprefix("Bearer ").encode(), token.encode())
-
-    def json_body(self, limit):
-        """The request's JSON object, or the (status, error) to answer instead."""
-        n = content_length(self.headers)
-        if n is None:
-            return 400, {"error": "bad Content-Length"}
-        if n > limit:
-            return 413, {"error": "request too large"}
-        try:
-            body = json.loads(self.rfile.read(n)) if n else {}
-        except ValueError:
-            return 400, {"error": "invalid JSON"}
-        return body if isinstance(body, dict) else (400, {"error": "the body must be a JSON object"})
-
-    def do_GET(self):
-        self.route("GET")
-
-    def do_POST(self):
-        self.route("POST")
-
-    def log_message(self, fmt, *args):
-        log.debug(fmt, *args)
 
 
 def serve(app):

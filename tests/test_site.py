@@ -108,7 +108,7 @@ class SiteTest(unittest.TestCase):
 
 
     def test_the_website_tour_is_the_same_as_the_console_and_vpn_window_tour(self):
-        self.assertEqual((SITE / "tour.js").read_bytes(), (ROOT / "pqcsuite" / "tour.js").read_bytes(), "copy pqcsuite/tour.js to site/tour.js")
+        self.assertEqual((SITE / "tour.js").read_bytes(), (ROOT / "core/src/acxelin_core/tour.js").read_bytes(), "copy core/src/acxelin_core/tour.js to site/tour.js")
         from pqcsuite.console import page, policy
         served = page()
         self.assertEqual(served.count(b"<script>"), 1)

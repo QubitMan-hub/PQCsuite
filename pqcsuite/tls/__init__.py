@@ -6,6 +6,7 @@ from pathlib import Path
 from cryptography import x509
 
 from .openssl import Connection, Context, OpenSSLUnavailable, TLSError, lib
+from acxelin_core.http import hostport  # noqa: F401  (moved to core)
 
 PQC_GROUPS = "X25519MLKEM768:SecP384r1MLKEM1024:SecP256r1MLKEM768"
 CIPHERSUITES = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256"
@@ -83,8 +84,3 @@ __all__ = ["Connection", "Context", "OpenSSLUnavailable", "POLICIES", "Policy", 
            "server_context"]
 
 
-def hostport(s, default_host="0.0.0.0"):
-    host, _, port = s.rpartition(":")
-    if not (port.isascii() and port.isdigit() and int(port) <= 65535):
-        raise ValueError(f"expected host:port with a port from 0 to 65535, got {s!r}")
-    return host.strip("[]") or default_host, int(port)

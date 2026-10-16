@@ -29,7 +29,7 @@ def cmd_vpn(a):
         watch = ConfigWatch(a.config, load_config, lambda new: new != site and (again.set(), ctl.shutdown()))
         run_until_signal(ctl.stop.wait, ctl.shutdown, watch.poke)
         if again.is_set():
-            restart()
+            restart("pqcsuite")
         return 0
     if a.vpn_cmd == "status" and not (a.config or a.vici):
         from ..vpn import platforms
@@ -190,7 +190,7 @@ def cmd_wireguard(a):
         watch = ConfigWatch(a.config, wg.load_gateway, lambda new: gw.reconfigure(new) or (again.set(), gw.shutdown()))
         run_until_signal(gw.stop.wait, gw.shutdown, watch.poke)
         if again.is_set():
-            restart()
+            restart("pqcsuite")
         return 0
     from ..vpn import platforms
     if a.vpn_cmd == "disconnect":

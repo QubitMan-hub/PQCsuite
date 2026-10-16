@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acxelin-core"
+version = "1.0.0"
+description = "Shared mechanisms for the Acxelin products: config, safe file writes, loopback HTTP and consoles, and the OpenSSL 3.5+ binding"
+requires-python = ">=3.11"
+dependencies = ["cryptography>=49"]
+authors = [{name = "Acxelin Quantum"}]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"acxelin_core" = ["tour.js"]

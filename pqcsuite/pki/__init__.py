@@ -25,7 +25,7 @@ class CAError(Exception):
 from . import signers  # noqa: E402 (signers.SignerError is a CAError)
 
 ALGORITHMS = {"ML-DSA-44": mldsa.MLDSA44PrivateKey, "ML-DSA-65": mldsa.MLDSA65PrivateKey, "ML-DSA-87": mldsa.MLDSA87PrivateKey}
-PUBLIC = {"ML-DSA-44": mldsa.MLDSA44PublicKey, "ML-DSA-65": mldsa.MLDSA65PublicKey, "ML-DSA-87": mldsa.MLDSA87PublicKey}
+from acxelin_core.pki import PUBLIC, algorithm_of  # noqa: E402,F401  (moved to core)
 USAGE = {"server": [ExtendedKeyUsageOID.SERVER_AUTH], "client": [ExtendedKeyUsageOID.CLIENT_AUTH],
          "site": [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]}
 CA_ALGORITHMS = list(PUBLIC) + signers.SLH_DSA
@@ -54,10 +54,6 @@ def generate(algorithm):
     if algorithm not in ALGORITHMS:
         raise CAError(f"unknown algorithm {algorithm}; choose from {', '.join(ALGORITHMS)}")
     return ALGORITHMS[algorithm].generate()
-
-
-def algorithm_of(public_key):
-    return next((a for a, cls in PUBLIC.items() if isinstance(public_key, cls)), None)
 
 
 def key_pem(key, passphrase=None):
