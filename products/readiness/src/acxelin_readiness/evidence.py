@@ -1,4 +1,4 @@
-"""Compliance evidence: every certificate, endpoint, tunnel and backup mapped to NIST IR 8547 and NSA CNSA 2.0.
+"""Compliance evidence: every certificate, endpoint and CBOM asset mapped to NIST IR 8547 and NSA CNSA 2.0.
 
 NIST IR 8547 (initial public draft, November 2024): quantum-vulnerable public-key algorithms at 112-bit security are deprecated
 after 2030 and all of them are disallowed after 2035; ML-KEM and ML-DSA are the replacements.
@@ -9,17 +9,20 @@ import html
 import json
 from pathlib import Path
 
-from ..brand import page
+from acxelin_core.pki import algorithm_of
+from cryptography import x509
 
-CNSA2_DEADLINE = {"tls": 2033, "ssh": 2033, "vpn": 2030, "pki": 2033, "backup": 2033, "code": 2033}
-CNSA2_CATEGORY = {"tls": "web browsers, servers and cloud services", "ssh": "operating systems and services",
-                  "vpn": "traditional networking equipment (VPNs, routers)", "pki": "certificates and signing", "backup": "custom applications and data at rest",
+from . import __version__
+from .brand import page as _page
+
+CNSA2_DEADLINE = {"tls": 2033, "ssh": 2033, "pki": 2033, "code": 2033}
+CNSA2_CATEGORY = {"tls": "web browsers, servers and cloud services", "ssh": "operating systems and services", "pki": "certificates and signing",
                   "code": "custom applications and legacy software"}
 CNSA2_ALGORITHMS = ("ML-KEM-1024", "ML-DSA-87", "AES-256", "SHA-384", "SHA-512", "LMS", "XMSS")
 LIMIT = 64_000_000
 STATUS = {"action": "action needed", "plan": "quantum-vulnerable: plan its migration", "transition": "quantum-safe, classical fallback still allowed",
           "note": "not used for security (declared in code)", "ready": "quantum-safe"}
-KINDS = {"tls": "TLS endpoints", "ssh": "SSH endpoints", "vpn": "VPN tunnels", "pki": "Certificates", "backup": "Backups", "code": "Code (Wolf Pack)"}
+KINDS = {"tls": "TLS endpoints", "ssh": "SSH endpoints", "pki": "Certificates", "code": "Code and systems"}
 
 
 def _row(kind, name, detail, status, nist, cnsa2, evidence):
@@ -27,17 +30,28 @@ def _row(kind, name, detail, status, nist, cnsa2, evidence):
             "cnsa2_deadline": CNSA2_DEADLINE[kind], "evidence": evidence}
 
 
-def certificates(records):
-    out = []
-    now = dt.datetime.now(dt.timezone.utc)
-    for r in records:
-        if r.status != "valid":
+def certificates(folder):
+    """Rows for every certificate in the PEM files of `folder`; files that hold none are skipped."""
+    folder, now, out = Path(folder), dt.datetime.now(dt.timezone.utc), []
+    for f in sorted(p for p in folder.rglob("*") if p.is_file() and p.stat().st_size <= 1_000_000):
+        try:
+            certs = x509.load_pem_x509_certificates(f.read_bytes())
+        except ValueError:
             continue
-        cnsa = r.algorithm == "ML-DSA-87"
-        expired = dt.datetime.fromisoformat(r.not_after) < now
-        out.append(_row("pki", r.common_name, f"{r.kind} certificate, {r.algorithm}, {'expired' if expired else 'expires'} {r.not_after[:10]}",
-                        "action" if expired else "ready", "expired: renew it" if expired else "approved (FIPS 204)",
-                        "compliant" if cnsa and not expired else "needs ML-DSA-87" if not cnsa else "expired", {"serial": r.serial}))
+        for c in certs:
+            name = next((str(a.value) for a in c.subject if a.oid == x509.NameOID.COMMON_NAME), f.stem)
+            algo = algorithm_of(c.public_key()) or (f"RSA-{c.public_key().key_size}" if hasattr(c.public_key(), "key_size") else c.public_key_algorithm_oid.dotted_string)
+            expired, when = c.not_valid_after_utc < now, c.not_valid_after_utc.date().isoformat()
+            detail = f"certificate, {algo}, {'expired' if expired else 'expires'} {when}"
+            evidence = {"serial": format(c.serial_number, "x"), "file": f.name}
+            if expired:
+                out.append(_row("pki", name, detail, "action", "expired: renew it", "expired", evidence))
+            elif algo.startswith("ML-DSA"):
+                out.append(_row("pki", name, detail, "ready", "approved (FIPS 204)", "compliant" if algo == "ML-DSA-87" else "needs ML-DSA-87", evidence))
+            else:
+                out.append(_row("pki", name, detail, "plan", "quantum-vulnerable public key: deprecated after 2030 (112-bit), disallowed after 2035", "needs ML-DSA-87", evidence))
+    if not out:
+        raise ValueError(f"no certificates found in {folder}; give a folder of PEM files")
     return out
 
 
@@ -64,50 +78,22 @@ def endpoints(results):
     return out
 
 
-def tunnels(items):
-    out = []
-    for t in items:
-        if "error" in t:
-            continue
-        kex = t["key_exchange"]
-        pq = "ML_KEM" in kex
-        ciphers = [t["encryption"]] + [c["encryption"] for c in t.get("children", [])]
-        cnsa = "ML_KEM_1024" in kex and "ECP_384" in kex and all(c == "AES_GCM_16_256" for c in ciphers)
-        out.append(_row("vpn", t["peer"], f"{t['state']}, {kex}, {t['encryption']}, PPK {'yes' if t['ppk'] else 'no'}",
-                        "ready" if pq and t["ppk"] else "transition" if pq else "action",
-                        "post-quantum key exchange" + ("" if t["ppk"] else "; authentication still classical") if pq else "classical key exchange: disallowed after 2035",
-                        "compliant" if cnsa else "needs profile = \"high\" (P-384 + ML-KEM-1024, AES-256-GCM)", {"key_exchange": kex}))
-    return out
-
-
-def backups(items):
-    out = []
-    for b in items:
-        if "error" in b:
-            continue
-        cnsa = "ML-KEM-1024" in b["suite"]
-        out.append(_row("backup", b["name"], f"unverified header: {b['kind']} created {b['created'][:10]}, {b['suite']}, claimed signer {b['signed_by'] or 'none'}", "ready",
-                        "post-quantum key encapsulation (FIPS 203)", "compliant" if cnsa else "needs recipients made with `vault keygen --cnsa2`",
-                        {"file": b.get("file"), "authenticated": False}))
-    return out
-
-
 def code(path):
-    """Rows from a Wolf Pack scan: its output folder (cbom.json, plus findings.json for security patterns) or a cbom.json file.
-    Read as data; Wolf Pack itself is not imported. Each row cites where the asset was seen and, when known, which functions reach it.
-    Wolf Pack's priority decides `action`; otherwise the NIST status decides between quantum-safe and quantum-vulnerable. Certificate
+    """Rows from a scan or any other tool's CBOM: an output folder (cbom.json, plus findings.json for security patterns) or a cbom.json file. Each row cites where the asset was seen and, when known, which functions reach it.
+    The priority decides `action`; otherwise the NIST status decides between quantum-safe and quantum-vulnerable. Certificate
     components are left out: their key and signature algorithms are rows of their own."""
     path = Path(path)
     folder = path if path.is_dir() else path.parent
     bom, findings = _load(path / "cbom.json" if path.is_dir() else path), folder / "findings.json"
     if not isinstance(bom, dict) or bom.get("bomFormat") != "CycloneDX" or not isinstance(bom.get("components"), list):
-        raise ValueError(f"{path} is not a CycloneDX CBOM; give a Wolf Pack output folder or its cbom.json")
+        raise ValueError(f"{path} is not a CycloneDX CBOM; give a scan's output folder or its cbom.json")
     project = str(((bom.get("metadata") or {}).get("component") or {}).get("name") or folder.name)
     out = []
     for c in bom["components"]:
         if not isinstance(c, dict) or c.get("type") != "cryptographic-asset":
             continue
         props = {p.get("name"): str(p.get("value", "")) for p in c.get("properties") or [] if isinstance(p, dict)}
+        props |= {"acxelin:" + k.removeprefix("wolfpack:"): v for k, v in props.items() if k.startswith("wolfpack:") and "acxelin:" + k.removeprefix("wolfpack:") not in props}  # old prefix, read through 1.x
         tier, name = props.get("acxelin:tier"), str(c.get("name", "?"))
         if tier is None:
             continue
@@ -175,10 +161,9 @@ def to_html(rep, title="Post-quantum readiness"):
         f"<td>{e(r['nist_ir_8547'])}</td><td class={'ok' if r['cnsa2'] == 'compliant' else 'mute'}>{e(r['cnsa2'])}</td><td><small>{e(r['detail'])}</small></td></tr>"
         for r in order)
     options = "".join(f"<option value={k}>{e(v)}</option>" for k, v in STATUS.items() if s[k])
-    sub = ("Every certificate, endpoint, tunnel, backup and piece of code you included, mapped to NIST IR 8547 (draft: quantum-vulnerable public-key "
+    sub = ("Every certificate, endpoint and CBOM asset you included, mapped to NIST IR 8547 (draft: quantum-vulnerable public-key "
            "algorithms deprecated after 2030 at 112-bit strength, disallowed after 2035) and NSA CNSA 2.0 (ML-KEM-1024, ML-DSA-87, AES-256, SHA-384/512 by "
-           "each category's deadline). Code rows are static evidence from Wolf Pack, not proof of runtime use. Backup classifications describe unverified "
-           "headers; authenticate archives with vault verify and a recipient key before relying on their integrity or signer.")
+           "each category's deadline). Code and system rows are static evidence from a scan or another tool's CBOM, not proof of runtime use.")
     body = (f"<div class=tiles>{tiles}</div>"
             f"<section class=panel><h2>Do these first</h2><ul class=todo>{todo}</ul>{f'<p><small>{more} more below.</small></p>' if more > 0 else ''}</section>"
             f"<section class=panel><h2>By area</h2><div class=scroll tabindex=0 role=region aria-label='Assets by area'><table><thead><tr><th>Area</th><th>Assets</th>"
@@ -187,7 +172,7 @@ def to_html(rep, title="Post-quantum readiness"):
             f"<label>Status<select id=st><option value=''>All</option>{options}</select></label><span id=n role=status></span></div>"
             f"<div class=scroll tabindex=0 role=region aria-label='Every asset'><table><thead><tr><th>Area</th><th>Asset</th><th>Status</th><th>NIST IR 8547</th><th>CNSA 2.0</th><th>Evidence</th></tr></thead>"
             f"<tbody id=rows>{rows}</tbody></table></div></section>" + DASHBOARD)
-    return page(title, "Readiness assessment", e(sub), body)
+    return _page(title, "Readiness assessment", title, e(sub), body, f"Acxelin Readiness {__version__}")
 
 
 DASHBOARD = """<style>.todo{list-style:none;display:grid;gap:10px}.todo small{color:var(--mute)}.filters{display:flex;flex-wrap:wrap;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}

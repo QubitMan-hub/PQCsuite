@@ -10,7 +10,7 @@ from ..pki import CAError
 from ..vault import VaultError
 from ..vpn.charon import CharonError
 from ..vpn.wireguard import WGError
-from . import certificates, edge, readiness, suite, vault, vpn
+from . import certificates, edge, suite, vault, vpn
 
 
 class JSONFormatter(logging.Formatter):
@@ -79,7 +79,6 @@ def parser():
     certificates.add(sub, common)
     vpn.add(sub, common)
     vault.add(sub)
-    readiness.add(sub)
     suite.add_console(sub)
     explain_options(ap)
     return ap

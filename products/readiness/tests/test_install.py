@@ -38,3 +38,31 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     report = (tmp_path / "out/report.html").read_text()
     assert "@font-face" in report and "Acxelin Readiness" in report
     assert "full TLS handshakes" in run(str(bin_ / "acxelin-readiness"), "doctor").stdout
+    assert run(str(bin_ / "acxelin-readiness"), "--version").stdout.strip() == "1.0.0"
+    # the console starts from the installed wheel: its page, fonts and script ship, and nothing works without a session
+    import socket
+    import time
+    import urllib.error
+    import urllib.request
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    server = subprocess.Popen([str(bin_ / "acxelin-readiness"), "console", "--no-browser", "--port", str(port), "--home", str(tmp_path / "home")],
+                              cwd=tmp_path, env=clean, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(100):
+            try:
+                page = urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=2).read().decode()
+                break
+            except OSError:
+                time.sleep(0.1)
+        else:
+            raise AssertionError("the console did not start")
+        assert "Acxelin Readiness" in page and "data:font/woff2;base64," in page and "sessionStorage" in page
+        with pytest.raises(urllib.error.HTTPError) as refused:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=2)
+        assert refused.value.code == 401
+        assert (tmp_path / "home/console.token").exists()
+    finally:
+        server.terminate()
+        server.wait(10)

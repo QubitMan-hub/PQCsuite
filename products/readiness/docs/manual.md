@@ -28,6 +28,15 @@ The tier follows Mosca's inequality: an asset is urgent when the years its data 
 
 Own rules go in `[policy]` in the settings file: `forbid`, `min_bits`, `require_hybrid`, `as_of`.
 
+## The evidence report
+
+`acxelin-readiness report` maps what you give it to NIST IR 8547 and CNSA 2.0 on one page, ordered by what to do first:
+- `--certs DIR`: every certificate in a folder of PEM files (algorithm, expiry, whether it needs ML-DSA-87)
+- `--targets HOST ...`: endpoints, graded now
+- `--cbom PATH` (repeatable): a scan's output folder, or any CycloneDX CBOM, including the exported inventory of another system
+
+It writes `report.html` and `assessment.json` to the folder given with `-o` (default `readiness-report`).
+
 ## The console
 
 `acxelin-readiness console` opens a page in your browser, already signed in, with two parts:

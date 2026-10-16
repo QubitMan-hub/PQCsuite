@@ -13,6 +13,10 @@ Acxelin Readiness replaces Wolf Pack CBOM 1.x and the PQC Suite's `readiness` an
 | `pqcsuite scan PATH` | `acxelin-readiness scan PATH` |
 | `pqcsuite readiness scan HOSTS` | `acxelin-readiness grade HOSTS` |
 | `pqcsuite readiness probe HOST` | `acxelin-readiness grade HOST` |
+| `pqcsuite readiness report --ca DIR` | `acxelin-readiness report --certs DIR` (a folder of PEM files) |
+| `pqcsuite readiness report --targets ...` | `acxelin-readiness report --targets ...` |
+| `pqcsuite readiness report --wolfpack OUT` | `acxelin-readiness report --cbom OUT` |
+| `pqcsuite readiness report --vici` and `--backups` | export each system's inventory as a CBOM, then `acxelin-readiness report --cbom FILE`; the exports ship with those products |
 
 ## Names read through every 1.x release
 

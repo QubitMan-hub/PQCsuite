@@ -60,6 +60,12 @@ def main(argv=None):
     g.add_argument("--html", metavar="FILE")
     g.add_argument("--workers", type=int, default=16)
     g.add_argument("--timeout", type=float, default=8.0)
+    r = sub.add_parser("report", help="compliance evidence: NIST IR 8547 and CNSA 2.0 status of certificates, endpoints and CBOMs")
+    r.add_argument("--certs", metavar="DIR", help="a folder of PEM certificates")
+    r.add_argument("--targets", nargs="+", metavar="TARGET", help="endpoints to grade now: host, host:port, ssh://host, or .txt files with one per line")
+    r.add_argument("--cbom", action="append", default=[], metavar="PATH", help="a scan's output folder or any cbom.json (repeatable): code, or another product's exported inventory")
+    r.add_argument("-o", "--out", default="readiness-report")
+    r.add_argument("--timeout", type=float, default=8.0)
     sub.add_parser("doctor", help="check what this machine can scan")
     k = sub.add_parser("console", help="open the console in your browser; `console link` prints a fresh launch address for a console already running")
     k.add_argument("action", nargs="?", choices=["link"])
@@ -75,6 +81,8 @@ def main(argv=None):
         return merge(a)
     if a.cmd == "grade":
         return grade(a)
+    if a.cmd == "report":
+        return report_command(a)
     if a.cmd == "doctor":
         return doctor()
     if a.cmd == "console":
@@ -213,7 +221,13 @@ def settings(path, root):
 
 def grade(a):
     from . import endpoints
-    results = endpoints.scan(endpoints.load_targets(a.targets), a.workers, a.timeout)
+    try:
+        targets = endpoints.load_targets(a.targets)
+    except (OSError, ValueError) as e:
+        sys.exit(f"acxelin-readiness: {e}")
+    if not targets:
+        sys.exit("acxelin-readiness: no targets: give host, host:port, ssh://host, or a .txt file with one per line")
+    results = endpoints.scan(targets, a.workers, a.timeout)
     for r in results:
         print(f"{r.get('grade', 'F')}  {r.get('target', '?')}  {r.get('error') or r.get('negotiated') or ''}")
     if a.json:
@@ -248,3 +262,35 @@ def console(a):
             sys.exit(f"acxelin-readiness: no console is running on port {a.port} ({e}); start one with `acxelin-readiness console`")
         return 0
     return page.run(home, a.port, open_browser=not a.no_browser)
+
+
+def report_command(a):
+    from . import endpoints, evidence
+    if not (a.certs or a.targets or a.cbom):
+        sys.exit("acxelin-readiness: nothing to report on: pass --certs, --targets or --cbom")
+    rows = []
+    try:
+        if a.certs:
+            rows += evidence.certificates(a.certs)
+        if a.targets:
+            targets = endpoints.load_targets(a.targets)
+            if not targets:
+                sys.exit("acxelin-readiness: no targets in --targets: give host, host:port, ssh://host, or a .txt file with one per line")
+            rows += evidence.endpoints(endpoints.scan(targets, timeout=a.timeout))
+        for source in a.cbom:
+            rows += evidence.code(source)
+    except (OSError, ValueError) as e:
+        sys.exit(f"acxelin-readiness: {e}")
+    rep = evidence.report(rows)
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "report.html").write_text(evidence.to_html(rep), encoding="utf-8")
+    (out / "assessment.json").write_text(evidence.to_json(rep), encoding="utf-8")
+    first = [r for r in rows if r["status"] == "action"]
+    print(f"{rep['assets']} assets: " + ", ".join(f"{n} {evidence.STATUS[s]}" for s, n in rep["status"].items() if n))
+    for r in first[:5]:
+        print(f"  do first: {r['name']}: {r['detail']}")
+    if len(first) > 5:
+        print(f"  ({len(first) - 5} more: see the report)")
+    print(f"Report: {out / 'report.html'} (open it in a browser); assessment.json holds the evidence")
+    return 0

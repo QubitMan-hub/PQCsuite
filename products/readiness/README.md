@@ -24,6 +24,7 @@ From a release, unpack its wheelhouse and run `pip install --no-index --find-lin
 | Scan a repository | `acxelin-readiness scan PATH` (then open `readiness-out/report.html`) |
 | Include live endpoints | `acxelin-readiness scan PATH --tls api.example.com:443 --ssh bastion.example.com` |
 | Grade endpoints A to F | `acxelin-readiness grade hosts.txt --html grades.html` |
+| Evidence for an audit | `acxelin-readiness report --certs certs/ --targets hosts.txt --cbom readiness-out` |
 | Check against standards | `acxelin-readiness scan PATH --policy nist-ir-8547 --policy cnsa-2.0 --fail-on-policy` |
 | Fail CI only on new cryptography | `acxelin-readiness scan . --baseline cbom.json --fail-on high` |
 | One view of many systems | `acxelin-readiness merge out-a out-b other-tool.cbom.json --name "Example Bank"` |

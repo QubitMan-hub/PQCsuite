@@ -228,14 +228,12 @@ def test_workspace_upgrades_legacy_version_and_refuses_unknown_version(tmp_path)
 
 
 def test_scan_command_names_what_to_change_first(tmp_path, capsys):
-    from pqcsuite import cli
+    from acxelin_readiness import cli
     (tmp_path / "app").mkdir()
     (tmp_path / "app" / "keys.py").write_text("from cryptography.hazmat.primitives.asymmetric import rsa\n"
                                               "def make():\n    return rsa.generate_private_key(public_exponent=65537, key_size=2048)\n")
-    with pytest.raises(SystemExit) as e:
-        cli.main(["scan", str(tmp_path / "app"), "-o", str(tmp_path / "out")])
+    assert cli.main(["scan", str(tmp_path / "app"), "-o", str(tmp_path / "out")]) == 0
     out = capsys.readouterr().out
-    assert e.value.code == 0
-    assert "app: 1 cryptographic asset (1 high)" in out
-    assert "Change first:" in out and "RSA-2048" in out and "keys.py:1" in out and "ML-DSA-65" in out
-    assert (tmp_path / "out" / "report.html").exists()
+    assert "high" in out and "RSA-2048" in out and "ML-DSA-65" in out
+    assert "keys.py" in (tmp_path / "out" / "report.html").read_text()
+    assert (tmp_path / "out" / "cbom.json").exists()

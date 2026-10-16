@@ -38,10 +38,6 @@ CONFIG = {
              "proto": ""},
     "cloud": {"kex": "a load-balancer TLS policy with hybrid PQ key exchange, where the provider offers one", "proto": "a TLS 1.2+ policy, preferably TLS 1.3"},
 }
-SUITE = {"kex": "PQC Suite TLS 1.3 + mTLS: put `pqcsuite tls edge` in front of the service for hybrid ML-KEM without changing it",
-         "sig": "PQC Suite CA: issue ML-DSA or hybrid certificates (`pqcsuite ca issue`)",
-         "data": "PQC Suite Vault: re-encrypt stored data and backups with ML-KEM + AES-256-GCM (`pqcsuite vault`)",
-         "tunnel": "PQC Suite IPsec VPN: hybrid ML-KEM site-to-site tunnels (`pqcsuite vpn`)"}
 
 
 def contexts(a):
@@ -110,7 +106,4 @@ def remedies(a):
         out.append(("certificate", "reissue from a CA that signs with ML-DSA (or a hybrid chain during the transition)"))
     if k == "legacy-hash":
         return out
-    product = "sig" if k in ("sig", "weak-key") or "certificate" in where else "kex" if k in ("kex", "proto") or where & {"live-tls", "nginx", "apache", "haproxy", "cloud"} \
-        else "tunnel" if "live-ssh" in where or "sshd" in where else "data" if k in ("pke", "legacy-cipher", "ecb", "aes") else "kex"
-    out.append(("PQC Suite", SUITE[product]))
     return out
