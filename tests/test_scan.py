@@ -220,7 +220,7 @@ class SSHTest(unittest.TestCase):
         target = f"ssh://127.0.0.1:{srv.getsockname()[1]}"
         self.assertIn("truncated", scan.probe(target, timeout=3)["error"])
         real = scan.probe
-        with mock.patch.object(scan, "probe", side_effect=lambda t, **k: 1 / 0 if "boom" in t else real(t, **k)), self.assertLogs("pqcsuite", "ERROR"):
+        with mock.patch.object(scan, "probe", side_effect=lambda t, **k: 1 / 0 if "boom" in t else real(t, **k)), self.assertLogs("acxelin_readiness", "ERROR"):
             results = scan.scan(["boom.example", target], timeout=3)
         self.assertEqual([r["grade"] for r in results], ["F", "F"])
         self.assertIn("unexpected answer", results[0]["error"])
