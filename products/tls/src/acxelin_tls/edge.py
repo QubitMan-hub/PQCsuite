@@ -14,11 +14,14 @@ import threading
 import time
 from dataclasses import dataclass
 
-from .. import JSON, METRICS, build, env_passphrase, explain, file_stamp, read_toml, serve_http, tls
-from . import hostport
-from .server import Server, Stats
+from acxelin_core import tls
+from acxelin_core.config import build, env_passphrase, read_toml
+from acxelin_core.http import JSON, METRICS, explain, file_stamp, hostport, serve_http
+from acxelin_core.server import Server, Stats
 
-log = logging.getLogger("pqcsuite.edge")
+from . import policies
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -66,7 +69,7 @@ class Route:
             raise ValueError(f"{self.name}: crl_every must be at least 5 seconds")
         if self.mode == "originate" and not self.ca:
             raise ValueError(f"{self.name}: originate needs the ca that signed the remote's certificate")
-        tls.policy(self.policy)
+        policies.policy(self.policy)
 
 
 def pump(conn, raw, idle_timeout):
@@ -114,7 +117,7 @@ class Edge:
                 from ..pki import follow_crl
                 self.crl_follow = follow_crl(r.crl_url, r.crl, r.ca, r.crl_every)
             fallback = (r.fallback_cert, r.fallback_key) if r.fallback_cert else None
-            make = lambda: tls.server_context(r.cert, r.key, r.ca or None, r.require_client_cert, r.policy, r.passphrase(), fallback=fallback)
+            make = lambda: tls.server_context(policies.policy(r.policy), r.cert, r.key, r.ca or None, r.require_client_cert, r.passphrase(), fallback=fallback)
             try:
                 self.server = Server(hostport(r.listen), make, self._terminate, watch=[r.cert, r.key, r.ca, r.fallback_cert, r.fallback_key],
                                      crl=r.crl or None, ca=r.ca or None, max_connections=r.max_connections,
@@ -128,7 +131,7 @@ class Edge:
         else:
             self.watch = [p for p in (r.ca, r.cert, r.key) if p]
             self.stamps = [file_stamp(p) for p in self.watch]
-            self.ctx = tls.client_context(r.ca, r.cert or None, r.key or None, r.policy, r.passphrase())
+            self.ctx = tls.client_context(policies.policy(r.policy), r.ca, r.cert or None, r.key or None, r.passphrase())
             self.listener = socket.create_server(hostport(r.listen, "127.0.0.1"), backlog=128, reuse_port=reuse_port)
             self.port = self.listener.getsockname()[1]
             log.info("%s: listening on %s, tunnelling to %s", r.name, r.listen, r.target)
@@ -166,7 +169,7 @@ class Edge:
         try:
             stamps = [file_stamp(p) for p in self.watch]
             if stamps != self.stamps:
-                self.ctx = tls.client_context(r.ca, r.cert or None, r.key or None, r.policy, r.passphrase())
+                self.ctx = tls.client_context(policies.policy(r.policy), r.ca, r.cert or None, r.key or None, r.passphrase())
                 self.stamps = stamps
                 self.stats.add("reloads")
                 log.info("%s: reloaded certificates", r.name)
@@ -275,7 +278,7 @@ class Workers:
     """
 
     def __init__(self, n):
-        self.argv = [sys.executable, "-m", "pqcsuite", *sys.argv[1:]]
+        self.argv = [sys.executable, "-m", "acxelin_tls", *sys.argv[1:]]
         self.reports, self.stopping = {}, False
         self.procs = [self._start() for _ in range(n - 1)]
         threading.Thread(target=self._supervise, daemon=True).start()
@@ -333,13 +336,13 @@ def totals(edge, workers=None):
 
 
 def metrics_text(edges, workers=None):
-    lines = ["# TYPE pqcsuite_connections_active gauge", "# TYPE pqcsuite_events_total counter", "# TYPE pqcsuite_group_total counter"]
+    lines = ["# TYPE acxelin_tls_connections_active gauge", "# TYPE acxelin_tls_events_total counter", "# TYPE acxelin_tls_group_total counter"]
     for e in edges:
         s, n = totals(e, workers), e.route.name
-        lines.append(f'pqcsuite_connections_active{{edge="{n}"}} {s.pop("active")}')
+        lines.append(f'acxelin_tls_connections_active{{edge="{n}"}} {s.pop("active")}')
         for g, c in s.pop("groups").items():
-            lines.append(f'pqcsuite_group_total{{edge="{n}",group="{g}"}} {c}')
-        lines += [f'pqcsuite_events_total{{edge="{n}",event="{k}"}} {v}' for k, v in s.items()]
+            lines.append(f'acxelin_tls_group_total{{edge="{n}",group="{g}"}} {c}')
+        lines += [f'acxelin_tls_events_total{{edge="{n}",event="{k}"}} {v}' for k, v in s.items()]
     return "\n".join(lines) + "\n"
 
 

@@ -10,7 +10,7 @@ from ..pki import CAError
 from ..vault import VaultError
 from ..vpn.charon import CharonError
 from ..vpn.wireguard import WGError
-from . import certificates, edge, suite, vault, vpn
+from . import suite, vault, vpn
 
 
 class JSONFormatter(logging.Formatter):
@@ -75,8 +75,6 @@ def parser():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--dir", default="pki", help="CA folder (default: pki)")
     suite.add(sub)
-    edge.add(sub)
-    certificates.add(sub, common)
     vpn.add(sub, common)
     vault.add(sub)
     suite.add_console(sub)

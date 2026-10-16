@@ -10,11 +10,12 @@ from unittest import mock
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 
-from pqcsuite import tls
-from pqcsuite.pki import signers
-from pqcsuite.pki import CA, CAError, check_revocation, generate, key_pem, signed_by
-from pqcsuite.tls.server import Server
-from tests.helpers import REASON
+from acxelin_core import tls
+import support
+from acxelin_core.pki import signers
+from acxelin_core.pki import CA, CAError, check_revocation, generate, key_pem, signed_by
+from acxelin_core.server import Server
+from support import REASON
 from tests.test_tls import echo
 
 
@@ -129,13 +130,13 @@ class SLHDSARootTest(unittest.TestCase):
 
     def test_mutual_tls_through_the_chain(self):
         anchor = str(self.sub.anchor)
-        make = lambda: tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", anchor, True)
+        make = lambda: support.server_context(self.srv / "chain.pem", self.srv / "key.pem", anchor, True)
         s = Server(("127.0.0.1", 0), make, echo, crl=str(self.d / "sub" / "crl.pem"), ca=anchor, handshake_timeout=3)
         s.start()
         self.addCleanup(s.stop, 1)
 
         def ping(who):
-            ctx = tls.client_context(anchor, who / "chain.pem", who / "key.pem")
+            ctx = support.client_context(anchor, who / "chain.pem", who / "key.pem")
             with tls.connect("127.0.0.1", s.port, ctx, "localhost", timeout=5) as c:
                 c.sendall(b"ping")
                 return c.recv(timeout=5), [x.subject.rfc4514_string() for x in c.peer_chain()]

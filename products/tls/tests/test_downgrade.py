@@ -15,11 +15,12 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
-from pqcsuite import tls
-from pqcsuite.pki import CA, algorithm_of
-from pqcsuite.tls import CIPHERSUITES
-from pqcsuite.tls.openssl import Context
-from tests.helpers import REASON
+from acxelin_core import tls
+import support_tls
+from acxelin_core.pki import CA, algorithm_of
+from acxelin_tls.policies import CIPHERSUITES
+from acxelin_core.openssl import Context
+from support_tls import REASON
 
 
 CLASSICAL = "X25519:secp256r1"
@@ -96,14 +97,14 @@ class DowngradeTest(unittest.TestCase):
 
     def test_policy_matrix(self):
         s65, s87 = self.s65, self.s87
-        servers = {"strict": tls.server_context(s65 / "chain.pem", s65 / "key.pem", policy_name="strict"),
-                   "transition": tls.server_context(s65 / "chain.pem", s65 / "key.pem", policy_name="transition",
+        servers = {"strict": support_tls.server_context(s65 / "chain.pem", s65 / "key.pem", policy_name="strict"),
+                   "transition": support_tls.server_context(s65 / "chain.pem", s65 / "key.pem", policy_name="transition",
                                                     fallback=(str(self.d / "fb.crt"), str(self.d / "fb.key"))),
-                   "cnsa2": tls.server_context(s87 / "chain.pem", s87 / "key.pem", policy_name="cnsa2"),
+                   "cnsa2": support_tls.server_context(s87 / "chain.pem", s87 / "key.pem", policy_name="cnsa2"),
                    "classical": Context(True, CLASSICAL, None, CIPHERSUITES, str(s65 / "chain.pem"), str(s65 / "key.pem"))}
-        clients = {"strict": tls.client_context(self.cafile, policy_name="strict"),
-                   "transition": tls.client_context(self.cafile, policy_name="transition"),
-                   "cnsa2": tls.client_context(self.cafile, policy_name="cnsa2"),
+        clients = {"strict": support_tls.client_context(self.cafile, policy_name="strict"),
+                   "transition": support_tls.client_context(self.cafile, policy_name="transition"),
+                   "cnsa2": support_tls.client_context(self.cafile, policy_name="cnsa2"),
                    "classical": Context(False, CLASSICAL, None, CIPHERSUITES, ca=self.cafile)}
         pq65, pq87, weak = ("X25519MLKEM768", "ML-DSA-65"), ("SecP384r1MLKEM1024", "ML-DSA-87"), ("x25519", "ML-DSA-65")
         expected = {
@@ -123,18 +124,18 @@ class DowngradeTest(unittest.TestCase):
                 self.assertEqual(self.tls12(port), REFUSED)
 
     def test_cnsa2_client_certificates_must_be_ml_dsa_87(self):
-        port = self.serve(tls.server_context(self.s87 / "chain.pem", self.s87 / "key.pem", self.cafile, True, "cnsa2"))
-        ok = tls.client_context(self.cafile, self.c87 / "chain.pem", self.c87 / "key.pem", "strict")
-        small = tls.client_context(self.cafile, self.c65 / "chain.pem", self.c65 / "key.pem", "strict")
+        port = self.serve(support_tls.server_context(self.s87 / "chain.pem", self.s87 / "key.pem", self.cafile, True, "cnsa2"))
+        ok = support_tls.client_context(self.cafile, self.c87 / "chain.pem", self.c87 / "key.pem", "strict")
+        small = support_tls.client_context(self.cafile, self.c65 / "chain.pem", self.c65 / "key.pem", "strict")
         self.assertEqual(self.attempt(port, ok), ("SecP384r1MLKEM1024", "ML-DSA-87"))
         self.assertEqual(self.attempt(port, small), REFUSED)
 
     def test_certificates_only_work_in_their_own_role(self):
-        wrong_server = self.serve(tls.server_context(self.c65 / "chain.pem", self.c65 / "key.pem"))
-        self.assertEqual(self.attempt(wrong_server, tls.client_context(self.cafile)), REFUSED)
-        mtls = self.serve(tls.server_context(self.s65 / "chain.pem", self.s65 / "key.pem", self.cafile, True))
-        self.assertEqual(self.attempt(mtls, tls.client_context(self.cafile, self.s65 / "chain.pem", self.s65 / "key.pem")), REFUSED)
-        self.assertEqual(self.attempt(mtls, tls.client_context(self.cafile, self.c65 / "chain.pem", self.c65 / "key.pem")),
+        wrong_server = self.serve(support_tls.server_context(self.c65 / "chain.pem", self.c65 / "key.pem"))
+        self.assertEqual(self.attempt(wrong_server, support_tls.client_context(self.cafile)), REFUSED)
+        mtls = self.serve(support_tls.server_context(self.s65 / "chain.pem", self.s65 / "key.pem", self.cafile, True))
+        self.assertEqual(self.attempt(mtls, support_tls.client_context(self.cafile, self.s65 / "chain.pem", self.s65 / "key.pem")), REFUSED)
+        self.assertEqual(self.attempt(mtls, support_tls.client_context(self.cafile, self.c65 / "chain.pem", self.c65 / "key.pem")),
                          ("X25519MLKEM768", "ML-DSA-65"))
 
 

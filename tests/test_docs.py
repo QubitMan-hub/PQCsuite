@@ -9,8 +9,8 @@ from pathlib import Path
 from pqcsuite.cli import parser
 
 ROOT = Path(__file__).resolve().parent.parent
-# Commands that moved to Acxelin Readiness; the old documents that still name them are replaced in Stage 6, when this list goes.
-MOVED = {"scan", "readiness"}
+# Commands that moved to Acxelin Readiness and Acxelin TLS; the old documents that still name them are replaced in Stage 6, when this list goes.
+MOVED = {"scan", "readiness", "ca", "tls"}
 DOCS = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "docs/*.md", "pqcsuite/console/console.html", "examples/*.toml", "site/*.html",
         "deploy/**/*.service", "deploy/**/*.yaml", "deploy/**/*.tpl", "deploy/**/*.hcl", "deploy/**/*.sh"]
 COMMAND = re.compile(r"(?<!-t )(?:^|(?<=[\s$/]))pqcsuite ((?:[a-z][\w-]*)(?: [a-z][\w-]*)?)([^\n;|&#)]*)")

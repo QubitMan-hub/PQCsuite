@@ -18,9 +18,13 @@ from cryptography.hazmat.primitives.serialization import Encoding, pkcs7
 from cryptography.x509.oid import NameOID
 
 from .. import tls
+from ..http import hostport
 from . import CA, CAError, USAGE, algorithm_of, cert_pem, check_revocation, append, general_names, generate, key_pem, locked, names_of, now, write
-from ..tls.http import HTTPError, request
+from ..https import HTTPError, request
 
+# RFC 7030 enrollment here always runs over post-quantum-only TLS 1.3; this is the protocol profile, not a product policy.
+PROFILE = tls.Policy("est", "X25519MLKEM768:SecP384r1MLKEM1024:SecP256r1MLKEM768", "mldsa87:mldsa65:mldsa44",
+                     "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256")
 PREFIX = "/.well-known/est"
 PKCS7 = {"Content-Type": "application/pkcs7-mime; smime-type=certs-only", "Content-Transfer-Encoding": "base64"}
 
@@ -175,7 +179,7 @@ def _call(url, ctx, path, body=b"", headers=None, server_name=None):
 def fetch_ca(url, fingerprint, out, server_name=None):
     """Bootstrap trust: download the CA certificate and accept it only if its SHA-256 fingerprint matches the one given."""
     host, port = _target(url)
-    ctx = tls.client_context(verify=False)  # wolfpack:ignore (RFC 7030 bootstrap: the CA certificate is pinned by fingerprint below)
+    ctx = tls.client_context(PROFILE, verify=False)  # wolfpack:ignore (RFC 7030 bootstrap: the CA certificate is pinned by fingerprint below)
     with tls.connect(host, port, ctx, server_name or host, timeout=15) as conn:
         status, _, body = request(conn, "GET", PREFIX + "/cacerts", host)
     if status != 200:
@@ -216,7 +220,7 @@ def enroll(url, token, common_name, names=(), out=".", ca=None, algorithm="ML-DS
     key = generate(algorithm)
     tid, _, secret = token.partition(".")
     auth = base64.b64encode(f"{tid}:{secret}".encode()).decode()
-    body = _call(url, tls.client_context(ca), "/simpleenroll", _csr(key, common_name, names),
+    body = _call(url, tls.client_context(PROFILE, ca), "/simpleenroll", _csr(key, common_name, names),
                  {"Content-Type": "application/pkcs10", "Authorization": f"Basic {auth}"}, server_name)
     certs = _parse_certs(body, key)
     _save(out, key, certs, ca_cert, passphrase)
@@ -232,7 +236,7 @@ def renew(url, folder, algorithm=None, within_days=None, passphrase=None, server
         return None
     cn, names = names_of(current)
     key = generate(algorithm or algorithm_of(current.public_key()) or "ML-DSA-65")
-    ctx = tls.client_context(folder / "ca.crt", folder / "chain.pem", folder / "key.pem", key_passphrase=passphrase)
+    ctx = tls.client_context(PROFILE, folder / "ca.crt", folder / "chain.pem", folder / "key.pem", key_passphrase=passphrase)
     certs = _parse_certs(_call(url, ctx, "/simplereenroll", _csr(key, cn, names), {"Content-Type": "application/pkcs10"}, server_name), key)
     _save(folder, key, certs, x509.load_pem_x509_certificate((folder / "ca.crt").read_bytes()), passphrase)
     return certs[0]
@@ -240,13 +244,12 @@ def renew(url, folder, algorithm=None, within_days=None, passphrase=None, server
 
 def serve(ca_dir, listen, cert, key, passphrase=None, key_passphrase=None):
     """Run the EST service on a PQC TLS listener (client certificates requested, not required)."""
-    from ..tls import hostport
-    from ..tls.http import handler
-    from ..tls.server import Server
+    from ..https import handler
+    from ..server import Server
     ca = CA(ca_dir, passphrase)
     ca.signer  # a wrong passphrase fails now, not at the first enrollment
     cafile = str(ca.anchor)
-    make = lambda: tls.server_context(cert, key, cafile, policy_name="strict", key_passphrase=key_passphrase,
+    make = lambda: tls.server_context(PROFILE, cert, key, cafile, key_passphrase=key_passphrase,
                                          request_client_cert=True, any_purpose=True)
     return Server(hostport(listen), make, handler(Service(ca)), watch=[cert, key], name="est")
 

@@ -4,9 +4,9 @@ from pathlib import Path
 
 from cryptography import x509
 
-from pqcsuite.tls.bundles import SERVICES, create
-from pqcsuite.pki import CA, CAError
-from pqcsuite.tls.edge import load_config
+from acxelin_tls.bundles import SERVICES, create
+from acxelin_core.pki import CA, CAError
+from acxelin_tls.edge import load_config
 
 
 class BundleTest(unittest.TestCase):
@@ -24,7 +24,8 @@ class BundleTest(unittest.TestCase):
                 self.assertFalse((out / "pki" / "ca.key").exists(), "the CA key must not ship inside the bundle")
                 self.assertTrue((out / "ca.key.KEEP-OFFLINE").exists())
                 readme = (out / "README.txt").read_text()
-                self.assertIn("pqcsuite readiness probe", readme)
+                self.assertIn("acxelin-tls connect", readme)
+                self.assertFalse([w for w in ("pqcsuite", "readiness", "vault", "vpn") if w in readme.lower()])
                 self.assertNotIn("Chrome", readme)
             with self.assertRaises(CAError):
                 create("nginx", Path(d) / "nginx", "again.example.com")

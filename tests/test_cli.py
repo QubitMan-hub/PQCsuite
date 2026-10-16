@@ -6,10 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pqcsuite import tls
 from pqcsuite.cli import main
 from pqcsuite.pki import CA
-from tests.helpers import REASON
 
 
 class CLITest(unittest.TestCase):
@@ -52,48 +50,8 @@ class CLITest(unittest.TestCase):
             r = logging.LogRecord("x", logging.ERROR, __file__, 1, "handler failed", None, sys.exc_info())
         self.assertIn("ZeroDivisionError", json.loads(JSONFormatter().format(r))["exception"])
 
-    @unittest.skipIf(REASON, REASON)
-    def test_edge_start_up_errors(self):
-        edge = ["tls", "edge", "--listen", "127.0.0.1:0", "--target", "127.0.0.1:1"]
-        self.assertIn("nope.pem", self.fails(*edge, "--cert", self.d / "nope.pem", "--key", self.srv / "key.pem"))
-        self.assertIn("needs the CA", self.fails(*edge, "--cert", self.srv / "chain.pem", "--key", self.srv / "key.pem", "--require-client-cert"))
-        self.assertIn("ML-DSA-87", self.fails(*edge, "--cert", self.srv / "chain.pem", "--key", self.srv / "key.pem", "--policy", "cnsa2"))
-        self.assertTrue((self.d / "pki" / "crl.pem").is_file())
-        self.assertIn("ca crl", self.fails(*edge, "--cert", self.srv / "chain.pem", "--key", self.srv / "key.pem", "--require-client-cert",
-                                           "--ca", self.d / "pki" / "ca.crt", "--crl", self.d / "nope-crl.pem"))
-        self.assertIn("fixed listen port", self.fails(*edge, "--cert", self.srv / "chain.pem", "--key", self.srv / "key.pem", "--workers", "2"))
 
-    @unittest.skipIf(REASON, REASON)
-    def test_connect_prints_a_reply_that_arrives_in_pieces(self):
-        import time
-        from pqcsuite.tls.server import Server
 
-        def reply(conn, addr):
-            conn.recv(timeout=5)
-            conn.sendall(b"HTTP/1.0 200 OK\r\n\r\n")
-            time.sleep(0.3)
-            conn.sendall(b'{"allergies": ["penicillin"]}')
-        s = Server(("127.0.0.1", 0), lambda: tls.server_context(self.srv / "chain.pem", self.srv / "key.pem"), reply)
-        s.start()
-        self.addCleanup(s.stop, 1)
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
-            main(["tls", "connect", f"127.0.0.1:{s.port}", "--server-name", "localhost", "--ca", str(self.d / "pki" / "ca.crt"), "--send", "GET /"])
-        self.assertEqual(e.exception.code, 0)
-        self.assertIn("penicillin", out.getvalue())
-
-    @unittest.skipIf(REASON, REASON)
-    def test_network_errors_are_in_words(self):
-        import socket
-        from pqcsuite.readiness.scan import probe
-        with socket.socket() as s:
-            s.bind(("127.0.0.1", 0))
-            closed = s.getsockname()[1]
-        ca = ["--ca", self.d / "pki" / "ca.crt"]
-        self.assertIn("--server-name nosuch.invalid", self.fails("tls", "connect", "nosuch.invalid:443", *ca))
-        self.assertIn("connection refused", self.fails("tls", "connect", f"127.0.0.1:{closed}", *ca))
-        self.assertEqual(probe(f"127.0.0.1:{closed}", timeout=10)["error"], "connection refused (nothing is listening on that port)")
-        self.assertIn("0 to 65535", self.fails("tls", "connect", "127.0.0.1:99999", *ca))
 
     def test_scan_targets_as_people_write_them(self):
         from pqcsuite.readiness.scan import endpoint
@@ -106,34 +64,8 @@ class CLITest(unittest.TestCase):
         for bad in (":443", "bank.example:https"):
             self.assertRaises(ValueError, endpoint, bad)
 
-    def test_passphrase_prompts_without_a_terminal_say_what_to_do(self):
-        from unittest import mock
-        self.addCleanup(os.chdir, os.getcwd())
-        os.chdir(self.d)
-        with mock.patch("sys.stdin", io.StringIO("")):
-            self.assertIn("--no-passphrase", self.fails("vault", "keygen", "ops"))
-            for flags in ((), ("--encrypt",)):
-                self.assertIn("--no-encrypt", self.fails("ca", "init", "--name", "T", "--dir", "ca2", *flags))
-        self.assertFalse((self.d / "ops.key").exists() or (self.d / "ca2" / "ca.crt").exists())
 
-    def test_the_ca_key_is_encrypted_unless_asked_not_to(self):
-        from unittest import mock
-        with mock.patch.dict(os.environ, {"PQCSUITE_CA_PASSPHRASE": "pw"}), contextlib.redirect_stdout(io.StringIO()):
-            for argv in (["--dir", self.d / "enc"], ["--dir", self.d / "plain", "--no-encrypt"]):
-                with self.assertRaises(SystemExit) as e:
-                    main(["ca", "init", "--name", "T", *map(str, argv)])
-                self.assertEqual(e.exception.code, 0)
-        self.assertIn(b"ENCRYPTED", (self.d / "enc" / "ca.key").read_bytes())
-        self.assertNotIn(b"ENCRYPTED", (self.d / "plain" / "ca.key").read_bytes())
 
-    @unittest.skipIf(REASON, REASON)
-    def test_the_one_minute_tour_shows_post_quantum_in_and_classical_out(self):
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
-            main(["try"])
-        self.assertEqual(e.exception.code, 0, out.getvalue())
-        for seen in ("X25519MLKEM768", "ML-DSA-65", "knows nothing about post-quantum", "refused, as it should be"):
-            self.assertIn(seen, out.getvalue())
 
     def test_config_files_name_what_is_missing_or_wrong(self):
         cfg = self.d / "c.toml"
@@ -202,11 +134,6 @@ class CLITest(unittest.TestCase):
         with mock.patch.dict(sys.modules, {"vici": None}):
             self.assertIn('pip install "pqcsuite[vpn]"', self.fails("vpn", "check"))
 
-    def test_bundles_never_invent_a_ca_or_leave_half_a_folder(self):
-        self.assertIn("no CA at", self.fails("tls", "bundle", "nginx", "--host", "web.example", "--ca", self.d / "typo", "--out", self.d / "b1"))
-        self.assertFalse((self.d / "typo").exists())
-        self.assertIn("not a valid host name", self.fails("tls", "bundle", "nginx", "--host", "bad host", "--out", self.d / "b2"))
-        self.assertFalse((self.d / "b2").exists())
 
     def test_vault_never_overwrites_keys_or_archives(self):
         self.addCleanup(os.chdir, os.getcwd())

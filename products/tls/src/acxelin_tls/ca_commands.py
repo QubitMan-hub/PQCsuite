@@ -2,14 +2,16 @@
 import argparse
 import getpass
 import json
-import os
 import sys
 import threading
 from pathlib import Path
 
-from .. import PEM, env_passphrase, serve_http
-from ..pki import ALGORITHMS, CA, CA_ALGORITHMS, REASONS, CAError, encrypted
-from .common import CA_PASS_ENV, ask, ca_passphrase, positive, run_until_signal
+from acxelin_core.cli import ask, positive, run_until_signal
+from acxelin_core.config import env_passphrase
+from acxelin_core.http import PEM, serve_http
+from acxelin_core.pki import ALGORITHMS, CA, CA_ALGORITHMS, REASONS, CAError, encrypted
+
+from .common import CA_PASS_ENV, ca_passphrase, env
 
 
 def cmd_ca(a):
@@ -18,7 +20,7 @@ def cmd_ca(a):
         if a.parent:
             pw = None
             if encrypted(Path(a.parent) / "ca.key"):
-                pw = os.environ.get("PQCSUITE_PARENT_CA_PASSPHRASE", "").encode() or ask("Parent CA passphrase: ", "set PQCSUITE_PARENT_CA_PASSPHRASE")
+                pw = (env("ACXELIN_TLS_PARENT_CA_PASSPHRASE", "PQCSUITE_PARENT_CA_PASSPHRASE") or "").encode() or ask("Parent CA passphrase: ", "set ACXELIN_TLS_PARENT_CA_PASSPHRASE")
             parent = CA(a.parent, pw)
         if a.signer_command and not a.signer_public_key:
             raise CAError("--signer-command needs --signer-public-key")
@@ -35,7 +37,7 @@ def cmd_ca(a):
         print(f"  {out / 'cert.pem'}\n  {out / 'chain.pem'}  (certificate + CA: what servers and mTLS clients present)\n  {out / 'key.pem'}")
     elif a.ca_cmd == "sign-csr":
         cert, r = ca.sign_csr(Path(a.csr).read_bytes(), a.kind, a.days)
-        from ..pki import cert_pem
+        from acxelin_core.pki import cert_pem
         Path(a.out).write_bytes(cert_pem(cert))
         print(f"signed {r.serial} for {r.common_name} -> {a.out}")
     elif a.ca_cmd == "revoke":
@@ -48,12 +50,12 @@ def cmd_ca(a):
         out, r = ca.renew(a.serial, a.days, a.algorithm, a.out, env_passphrase(a.key_passphrase_env))
         print(f"renewed as {r.serial}, valid until {r.not_after}, in {out}")
     elif a.ca_cmd == "token":
-        from ..pki.est import create_token
+        from acxelin_core.pki.est import create_token
         t = create_token(ca, a.common_name, a.kind, a.san, a.hours)
         print(f"one-time enrollment token for {a.common_name} ({a.kind}), valid {a.hours} h. It is shown only once:\n{t}")
     elif a.ca_cmd == "serve":
         from cryptography.x509 import load_pem_x509_certificate
-        from ..pki.est import fingerprint, serve
+        from acxelin_core.pki.est import fingerprint, serve
         srv = serve(a.dir, a.listen, a.cert, a.key, ca_passphrase(a.dir), env_passphrase(a.key_passphrase_env))
         print(f"EST enrollment on https://{a.listen}/.well-known/est; CA fingerprint (give it to clients):\n{fingerprint(load_pem_x509_certificate(ca.anchor.read_bytes()))}")
         run_until_signal(srv.serve_forever, srv.stop)
@@ -83,7 +85,7 @@ def cmd_ca(a):
 
 
 def cmd_acme(a):
-    from ..pki import acme
+    from . import acme
     if a.ca_cmd == "csr":
         out = acme.make_csr(a.names, a.out, a.algorithm, env_passphrase(a.key_passphrase_env))
         print(f"{out / 'key.pem'} (keep secret), {out / 'csr.pem'} and {out / 'csr.der'}\n"
@@ -104,14 +106,14 @@ def cmd_acme(a):
 
 
 def cmd_enroll(a):
-    from ..pki import est
+    from acxelin_core.pki import est
     key_passphrase = env_passphrase(a.key_passphrase_env)
     if getattr(a, 'guide', False):
         if a.renew:
             raise CAError('--guide is for first enrollment; use --renew with an existing device folder')
         if not sys.stdin.isatty():
             raise CAError('--guide needs an interactive terminal; automation should supply enrollment flags and secret environment variables')
-        from ..checks import prerequisites
+        from .checks import prerequisites
         failures = [r for r in prerequisites('tls') if r['level'] == 'fail']
         if failures:
             raise CAError(failures[0]['message'] + '. ' + failures[0]['action'])
@@ -119,7 +121,7 @@ def cmd_enroll(a):
         a.common_name = a.common_name or input('Device or service name assigned by your administrator: ').strip()
         if not a.ca and not a.ca_fingerprint:
             a.ca_fingerprint = input('CA SHA-256 fingerprint supplied by your administrator: ').strip()
-        a.token = a.token or os.environ.get('PQCSUITE_ENROLL_TOKEN') or getpass.getpass('One-time enrollment token: ')
+        a.token = a.token or env('ACXELIN_TLS_ENROLL_TOKEN', 'PQCSUITE_ENROLL_TOKEN') or getpass.getpass('One-time enrollment token: ')
         if not key_passphrase:
             key_passphrase = getpass.getpass('New local key passphrase: ').encode()
             if not key_passphrase or key_passphrase != getpass.getpass('Repeat key passphrase: ').encode():
@@ -131,24 +133,24 @@ def cmd_enroll(a):
         print(f"{a.renew}: " + (f"renewed, new serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}" if cert
                                 else f"still valid for more than {a.within_days} days, nothing to do"))
         return 0
-    token = a.token or os.environ.get("PQCSUITE_ENROLL_TOKEN")
+    token = a.token or env("ACXELIN_TLS_ENROLL_TOKEN", "PQCSUITE_ENROLL_TOKEN")
     if not (token and a.common_name):
-        raise CAError("first enrollment needs the token (PQCSUITE_ENROLL_TOKEN, or --token) and --cn (renewal needs --renew FOLDER)")
+        raise CAError("first enrollment needs the token (ACXELIN_TLS_ENROLL_TOKEN, or --token) and --cn (renewal needs --renew FOLDER)")
     ca = a.ca
     if not ca:
         if not a.ca_fingerprint:
-            raise CAError("give --ca FILE or --ca-fingerprint SHA256 (from `pqcsuite ca serve`) so the CA can be trusted")
+            raise CAError("give --ca FILE or --ca-fingerprint SHA256 (from `acxelin-tls ca serve`) so the CA can be trusted")
         ca = Path(a.out) / "ca.crt"
         est.fetch_ca(a.url, a.ca_fingerprint, ca, a.server_name)
     cert = est.enroll(a.url, token, a.common_name, a.san, a.out, ca, passphrase=key_passphrase, server_name=a.server_name)
     print(f"enrolled {a.common_name}: serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}, files in {a.out}")
-    print(f"renew it daily from cron: pqcsuite ca enroll {a.url} --renew {a.out} --within-days 30")
+    print(f"renew it daily from cron: acxelin-tls ca enroll {a.url} --renew {a.out} --within-days 30")
     return 0
 
 def add(sub, common):
     ca = sub.add_parser("ca", help="TLS 1.3 + mTLS: the post-quantum certificate authority, EST and ACME").add_subparsers(dest="ca_cmd", required=True)
     p = ca.add_parser("init", parents=[common], help="create a root or intermediate CA",
-                      epilog='example: pqcsuite ca init --name "Example Root CA" --dir pki')
+                      epilog='example: acxelin-tls ca init --name "Example Root CA" --dir pki')
     p.add_argument("--name", required=True, help="the CA's name, shown in every certificate it issues, e.g. \"Acme PQC Root\"")
     p.add_argument("--algorithm", choices=CA_ALGORITHMS, default="ML-DSA-87", help="SLH-DSA keys need OpenSSL 3.5+")
     p.add_argument("--parent", help="the CA folder that signs this one, making it an intermediate CA")
@@ -163,8 +165,8 @@ def add(sub, common):
                      help=f"leave the CA key unencrypted (by default it is encrypted, passphrase from {CA_PASS_ENV} or a prompt)")
     for name in ("issue", "renew"):
         p = ca.add_parser(name, parents=[common], help="issue a key and certificate" if name == "issue" else "new key and certificate, same names",
-                          epilog="example: pqcsuite ca issue server web.corp.example --dir pki --out web" if name == "issue" else
-                          "example: pqcsuite ca renew 3f9a1c2e7b --dir pki --out web (serials from `ca list`)")
+                          epilog="example: acxelin-tls ca issue server web.corp.example --dir pki --out web" if name == "issue" else
+                          "example: acxelin-tls ca renew 3f9a1c2e7b --dir pki --out web (serials from `ca list`)")
         if name == "issue":
             p.add_argument("kind", choices=["server", "client", "site"], help="site: a VPN gateway (server and client)")
             p.add_argument("common_name", help="the name it certifies: a host name such as web.corp.example, or a person or device")
@@ -211,7 +213,7 @@ def add(sub, common):
     p.set_defaults(func=cmd_enroll)
     p.add_argument("url", nargs="?", help="https://ca.example.com:9443")
     p.add_argument("--guide", action="store_true", help="interactive enrollment with pinned CA trust and an encrypted local key")
-    p.add_argument("--token", help="one-time token from `ca token`; better in PQCSUITE_ENROLL_TOKEN, since other users can read command lines")
+    p.add_argument("--token", help="one-time token from `ca token`; better in ACXELIN_TLS_ENROLL_TOKEN, since other users can read command lines")
     p.add_argument("--cn", dest="common_name")
     p.add_argument("--san", action="append", default=[])
     p.add_argument("--out", default=".")

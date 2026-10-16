@@ -8,10 +8,11 @@ import time
 import unittest
 from pathlib import Path
 
-from pqcsuite import tls
-from pqcsuite.pki import CA
-from pqcsuite.tls.server import Server
-from tests.helpers import REASON, wait
+from acxelin_core import tls
+import support
+from acxelin_core.pki import CA
+from acxelin_core.server import Server
+from support import REASON, wait
 
 
 class Recorder:
@@ -54,14 +55,14 @@ class ReplayTest(unittest.TestCase):
             data = conn.recv(timeout=5)
             self.requests.append(data)
             conn.sendall(b"done: " + data)
-        make = lambda: tls.server_context(srv / "chain.pem", srv / "key.pem", str(self.cafile), True)
+        make = lambda: support.server_context(srv / "chain.pem", srv / "key.pem", str(self.cafile), True)
         self.server = Server(("127.0.0.1", 0), make, handler, crl=str(d / "pki" / "crl.pem"), ca=str(self.cafile), handshake_timeout=5)
         self.server.start()
         self.addCleanup(self.server.stop, 1)
 
     def test_a_recorded_session_sent_again_is_refused_and_does_nothing(self):
         rec = Recorder(("127.0.0.1", self.server.port))
-        ctx = tls.client_context(self.cafile, self.client_dir / "chain.pem", self.client_dir / "key.pem")
+        ctx = support.client_context(self.cafile, self.client_dir / "chain.pem", self.client_dir / "key.pem")
         with tls.connect("127.0.0.1", rec.port, ctx, "localhost", 5) as c:
             c.sendall(b"transfer 100 to alice")
             self.assertEqual(c.recv(timeout=5), b"done: transfer 100 to alice")
@@ -84,12 +85,12 @@ class ReplayTest(unittest.TestCase):
         self.assertGreaterEqual(self.server.stats.snapshot()["handshake_failed"], 3)
 
     def test_no_early_data_so_nothing_is_accepted_before_the_handshake_completes(self):
-        ctx = tls.client_context(self.cafile, self.client_dir / "chain.pem", self.client_dir / "key.pem")
+        ctx = support.client_context(self.cafile, self.client_dir / "chain.pem", self.client_dir / "key.pem")
         for _ in range(2):  # a second connection could resume a session; neither may carry 0-RTT data
             with tls.connect("127.0.0.1", self.server.port, ctx, "localhost", 5) as c:
                 c.sendall(b"ping")
                 self.assertEqual(c.recv(timeout=5), b"done: ping")
-        from pqcsuite.tls.openssl import PROTOTYPES
+        from acxelin_core.openssl import PROTOTYPES
         bound = [name for table in PROTOTYPES.values() for name, _, _ in table]
         # OpenSSL refuses 0-RTT unless max_early_data is set; the bridge binds no early-data call at all
         self.assertFalse([n for n in bound if "early_data" in n], "TLS 1.3 early data (replayable 0-RTT) must stay off")

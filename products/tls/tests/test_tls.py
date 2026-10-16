@@ -15,11 +15,12 @@ from pathlib import Path
 
 from cryptography import x509
 
-from pqcsuite import tls
-from pqcsuite.pki import CA
-from pqcsuite.tls.edge import Edge, Route, metrics_text
-from pqcsuite.tls.server import Server
-from tests.helpers import REASON, wait
+from acxelin_core import tls
+import support_tls
+from acxelin_core.pki import CA
+from acxelin_tls.edge import Edge, Route, metrics_text
+from acxelin_core.server import Server
+from support_tls import REASON, wait
 
 
 def echo(conn, addr):
@@ -48,7 +49,7 @@ class TLSTest(unittest.TestCase):
         cls.tmp.cleanup()
 
     def server(self, policy="strict", mtls=False, handler=echo):
-        make = lambda: tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", self.cafile, mtls, policy, b"server-pass")
+        make = lambda: support_tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", self.cafile, mtls, policy, b"server-pass")
         s = Server(("127.0.0.1", 0), make, handler, crl=self.crl if mtls else None, ca=self.cafile, handshake_timeout=3)
         s.start()
         self.addCleanup(s.stop, 1)
@@ -56,7 +57,7 @@ class TLSTest(unittest.TestCase):
 
     def client(self, who=None, policy="strict", ca=None):
         cert, key = (who / "chain.pem", who / "key.pem") if who else (None, None)
-        return tls.client_context(ca or self.cafile, cert, key, policy)
+        return support_tls.client_context(ca or self.cafile, cert, key, policy)
 
     def roundtrip(self, port, ctx, name="localhost"):
         with tls.connect("127.0.0.1", port, ctx, name, timeout=3) as c:
@@ -64,10 +65,10 @@ class TLSTest(unittest.TestCase):
             return c.info(), c.recv(timeout=3)
 
     def test_a_client_without_post_quantum_support_gets_an_actionable_log_line(self):
-        from pqcsuite.tls.openssl import Context
+        from acxelin_core.openssl import Context
         s = self.server()
         classical = Context(False, "X25519:secp256r1", None, tls.CIPHERSUITES, None, None, None, False)
-        with self.assertLogs("pqcsuite", "WARNING") as logs:
+        with self.assertLogs("acxelin_core", "WARNING") as logs:
             with self.assertRaises(tls.TLSError):
                 tls.connect("127.0.0.1", s.port, classical, "localhost", timeout=3)
             wait(lambda: any("post-quantum key exchange" in m for m in logs.output), 3)
@@ -146,11 +147,11 @@ class TLSTest(unittest.TestCase):
     def test_a_damaged_crl_refuses_everyone_and_says_why(self):
         crl = Path(self.tmp.name) / "damaged-crl.pem"
         crl.write_bytes(b"-----BEGIN X509 CRL-----\nAAAA\n-----END X509 CRL-----\n")
-        make = lambda: tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", self.cafile, True, key_passphrase=b"server-pass")
+        make = lambda: support_tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", self.cafile, True, key_passphrase=b"server-pass")
         s = Server(("127.0.0.1", 0), make, echo, crl=str(crl), ca=self.cafile, handshake_timeout=3)
         s.start()
         self.addCleanup(s.stop, 1)
-        with self.assertLogs("pqcsuite", "WARNING") as logs:
+        with self.assertLogs("acxelin_core", "WARNING") as logs:
             try:
                 reply = self.roundtrip(s.port, self.client(self.alice))[1]
             except (tls.TLSError, OSError):
@@ -172,7 +173,7 @@ class TLSTest(unittest.TestCase):
         self.assertEqual(s.stats.snapshot()["handshake_failed"], 1)
 
     def test_one_host_opening_silent_sockets_cannot_lock_others_out(self):
-        make = lambda: tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", key_passphrase=b"server-pass")
+        make = lambda: support_tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", key_passphrase=b"server-pass")
         s = Server(("127.0.0.1", 0), make, echo, max_connections=32, handshake_timeout=10)
         s.start()
         self.addCleanup(s.stop, 1)
@@ -188,7 +189,7 @@ class TLSTest(unittest.TestCase):
     def test_renewed_certificate_is_picked_up_without_restart(self):
         d = Path(self.tmp.name) / "hot"
         _, rec = self.ca.issue("localhost", "server", out=d)
-        make = lambda: tls.server_context(d / "chain.pem", d / "key.pem")
+        make = lambda: support_tls.server_context(d / "chain.pem", d / "key.pem")
         s = Server(("127.0.0.1", 0), make, echo, watch=[d / "chain.pem", d / "key.pem"])
         s.start()
         self.addCleanup(s.stop, 1)
@@ -208,7 +209,7 @@ class TLSTest(unittest.TestCase):
 
     def test_wrong_key_passphrase_is_explained(self):
         with self.assertRaisesRegex(tls.TLSError, "passphrase"):
-            tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", policy_name="strict", key_passphrase=b"nope")
+            support_tls.server_context(self.srv / "chain.pem", self.srv / "key.pem", policy_name="strict", key_passphrase=b"nope")
 
 
 class Upstream(SimpleHTTPRequestHandler):
@@ -252,7 +253,7 @@ class EdgeTest(unittest.TestCase):
         with ThreadPoolExecutor(16) as pool:
             results = list(pool.map(get, ["/big"] * 50))
         self.assertTrue(all(r == b"x" * 100000 for r in results))
-        self.assertIn('pqcsuite_group_total{edge="web",group="X25519MLKEM768"} 51', metrics_text([edge, tunnel]))
+        self.assertIn('acxelin_tls_group_total{edge="web",group="X25519MLKEM768"} 51', metrics_text([edge, tunnel]))
         self.assertEqual(edge.stats.snapshot().get("handshake_failed", 0), 0)
 
     def test_a_client_that_pauses_longer_than_the_handshake_deadline_still_gets_everything(self):
@@ -271,7 +272,7 @@ class EdgeTest(unittest.TestCase):
         edge = Edge(Route("slow", "terminate", "127.0.0.1:0", f"127.0.0.1:{up.getsockname()[1]}", cert=str(srv / "chain.pem"),
                           key=str(srv / "key.pem"), handshake_timeout=1.0)).start()
         self.addCleanup(edge.stop)
-        with tls.connect("127.0.0.1", edge.port, tls.client_context(str(d / "pki" / "ca.crt")), "localhost", 10) as c:
+        with tls.connect("127.0.0.1", edge.port, support_tls.client_context(str(d / "pki" / "ca.crt")), "localhost", 10) as c:
             got = len(c.recv())
             time.sleep(2.5)
             while data := c.recv():
@@ -284,7 +285,7 @@ class EdgeTest(unittest.TestCase):
         d = Path(tempfile.mkdtemp())
         ca = CA.init(d / "pki", "Root")
         srv, _ = ca.issue("localhost", "server", ["127.0.0.1"], out=d / "srv")
-        sctx, cctx = tls.server_context(str(srv / "chain.pem"), str(srv / "key.pem")), tls.client_context(str(d / "pki" / "ca.crt"))
+        sctx, cctx = support_tls.server_context(str(srv / "chain.pem"), str(srv / "key.pem")), support_tls.client_context(str(d / "pki" / "ca.crt"))
         ls = socket.create_server(("127.0.0.1", 0))
         self.addCleanup(ls.close)
         for size in range(96 << 10, 320 << 10, 8 << 10):
@@ -314,7 +315,7 @@ class EdgeTest(unittest.TestCase):
         for _ in range(2):
             with socket.create_server(("127.0.0.1", 0)) as s:
                 ports.append(s.getsockname()[1])
-        edge = subprocess.Popen([sys.executable, "-m", "pqcsuite", "tls", "edge", "--listen", f"127.0.0.1:{ports[0]}", "--target", "127.0.0.1:1",
+        edge = subprocess.Popen([sys.executable, "-m", "acxelin_tls", "edge", "--listen", f"127.0.0.1:{ports[0]}", "--target", "127.0.0.1:1",
                                  "--cert", srv / "chain.pem", "--key", srv / "key.pem", "--workers", "3", "--metrics", f"127.0.0.1:{ports[1]}"],
                                 stderr=subprocess.PIPE, text=True)
         self.addCleanup(edge.stderr.close)
@@ -326,7 +327,7 @@ class EdgeTest(unittest.TestCase):
             self.assertTrue(line, "edge exited")
             listening += "edge: listening" in line
         status = lambda: json.load(urllib.request.urlopen(f"http://127.0.0.1:{ports[1]}/status", timeout=5))["edge"]
-        ctx = tls.client_context(d / "pki" / "ca.crt")
+        ctx = support_tls.client_context(d / "pki" / "ca.crt")
         for _ in range(30):
             tls.connect("127.0.0.1", ports[0], ctx, "localhost", 5).close()
         time.sleep(2.5)

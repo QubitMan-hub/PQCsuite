@@ -10,16 +10,17 @@ import time
 import unittest
 from pathlib import Path
 
-from pqcsuite import tls
-from pqcsuite.pki import CA
-from pqcsuite.tls.server import Server
-from tests.helpers import REASON
+from acxelin_core import tls
+from acxelin_core.pki import CA
+from acxelin_core.server import Server
+import support_tls
+from support_tls import REASON
 
 
 def cli(*args, cwd):
-    r = subprocess.run([sys.executable, "-m", "pqcsuite", *map(str, args)], cwd=cwd, capture_output=True, text=True, env={**os.environ, "PQCSUITE_CA_PASSPHRASE": "ca-pass"})
+    r = subprocess.run([sys.executable, "-m", "acxelin_tls", *map(str, args)], cwd=cwd, capture_output=True, text=True, env={**os.environ, "ACXELIN_TLS_CA_PASSPHRASE": "ca-pass"})
     if r.returncode:
-        raise AssertionError(f"pqcsuite {' '.join(map(str, args))} failed: {r.stderr}")
+        raise AssertionError(f"acxelin-tls {' '.join(map(str, args))} failed: {r.stderr}")
     return r.stdout
 
 
@@ -34,29 +35,24 @@ class RecoveryTest(unittest.TestCase):
             cli("ca", "issue", "--dir", "pki", "client", "mallory", "--out", "mallory", cwd=d)
             mallory = next(r for r in CA(d / "pki").records() if r.common_name == "mallory").serial
             cli("ca", "revoke", "--dir", "pki", mallory, cwd=d)
-            cli("vault", "keygen", "ops", "--no-passphrase", cwd=d)
-            cli("vault", "keygen", "offline", "--no-passphrase", cwd=d)
-            cli("vault", "backup", "pki", "--to", "backups", "-r", "ops.pub", "-r", "offline.pub", cwd=d)
-            archive = next((d / "backups").glob("*.pqv"))
-            self.assertIn("nothing was written", cli("vault", "verify", archive, "--key", "offline.key", cwd=d))
+            shutil.copytree(d / "pki", d / "backup" / "pki")  # the operator's own backup of the CA folder, made with any tool
 
             shutil.rmtree(d / "pki")
             start = time.monotonic()
-            archive = next((d / "backups").glob("*.pqv"))
-            cli("vault", "decrypt", archive, "--key", "offline.key", "-o", "restored", cwd=d)
+            shutil.copytree(d / "backup", d / "restored")
             root = d / "restored" / "pki"
             cli("ca", "list", "--dir", root, cwd=d)
             restore_s = time.monotonic() - start
 
             cafile = str(root / "ca.crt")
-            make = lambda: tls.server_context(d / "srv" / "chain.pem", d / "srv" / "key.pem", cafile, True)
+            make = lambda: support_tls.server_context(d / "srv" / "chain.pem", d / "srv" / "key.pem", cafile, True)
             s = Server(("127.0.0.1", 0), make, lambda conn, addr: conn.sendall(b"ok"), crl=str(root / "crl.pem"), ca=cafile, handshake_timeout=5)
             s.start()
             self.addCleanup(s.stop, 1)
 
             def connects(who):
                 try:
-                    ctx = tls.client_context(cafile, d / who / "chain.pem", d / who / "key.pem")
+                    ctx = support_tls.client_context(cafile, d / who / "chain.pem", d / who / "key.pem")
                     with tls.connect("127.0.0.1", s.port, ctx, "localhost", 5) as c:
                         return c.recv(timeout=5) == b"ok"
                 except (tls.TLSError, OSError):

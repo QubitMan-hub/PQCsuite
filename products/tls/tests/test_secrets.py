@@ -16,9 +16,9 @@ from pathlib import Path
 from cryptography.hazmat.primitives import serialization
 
 from pqcsuite.console import App, Settings, serve
-from pqcsuite.pki import CA, generate
+from acxelin_core.pki import CA, generate
 from pqcsuite.pki.est import Service, create_token
-from pqcsuite.tls.http import HTTPError
+from acxelin_core.https import HTTPError
 
 CA_PASS, KEY_PASS, TOKEN = "ca-pass-7f3e91", "key-pass-2b8c44", "console-token-9d1a07"
 

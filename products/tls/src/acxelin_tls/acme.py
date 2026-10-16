@@ -1,7 +1,7 @@
-"""ACME (RFC 8555) in front of the pqcsuite CA, so standard ACME clients obtain and renew ML-DSA certificates.
+"""ACME (RFC 8555) in front of the Acxelin TLS CA, so standard ACME clients obtain and renew ML-DSA certificates.
 
 Accounts sign requests with classical keys (RS256, ES256/384/512 or EdDSA), as every ACME client does. The certificates they
-get are ML-DSA: the CSR must carry an ML-DSA public key (certbot `--csr`, or `pqcsuite` generating it). Identifiers are
+get are ML-DSA: the CSR must carry an ML-DSA public key (certbot `--csr`, or `acxelin-tls ca csr` generating it). Identifiers are
 proved with http-01 (RFC 8555) for DNS names and IP addresses (RFC 8738). External account binding (RFC 8555 7.3.4) keeps
 strangers from registering. The ACME service itself speaks ordinary HTTPS, because ACME clients cannot yet verify ML-DSA
 server certificates: give it a classical certificate, or run it on localhost behind a terminating proxy.
@@ -30,10 +30,12 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
-from .. import HTTP_IDLE, NAME, __version__, content_length
-from . import CAError, cert_pem, locked, now, write
+from acxelin_core.http import HTTP_IDLE, content_length, hostport
+from acxelin_core.pki import CAError, cert_pem, general_names, generate, key_pem, locked, now, write
 
-log = logging.getLogger("pqcsuite.acme")
+from . import NAME, __version__
+
+log = logging.getLogger(__name__)
 ERR = "urn:ietf:params:acme:error:"
 CURVES = {"P-256": (ec.SECP256R1(), hashes.SHA256(), "ES256"), "P-384": (ec.SECP384R1(), hashes.SHA384(), "ES384"),
           "P-521": (ec.SECP521R1(), hashes.SHA512(), "ES512")}
@@ -430,7 +432,7 @@ class Service:
             cert, rec = self.ca.sign(csr.public_key(), cn[0] if cn else values[0], "server", values, self.days)
         except CAError as e:
             o["status"] = "ready"
-            raise Problem("badCSR", f"{e}; ask for an ML-DSA key (for example certbot --csr with a CSR from `pqcsuite csr`)") from None
+            raise Problem("badCSR", f"{e}; ask for an ML-DSA key (for example certbot --csr with a CSR from `acxelin-tls ca csr`)") from None
         cid = secrets.token_hex(8)
         self.state["certs"][cid] = {"account": account, "serial": rec.serial, "pem": (cert_pem(cert) + self.ca.chain()).decode()}
         o["status"], o["cert"] = "valid", cid
@@ -520,7 +522,6 @@ def serve(service, listen, tls_cert=None, tls_key=None):
         def log_message(self, fmt, *args):
             log.debug(fmt, *args)
 
-    from ..tls import hostport
     httpd = ThreadingHTTPServer(hostport(listen, "127.0.0.1"), Handler)
     httpd.service = service
     if tls_cert:
@@ -533,7 +534,6 @@ def serve(service, listen, tls_cert=None, tls_key=None):
 
 def make_csr(names, out, algorithm="ML-DSA-65", passphrase=None):
     """An ML-DSA key and CSR for ACME clients that take a CSR file (certbot --csr)."""
-    from . import general_names, generate, key_pem
     key = generate(algorithm)
     csr = (x509.CertificateSigningRequestBuilder().subject_name(x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, names[0])]))
            .add_extension(x509.SubjectAlternativeName(general_names(names)), critical=False).sign(key, None))

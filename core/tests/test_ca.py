@@ -9,7 +9,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-from pqcsuite.pki import CA, CAError, check_revocation, generate, write
+from acxelin_core.pki import CA, CAError, check_revocation, generate, write
 
 
 class CATest(unittest.TestCase):
@@ -133,7 +133,7 @@ class CATest(unittest.TestCase):
     def test_signature_checks_say_no_or_explain_but_never_hide_errors(self):
         from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.primitives.asymmetric import ec
-        from pqcsuite.pki import signed_by
+        from acxelin_core.pki import signed_by
         cert = self.ca.cert
         self.assertTrue(signed_by(cert, cert.tbs_certificate_bytes, cert.signature))
         self.assertFalse(signed_by(cert, cert.tbs_certificate_bytes, b"\0" * len(cert.signature)))

@@ -16,8 +16,8 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 
-from pqcsuite.pki.acme import Service, b64u, create_eab, make_csr, serve
-from pqcsuite.pki import CA, CAError, check_revocation
+from acxelin_tls.acme import Service, b64u, create_eab, make_csr, serve
+from acxelin_core.pki import CA, CAError, check_revocation
 
 try:
     import josepy as jose
@@ -256,7 +256,7 @@ class ValidationTest(unittest.TestCase):
             for n, ip in enumerate(["127.0.0.1", "169.254.169.254", "::1", "0.0.0.0", "10.0.0.5"]):
                 svc.state["authz"][str(n)] = {"account": "a", "identifier": {"type": "ip", "value": ip}, "status": "pending",
                                               "token": "t", "challenge_status": "pending", "error": None, "validated": None}
-                with self.subTest(ip=ip), mock.patch("pqcsuite.pki.acme.FETCH.open", side_effect=OSError("connection refused")) as fetch:
+                with self.subTest(ip=ip), mock.patch("acxelin_tls.acme.FETCH.open", side_effect=OSError("connection refused")) as fetch:
                     svc.validate(str(n), "t.tp")
                     self.assertEqual(svc.state["authz"][str(n)]["status"], "invalid")
                     self.assertEqual(fetch.called, ip == "10.0.0.5", "private networks are validated; the others never reached")
@@ -280,7 +280,7 @@ class ValidationTest(unittest.TestCase):
             self.assertEqual(svc.state["authz"]["z"]["status"], "invalid")
 
     def test_wrong_json_types_are_malformed_requests_not_crashes(self):
-        from pqcsuite.pki.acme import Problem
+        from acxelin_tls.acme import Problem
         with tempfile.TemporaryDirectory() as d:
             svc = Service(CA.init(Path(d) / "pki", "R"), "http://acme")
             for prot in ({"kid": 5}, {"jwk": "x"}, ["x"]):

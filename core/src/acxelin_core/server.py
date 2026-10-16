@@ -9,11 +9,12 @@ from pathlib import Path
 
 from cryptography import x509
 
-from .. import file_stamp
-from ..pki import CAError, check_revocation, shared
+from .files import shared
+from .http import file_stamp
+from .pki import CAError, check_revocation
 from .openssl import TLSError
 
-log = logging.getLogger("pqcsuite.tls")
+log = logging.getLogger(__name__)
 
 
 HINTS = {  # OpenSSL's words for the two ways a client without post-quantum support is refused

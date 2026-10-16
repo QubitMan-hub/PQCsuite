@@ -7,10 +7,11 @@ from pathlib import Path
 
 from cryptography import x509
 
-from pqcsuite import tls
-from pqcsuite.pki import est
-from pqcsuite.pki import CA, CAError, generate
-from tests.helpers import REASON
+from acxelin_core import tls
+import support
+from acxelin_core.pki import est
+from acxelin_core.pki import CA, CAError, generate
+from support import REASON
 
 
 @unittest.skipIf(REASON, REASON)
@@ -74,7 +75,7 @@ class ESTTest(unittest.TestCase):
                .sign(ec.generate_private_key(ec.SECP256R1()), hashes.SHA256()))
         auth = base64.b64encode(f"{tid}:{secret}".encode()).decode()
         with self.assertRaisesRegex(CAError, "403.*ML-DSA"):
-            est._call(self.url, tls.client_context(self.cafile), "/simpleenroll", base64.encodebytes(csr.public_bytes(Encoding.DER)),
+            est._call(self.url, support.client_context(self.cafile), "/simpleenroll", base64.encodebytes(csr.public_bytes(Encoding.DER)),
                       {"Content-Type": "application/pkcs10", "Authorization": f"Basic {auth}"}, "localhost")
         est.enroll(self.url, token, "web4.acme", [], self.d / "web4", self.cafile)
 
@@ -113,7 +114,7 @@ class ESTTest(unittest.TestCase):
             import base64, os, sys
             from unittest import mock
             from cryptography import x509
-            from pqcsuite.pki import CA, est, generate
+            from acxelin_core.pki import CA, est, generate
             ca = CA(sys.argv[1])
             tid, _, secret = sys.argv[2].partition(".")
             csr = x509.load_der_x509_csr(base64.b64decode(est._csr(generate("ML-DSA-65"), "crash.acme", [])))
@@ -129,16 +130,16 @@ class ESTTest(unittest.TestCase):
     def test_renewal_cannot_become_someone_else(self):
         token = est.create_token(self.ca, "app.acme", "server")
         est.enroll(self.url, token, "app.acme", [], self.d / "app", self.cafile)
-        ctx = tls.client_context(self.cafile, self.d / "app" / "chain.pem", self.d / "app" / "key.pem")
+        ctx = support.client_context(self.cafile, self.d / "app" / "chain.pem", self.d / "app" / "key.pem")
         with self.assertRaisesRegex(CAError, "403.*keeps its identity"):
             est._call(self.url, ctx, "/simplereenroll", est._csr(generate("ML-DSA-65"), "ca-admin.acme", []), {})
         with self.assertRaisesRegex(CAError, "401"):
-            est._call(self.url, tls.client_context(self.cafile), "/simplereenroll", est._csr(generate("ML-DSA-65"), "app.acme", []), {})
+            est._call(self.url, support.client_context(self.cafile), "/simplereenroll", est._csr(generate("ML-DSA-65"), "app.acme", []), {})
 
 
 class HTTPTest(unittest.TestCase):
     def test_a_request_trickled_a_byte_at_a_time_runs_out_of_time(self):
-        from pqcsuite.tls import http
+        from acxelin_core import https as http
 
         class Trickle:
             def recv(self, size, timeout):
