@@ -277,33 +277,6 @@ class TunnelTest(Scenario):
         self.assertEqual(r.stdout.strip(), "42", r.stderr)
 
 
-class EnrollTest(Scenario):
-    """A machine enrolls over EST with a one-time token, then uses its certificate for mutual TLS."""
-
-    def test_est_enroll_then_mutual_tls(self):
-        est_dir, _ = self.ca.issue("ca.internal", "server", ["127.0.0.1"], out=self.d / "est")
-        port = free_port()
-        self.pqc("ca", "serve", "--dir", self.d / "pki", "--listen", f"127.0.0.1:{port}", "--cert", est_dir / "chain.pem",
-                 "--key", est_dir / "key.pem", log="est.log")
-        wait_port(port)
-        run = lambda *a: subprocess.run([sys.executable, "-m", "pqcsuite", *map(str, a)], capture_output=True, text=True, timeout=60)
-        token = run("ca", "token", "--dir", self.d / "pki", "client", "laptop-7").stdout.strip().splitlines()[-1]
-        from pqcsuite.pki.est import fingerprint
-        fp = fingerprint(self.ca.cert)
-        r = subprocess.run([sys.executable, "-m", "pqcsuite", "ca", "enroll", f"https://127.0.0.1:{port}", "--cn", "laptop-7", "--ca-fingerprint", fp,
-                            "--server-name", "ca.internal", "--out", str(self.d / "laptop")], capture_output=True, text=True, timeout=60,
-                           env={**os.environ, "PQCSUITE_ENROLL_TOKEN": token})
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        r = run("ca", "enroll", f"https://127.0.0.1:{port}", "--token", token, "--cn", "laptop-7", "--ca-fingerprint", fp,
-                "--server-name", "ca.internal", "--out", self.d / "again")
-        self.assertNotEqual(r.returncode, 0, "a token works once")
-        before = (self.d / "laptop" / "cert.pem").read_bytes()
-        r = run("ca", "enroll", f"https://127.0.0.1:{port}", "--renew", self.d / "laptop", "--server-name", "ca.internal")
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertNotEqual((self.d / "laptop" / "cert.pem").read_bytes(), before)
-        ctx = tls.client_context(self.d / "laptop" / "ca.crt", self.d / "laptop" / "chain.pem", self.d / "laptop" / "key.pem")
-        with tls.connect("127.0.0.1", port, ctx, "ca.internal", 10) as c:
-            self.assertIsNotNone(c.peer_certificate())
 
 
 class VaultTest(Scenario):

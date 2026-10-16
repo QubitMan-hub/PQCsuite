@@ -194,3 +194,18 @@ def test_start_reuses_an_existing_automation_token(tmp_path):
     second = console.start(console.App(b"<script>1</script>", {}), tmp_path, port=0)
     second.shutdown()
     assert (tmp_path / "console.token").read_text() == token
+
+
+def test_a_console_can_listen_on_all_interfaces_in_a_container_and_still_refuses_foreign_hosts(tmp_path):
+    app = console.App(b"<script>1</script>", {})
+    server = console.start(app, tmp_path, port=0, host="0.0.0.0")
+    port = server.server_address[1]
+    try:
+        assert server.server_address[0] == "0.0.0.0"
+        assert urllib.request.urlopen(f"http://127.0.0.1:{port}/").status == 200
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/", headers={"Host": "evil.example"})
+        with pytest.raises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(req)
+        assert e.value.code == 421
+    finally:
+        server.shutdown()

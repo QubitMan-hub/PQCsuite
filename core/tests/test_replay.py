@@ -72,7 +72,10 @@ class ReplayTest(unittest.TestCase):
         for attempt in range(3):
             with self.subTest(attempt=attempt), socket.create_connection(("127.0.0.1", self.server.port), timeout=5) as raw:
                 raw.sendall(recorded)
-                raw.shutdown(socket.SHUT_WR)
+                try:
+                    raw.shutdown(socket.SHUT_WR)
+                except OSError:
+                    pass  # the server already refused the replay and closed first: that is the behaviour under test
                 answer = b""
                 try:
                     while chunk := raw.recv(65536):

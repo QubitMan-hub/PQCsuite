@@ -114,13 +114,14 @@ def config(path):
 
 
 def prerequisites():
-    """What this machine needs to run Acxelin TLS: (name, level, message, action)."""
+    """What this machine needs to run Acxelin TLS, as rows with product, level (ok, warn or fail), message and action."""
     import cryptography
     from acxelin_core import openssl
-    rows = [("ca", "ok", f"cryptography {cryptography.__version__} issues ML-DSA certificates", "")]
+    rows = [{"product": "ca", "level": "ok", "message": f"cryptography {cryptography.__version__} issues ML-DSA certificates", "action": ""}]
     reason = openssl.available()
     if reason:
-        rows.append(("tls", "fail", reason, "Install OpenSSL 3.5+ for this architecture and set ACXELIN_OPENSSL to its folder; run `acxelin-tls doctor` again"))
+        rows.append({"product": "tls", "level": "fail", "message": reason,
+                     "action": "Install OpenSSL 3.5+ for this architecture and set ACXELIN_OPENSSL to its folder; run `acxelin-tls doctor` again"})
     else:
-        rows.append(("tls", "ok", f"OpenSSL {openssl.lib().version} can do post-quantum TLS 1.3", ""))
+        rows.append({"product": "tls", "level": "ok", "message": f"OpenSSL {openssl.lib().version} can do post-quantum TLS 1.3", "action": ""})
     return rows

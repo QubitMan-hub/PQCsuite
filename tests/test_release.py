@@ -84,7 +84,7 @@ class SinceTest(unittest.TestCase):
 class BaseImageTest(unittest.TestCase):
     def test_every_build_and_ci_container_uses_the_pinned_python_base(self):
         root = Path(__file__).resolve().parent.parent
-        base = re.search(r"^ARG BASE=(\S+)$", (root / "Dockerfile").read_text(), re.M).group(1)
+        base = re.search(r"^ARG BASE=(\S+)$", (root / "products/tls/deploy/Dockerfile").read_text(), re.M).group(1)
         self.assertRegex(base, r"@sha256:[0-9a-f]{64}$", "the base image is pinned by digest")
         for f in ("docker/vpn-gateway.Dockerfile", ".github/workflows/ci.yml", ".github/workflows/release.yml", ".github/workflows/soak.yml"):
             with self.subTest(f):

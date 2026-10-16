@@ -7,6 +7,7 @@ import html
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -14,6 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC, OUT = ROOT / "website", ROOT / "build" / "site"
 SECTIONS = {
+    "tls": ("Acxelin TLS", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
+                            ("demo.html", "Demo"), ("security.html", "Security")]),
     "readiness": ("Acxelin Readiness", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
                                          ("sample.html", "Sample"), ("security.html", "Security")]),
 }
@@ -83,11 +86,21 @@ def sample(out):
     return html.escape(json.dumps(parts, indent=2))
 
 
+def tls_tour():
+    """The real output of `acxelin-tls try`. The build fails when it cannot run (it needs OpenSSL 3.5+): the page never shows invented output."""
+    run = subprocess.run([sys.executable, "-m", "acxelin_tls", "try"], capture_output=True, text=True, timeout=120)
+    if run.returncode:
+        sys.exit(f"acxelin-tls try failed (set ACXELIN_OPENSSL to an OpenSSL 3.5+ folder): {run.stderr or run.stdout}")
+    return html.escape(run.stdout.strip("\n"))
+
+
 def main():
     shutil.rmtree(OUT, ignore_errors=True)
     shutil.copytree(SRC / "assets", OUT / "assets")
-    (OUT / "readiness").mkdir(parents=True)
+    for section in SECTIONS:
+        (OUT / section).mkdir(parents=True)
     excerpt = sample(OUT)
+    tour = tls_tour()
     mark = logo()
     for src in sorted(SRC.rglob("*.html")):
         rel = src.relative_to(SRC)
@@ -98,7 +111,7 @@ def main():
         section = rel.parts[0] if len(rel.parts) > 1 else None
         root = "../" if section else ""
         name = SECTIONS[section][0] if section else "Acxelin Quantum"
-        body = text[meta.end():].replace("{{CBOM_EXCERPT}}", excerpt).replace("{root}", root).replace("<pre>", '<pre tabindex="0">')
+        body = text[meta.end():].replace("{{CBOM_EXCERPT}}", excerpt).replace("{{TLS_TOUR}}", tour).replace("{root}", root).replace("<pre>", '<pre tabindex="0">')
         values = {"title": meta.group(1), "description": meta.group(2), "root": root, "logo": mark, "product": name, "body": body,
                   "nav": nav(section, rel.name, root), "nav_label": name}
         page = LAYOUT

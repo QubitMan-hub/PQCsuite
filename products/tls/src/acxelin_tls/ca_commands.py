@@ -114,7 +114,7 @@ def cmd_enroll(a):
         if not sys.stdin.isatty():
             raise CAError('--guide needs an interactive terminal; automation should supply enrollment flags and secret environment variables')
         from .checks import prerequisites
-        failures = [r for r in prerequisites('tls') if r['level'] == 'fail']
+        failures = [r for r in prerequisites() if r['level'] == 'fail']
         if failures:
             raise CAError(failures[0]['message'] + '. ' + failures[0]['action'])
         a.url = a.url or input('Enrollment service HTTPS URL: ').strip()

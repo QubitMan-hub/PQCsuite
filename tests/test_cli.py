@@ -67,43 +67,12 @@ class CLITest(unittest.TestCase):
 
 
 
-    def test_config_files_name_what_is_missing_or_wrong(self):
+    def test_vpn_config_files_name_what_is_missing_or_wrong(self):
         cfg = self.d / "c.toml"
-        cfg.write_text('[[edge]]\nname = "a"\nlisten = "127.0.0.1:0"\n')
-        self.assertIn("missing mode, target", self.fails("tls", "edge", "--config", cfg))
-        cfg.write_text('[[edge]]\nmode = "terminate"\nlisten = "127.0.0.1:0"\ntarget = "127.0.0.1:1"\nmax_connections = "lots"\n')
-        self.assertIn("max_connections must be a whole number", self.fails("tls", "edge", "--config", cfg))
-        cfg.write_text('[[edge]]\nmode = "terminate"\nlisten = "127.0.0.1:0"\ntarget = "127.0.0.1:1"\nmax_connections = true\n')
-        self.assertIn("max_connections must be a whole number", self.fails("tls", "edge", "--config", cfg))
-        for number in ("nan", "inf", "-inf"):
-            cfg.write_text(f'[[edge]]\nmode = "terminate"\nlisten = "127.0.0.1:0"\ntarget = "127.0.0.1:1"\nidle_timeout = {number}\n')
-            self.assertIn("idle_timeout must be a finite number", self.fails("tls", "edge", "--config", cfg))
         cfg.write_text('[site]\nname = "x"\n')
         self.assertIn("[site]: missing address", self.fails("vpn", "up", "--config", cfg))
         cfg.write_text('[wireguard]\nname = "x"\n')
         self.assertIn("[wireguard]: missing endpoint", self.fails("vpn", "gateway", "--config", cfg))
-        text = '[[edge]]\nmode = "terminate"\nlisten = "127.0.0.1:0"\ntarget = "127.0.0.1:1"\n'
-        for data in (b"\xef\xbb\xbf" + text.encode(), b"\xff\xfe" + text.encode("utf-16-le")):
-            cfg.write_bytes(data)
-            self.assertIn("terminate needs cert and key", self.fails("tls", "edge", "--config", cfg))
-        cfg.write_bytes(b"\x80\x81 not text")
-        self.assertIn("is not UTF-8 text", self.fails("tls", "edge", "--config", cfg))
-        targets = self.d / "t.txt"
-        targets.write_bytes(b"\xef\xbb\xbfbank.example\r\n# note\r\nssh://gw\r\n")
-        from pqcsuite.readiness.scan import load_targets
-        self.assertEqual(load_targets([str(targets)]), ["bank.example", "ssh://gw"])
-
-    def test_nothing_to_do_is_an_error(self):
-        empty = self.d / "hosts.txt"
-        empty.write_text("# nothing yet\n")
-        typo = self.d / "typo.txt"
-        typo.write_text("bank.example\nbad host # typo\n")
-        for argv in (("ca", "crl", "--days", "0"), ("ca", "maintain", "--crl-days", "-1"), ("ca", "token", "server", "web", "--hours", "0")):
-            err = io.StringIO()
-            with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
-                main([*argv, "--dir", str(self.d / "nowhere")])
-            self.assertIn("expected a number above 0", err.getvalue(), argv)
-        self.assertIn("no CA at", self.fails("console", "--ca", self.d / "nowhere", "--listen", "127.0.0.1:0"))
 
     def test_every_option_explains_itself(self):
         import argparse
@@ -126,9 +95,6 @@ class CLITest(unittest.TestCase):
             main([])
         self.assertEqual(e.exception.code, 0)
         self.assertIn("pqcsuite try", out.getvalue())
-        cfg = self.d / "edge.toml"
-        cfg.write_text('[[route]]\nlisten = "0.0.0.0:443"\n')
-        self.assertIn("found [[route]]", self.fails("tls", "edge", "--config", cfg))
         import sys
         from unittest import mock
         with mock.patch.dict(sys.modules, {"vici": None}):
@@ -243,30 +209,6 @@ def test_setup_preserves_existing_config_and_separates_optional_tls(tmp_path, ca
     assert result.value.code == 0 and report['checks'][0]['product'] == 'vault'
 
 
-def test_guided_enrollment_keeps_secrets_out_of_output_and_requires_trust(tmp_path, capsys):
-    import datetime as dt
-    import pytest
-    from types import SimpleNamespace
-    from unittest.mock import patch
-    args = ['ca', 'enroll', '--guide', '--out', str(tmp_path/'device')]
-    cert = SimpleNamespace(serial_number=1, not_valid_after_utc=dt.datetime.now(dt.timezone.utc))
-    with patch('sys.stdin.isatty', return_value=True), patch('pqcsuite.checks.prerequisites', return_value=[]), \
-            patch('builtins.input', side_effect=['https://ca.example:9443', 'device-1', 'a'*64]), \
-            patch('getpass.getpass', side_effect=['PRIVATE_TOKEN', 'PRIVATE_PASSWORD', 'PRIVATE_PASSWORD']), \
-            patch.dict(os.environ, {'PQCSUITE_ENROLL_TOKEN': ''}), \
-            patch('pqcsuite.pki.est.fetch_ca') as fetch, patch('pqcsuite.pki.est.enroll', return_value=cert) as enroll:
-        with pytest.raises(SystemExit) as result:
-            main(args)
-        assert result.value.code == 0
-        assert fetch.call_args.args[1] == 'a'*64
-        assert enroll.call_args.kwargs['passphrase'] == b'PRIVATE_PASSWORD'
-        assert enroll.call_args.args[1] == 'PRIVATE_TOKEN'
-        assert 'PRIVATE_' not in capsys.readouterr().out
-    with patch('sys.stdin.isatty', return_value=False), patch('pqcsuite.pki.est.enroll') as enroll:
-        with pytest.raises(SystemExit) as result:
-            main(args)
-        assert result.value.code != 0
-        enroll.assert_not_called()
 
 
 def test_guided_device_key_connect_prompts_without_disclosing_secret(tmp_path, capsys):

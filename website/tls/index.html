@@ -1,0 +1,67 @@
+<!-- title: Acxelin TLS: post-quantum TLS in front of services that cannot change -->
+<!-- description: Acxelin TLS is an edge proxy and certificate authority. Clients that cannot do post-quantum key exchange are refused, and the service behind it stays exactly as it is. -->
+<section>
+<div class="hero">
+<div>
+<h1>Put post-quantum TLS in front of services that cannot change.</h1>
+<p class="lead">Acxelin TLS is an edge proxy and a certificate authority. A client that cannot do post-quantum key exchange is refused, and the service behind the edge keeps running exactly as it is.</p>
+<div class="actions"><a class="btn primary" href="set-up.html">Set up in three commands</a><a class="btn" href="demo.html">See it refuse a classical client</a></div>
+</div>
+<figure class="shot"><img src="{root}assets/tls-console.png" width="1280" height="860" alt="The Acxelin TLS console showing a certificate authority named Example Root CA, its revocation list, and a table of issued certificates with one revoked."><figcaption>The console: create the authority, issue and revoke certificates.</figcaption></figure>
+</div>
+</section>
+
+<section aria-labelledby="front">
+<h2 id="front">What you put it in front of</h2>
+<p>Traffic recorded today can be decrypted later by a quantum computer. The edge protects the connection without touching the service.</p>
+<dl class="rows">
+<div><dt>Any TCP service</dt><dd>A web application, PostgreSQL, pgvector, MQTT or anything else that listens on a port. The edge terminates post-quantum TLS and passes plain traffic on over the local network.</dd></div>
+<div><dt>A client that cannot change</dt><dd>A legacy client on one machine reaches a remote edge through a local port. The edge originates post-quantum TLS on its behalf.</dd></div>
+<div><dt>Mutual TLS</dt><dd>Require a client certificate from your own authority. A revoked client is refused as soon as the edge has the new revocation list.</dd></div>
+<div><dt>A ready-made setup</dt><dd><code>acxelin-tls bundle nginx --host web.example.com</code> writes the certificates, the edge configuration and a compose file for nginx, PostgreSQL, pgvector or MQTT.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="authority">
+<h2 id="authority">Your own certificate authority</h2>
+<p>The certificates are ML-DSA, a post-quantum signature. You run the authority that issues them.</p>
+<dl class="rows">
+<div><dt>Issue, renew, revoke</dt><dd>From the console or the command line. A daily <code>ca maintain</code> renews what expires soon and re-signs the revocation list.</dd></div>
+<div><dt>Enrol machines</dt><dd>Devices enrol with a one-time token over EST (RFC 7030). Standard ACME clients, such as certbot, obtain ML-DSA certificates over ACME (RFC 8555).</dd></div>
+<div><dt>Keep the root offline</dt><dd>Run an issuing authority under a root that never touches the server. The key can live in AWS KMS or behind your own signing command, though neither has been run against real hardware here.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="policies">
+<h2 id="policies">Three policies</h2>
+<div class="scroll"><table>
+<thead><tr><th>Policy</th><th>What a connection may use</th></tr></thead>
+<tbody>
+<tr><td><code>strict</code> (default)</td><td>Post-quantum key exchange and ML-DSA certificates only</td></tr>
+<tr><td><code>transition</code></td><td>Also classical clients while you migrate, with a classical fallback certificate for browsers</td></tr>
+<tr><td><code>cnsa2</code></td><td>NSA CNSA 2.0: ML-KEM-1024, ML-DSA-87 and AES-256 only</td></tr>
+</tbody></table></div>
+</section>
+
+<section aria-labelledby="runs">
+<h2 id="runs">Where it runs</h2>
+<div class="cols">
+<div><h3>Docker</h3><p>One image with OpenSSL 3.5 included.</p><pre><code>docker build -f products/tls/deploy/Dockerfile -t acxelin-tls .</code></pre></div>
+<div><h3>Kubernetes</h3><p>A Helm chart for the authority, EST, ACME and edges, and a sidecar example for one pod.</p><pre><code>helm lint products/tls/deploy/helm/acxelin-tls</code></pre></div>
+<div><h3>systemd</h3><p>A unit for the edge, and a unit with a daily timer for authority maintenance.</p><pre><code>systemctl enable --now acxelin-tls-edge</code></pre></div>
+</div>
+</section>
+
+<section aria-labelledby="limits">
+<h2 id="limits">What it does not claim</h2>
+<div class="note">
+<p>Browsers cannot verify ML-DSA certificates yet. For them, the <code>transition</code> policy serves a classical fallback certificate, and that connection is only as strong as classical TLS.</p>
+<p>A revoked certificate works until the edge next fetches the revocation list, which an edge that follows one does every 60 seconds by default. The service behind the edge sees plain traffic, so keep it on loopback or a private network.</p>
+</div>
+</section>
+
+<section aria-labelledby="start">
+<h2 id="start">Start with the one-minute tour</h2>
+<p>Nothing to set up: <code>acxelin-tls try</code> builds a certificate authority, a web server and an edge, and shows a classical client being refused.</p>
+<div class="actions"><a class="btn primary" href="set-up.html">Set up Acxelin TLS</a><a class="btn" href="how-it-works.html">How it works</a></div>
+</section>

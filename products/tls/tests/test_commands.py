@@ -104,3 +104,72 @@ class CommandTest(unittest.TestCase):
                 self.assertEqual(e.exception.code, 0)
         self.assertIn(b"ENCRYPTED", (self.d / "enc" / "ca.key").read_bytes())
         self.assertNotIn(b"ENCRYPTED", (self.d / "plain" / "ca.key").read_bytes())
+
+
+class CommandProblemsTest(CommandTest):
+    def test_config_files_name_what_is_missing_or_wrong(self):
+        cfg = self.d / "c.toml"
+        cfg.write_text('[[edge]]\nname = "a"\nlisten = "127.0.0.1:0"\n')
+        self.assertIn("missing mode, target", self.fails("edge", "--config", cfg))
+        base = 'mode = "terminate"\nlisten = "127.0.0.1:0"\ntarget = "127.0.0.1:1"\n'
+        for extra, words in (('max_connections = "lots"\n', "max_connections must be a whole number"), ("max_connections = true\n", "max_connections must be a whole number"),
+                             ("idle_timeout = nan\n", "idle_timeout must be a finite number"), ("idle_timeout = inf\n", "idle_timeout must be a finite number"),
+                             ("idle_timeout = -inf\n", "idle_timeout must be a finite number")):
+            cfg.write_text("[[edge]]\n" + base + extra)
+            self.assertIn(words, self.fails("edge", "--config", cfg))
+        text = "[[edge]]\n" + base
+        for data in (b"\xef\xbb\xbf" + text.encode(), b"\xff\xfe" + text.encode("utf-16-le")):
+            cfg.write_bytes(data)
+            self.assertIn("terminate needs cert and key", self.fails("edge", "--config", cfg))
+        cfg.write_bytes(b"\x80\x81 not text")
+        self.assertIn("is not UTF-8 text", self.fails("edge", "--config", cfg))
+
+    def test_numbers_that_must_be_positive_are_refused_in_words(self):
+        for argv in (("ca", "crl", "--days", "0"), ("ca", "maintain", "--crl-days", "-1"), ("ca", "token", "server", "web", "--hours", "0")):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+                main([*argv, "--dir", str(self.d / "nowhere")])
+            self.assertIn("expected a number above 0", err.getvalue(), argv)
+
+    def test_first_steps_are_explained(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as e:
+            main([])
+        self.assertEqual(e.exception.code, 0)
+        self.assertIn("acxelin-tls try", out.getvalue())
+        cfg = self.d / "edge.toml"
+        cfg.write_text('[[route]]\nlisten = "0.0.0.0:443"\n')
+        self.assertIn("found [[route]]", self.fails("edge", "--config", cfg))
+
+
+def test_guided_enrollment_keeps_secrets_out_of_output_and_requires_trust(tmp_path, capsys):
+    import datetime as dt
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    import pytest
+    args = ["ca", "enroll", "--guide", "--out", str(tmp_path / "device")]
+    cert = SimpleNamespace(serial_number=1, not_valid_after_utc=dt.datetime.now(dt.timezone.utc))
+    with patch("sys.stdin.isatty", return_value=True), patch("acxelin_tls.checks.prerequisites", return_value=[]), \
+            patch("builtins.input", side_effect=["https://ca.example:9443", "device-1", "a" * 64]), \
+            patch("getpass.getpass", side_effect=["PRIVATE_TOKEN", "PRIVATE_PASSWORD", "PRIVATE_PASSWORD"]), \
+            patch.dict(os.environ, {"ACXELIN_TLS_ENROLL_TOKEN": "", "PQCSUITE_ENROLL_TOKEN": ""}), \
+            patch("acxelin_core.pki.est.fetch_ca") as fetch, patch("acxelin_core.pki.est.enroll", return_value=cert) as enroll:
+        with pytest.raises(SystemExit) as result:
+            main(args)
+        assert result.value.code == 0
+        assert fetch.call_args.args[1] == "a" * 64
+        assert enroll.call_args.kwargs["passphrase"] == b"PRIVATE_PASSWORD"
+        assert enroll.call_args.args[1] == "PRIVATE_TOKEN"
+        assert "PRIVATE_" not in capsys.readouterr().out
+    with patch("sys.stdin.isatty", return_value=False), patch("acxelin_core.pki.est.enroll") as enroll:
+        with pytest.raises(SystemExit) as result:
+            main(args)
+        assert result.value.code != 0
+        enroll.assert_not_called()
+
+
+def test_prerequisites_rows_have_the_shape_the_commands_read():
+    from acxelin_tls import checks
+    rows = checks.prerequisites()
+    assert rows and all(set(r) == {"product", "level", "message", "action"} and r["level"] in ("ok", "warn", "fail") for r in rows)

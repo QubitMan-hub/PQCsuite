@@ -237,15 +237,17 @@ def new_automation_token(path):
     return token
 
 
-def start(app, home, port=8900):
+def start(app, home, port=8900, host="127.0.0.1"):
     """Serve `app` on loopback. The automation token lives in `home`/console.token (made once, owner-only), so
-    `acxelin-<product> console link` from another process can ask this one for a launch ticket."""
+    `acxelin-<product> console link` from another process can ask this one for a launch ticket.
+    `host` is loopback except inside a container, where the product passes 0.0.0.0 so a port published to the host's loopback reaches it;
+    the Host check still refuses every request that does not name a loopback host."""
     from pathlib import Path
     token_file = Path(home) / "console.token"
     Path(home).mkdir(parents=True, exist_ok=True)
     token = token_file.read_text().strip() if token_file.exists() else new_automation_token(token_file)
     app.sessions.tokens.add(token)
-    return serve(app, ("127.0.0.1", port))
+    return serve(app, (host, port))
 
 
 def link_running(port, home, tty=None):

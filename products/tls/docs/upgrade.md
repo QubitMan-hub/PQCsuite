@@ -32,7 +32,7 @@ Acxelin TLS replaces the suite's `tls` and `ca` commands, the TLS edge and the c
 
 ## The CA folder is unchanged
 
-The folder format is the same, so a CA folder from the suite works as it is, and a folder created by Acxelin TLS 1.0 works in the suite release. That is checked against fixtures made by the suite's code.
+The folder format is the same. A CA folder made by the suite (with its CRL and a revoked certificate) opens in Acxelin TLS, which is checked against fixtures the suite's code wrote. The reverse, opening a folder Acxelin TLS wrote with the old suite, is expected to work because the format didn't change, but it isn't tested.
 
 ## Rolling back
 

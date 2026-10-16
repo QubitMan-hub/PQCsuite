@@ -41,9 +41,9 @@ HELP = {
 def cmd_doctor(a):
     print(f"{NAME} {__version__}, Python {sys.version.split()[0]}")
     broken = False
-    for _, level, message, action in checks.prerequisites():
-        print(f"{'ok  ' if level == 'ok' else 'FAIL'}  {message}" + (f". {action}" if action else ""))
-        broken = broken or level == "fail"
+    for r in checks.prerequisites():
+        print(f"{'ok  ' if r['level'] == 'ok' else 'FAIL'}  {r['message']}" + (f". {r['action']}" if r['action'] else ""))
+        broken = broken or r["level"] == "fail"
     results = [r for d in a.ca for r in checks.ca(d)] + [r for f in a.config for r in checks.config(f)]
     mark = {"ok": "ok  ", "warn": "WARN", "fail": "FAIL"}
     for level, msg in results:

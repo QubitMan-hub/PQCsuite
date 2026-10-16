@@ -71,6 +71,7 @@ def main(argv=None):
     k.add_argument("action", nargs="?", choices=["link"])
     k.add_argument("--port", type=int, default=8900)
     k.add_argument("--home", metavar="DIR", help="where the console keeps its settings, workspace and token (default: ~/.acxelin-readiness)")
+    k.add_argument("--container", action="store_true", help="inside a container: listen on every interface so a published port reaches it (publish it to 127.0.0.1 only)")
     k.add_argument("--no-browser", action="store_true", help="do not open a browser; print the launch address instead")
     try:
         a = ap.parse_args(argv)
@@ -261,7 +262,7 @@ def console(a):
         except (OSError, ValueError) as e:
             sys.exit(f"acxelin-readiness: no console is running on port {a.port} ({e}); start one with `acxelin-readiness console`")
         return 0
-    return page.run(home, a.port, open_browser=not a.no_browser)
+    return page.run(home, a.port, open_browser=not a.no_browser and not a.container, host="0.0.0.0" if a.container else "127.0.0.1")
 
 
 def report_command(a):

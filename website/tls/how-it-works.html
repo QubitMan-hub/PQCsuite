@@ -1,0 +1,34 @@
+<!-- title: How Acxelin TLS works -->
+<!-- description: How the edge decides whether a connection is allowed, how the certificate authority keeps certificates and revocations current, and what the edge reports. -->
+<section>
+<h1>How a connection is decided</h1>
+<p class="lead">The edge's policy is checked on every connection. Nothing falls back silently: a connection that cannot meet the policy ends, and the log says why.</p>
+<ol class="steps">
+<li><h2>Key exchange</h2><p>Under <code>strict</code>, the client must offer a post-quantum group: X25519MLKEM768, SecP384r1MLKEM1024 or SecP256r1MLKEM768. A client that offers only classical groups is refused, and the log says the client offers no post-quantum key exchange.</p></li>
+<li><h2>Certificates</h2><p>Under <code>strict</code>, certificates must use ML-DSA. A client that cannot verify ML-DSA is refused, and the log says so.</p></li>
+<li><h2>Client certificate</h2><p>With <code>require_client_cert</code>, the client must present a certificate that chains to your authority and is not on its revocation list. Without a current list, the edge refuses everyone rather than let a revoked client in.</p></li>
+</ol>
+</section>
+
+<section aria-labelledby="authority">
+<h2 id="authority">The certificate authority</h2>
+<dl class="rows">
+<div><dt>Create</dt><dd><code>acxelin-tls ca init</code> makes a root (ML-DSA-87 by default) in a folder: its certificate, its key (encrypted unless you ask otherwise), an index of everything it issued, and the revocation list.</dd></div>
+<div><dt>Issue and renew</dt><dd>Certificates are ML-DSA-65 by default and last 397 days. <code>ca issue</code> makes a key and certificate, <code>ca renew</code> reissues, and <code>ca sign-csr</code> certifies a key made elsewhere.</dd></div>
+<div><dt>Revoke</dt><dd><code>ca revoke SERIAL</code> marks the certificate revoked and signs a new list. The list is valid for 7 days, so run <code>ca maintain</code> daily to keep it fresh.</dd></div>
+<div><dt>Reach the edges</dt><dd><code>ca publish</code> serves the root certificate and the list over HTTP. An edge on another machine follows the list with <code>crl_url</code> and keeps only one the authority signed, that has not expired and is not older than its copy.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="edge">
+<h2 id="edge">The edge</h2>
+<p>An edge is one or more routes. <code>terminate</code> puts post-quantum TLS in front of a plain service. <code>originate</code> lets a plain local client reach a remote edge. Changing the configuration file reloads it without a restart, and certificates are re-read when their files change.</p>
+<p>With <code>--metrics</code>, an edge serves <code>/healthz</code>, <code>/metrics</code> for Prometheus and <code>/status</code> as JSON: open connections, handshakes accepted and refused by reason, and connections by negotiated key-exchange group.</p>
+<div class="scroll"><table>
+<thead><tr><th>Metric</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>acxelin_tls_connections_active</code></td><td>open connections</td></tr>
+<tr><td><code>acxelin_tls_events_total</code></td><td>handshakes accepted and refused, by reason</td></tr>
+<tr><td><code>acxelin_tls_group_total</code></td><td>connections by negotiated key-exchange group</td></tr>
+</tbody></table></div>
+</section>

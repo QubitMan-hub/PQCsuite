@@ -231,7 +231,7 @@ class TLSConsole:
 
     @task
     def health(self, body):
-        rows = [{"level": level, "message": message, "action": action} for _, level, message, action in checks.prerequisites()]
+        rows = [{k: r[k] for k in ("level", "message", "action")} for r in checks.prerequisites()]
         if self._exists():
             rows += [{"level": level, "message": message, "action": ""} for level, message in checks.ca(self.ca_dir)]
         return 200, {"checks": rows, "version": __version__}
@@ -259,11 +259,11 @@ def build(home, ca_dir=None):
     return core.App(page(), routes)
 
 
-def run(home, port=8900, open_browser=True, ca_dir=None):
+def run(home, port=8900, open_browser=True, ca_dir=None, host="127.0.0.1"):
     """Start the console and sign this browser in: the launch address carries a single-use ticket in its fragment."""
     import webbrowser
     app = build(home, ca_dir)
-    server = core.start(app, home, port)
+    server = core.start(app, home, port, host)
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}/#{app.sessions.ticket()}"
     if open_browser and webbrowser.open(url):
@@ -289,7 +289,7 @@ def cmd_console(a):
         except (OSError, ValueError) as e:
             sys.exit(f"acxelin-tls: no console is running on port {a.port} ({e}); start one with `acxelin-tls console`")
         return 0
-    return run(home, a.port, open_browser=not a.no_browser, ca_dir=a.ca)
+    return run(home, a.port, open_browser=not a.no_browser and not a.container, ca_dir=a.ca, host="0.0.0.0" if a.container else "127.0.0.1")
 
 
 def add(sub):
@@ -299,4 +299,5 @@ def add(sub):
     p.add_argument("--port", type=int, default=8900)
     p.add_argument("--home", metavar="DIR", help="where the console keeps the CA, issued certificates and its token (default: ~/.acxelin-tls)")
     p.add_argument("--ca", metavar="DIR", help="manage this CA folder (default: HOME/ca)")
+    p.add_argument("--container", action="store_true", help="inside a container: listen on every interface so a published port reaches it (publish it to 127.0.0.1 only)")
     p.add_argument("--no-browser", action="store_true", help="do not open a browser; print the launch address instead")
