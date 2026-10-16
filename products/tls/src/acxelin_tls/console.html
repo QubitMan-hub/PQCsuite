@@ -26,7 +26,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 26px}
 .tabs button{font:500 15px var(--sans);background:none;border:0;border-bottom:2px solid transparent;padding:10px 16px;margin-bottom:-1px;color:var(--mute);cursor:pointer}
 .tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
-.split{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:40px}
+.split{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:36px}
 @media (max-width:860px){.split{grid-template-columns:1fr;gap:28px}}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .state{color:var(--mute);min-height:1.55em;margin:8px 0 18px}
@@ -34,7 +34,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
 table{border-collapse:collapse;width:100%;font-size:14px}
 th{text-align:left;font-weight:500;color:var(--mute);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
-.msg{min-height:1.55em;color:var(--bad);margin:0 0 14px}
+.msg{color:var(--bad);margin:0 0 14px}.msg:empty{margin:0}
 .ok-msg{color:var(--ok)}
 .empty{padding:20px 0;color:var(--mute);max-width:60ch}
 .legend{color:var(--mute);font-size:13px;margin:10px 0 0;max-width:80ch}
@@ -42,6 +42,7 @@ code.cmd{background:var(--sunken);border:1px solid var(--line);border-radius:6px
 .logo{width:150px}
 .facts{display:flex;flex-wrap:wrap;gap:6px 22px;margin:0 0 6px;color:var(--ink-2)}
 .edge{border-top:1px solid var(--line);padding:14px 0}
+td.nw{white-space:nowrap}
 .acts{list-style:none;padding:0;margin:8px 0 0}.acts li{padding:6px 0;border-bottom:1px solid var(--line)}
 .edge h3{font:500 16px var(--display);margin:0 0 4px}
 .result{margin-top:16px;padding:12px 14px;background:var(--sunken);border:1px solid var(--line);border-radius:8px}
@@ -149,9 +150,9 @@ async function refreshCerts() {
     if (c.has_files) acts.append(fileButton(c, false), ...(c.status === "valid" ? [fileButton(c, true), renewButton(c)] : []));
     if (c.status === "valid") acts.append(revokeButton(c));
     const state = c.status !== "valid" ? "Revoked" : c.renewed ? "Renewed" : "Valid";
-    return h("tr", {}, h("td", {}, c.common_name), h("td", {}, c.kind), h("td", {}, c.algorithm), h("td", {}, day(c.not_after)), h("td", {}, h("span", {class: "pill " + (state === "Valid" ? "ok" : state === "Renewed" ? "mute" : "bad")}, state)), h("td", {}, acts));
+    return h("tr", {}, h("td", {}, c.common_name), h("td", {class: "nw"}, (c.kind === "server" ? "Server" : "Client") + " · " + c.algorithm), h("td", {class: "nw"}, day(c.not_after)), h("td", {}, h("span", {class: "pill " + (state === "Valid" ? "ok" : state === "Renewed" ? "mute" : "bad")}, state)), h("td", {}, acts));
   });
-  out.replaceChildren(h("h2", {}, "Issued certificates"), data.certificates.length ? h("div", {class: "scroll"}, h("table", {}, h("thead", {}, h("tr", {}, ["Name", "Kind", "Algorithm", "Expires", "Status", "Actions"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
+  out.replaceChildren(h("h2", {}, "Issued certificates"), data.certificates.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Table, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Name", "Type", "Expires", "Status", "Actions"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
     : h("p", {class: "empty"}, "Nothing issued yet. Issue your first certificate on the left."),
     h("p", {class: "legend"}, "Download gives the certificate, its chain and the CA certificate. The private key is included only when you choose Download with key; every download is recorded."),
     activityList(state.status.activity || []));

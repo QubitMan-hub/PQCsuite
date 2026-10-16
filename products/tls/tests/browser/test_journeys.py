@@ -226,3 +226,27 @@ def test_download_with_and_without_key_renew_and_see_it_all_in_recent_activity(p
     page.get_by_text("Nothing needed renewing.", exact=False).wait_for()
     activity = page.inner_text("#activity")
     assert "Issued api.example.invalid" in activity and "Downloaded api.example.invalid (with key)" in activity and "Renewed api.example.invalid" in activity
+
+
+def test_no_browser_errors_through_every_view(browser, console, tmp_path):
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    problems = []
+    page.on("console", lambda m: m.type == "error" and problems.append(f"console: {m.text}"))
+    page.on("pageerror", lambda e: problems.append(f"exception: {e}"))
+    page.on("requestfailed", lambda r: problems.append(f"failed: {r.url} {r.failure}"))
+    page.on("response", lambda r: r.status >= 400 and problems.append(f"HTTP {r.status}: {r.url}"))
+    try:
+        VIEWS(page, console, tmp_path)
+        assert problems == []
+    finally:
+        ctx.close()
+
+
+def VIEWS(page, console, tmp_path):
+    open_console(page, console)
+    create_ca(page)
+    issue(page, "web.example.invalid")
+    for tab, ready in (("Edges", "No edges added yet"), ("Health", "can do post-quantum TLS 1.3"), ("Certificates", "Issued certificates")):
+        page.get_by_role("tab", name=tab).click()
+        page.get_by_text(ready).first.wait_for()

@@ -120,7 +120,7 @@ function results(p) {
   const assets = last.assets.filter((a) => !a.test_only);
   const rows = assets.map((a) => h("tr", {}, h("td", {}, a.name), h("td", {}, tier(a.tier)), h("td", {}, a.action || a.why || ""), h("td", {class: "num"}, String(a.locations.length)), h("td", {}, trackForm(a))));
   out.replaceChildren(h("p", {class: "state"}, "Scanned " + when(last.finished) + ". " + last.summary.crypto_assets + " cryptographic assets found."), counts,
-    assets.length ? h("div", {class: "scroll"}, h("table", {}, h("thead", {}, h("tr", {}, ["Asset", "Priority", "What to do", "Places", "Owner"].map((c) => h("th", {}, c)))), h("tbody", {}, rows))) : h("p", {class: "empty"}, "No cryptography was found in this repository."),
+    assets.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Table, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Asset", "Priority", "What to do", "Places", "Owner"].map((c) => h("th", {}, c)))), h("tbody", {}, rows))) : h("p", {class: "empty"}, "No cryptography was found in this repository."),
     last.notes && last.notes.length ? h("p", {class: "legend"}, last.notes.join(" ")) : "");
 }
 
@@ -171,7 +171,7 @@ function endpointResults(e) {
   const rows = last.endpoints.map((r) => h("tr", {}, h("td", {}, r.target), h("td", {}, h("span", {class: "pill " + GRADE_TONE[r.grade]}, r.grade)), h("td", {}, r.negotiated || r.error || ""),
     h("td", {}, r.certificate ? (r.certificate.key || "") + " · " + r.certificate.days_left + " days left" : "")));
   out.replaceChildren(h("p", {class: "state"}, "Checked " + when(last.finished) + ". " + last.summary.pq_key_exchange + " of " + last.summary.endpoints + " offer post-quantum key exchange."),
-    h("div", {class: "scroll"}, h("table", {}, h("thead", {}, h("tr", {}, ["Endpoint", "Grade", "Negotiated", "Certificate"].map((c) => h("th", {}, c)))), h("tbody", {}, rows))),
+    h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Table, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Endpoint", "Grade", "Negotiated", "Certificate"].map((c) => h("th", {}, c)))), h("tbody", {}, rows))),
     h("p", {class: "legend"}, Object.entries(GRADES).map(([g, t]) => g + ": " + t).join(" · ")),
     last.changes.length ? h("div", {class: "changed"}, h("h2", {}, "Changed since the scan before"), h("ul", {class: "list"}, last.changes.map((c) => h("li", {}, c.target + ": " + c.before + " → " + c.after)))) : "",
     h("div", {class: "row", style: "margin-top:20px"}, h("button", {class: "btn quiet", id: "export", onclick: exportCbom}, "Download CBOM")),

@@ -111,7 +111,7 @@ def main():
         section = rel.parts[0] if len(rel.parts) > 1 else None
         root = "../" if section else ""
         name = SECTIONS[section][0] if section else "Acxelin Quantum"
-        body = text[meta.end():].replace("{{CBOM_EXCERPT}}", excerpt).replace("{{TLS_TOUR}}", tour).replace("{root}", root).replace("<pre>", '<pre tabindex="0">')
+        body = text[meta.end():].replace("{{CBOM_EXCERPT}}", excerpt).replace("{{TLS_TOUR}}", tour).replace("{root}", root).replace("<pre>", '<pre tabindex="0">').replace('<div class="scroll">', '<div class="scroll" tabindex="0" role="region" aria-label="Table, scrolls sideways">')
         values = {"title": meta.group(1), "description": meta.group(2), "root": root, "logo": mark, "product": name, "body": body,
                   "nav": nav(section, rel.name, root), "nav_label": name}
         page = LAYOUT

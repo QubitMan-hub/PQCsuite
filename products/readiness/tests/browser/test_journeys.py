@@ -183,3 +183,31 @@ def test_keyboard_only_reaches_setup_and_submits(page, console, repos):
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement !== document.body")
     time.sleep(0)
+
+
+def test_no_browser_errors_through_every_view(browser, console, tmp_path):
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    problems = []
+    page.on("console", lambda m: m.type == "error" and problems.append(f"console: {m.text}"))
+    page.on("pageerror", lambda e: problems.append(f"exception: {e}"))
+    page.on("requestfailed", lambda r: problems.append(f"failed: {r.url} {r.failure}"))
+    page.on("response", lambda r: r.status >= 400 and problems.append(f"HTTP {r.status}: {r.url}"))
+    try:
+        VIEWS(page, console, tmp_path)
+        assert problems == []
+    finally:
+        ctx.close()
+
+
+def VIEWS(page, console, tmp_path):
+    root = tmp_path / "views"
+    (root / "shop").mkdir(parents=True)
+    (root / "shop/keys.py").write_text("from cryptography.hazmat.primitives.asymmetric import rsa\nrsa.generate_private_key(public_exponent=65537, key_size=2048)\n")
+    open_console(page, console)
+    fill_setup(page, root)
+    scan_shop(page)
+    page.get_by_role("tab", name="Endpoints").click()
+    page.get_by_label("Hosts to check").wait_for()
+    page.get_by_role("tab", name="Projects").click()
+    page.get_by_role("cell", name="RSA", exact=False).first.wait_for()
