@@ -156,3 +156,41 @@ def test_core_imports_no_product_and_loads_no_openssl_on_import():
            "assert not bad, bad; assert 'acxelin_core.openssl' not in sys.modules"
     import subprocess
     assert subprocess.run([sys.executable, "-c", code], cwd=Path(__file__).parent).returncode == 0
+
+
+def test_ticket_route_mints_a_ticket_only_for_an_authorised_caller():
+    app = console.App(b"<script>1</script>", {})
+    app.sessions.tokens.add("automation-token")
+    server = console.serve(app, ("127.0.0.1", 0))
+    port = server.server_address[1]
+    try:
+        with pytest.raises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{port}/api/ticket", b"{}", {"Content-Type": "application/json"}))
+        assert e.value.code == 401
+        ok = urllib.request.Request(f"http://127.0.0.1:{port}/api/ticket", b"{}", {"Authorization": "Bearer automation-token", "Content-Type": "application/json"})
+        assert app.sessions.redeem(json.loads(urllib.request.urlopen(ok).read())["ticket"])
+    finally:
+        server.shutdown()
+
+
+def test_run_writes_the_automation_token_and_link_running_reaches_the_running_console(tmp_path, capsys):
+    app = console.App(b"<script>1</script>", {})
+    server = console.start(app, tmp_path, port=0)
+    port = server.server_address[1]
+    try:
+        assert (tmp_path / "console.token").exists()
+        url = console.link_running(port, tmp_path, tty=True)
+        assert url.startswith(f"http://127.0.0.1:{port}/#") and url in capsys.readouterr().out
+        assert app.sessions.redeem(url.split("#", 1)[1])
+        assert console.link_running(port, tmp_path, tty=False) is None and capsys.readouterr().out == ""
+    finally:
+        server.shutdown()
+
+
+def test_start_reuses_an_existing_automation_token(tmp_path):
+    first = console.start(console.App(b"<script>1</script>", {}), tmp_path, port=0)
+    token = (tmp_path / "console.token").read_text()
+    first.shutdown()
+    second = console.start(console.App(b"<script>1</script>", {}), tmp_path, port=0)
+    second.shutdown()
+    assert (tmp_path / "console.token").read_text() == token

@@ -205,6 +205,8 @@ def serve(app, listen=("127.0.0.1", 0)):
                 return self.reply(401, {"error": "sign in again: open the console from its command"})
             if not isinstance(body, dict):
                 return self.reply(*body)
+            if method == "POST" and path == "/api/ticket":
+                return self.reply(200, {"ticket": app.sessions.ticket()})
             handler = app.routes.get((method, path))
             if not handler:
                 return self.reply(404, {"error": "not found"})
@@ -233,3 +235,27 @@ def new_automation_token(path):
     token = secrets.token_urlsafe(32)
     write(path, (token + "\n").encode(), secret=True)
     return token
+
+
+def start(app, home, port=8900):
+    """Serve `app` on loopback. The automation token lives in `home`/console.token (made once, owner-only), so
+    `acxelin-<product> console link` from another process can ask this one for a launch ticket."""
+    from pathlib import Path
+    token_file = Path(home) / "console.token"
+    Path(home).mkdir(parents=True, exist_ok=True)
+    token = token_file.read_text().strip() if token_file.exists() else new_automation_token(token_file)
+    app.sessions.tokens.add(token)
+    return serve(app, ("127.0.0.1", port))
+
+
+def link_running(port, home, tty=None):
+    """Ask the console already running on `port` for a launch ticket and print its address (interactive terminals only)."""
+    import urllib.request
+    from pathlib import Path
+    if not (sys.stdout.isatty() if tty is None else tty):
+        return None
+    token = (Path(home) / "console.token").read_text().strip()
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/api/ticket", b"{}", {"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    url = f"http://127.0.0.1:{port}/#{json.loads(urllib.request.urlopen(req, timeout=5).read())['ticket']}"
+    print(url)
+    return url
