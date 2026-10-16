@@ -113,8 +113,8 @@ def test_issue_then_revoke_in_two_steps_and_the_list_shows_it(page, console):
     page.get_by_role("button", name="Revoke web.example.invalid").click()
     assert page.get_by_role("button", name="Confirm revoke").is_visible()
     page.get_by_role("button", name="Confirm revoke").click()
-    page.get_by_text("Revoked").first.wait_for()
-    assert page.get_by_text("1 revoked").is_visible()
+    page.get_by_text("1 revoked").wait_for()
+    assert page.get_by_role("cell", name="Revoked", exact=True).is_visible()
     page.get_by_role("button", name="Refresh revocation list").click()
     page.get_by_text("Revocation list valid for").wait_for()
 
