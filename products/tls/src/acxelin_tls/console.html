@@ -106,6 +106,7 @@ function shell() {
 
 // ---- certificates
 
+const factSpans = (s) => [s.algorithm, s.counts.valid + " valid", s.counts.revoked + " revoked", s.counts.expiring + " expiring within 30 days"].map((t) => h("span", {}, t));
 function crlLine(s) {
   if (!s.crl) return "No revocation list yet.";
   return "Revocation list valid for " + Math.max(0, Math.floor(s.crl.days_left)) + " more days (until " + day(s.crl.next_update) + ").";
@@ -131,11 +132,11 @@ async function certsView() {
   const form = h("form", {onsubmit: issue}, h("h2", {}, "Issue a certificate"), ...field("kind", "Kind", kind), ...field("cn", "Name", cn, "The name the certificate is for, such as web.example.com."),
     ...field("names", "Other names (one per line)", names), ...field("days", "Valid for (days)", days), h("div", {class: "row", style: "margin-top:16px"}, h("button", {class: "btn", type: "submit"}, "Issue certificate")), result);
   const list = h("div", {id: "cert-list"});
-  panel.replaceChildren(h("h1", {}, s.name), h("div", {class: "facts"}, h("span", {}, s.algorithm), h("span", {}, s.counts.valid + " valid"), h("span", {}, s.counts.revoked + " revoked"), h("span", {}, s.counts.expiring + " expiring within 30 days")),
+  panel.replaceChildren(h("h1", {}, s.name), h("div", {class: "facts", id: "facts"}, ...factSpans(s)),
     h("div", {class: "row", style: "margin:6px 0 24px"}, h("span", {class: "state", id: "crl-line", style: "margin:0"}, crlLine(s)), refresh), h("div", {class: "split"}, form, list));
   await refreshCerts();
 }
-async function reload() { state.status = await call("status"); const l = $("#crl-line"); if (l) l.textContent = crlLine(state.status); }
+async function reload() { state.status = await call("status"); const l = $("#crl-line"), f = $("#facts"); if (l) l.textContent = crlLine(state.status); if (f) f.replaceChildren(...factSpans(state.status)); }
 async function refreshCerts() {
   await reload();
   const out = $("#cert-list");
@@ -152,9 +153,10 @@ function revokeButton(c) {
   const b = h("button", {class: "btn danger small", "aria-label": "Revoke " + c.common_name}, "Revoke");
   let armed = false, timer;
   b.addEventListener("click", async () => {
-    if (!armed) { armed = true; b.textContent = "Confirm revoke"; timer = setTimeout(() => { armed = false; b.textContent = "Revoke"; }, 6000); return; }
+    const set = (text) => { b.textContent = text; b.setAttribute("aria-label", text + " " + c.common_name); };
+    if (!armed) { armed = true; set("Confirm revoke"); timer = setTimeout(() => { armed = false; set("Revoke"); }, 6000); return; }
     clearTimeout(timer);
-    try { await call("certificates/revoke", {serial: c.serial, reason: "unspecified"}); await refreshCerts(); } catch (e) { armed = false; b.textContent = "Revoke"; }
+    try { await call("certificates/revoke", {serial: c.serial, reason: "unspecified"}); await refreshCerts(); } catch (e) { armed = false; set("Revoke"); }
   });
   return b;
 }
