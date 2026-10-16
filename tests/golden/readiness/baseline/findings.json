@@ -1,0 +1,126 @@
+{
+  "notes": [],
+  "sightings": [
+    {
+      "algo": "RSA",
+      "file": "app.py",
+      "line": 2,
+      "evidence": "import",
+      "scout": "source",
+      "verdict": "accepted",
+      "confidence": 0.7,
+      "reason": "corroborated by call evidence on line 11",
+      "context": [],
+      "params": {
+        "lib": "cryptography"
+      },
+      "snippet": "from cryptography.hazmat.primitives.asymmetric import rsa"
+    },
+    {
+      "algo": "AES",
+      "file": "app.py",
+      "line": 3,
+      "evidence": "import",
+      "scout": "source",
+      "verdict": "accepted",
+      "confidence": 0.7,
+      "reason": "corroborated by call evidence on line 11",
+      "context": [],
+      "params": {
+        "lib": "cryptography"
+      },
+      "snippet": "from cryptography.hazmat.primitives.ciphers.aead import AESGCM"
+    },
+    {
+      "algo": "MD5",
+      "file": "app.py",
+      "line": 7,
+      "evidence": "call",
+      "scout": "source",
+      "verdict": "suppressed",
+      "confidence": 0.0,
+      "reason": "suppressed with a wolfpack:ignore comment",
+      "context": [],
+      "params": {},
+      "snippet": "return hashlib.md5(data).hexdigest()  # wolfpack:ignore (cache key, not security)"
+    },
+    {
+      "algo": "RSA",
+      "file": "app.py",
+      "line": 11,
+      "evidence": "call",
+      "scout": "source",
+      "verdict": "accepted",
+      "confidence": 1.0,
+      "reason": "corroborated by import evidence on line 2",
+      "context": [],
+      "params": {
+        "key_size": 2048,
+        "lib": "cryptography"
+      },
+      "snippet": "return rsa.generate_private_key(public_exponent=65537, key_size=2048), AESGCM(AESGCM.generate_key(bit_length=256))"
+    },
+    {
+      "algo": "AES",
+      "file": "app.py",
+      "line": 11,
+      "evidence": "call",
+      "scout": "source",
+      "verdict": "accepted",
+      "confidence": 1.0,
+      "reason": "corroborated by import evidence on line 3",
+      "context": [],
+      "params": {
+        "mode": "GCM",
+        "lib": "cryptography",
+        "key_size": 256
+      },
+      "snippet": "return rsa.generate_private_key(public_exponent=65537, key_size=2048), AESGCM(AESGCM.generate_key(bit_length=256))"
+    }
+  ],
+  "stats": {
+    "files_code": 1,
+    "files_config": 1,
+    "files_artifacts": 0,
+    "files_binary": 0,
+    "libraries": 0,
+    "endpoints": 0,
+    "raw_sightings": 8,
+    "accepted": 4,
+    "quarantined": 0,
+    "rejected": 0,
+    "suppressed": 1,
+    "promoted_on_second_look": 0,
+    "patterns": 0,
+    "second_look": {
+      "flow": 0,
+      "registries": 0,
+      "siblings": 0
+    },
+    "held_as_formats": 0,
+    "trails_followed": 0,
+    "roles_off": [],
+    "seconds": 0.01,
+    "horizon": {
+      "shelf_life": 10,
+      "migration": 5,
+      "crqc_year": 2035,
+      "years_to_crqc": 9
+    }
+  },
+  "readiness": {
+    "asymmetric": 1,
+    "pq_safe": 0,
+    "percent": 0,
+    "hybrid": false,
+    "tiers": {
+      "critical": 0,
+      "high": 1,
+      "medium": 0,
+      "low": 0,
+      "ok": 1
+    }
+  },
+  "compliance": {},
+  "patterns": []
+}

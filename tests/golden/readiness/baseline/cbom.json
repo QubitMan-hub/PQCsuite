@@ -1,0 +1,184 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:d4a1a335-3f99-49b2-aae5-5475da6a0425",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-16T11:06:47Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "wolfpack",
+          "version": "1.4.1"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "project",
+      "bom-ref": "root"
+    }
+  },
+  "components": [
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/RSA-2048",
+      "name": "RSA-2048",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "pke",
+          "cryptoFunctions": [
+            "keygen",
+            "encrypt",
+            "decrypt",
+            "sign",
+            "verify"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "2048",
+          "classicalSecurityLevel": 112,
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.2.840.113549.1.1.1"
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "app.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.asymmetric import rsa",
+            "line": 2
+          },
+          {
+            "location": "app.py",
+            "additionalContext": "call: return rsa.generate_private_key(public_exponent=65537, key_size=2048), AESGCM(AESGCM.generate_key(bit_length=256))",
+            "line": 11
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "high"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "34.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Deprecated after 2030, disallowed after 2035 (NIST IR 8547)"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"app.py#keys\"],\"callers\":[],\"modules\":[\"app\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "Harvest now, decrypt later: data needs 10y secrecy + 5y migration = 15y, but a CRQC is assumed in 9y (Mosca)"
+        },
+        {
+          "name": "wolfpack:recommendation",
+          "value": "ML-KEM-768 for encryption, ML-DSA-65 for signatures"
+        },
+        {
+          "name": "wolfpack:usage",
+          "value": "used"
+        },
+        {
+          "name": "wolfpack:remediation",
+          "value": "python: liboqs-python: `oqs.KeyEncapsulation(\"ML-KEM-768\")`, combined with X25519 in a hybrid | python: liboqs-python: `oqs.Signature(\"ML-DSA-65\")` | PQC Suite: PQC Suite Vault: re-encrypt stored data and backups with ML-KEM + AES-256-GCM (`pqcsuite vault`)"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/AES-256-GCM",
+      "name": "AES-256-GCM",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "block-cipher",
+          "cryptoFunctions": [
+            "encrypt",
+            "decrypt"
+          ],
+          "executionEnvironment": "unknown",
+          "implementationPlatform": "unknown",
+          "parameterSetIdentifier": "256",
+          "mode": "gcm",
+          "classicalSecurityLevel": 256,
+          "nistQuantumSecurityLevel": 5
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "app.py",
+            "additionalContext": "import: from cryptography.hazmat.primitives.ciphers.aead import AESGCM",
+            "line": 3
+          },
+          {
+            "location": "app.py",
+            "additionalContext": "call: return rsa.generate_private_key(public_exponent=65537, key_size=2048), AESGCM(AESGCM.generate_key(bit_length=256))",
+            "line": 11
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "wolfpack:tier",
+          "value": "ok"
+        },
+        {
+          "name": "wolfpack:risk-score",
+          "value": "4.0"
+        },
+        {
+          "name": "wolfpack:confidence",
+          "value": "1.0"
+        },
+        {
+          "name": "wolfpack:exposure",
+          "value": "application code"
+        },
+        {
+          "name": "wolfpack:nist-status",
+          "value": "Quantum-safe"
+        },
+        {
+          "name": "wolfpack:code-impact",
+          "value": "{\"functions\":[\"app.py#keys\"],\"callers\":[],\"modules\":[\"app\"],\"limited\":false,\"basis\":\"static references; runtime reachability and business ownership are not established\"}"
+        },
+        {
+          "name": "wolfpack:rationale",
+          "value": "At least 96-bit security even against Grover"
+        },
+        {
+          "name": "wolfpack:usage",
+          "value": "used"
+        },
+        {
+          "name": "wolfpack:remediation",
+          "value": "python: use AES-256-GCM: `AESGCM(AESGCM.generate_key(bit_length=256))` from pyca/cryptography | PQC Suite: PQC Suite Vault: re-encrypt stored data and backups with ML-KEM + AES-256-GCM (`pqcsuite vault`)"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": []
+    }
+  ]
+}

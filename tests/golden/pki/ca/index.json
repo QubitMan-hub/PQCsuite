@@ -1,0 +1,5 @@
+[
+{"serial": "507b572e5749e921660afaf56f3055c060565c36", "common_name": "edge.golden.invalid", "kind": "server", "algorithm": "ML-DSA-65", "not_after": "2126-09-22T11:06:47+00:00", "names": ["edge.golden.invalid"], "status": "valid", "revoked_at": "", "reason": "", "path": "/home/claude/PQCsuite/tests/golden/pki/edge"},
+{"serial": "6700ec2949ec8b5ea6b649ca6efd383cb530b4ad", "common_name": "revoked.golden.invalid", "kind": "server", "algorithm": "ML-DSA-65", "not_after": "2126-09-22T11:06:47+00:00", "names": ["revoked.golden.invalid"], "status": "revoked", "revoked_at": "2026-10-16T11:06:47+00:00", "reason": "keyCompromise", "path": "/home/claude/PQCsuite/tests/golden/pki/revoked"},
+{"serial": "41de9a69a26daad4b22d07197934f8b2ec74019a", "common_name": "signer.golden.invalid", "kind": "client", "algorithm": "ML-DSA-65", "not_after": "2126-09-22T11:06:47+00:00", "names": [], "status": "valid", "revoked_at": "", "reason": "", "path": "/home/claude/PQCsuite/tests/golden/pki/signer"}
+]
