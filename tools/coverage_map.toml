@@ -1,0 +1,52 @@
+# Where each current source file goes in the four-product layout (spec revision 3).
+# A file whose code splits across destinations is listed under its main destination; tools/baseline.md notes the split.
+
+[core]
+files = [
+  "pqcsuite/__init__.py", "pqcsuite/storage.py", "pqcsuite/tour.js",
+  "pqcsuite/console/__init__.py",
+  "pqcsuite/tls/__init__.py", "pqcsuite/tls/openssl.py", "pqcsuite/tls/server.py",
+  "pqcsuite/pki/__init__.py", "pqcsuite/pki/signers.py", "pqcsuite/pki/est.py",
+]
+
+[tls]
+files = [
+  "pqcsuite/tls/bundles.py", "pqcsuite/tls/edge.py", "pqcsuite/tls/http.py", "pqcsuite/pki/acme.py",
+  "pqcsuite/cli/certificates.py", "pqcsuite/cli/edge.py",
+]
+
+[vpn]
+files = [
+  "pqcsuite/vpn/__init__.py", "pqcsuite/vpn/app.html", "pqcsuite/vpn/app.py", "pqcsuite/vpn/charon.py",
+  "pqcsuite/vpn/controller.py", "pqcsuite/vpn/desktop.py", "pqcsuite/vpn/join.py", "pqcsuite/vpn/platforms.py",
+  "pqcsuite/vpn/wireguard.py", "pqcsuite/cli/vpn.py",
+]
+
+[vault]
+files = ["pqcsuite/vault.py", "pqcsuite/cli/vault.py"]
+
+[readiness]
+files = [
+  "pqcsuite/brand.py", "pqcsuite/project.py", "pqcsuite/readiness/compliance.py", "pqcsuite/readiness/scan.py",
+  "pqcsuite/cli/readiness.py",
+  "wolf-pack/wolfpack/__init__.py", "wolf-pack/wolfpack/__main__.py", "wolf-pack/wolfpack/alpha.py",
+  "wolf-pack/wolfpack/bench.py", "wolf-pack/wolfpack/brand.py", "wolf-pack/wolfpack/cbom.py", "wolf-pack/wolfpack/cli.py",
+  "wolf-pack/wolfpack/compliance.py", "wolf-pack/wolfpack/crawler.py", "wolf-pack/wolfpack/crawler_typed.py",
+  "wolf-pack/wolfpack/crawler_web.py", "wolf-pack/wolfpack/den.py", "wolf-pack/wolfpack/elders.py",
+  "wolf-pack/wolfpack/image.py", "wolf-pack/wolfpack/inventory.py", "wolf-pack/wolfpack/model.py",
+  "wolf-pack/wolfpack/pack.py", "wolf-pack/wolfpack/remedy.py", "wolf-pack/wolfpack/report.py",
+  "wolf-pack/wolfpack/scouts/__init__.py", "wolf-pack/wolfpack/scouts/artifacts.py", "wolf-pack/wolfpack/scouts/binary.py",
+  "wolf-pack/wolfpack/scouts/capture.py", "wolf-pack/wolfpack/scouts/config.py", "wolf-pack/wolfpack/scouts/deps.py",
+  "wolf-pack/wolfpack/scouts/implementations.py", "wolf-pack/wolfpack/scouts/lexer.py", "wolf-pack/wolfpack/scouts/names.py",
+  "wolf-pack/wolfpack/scouts/params.py", "wolf-pack/wolfpack/scouts/patterns.py", "wolf-pack/wolfpack/scouts/probe.py",
+  "wolf-pack/wolfpack/scouts/pyflow.py", "wolf-pack/wolfpack/scouts/pysrc.py", "wolf-pack/wolfpack/scouts/rules.py",
+  "wolf-pack/wolfpack/scouts/source.py", "wolf-pack/wolfpack/scouts/suites.py", "wolf-pack/wolfpack/scouts/tls.py",
+]
+
+[deleted]
+"pqcsuite/__main__.py" = "suite entry point; each product gets its own"
+"pqcsuite/cli/__init__.py" = "suite command dispatcher; each product gets its own"
+"pqcsuite/cli/common.py" = "suite CLI helpers; folded into each product's command module"
+"pqcsuite/cli/suite.py" = "suite commands: try moves to tls, setup to readiness, doctor and console split per product"
+"pqcsuite/checks.py" = "suite-wide doctor; split into one doctor per product"
+"pqcsuite/console/console.html" = "suite-wide page; split into the four product console pages"

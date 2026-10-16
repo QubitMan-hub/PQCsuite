@@ -112,3 +112,36 @@ typing_extensions==4.16.0
 urllib3==2.8.0
 -e ./wolf-pack (wolfpack-cbom 1.4.1) and -e . (pqcsuite 0.4.3), both editable from this checkout
 ```
+
+## Known flaky test
+
+`tests/test_replay.py::ReplayTest::test_a_recorded_session_sent_again_is_refused_and_does_nothing` fails intermittently:
+- 7 of 15 plain runs failed, and 4 of 10 under coverage. The first full run above happened to pass it; the coverage run below failed it.
+- The failure is `OSError: [Errno 107] Transport endpoint is not connected` at `tests/test_replay.py:74`, `raw.shutdown(socket.SHUT_WR)`.
+- It happens when the server has already closed the connection on the replayed session, which is the refusal under test happening first.
+- The product behaviour is correct; the harness doesn't allow for the server closing first.
+- Stage 0 changes no tests outside `tests/golden`, so the fix (treat a closed connection at `shutdown` as refused, then assert no request was executed) is scheduled for the TLS stage.
+
+## Coverage by product
+
+Line coverage per destination, over the current files mapped to it in `tools/coverage_map.toml`. Files under `deleted` are excluded. HTML and JavaScript have no line coverage.
+
+**Command:** `python -m coverage run --source=pqcsuite,wolf-pack/wolfpack -m pytest -q`, then `python tools/coverage_by_product.py`. The source list is wider than `pyproject.toml`'s, which measures `pqcsuite` only.
+
+**Run result:** 446 passed, 1 failed (the flaky test above), 28 skipped.
+
+| Destination | Line coverage |
+|---|---|
+| core | 90.8% |
+| readiness | 88.3% |
+| tls | 79.3% |
+| vault | 93.8% |
+| vpn | 74.6% |
+
+**Files mapped to one destination whose code splits** (later stages compare these at function level where it matters):
+- `pqcsuite/__init__.py` (core; `latest_release` is removed, D10)
+- `pqcsuite/tls/__init__.py` (core; TLS's named policies move to Acxelin TLS)
+- `pqcsuite/console/__init__.py` (core shell; each product's routes move to that product)
+- `pqcsuite/project.py` (readiness; folds into the pipeline)
+
+**Low numbers:** VPN and TLS are low partly because the privileged and real-service tests listed under "Skips" don't run here.
