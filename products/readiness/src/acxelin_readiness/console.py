@@ -142,6 +142,14 @@ class Readiness:
         threading.Thread(target=work, daemon=True, name="project-scan").start()
         return 200, {"started": i}
 
+    def select(self, body):
+        i, path = self.selected(body)
+        with self.lock:
+            if self.job["running"]:
+                raise ValueError("Wait for the running scan to finish, or stop it")
+            self.job.update(last=self.store.assessment(path), selected=i, error=None, stage="")
+        return 200, {"selected": i}
+
     def stop(self, body):
         with self.lock:
             if not self.job["running"]:
@@ -222,7 +230,7 @@ def build(home):
     r = Readiness(home)
     routes = {("GET", "/api/status"): r.status, ("POST", "/api/setup"): r.setup,
               ("POST", "/api/projects/register"): r.register, ("GET", "/api/projects/status"): r.project_status,
-              ("POST", "/api/projects/scan"): r.scan, ("POST", "/api/projects/cancel"): r.stop, ("POST", "/api/projects/track"): r.track,
+              ("POST", "/api/projects/select"): r.select, ("POST", "/api/projects/scan"): r.scan, ("POST", "/api/projects/cancel"): r.stop, ("POST", "/api/projects/track"): r.track,
               ("GET", "/api/endpoints/status"): r.endpoint_status, ("POST", "/api/endpoints/scan"): r.endpoint_scan,
               ("POST", "/api/endpoints/cbom"): r.endpoint_cbom}
     return core.App(page(), routes)

@@ -1,1 +1,216 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Acxelin Readiness</title><style>/*BRAND*/</style><body><!--LOGO--><main><h1>Acxelin Readiness</h1></main><script>acx.start();</script></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acxelin Readiness</title>
+<style>
+/*BRAND*/
+main{max-width:1100px}
+.brandbar small{max-width:34ch;text-align:right}
+h1{font-size:24px}
+.lede{color:var(--mute);margin:0 0 22px;max-width:62ch;font-size:15px}
+.narrow{max-width:560px}
+label{display:block;font-weight:600;margin:18px 0 6px}
+input[type=text],textarea,select{width:100%;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+textarea{min-height:120px;font-family:var(--mono);font-size:13px}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
+.btn{font:600 14px/1 var(--sans);padding:11px 18px;border-radius:8px;border:1px solid transparent;background:var(--accent);color:#2e3c4e;cursor:pointer}
+.btn:hover{filter:brightness(.96)}
+.btn.quiet{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.quiet:hover{border-color:var(--ink)}
+.btn[disabled]{opacity:.55;cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 26px}
+.tabs button{font:500 15px var(--sans);background:none;border:0;border-bottom:2px solid transparent;padding:10px 16px;margin-bottom:-1px;color:var(--mute);cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.split{display:grid;grid-template-columns:230px 1fr;gap:36px}
+@media (max-width:780px){.split{grid-template-columns:1fr;gap:24px}}
+.list{list-style:none;margin:0 0 18px;padding:0}
+.list button{display:block;width:100%;text-align:left;font:inherit;background:none;border:0;border-radius:6px;padding:8px 10px;color:var(--ink);cursor:pointer}
+.list button:hover{background:var(--sunken)}
+.list button[aria-current=true]{background:var(--sunken);font-weight:600}
+h2{margin:0 0 4px}
+.sectionhead{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between;margin-bottom:6px}
+.state{color:var(--mute);min-height:1.55em;margin:8px 0 18px}
+.counts{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 6px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-weight:500;color:var(--mute);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num{font-variant-numeric:tabular-nums}
+details.track{background:none;border:0;padding:0;margin:0}
+details.track summary{color:var(--accent-text);font-size:13px}
+.track form{display:grid;gap:8px;margin-top:8px;max-width:300px}
+.track label{margin:0;font-weight:500;font-size:13px}
+.msg{min-height:1.55em;color:var(--bad);margin:0 0 14px}
+.empty{padding:28px 0;color:var(--mute);max-width:60ch}
+.legend{color:var(--mute);font-size:13px;margin:10px 0 0;max-width:80ch}
+.changed{margin:22px 0 0}
+.changed li{margin:4px 0}
+code.cmd{background:var(--sunken);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+.logo{width:150px}
+</style>
+</head>
+<body>
+<main>
+<header class="brandbar"><div class="logo"><!--LOGO--></div><small>Local console. Only this computer can open it.</small></header>
+<p class="msg" id="msg" role="alert"></p>
+<div id="app" aria-live="polite"><p class="lede">Opening the console…</p></div>
+</main>
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const h = (tag, props = {}, ...kids) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === "class") el.className = v; else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v === true) el.setAttribute(k, ""); else if (v !== false && v != null) el.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) el.append(k instanceof Node ? k : document.createTextNode(k ?? ""));
+  return el;
+};
+const say = (text) => { $("#msg").textContent = text || ""; };
+const state = {tab: "projects", status: null, projects: null, endpoints: null, selected: 0, timer: null, targets: ""};
+const when = (t) => t ? new Date(t * 1000).toLocaleString() : "never";
+const call = async (path, body) => { try { say(""); return await acx.api(path, body); } catch (e) { say(e.status === 401 ? "This session has ended. Run the console command again to open a new one." : e.message); throw e; } };
+
+function signedOut() {
+  $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "This link has expired"),
+    h("p", {class: "lede"}, "Each launch link works once. In a terminal, run ", h("code", {class: "cmd"}, "acxelin-readiness console"), " to open a new one."),
+    h("p", {class: "lede"}, "On a remote server, forward the port with SSH, then run ", h("code", {class: "cmd"}, "acxelin-readiness console link"), " in that session.")));
+}
+
+function setup() {
+  const input = h("input", {type: "text", id: "dir", autocomplete: "off", placeholder: "/home/you/code", required: true});
+  const go = async () => { try { await call("setup", {directory: input.value}); await load(); } catch (e) {} };
+  $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "Where are your repositories?"),
+    h("p", {class: "lede"}, "Acxelin Readiness only scans folders inside the one you choose here. Enter the full path of the folder that holds your repositories."),
+    h("label", {for: "dir"}, "Folder path"), input,
+    h("div", {class: "row", style: "margin-top:18px"}, h("button", {class: "btn", onclick: go}, "Use this folder"))));
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  input.focus();
+}
+
+function shell() {
+  const tab = (id, label) => h("button", {role: "tab", id: "tab-" + id, "aria-selected": String(state.tab === id), "aria-controls": "panel", onclick: () => { clearInterval(state.timer); state.tab = id; shell(); }}, label);
+  $("#app").replaceChildren(h("div", {class: "tabs", role: "tablist"}, tab("projects", "Projects"), tab("endpoints", "Endpoints")), h("div", {id: "panel", role: "tabpanel", "aria-labelledby": "tab-" + state.tab}));
+  (state.tab === "projects" ? projectsView : endpointsView)();
+}
+
+// ---- projects
+
+const tier = (t) => h("span", {class: "tag " + t}, t);
+function trackForm(asset) {
+  const t = asset.tracking || {}, id = asset.id.slice(0, 8);
+  const owner = h("input", {type: "text", value: t.owner || "", id: "o" + id});
+  const due = h("input", {type: "text", value: t.due || "", placeholder: "YYYY-MM-DD", id: "d" + id});
+  const status = h("select", {id: "s" + id}, [["open", "Open"], ["in_progress", "In progress"]].map(([v, l]) => h("option", {value: v, selected: (t.status || "open") === v}, l)));
+  const save = async (ev) => { ev.preventDefault(); try { await call("projects/track", {project: state.selected, finding: asset.id, owner: owner.value, due: due.value, status: status.value}); await refreshProject(); } catch (e) {} };
+  return h("details", {class: "track"}, h("summary", {}, t.owner ? "Owner: " + t.owner : "Assign an owner"),
+    h("form", {onsubmit: save}, h("label", {for: owner.id}, "Owner"), owner, h("label", {for: due.id}, "Due date"), due, h("label", {for: status.id}, "Status"), status, h("button", {class: "btn quiet", type: "submit"}, "Save")));
+}
+
+function results(p) {
+  const out = $("#pj-result");
+  if (!out) return;
+  const last = p.last;
+  if (!last) { out.replaceChildren(h("p", {class: "empty"}, "Not scanned yet. Choose Scan repository to see which cryptography this project uses and what to migrate first.")); return; }
+  const pri = last.summary.priorities || {};
+  const counts = h("div", {class: "counts"}, ["critical", "high", "medium", "low", "ok"].filter((k) => pri[k]).map((k) => h("span", {}, tier(k), " ", String(pri[k]))));
+  const assets = last.assets.filter((a) => !a.test_only);
+  const rows = assets.map((a) => h("tr", {}, h("td", {}, a.name), h("td", {}, tier(a.tier)), h("td", {}, a.action || a.why || ""), h("td", {class: "num"}, String(a.locations.length)), h("td", {}, trackForm(a))));
+  out.replaceChildren(h("p", {class: "state"}, "Scanned " + when(last.finished) + ". " + last.summary.crypto_assets + " cryptographic assets found."), counts,
+    assets.length ? h("div", {class: "scroll"}, h("table", {}, h("thead", {}, h("tr", {}, ["Asset", "Priority", "What to do", "Places", "Owner"].map((c) => h("th", {}, c)))), h("tbody", {}, rows))) : h("p", {class: "empty"}, "No cryptography was found in this repository."),
+    last.notes && last.notes.length ? h("p", {class: "legend"}, last.notes.join(" ")) : "");
+}
+
+function projectsView() {
+  const s = state.status, panel = $("#panel");
+  const names = new Set(s.projects.map((p) => p.name)), addable = s.available.filter((n) => !names.has(n));
+  const pick = h("select", {id: "add"}, addable.map((n) => h("option", {value: n}, n)));
+  const add = async () => { try { const r = await call("projects/register", {name: pick.value}); state.selected = r.project; await load(); } catch (e) {} };
+  const choose = async (id) => { try { await call("projects/select", {project: id}); state.selected = id; projectsView(); } catch (e) {} };
+  const side = h("div", {}, h("h2", {}, "Repositories"),
+    s.projects.length ? h("ul", {class: "list"}, s.projects.map((p) => h("li", {}, h("button", {"aria-current": String(p.id === state.selected), onclick: () => choose(p.id)}, p.name)))) : h("p", {class: "state"}, "None added yet."),
+    addable.length ? h("div", {}, h("label", {for: "add", style: "margin-top:0"}, "Add a repository"), pick, h("div", {style: "margin-top:10px"}, h("button", {class: "btn quiet", onclick: add}, "Add")))
+      : h("p", {class: "state"}, s.available.length ? "Every repository in " + s.directory + " is added." : "No repositories found in " + s.directory + ". Put one there, then reload."));
+  const main = h("div", {id: "pj-main"});
+  panel.replaceChildren(h("div", {class: "split"}, side, main));
+  if (!s.projects.length) { main.replaceChildren(h("h1", {}, "Add your first repository"), h("p", {class: "empty"}, "Pick one on the left, then scan it to see which cryptography it uses and what to migrate first.")); return; }
+  const button = h("button", {class: "btn", id: "scan"}, "Scan repository");
+  main.replaceChildren(h("div", {class: "sectionhead"}, h("h1", {}, s.projects[state.selected].name), h("div", {class: "row"}, button)), h("p", {class: "state", id: "pj-state"}), h("div", {id: "pj-result"}));
+  button.addEventListener("click", async () => {
+    const running = state.projects && state.projects.running;
+    try { await call(running ? "projects/cancel" : "projects/scan", running ? {} : {project: state.selected}); pollProject(); } catch (e) {}
+  });
+  refreshProject();
+}
+
+function paint(p) {
+  state.projects = p;
+  const b = $("#scan"), st = $("#pj-state");
+  if (!b) return;
+  b.textContent = p.running ? "Stop scan" : "Scan repository";
+  b.classList.toggle("quiet", p.running);
+  st.textContent = p.running ? (p.stage || "Scanning…") : (p.error || "");
+  st.style.color = !p.running && p.error ? "var(--bad)" : "";
+  results(p);
+}
+async function refreshProject() { try { const p = await call("projects/status"); paint(p); return p; } catch (e) { return null; } }
+function pollProject() { clearInterval(state.timer); state.timer = setInterval(async () => { const p = await refreshProject(); if (!p || !p.running) clearInterval(state.timer); }, 600); refreshProject(); }
+
+// ---- endpoints
+
+const GRADES = {A: "post-quantum key exchange only", B: "post-quantum offered, classical still accepted", C: "classical only: traffic recorded today can be decrypted later", F: "unreachable, or no TLS at all"};
+const GRADE_TONE = {A: "ok", B: "warn", C: "bad", F: "mute"};
+function endpointResults(e) {
+  const out = $("#ep-result");
+  if (!out) return;
+  const last = e.last;
+  if (!last) { out.replaceChildren(); return; }
+  const rows = last.endpoints.map((r) => h("tr", {}, h("td", {}, r.target), h("td", {}, h("span", {class: "pill " + GRADE_TONE[r.grade]}, r.grade)), h("td", {}, r.negotiated || r.error || ""),
+    h("td", {}, r.certificate ? (r.certificate.key || "") + " · " + r.certificate.days_left + " days left" : "")));
+  out.replaceChildren(h("p", {class: "state"}, "Checked " + when(last.finished) + ". " + last.summary.pq_key_exchange + " of " + last.summary.endpoints + " offer post-quantum key exchange."),
+    h("div", {class: "scroll"}, h("table", {}, h("thead", {}, h("tr", {}, ["Endpoint", "Grade", "Negotiated", "Certificate"].map((c) => h("th", {}, c)))), h("tbody", {}, rows))),
+    h("p", {class: "legend"}, Object.entries(GRADES).map(([g, t]) => g + ": " + t).join(" · ")),
+    last.changes.length ? h("div", {class: "changed"}, h("h2", {}, "Changed since the scan before"), h("ul", {class: "list"}, last.changes.map((c) => h("li", {}, c.target + ": " + c.before + " → " + c.after)))) : "",
+    h("div", {class: "row", style: "margin-top:20px"}, h("button", {class: "btn quiet", id: "export", onclick: exportCbom}, "Download CBOM")),
+    h("p", {class: "legend", id: "ep-export"}, "The CBOM (CycloneDX 1.6) is built from a fresh check of these endpoints."));
+}
+async function exportCbom() {
+  try {
+    const r = await call("endpoints/cbom", {targets: state.endpoints.last.targets});
+    const url = URL.createObjectURL(new Blob([JSON.stringify(r.cbom, null, 2)], {type: "application/json"}));
+    const a = h("a", {href: url, download: "endpoints-cbom.json"}); document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    $("#ep-export").textContent = "Downloaded endpoints-cbom.json.";
+  } catch (e) {}
+}
+function endpointsView() {
+  const area = h("textarea", {id: "targets", placeholder: "api.example.com:443\nssh://bastion.example.com", spellcheck: "false"}, state.targets);
+  const go = h("button", {class: "btn", id: "check"}, "Check endpoints");
+  $("#panel").replaceChildren(h("h1", {}, "Are your endpoints ready?"),
+    h("p", {class: "lede"}, "Grade live TLS and SSH servers on post-quantum key exchange, and see what changed since the last check."),
+    h("label", {for: "targets", style: "margin-top:0"}, "Hosts to check (one per line)"), area,
+    h("div", {class: "row", style: "margin-top:12px"}, go), h("p", {class: "state", id: "ep-state"}), h("div", {id: "ep-result"}));
+  go.addEventListener("click", async () => { state.targets = area.value; try { await call("endpoints/scan", {targets: area.value}); pollEndpoints(); } catch (e) {} });
+  refreshEndpoints();
+}
+async function refreshEndpoints() {
+  try {
+    const e = await call("endpoints/status"); state.endpoints = e;
+    const st = $("#ep-state"), b = $("#check");
+    if (!st) return e;
+    b.disabled = e.running; st.textContent = e.running ? "Checking endpoints…" : (e.error || ""); st.style.color = !e.running && e.error ? "var(--bad)" : "";
+    endpointResults(e); return e;
+  } catch (e) { return null; }
+}
+function pollEndpoints() { clearInterval(state.timer); state.timer = setInterval(async () => { const e = await refreshEndpoints(); if (!e || !e.running) clearInterval(state.timer); }, 600); refreshEndpoints(); }
+
+async function load() {
+  try { state.status = await call("status"); } catch (e) { return signedOut(); }
+  if (!state.status.configured) return setup();
+  shell();
+}
+acx.start().then((ok) => (ok ? load() : signedOut()));
+</script>
+</html>

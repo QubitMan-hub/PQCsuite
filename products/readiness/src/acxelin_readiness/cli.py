@@ -1,4 +1,5 @@
 import argparse
+import os
 import shutil
 import sys
 import tempfile
@@ -60,6 +61,11 @@ def main(argv=None):
     g.add_argument("--workers", type=int, default=16)
     g.add_argument("--timeout", type=float, default=8.0)
     sub.add_parser("doctor", help="check what this machine can scan")
+    k = sub.add_parser("console", help="open the console in your browser; `console link` prints a fresh launch address for a console already running")
+    k.add_argument("action", nargs="?", choices=["link"])
+    k.add_argument("--port", type=int, default=8900)
+    k.add_argument("--home", metavar="DIR", help="where the console keeps its settings, workspace and token (default: ~/.acxelin-readiness)")
+    k.add_argument("--no-browser", action="store_true", help="do not open a browser; print the launch address instead")
     try:
         a = ap.parse_args(argv)
     except SystemExit as e:
@@ -71,6 +77,8 @@ def main(argv=None):
         return grade(a)
     if a.cmd == "doctor":
         return doctor()
+    if a.cmd == "console":
+        return console(a)
 
     cfg = settings(a.config, None if a.path is None and (a.tls or a.ssh or a.pcap) else Path(a.path or "."))
     a.exclude = cfg.get("exclude", []) + a.exclude
@@ -226,3 +234,17 @@ def doctor():
     except ImportError:
         print('JavaScript, TypeScript, Java and Go relationships: not available: pip install "acxelin-readiness[crawler]"')
     return 0
+
+
+def console(a):
+    from . import console as page
+    home = Path(a.home or os.environ.get("ACXELIN_READINESS_HOME") or Path.home() / ".acxelin-readiness")
+    if a.action == "link":
+        from acxelin_core import console as core
+        try:
+            if core.link_running(a.port, home) is None:
+                print("acxelin-readiness: console link prints only to a terminal; run it in an interactive session", file=sys.stderr)
+        except (OSError, ValueError) as e:
+            sys.exit(f"acxelin-readiness: no console is running on port {a.port} ({e}); start one with `acxelin-readiness console`")
+        return 0
+    return page.run(home, a.port, open_browser=not a.no_browser)

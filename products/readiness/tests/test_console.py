@@ -178,3 +178,18 @@ def test_the_console_loads_no_other_product():
     code = "import sys, acxelin_readiness.console;" \
            "bad=[m for m in sys.modules if m.split('.')[0] in ('pqcsuite','acxelin_tls','acxelin_vpn','acxelin_vault','wolfpack')]; assert not bad, bad"
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
+
+
+def test_choosing_another_repository_shows_that_repositorys_own_results(app, repos):
+    (repos / "api").mkdir()
+    (repos / "api/a.py").write_text("import hashlib\nhashlib.sha1(b'x')\n")
+    setup(app, repos)
+    for name in ("shop", "api"):
+        call(app, "POST", "/api/projects/register", {"name": name})
+    call(app, "POST", "/api/projects/scan", {"project": 0})
+    wait(app)
+    assert call(app, "POST", "/api/projects/select", {"project": 1})[1] == {"selected": 1}
+    status = call(app, "GET", "/api/projects/status")[1]
+    assert status["selected"] == 1 and status["last"] is None
+    call(app, "POST", "/api/projects/select", {"project": 0})
+    assert call(app, "GET", "/api/projects/status")[1]["last"]["project"] == "shop"
