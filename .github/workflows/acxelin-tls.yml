@@ -64,7 +64,8 @@ jobs:
     container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: apt-get update && apt-get install -y --no-install-recommends procps git
+      - name: Real services for the scenario tests (nginx, Redis, MQTT, PostgreSQL) and OpenSSL's own client
+        run: apt-get update && apt-get install -y --no-install-recommends procps git curl openssl nginx redis-server mosquitto mosquitto-clients postgresql postgresql-client
       - run: pip install ./core "./products/tls[test]"
       - run: acxelin-tls doctor
       - run: python -m pytest -q products/tls/tests --ignore=products/tls/tests/browser

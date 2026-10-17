@@ -12,7 +12,6 @@ import time
 import unittest
 from pathlib import Path
 
-from pqcsuite import tls
 from pqcsuite.pki import CA
 from tests.helpers import REASON
 
@@ -149,132 +148,8 @@ class Scenario(unittest.TestCase):
         return (self.d / f"{name}.log").read_text(errors="replace")
 
 
-class WebTest(Scenario):
-    """A web app (nginx) behind the TLS edge, reached by third-party clients."""
-
-    def nginx(self):
-        port = free_port()
-        (self.d / "www").mkdir()
-        (self.d / "www" / "index.html").write_text("hello from nginx\n")
-        (self.d / "nginx.conf").write_text(
-            f"daemon off; master_process off; pid {self.d}/nginx.pid; error_log {self.d}/nginx-error.log;\n"
-            f"events {{}}\nhttp {{ access_log off; client_body_temp_path {self.d}; proxy_temp_path {self.d};\n"
-            f"  server {{ listen 127.0.0.1:{port}; root {self.d}/www; }} }}\n")
-        self.spawn("nginx", "-p", self.d, "-c", self.d / "nginx.conf")
-        wait_port(port)
-        return port
-
-    def web_edge(self, policy="strict", mtls=False, **extra):
-        out, _ = self.ca.issue("app.internal", "server", ["127.0.0.1"], out=self.d / "app")
-        port = free_port()
-        self.metrics = free_port()
-        cfg = f'[metrics]\nlisten = "127.0.0.1:{self.metrics}"\n' + self.route(
-            "web", "terminate", port, self.nginx(), policy=policy, cert=out / "chain.pem", key=out / "key.pem",
-            ca=self.d / "pki" / "ca.crt", require_client_cert=mtls, crl=self.d / "pki" / "crl.pem", **extra)
-        self.edge(cfg, "web")
-        wait_port(port)
-        return port
-
-    @need("nginx")
-    @unittest.skipUnless(OPENSSL, "needs an OpenSSL 3.5+ command line")
-    def test_openssl_client_gets_the_page_over_ml_kem_and_ml_dsa(self):
-        port = self.web_edge()
-        code, out = self.s_client(port)
-        self.assertEqual(code, 0, out)
-        self.assertIn("hello from nginx", out)
-        self.assertIn("X25519MLKEM768", out)
-        self.assertIn("Verify return code: 0 (ok)", out)
-        self.assertRegex(out, r"(?i)peer signature type: (mldsa65|ML-DSA-65)")
-        code, out = self.s_client(port, "-groups", "X25519")
-        self.assertNotEqual(code, 0, "strict must refuse a classical key exchange")
-        import urllib.request
-        metrics = urllib.request.urlopen(f"http://127.0.0.1:{self.metrics}/metrics", timeout=5).read().decode()
-        self.assertIn('group="X25519MLKEM768"', metrics)
-
-    @need("nginx", "curl")
-    def test_classical_clients_under_transition_with_a_fallback_certificate(self):
-        ec_certificate(self.d)
-        port = self.web_edge("transition", fallback_cert=self.d / "ec.pem", fallback_key=self.d / "ec.key")
-        (self.d / "both.pem").write_bytes((self.d / "ec.pem").read_bytes() + (self.d / "pki" / "ca.crt").read_bytes())
-        r = subprocess.run(["curl", "-sS", "--noproxy", "*", "--max-time", "10", "--cacert", self.d / "both.pem", "--resolve", f"app.internal:{port}:127.0.0.1",
-                            f"https://app.internal:{port}/"], capture_output=True, text=True)
-        self.assertEqual(r.stdout, "hello from nginx\n", r.stderr + self.edge_log("web"))
-        if OPENSSL:
-            code, out = self.s_client(port, "-sigalgs", "ecdsa_secp256r1_sha256:rsa_pss_rsae_sha256", "-groups", "X25519:P-256",
-                                      cafile=self.d / "ec.pem")
-            self.assertEqual(code, 0, out)
-            self.assertIn("hello from nginx", out)
-            self.assertRegex(out, r"(?i)peer signature type: ecdsa")
-            code, out = self.s_client(port)
-            self.assertEqual(code, 0, out)
-            self.assertIn("X25519MLKEM768", out)
-            self.assertRegex(out, r"(?i)peer signature type: (mldsa65|ML-DSA-65)")
-
-    @need("nginx")
-    @unittest.skipUnless(OPENSSL, "needs an OpenSSL 3.5+ command line")
-    def test_mutual_tls_and_revocation_with_openssl_as_the_client(self):
-        port = self.web_edge(mtls=True)
-        alice, rec = self.ca.issue("alice", "client", out=self.d / "alice")
-        code, out = self.s_client(port, "-cert", alice / "cert.pem", "-key", alice / "key.pem")
-        self.assertIn("hello from nginx", out)
-        code, out = self.s_client(port)
-        self.assertNotIn("hello from nginx", out)
-        self.ca.revoke(rec.serial, "keyCompromise")
-        time.sleep(0.2)
-        code, out = self.s_client(port, "-cert", alice / "cert.pem", "-key", alice / "key.pem")
-        self.assertNotIn("hello from nginx", out)
-        self.assertIn("revoked", self.edge_log("web"))
-
-    @need("nginx")
-    def test_many_concurrent_clients(self):
-        from concurrent.futures import ThreadPoolExecutor
-        from pqcsuite.tls.http import request
-        port = self.web_edge()
-        ctx = tls.client_context(self.d / "pki" / "ca.crt")
-
-        def get(_):
-            with tls.connect("127.0.0.1", port, ctx, "app.internal", 20) as c:
-                return request(c, "GET", "/", "app.internal")[2]
-        start = time.monotonic()
-        with ThreadPoolExecutor(32) as pool:
-            bodies = list(pool.map(get, range(300)))
-        self.assertEqual(set(bodies), {b"hello from nginx\n"})
-        self.assertLess(time.monotonic() - start, 120)
 
 
-class TunnelTest(Scenario):
-    """Legacy clients that cannot speak post-quantum TLS reach a service through two edges."""
-
-    @need("redis-server", "redis-cli")
-    def test_redis(self):
-        port = free_port()
-        self.spawn("redis-server", "--port", port, "--bind", "127.0.0.1", "--save", "", "--appendonly", "no")
-        wait_port(port)
-        local = self.tunnel(port)
-        cli = lambda *a: subprocess.run(["redis-cli", "-p", str(local), *a], capture_output=True, text=True, timeout=15).stdout.strip()
-        self.assertEqual(cli("SET", "pqc", "ML-KEM"), "OK")
-        self.assertEqual(cli("GET", "pqc"), "ML-KEM")
-
-    @need("mosquitto", "mosquitto_pub", "mosquitto_sub")
-    def test_mqtt(self):
-        port = free_port()
-        (self.d / "mosquitto.conf").write_text(f"listener {port} 127.0.0.1\nallow_anonymous true\n")
-        self.spawn("mosquitto", "-c", self.d / "mosquitto.conf")
-        wait_port(port)
-        local = self.tunnel(port)
-        sub = subprocess.Popen(["mosquitto_sub", "-p", str(local), "-t", "plant/temp", "-C", "1", "-W", "20"], stdout=subprocess.PIPE, text=True)
-        time.sleep(1)
-        subprocess.run(["mosquitto_pub", "-p", str(local), "-t", "plant/temp", "-m", "21.5"], check=True, timeout=15)
-        self.assertEqual(sub.communicate(timeout=25)[0].strip(), "21.5")
-
-    @unittest.skipUnless(PG_BIN and shutil.which("psql"), "needs PostgreSQL")
-    @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0 and shutil.which("runuser"), "needs root to run postgres as its own user")
-    def test_postgres(self):
-        port = self.postgres()
-        local = self.tunnel(port)
-        r = subprocess.run(["psql", "-h", "127.0.0.1", "-p", str(local), "-U", "postgres", "-tAc", "select 6 * 7"],
-                           capture_output=True, text=True, timeout=30)
-        self.assertEqual(r.stdout.strip(), "42", r.stderr)
 
 
 
