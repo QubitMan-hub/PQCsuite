@@ -41,6 +41,25 @@ jobs:
       - name: Tests, the browser journeys and the clean-wheel install
         run: python -m pytest -q products/readiness/tests
         env: {ACXELIN_INSTALL_TEST: "1"}
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the image and scan the sample project with it
+        run: |
+          docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness:ci .
+          docker run --rm acxelin-readiness:ci doctor
+          docker run --rm -v "$PWD/products/readiness/examples/payments-api:/scan:ro" -v "$PWD/out:/out" acxelin-readiness:ci scan /scan -o /out -q || test $? = 2
+          test -s out/cbom.json && test -s out/report.html
+      - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)
+        env:
+          TRIVY: "0.74.0"
+          TRIVY_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+        run: |
+          curl -fsSL -o trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY/trivy_${TRIVY}_Linux-64bit.tar.gz"
+          echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c - && tar xzf trivy.tgz trivy
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL acxelin-readiness:ci
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 acxelin-readiness:ci
   lint:
     runs-on: ubuntu-latest
     steps:

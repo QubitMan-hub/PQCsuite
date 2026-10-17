@@ -60,6 +60,83 @@ jobs:
       - run: acxelin-tls doctor
       - run: python -m pytest -q products/tls/tests --ignore=products/tls/tests/browser
         env: {ACXELIN_INSTALL_TEST: "1"}
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the image and run it as a customer would
+        run: |
+          docker build -f products/tls/deploy/Dockerfile -t acxelin-tls:ci .
+          docker run --rm acxelin-tls:ci doctor
+          docker run --rm acxelin-tls:ci
+          docker run --rm acxelin-tls:ci --version | grep -q "acxelin-tls 1.0.0"
+      - name: The console starts in the container and answers only through the loopback-published port
+        run: |
+          docker run -d --name console -p 127.0.0.1:8900:8900 acxelin-tls:ci console --container
+          for i in $(seq 30); do curl -sf -o /dev/null http://127.0.0.1:8900/ && break; sleep 1; done
+          curl -sf http://127.0.0.1:8900/ | grep -q "Acxelin TLS"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8900/api/status)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: evil.example' http://127.0.0.1:8900/)" = 421
+          docker rm -f console
+      - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)
+        env:
+          TRIVY: "0.74.0"
+          TRIVY_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+        run: |
+          curl -fsSL -o trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY/trivy_${TRIVY}_Linux-64bit.tar.gz"
+          echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c - && tar xzf trivy.tgz trivy
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL acxelin-tls:ci
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 acxelin-tls:ci
+  kubernetes:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Cluster, image and chart checks
+        run: |
+          kind create cluster --wait 120s
+          docker build -f products/tls/deploy/Dockerfile -t acxelin-tls:ci . && kind load docker-image acxelin-tls:ci
+          helm lint --strict products/tls/deploy/helm/acxelin-tls
+          helm lint --strict products/tls/deploy/helm/acxelin-tls --set ca.issuingSecret=issuing --set ca.passphraseSecret=issuing-pass
+          helm template t products/tls/deploy/helm/acxelin-tls --set ca.issuingSecret=issuing | grep -q "secretName: issuing"
+      - name: Install the CA
+        run: helm install pqc products/tls/deploy/helm/acxelin-tls --set image.repository=acxelin-tls --set image.tag=ci --set image.pullPolicy=Never --wait --timeout 240s
+      - name: Issue an edge certificate in the cluster and put the edge in front of a web app
+        run: |
+          kubectl create deployment web --image=acxelin-tls:ci -- python -m http.server 8080 --directory /tmp
+          kubectl expose deployment web --port 80 --target-port 8080
+          ca() { kubectl exec pqc-ca-0 -c maintain -- "$@"; }
+          ca acxelin-tls ca issue --dir /data/pki server pqc-edge.default.svc --san pqc-edge --out /data/issued/edge
+          mkdir edge && for f in chain.pem key.pem; do ca cat /data/issued/edge/$f > edge/$f; done && ca cat /data/pki/chain.pem > edge/ca.crt
+          kubectl create secret generic edge-tls --from-file=edge/
+          helm upgrade pqc products/tls/deploy/helm/acxelin-tls --reuse-values --set edge.enabled=true --set 'edge.routes[0].name=web' \
+            --set 'edge.routes[0].port=8443' --set 'edge.routes[0].target=web:80' \
+            --set 'edge.routes[1].name=partners' --set 'edge.routes[1].port=9443' --set 'edge.routes[1].target=web:80' \
+            --set 'edge.routes[1].requireClientCert=true' --wait --timeout 180s
+          kubectl logs deploy/pqc-edge | grep "CRL from http://pqc-ca.default.svc:8080/crl.pem saved"
+      - name: Post-quantum request through the edge
+        run: |
+          kubectl cp products/tls/deploy/k8s/smoke.py pqc-ca-0:/data/issued/smoke.py -c maintain
+          kubectl exec pqc-ca-0 -c maintain -- python /data/issued/smoke.py pqc default
+      - name: The CA key is encrypted, the services cannot see the root, and the console is not exposed
+        run: |
+          kubectl exec pqc-ca-0 -c maintain -- sh -c 'grep -q ENCRYPTED /data/pki/ca.key && test ! -e /data/root && test -f /data/pki/root.crt'
+          kubectl exec pqc-ca-0 -c acme -- sh -c 'test ! -e /data/root && test ! -e /data/issued && test -z "$ROOT_PASSPHRASE"'
+          kubectl exec pqc-ca-0 -c maintain -- acxelin-tls doctor --ca /data/pki | tee doctor.txt
+          ! grep -q "not encrypted" doctor.txt
+          ! kubectl get svc pqc-ca -o jsonpath='{.spec.ports[*].name}' | grep -q console
+      - name: Diagnostics
+        if: failure()
+        run: kubectl get pods -A; kubectl describe pods; kubectl logs -l app.kubernetes.io/instance=pqc --all-containers --tail 100
+  interop:
+    # Real clients against the edge: Node and curl on Debian 13's OpenSSL 3.5, and Go 1.24
+    runs-on: ubuntu-latest
+    container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: apt-get update && apt-get install -y --no-install-recommends golang-go nodejs curl ca-certificates
+      - run: pip install ./core ./products/tls && products/tls/tests/interop/run.sh
+      - name: How fast the edge is
+        run: python products/tls/tests/interop/bench.py 5
   lint:
     runs-on: ubuntu-latest
     steps:
