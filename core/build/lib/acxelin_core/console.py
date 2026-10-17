@@ -110,7 +110,16 @@ CLIENT_JS = b"""const acx = (() => {
     if (!r.ok) throw Object.assign(new Error(data.error || r.statusText), {status: r.status});
     return data;
   }
-  return {start, api};
+  async function download(path, body) {
+    const r = await fetch("/api/" + path, {method: "POST", headers: {"Authorization": "Bearer " + token, "Content-Type": "application/json"}, body: JSON.stringify(body)});
+    if (!r.ok) { const data = await r.json().catch(() => ({})); throw Object.assign(new Error(data.error || r.statusText), {status: r.status}); }
+    const name = ((r.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/) || [])[1] || "download";
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return name;
+  }
+  return {start, api, download};
 })();
 """
 
@@ -161,6 +170,14 @@ def refusal(headers):
     return None
 
 
+class Download:
+    """A route's answer that the browser saves as a file instead of reading as JSON."""
+
+    def __init__(self, name, data, content_type="application/octet-stream"):
+        self.name = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in name) or "download"
+        self.data, self.content_type = data, content_type
+
+
 class App:
     """One product console: its page, its routes {(method, path): handler(body) -> (status, json)} and its sessions."""
 
@@ -174,6 +191,14 @@ def serve(app, listen=("127.0.0.1", 0)):
 
     class Console(Handler):
         csp, timeout = policy(app.html), HTTP_IDLE
+
+        def send_file(self, status, d):
+            self.send_response(status)
+            for k, v in (("Content-Type", d.content_type), ("Content-Length", str(len(d.data))), ("Cache-Control", "no-store"),
+                         ("Content-Disposition", f'attachment; filename="{d.name}"'), ("X-Content-Type-Options", "nosniff")):
+                self.send_header(k, v)
+            self.end_headers()
+            self.wfile.write(d.data)
 
         def log_request(self, code="-", size="-"):
             log.info("%s %s %s", self.command, self.path.split("?")[0].split("#")[0], code)
@@ -211,7 +236,10 @@ def serve(app, listen=("127.0.0.1", 0)):
             if not handler:
                 return self.reply(404, {"error": "not found"})
             try:
-                return self.reply(*handler(body))
+                status, answer = handler(body)
+                if isinstance(answer, Download):
+                    return self.send_file(status, answer)
+                return self.reply(status, answer)
             except ValueError as e:
                 return self.reply(400, {"error": str(e)})
 

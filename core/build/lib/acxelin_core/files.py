@@ -70,6 +70,8 @@ def write(path, data, secret=False):
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
+        if secret:
+            owner_only(tmp)
         shared(lambda: os.replace(tmp, path))
     except BaseException:
         tmp.unlink(missing_ok=True)
@@ -78,8 +80,24 @@ def write(path, data, secret=False):
 
 def append(path, line):
     """Add one line to a log that only its owner can read (audit logs name identities and administrative actions)."""
+    new = not os.path.exists(path)
     fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
     with os.fdopen(fd, "ab") as f:
         f.write(line.encode() + b"\n")
+    if new:
+        owner_only(path)
+
+
+def owner_only(path):
+    """Windows ignores POSIX modes, so a secret file gets an ACL only its owner can use (inherited entries removed).
+    Fails closed: a secret that cannot be made private is an error, not a warning. Nothing to do elsewhere: the mode did it."""
+    if os.name != "nt":
+        return
+    import subprocess
+    user, domain = os.environ.get("USERNAME"), os.environ.get("USERDOMAIN")
+    who = f"{domain}\\{user}" if domain and user else user
+    r = subprocess.run(["icacls", str(path), "/inheritance:r", "/grant:r", f"{who}:F"], capture_output=True, text=True)
+    if r.returncode:
+        raise OSError(f"cannot make {path} readable by its owner only: {(r.stderr or r.stdout).strip()}")
 
 

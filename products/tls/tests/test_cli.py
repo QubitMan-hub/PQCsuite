@@ -117,3 +117,8 @@ def test_console_container_flag_listens_on_every_interface_and_opens_no_browser(
     with pytest.raises(SystemExit):
         cli.main(["console", "--no-browser", "--home", str(tmp_path)])
     assert seen["host"] == "127.0.0.1"
+
+
+def test_status_only_reads_http_addresses(tmp_path):
+    code, _, err = run("status", "--url", f"file://{tmp_path}")
+    assert code == 1 and "http" in err

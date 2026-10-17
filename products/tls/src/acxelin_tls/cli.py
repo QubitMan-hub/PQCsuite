@@ -55,6 +55,8 @@ def cmd_doctor(a):
 
 
 def cmd_status(a):
+    if not a.url.startswith(("http://", "https://")):
+        raise ValueError(f"--url must start with http:// or https://, not {a.url!r}")
     try:
         with urllib.request.urlopen(a.url.rstrip("/") + "/status", timeout=a.timeout) as r:
             data = json.loads(r.read())
