@@ -69,6 +69,23 @@ jobs:
           echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c - && tar xzf trivy.tgz trivy
           ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL acxelin-readiness:ci
           ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 acxelin-readiness:ci
+  real-world:
+    # Real repositories in Python, JavaScript and Go: the scan must finish, write a valid CBOM, and find their cryptography
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install ./core "./products/readiness[crawler,test]"
+      - name: Scan pyjwt, paramiko, forge and go-jose
+        run: |
+          for r in jpadilla/pyjwt paramiko/paramiko digitalbazaar/forge go-jose/go-jose; do
+            n=$(basename $r); git clone -q --depth 1 https://github.com/$r $n
+            acxelin-readiness scan $n -o out-$n -q || test $? = 2
+            python products/readiness/tools/validate_cbom.py out-$n/cbom.json
+            python -c "import json,sys; a=[c for c in json.load(open('out-$n/cbom.json'))['components'] if c.get('type')=='cryptographic-asset']; print('$n', len(a), 'assets'); sys.exit(not a)"
+          done
   lint:
     runs-on: ubuntu-latest
     steps:
