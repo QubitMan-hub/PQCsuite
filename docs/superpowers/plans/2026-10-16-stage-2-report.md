@@ -14,13 +14,14 @@
 - `acxelin-tls`: commands, console (CA, certificates with renew, audited download, revoke, maintenance, activity; edges with quantum-safe share; connection test with client certificates and explained refusals; health), docs, Docker, Helm, sidecar, systemd, website section with real demo output.
 - CI: core, TLS, Readiness and website on Linux, Windows and macOS (Python 3.11 and 3.14), Debian 13 job for the full TLS suite, dependency audit.
 
-## Not verified here
-- Windows and macOS: code paths audited and guarded, CI written, but not run. Needs a push.
-- Docker images not built, Helm templates not rendered (neither tool in the sandbox).
-- The PQC repo's interop tests (Node, curl, Go) not ported; KMS/HSM signers not run against real services.
+## Completed after the first report
+- Interop (from the PQC repo): Node and curl pass against the edge here (mutual TLS with ML-DSA, 20 MB byte-identical, refused without a certificate and after revocation); Go 1.24 runs in CI. Benchmark: 244 new post-quantum handshakes/s, 9,546 kept-alive requests/s on 1 CPU.
+- External CA keys: a real boto3 KMS client (requests validated against AWS's KMS API model) and an external signing tool each sign a CA whose certificates and CRLs verify with standard ML-DSA. Live KMS/HSM tests and a manual `signers-live` workflow run against your key or device.
+- CI: Docker build, run, console-in-container and Trivy scan for both images; kind + `helm lint`/`helm template`/install with a post-quantum request through the edge; interop.
+- Release: `release-products.yml` per tag (core first), gated by `tools/release_check.py` (tested), with a tested wheelhouse, SHA-256 checksums, provenance attestation, a GitHub release and GHCR images.
+- Licence: proprietary, © 2026 Acxelin Quantum, in the repository, core and both products; wheels carry it (install tests check), and PyPI uploads are blocked by classifier.
 
-## Remaining production gaps
-- No LICENSE file (owner decision).
-- Per-product release workflow and wheelhouse publishing not written.
-- Readiness deployment verification (`verify_endpoint`) not yet moved.
-- Old `pqcsuite` package, its site and `pages.yml` remain until Stage 6.
+## Still needs your environment
+- Windows and macOS runs, Docker, Trivy and kind/Helm: in CI after a push (no Docker, Helm or registry access in this sandbox).
+- Live AWS KMS (`signers-live`, your key and credentials) and a real HSM (your device).
+- A lawyer's review of the licence text.

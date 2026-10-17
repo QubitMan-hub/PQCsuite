@@ -39,7 +39,7 @@ LAYOUT = r"""<!doctype html>
 <main id="main"><div class="wrap">
 {body}
 </div></main>
-<footer><div class="wrap"><span>{product} is made by <a href="https://acxelinquantum.com/">Acxelin Quantum</a>.</span><a href="{root}index.html">All products</a></div></footer>
+<footer><div class="wrap"><span>{product} is made by <a href="https://acxelinquantum.com/">Acxelin Quantum</a>. © 2026 Acxelin Quantum. All rights reserved.</span><a href="{root}index.html">All products</a></div></footer>
 <script>
 document.querySelectorAll("main pre").forEach((pre) => {
   const wrap = document.createElement("div"), button = document.createElement("button");

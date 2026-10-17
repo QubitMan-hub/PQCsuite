@@ -30,6 +30,9 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     assert not set(installed) & {"pqcsuite", "wolfpack-cbom", "acxelin-tls", "acxelin-vpn", "acxelin-vault"}
     where = run(str(bin_ / "python"), "-c", "import acxelin_readiness, acxelin_core; print(acxelin_readiness.__file__); print(acxelin_core.__file__)").stdout.split()
     assert all(str(env_dir) in w for w in where), where
+    lic = run(str(bin_ / "python"), "-c", "import importlib.metadata as m\nfor d in ('acxelin-readiness', 'acxelin-core'):\n"
+              "    dist = m.distribution(d); print(any(f.name == 'LICENSE' for f in dist.files), 'Proprietary' in ' '.join(dist.metadata.get_all('Classifier')))").stdout
+    assert lic.split() == ["True", "True", "True", "True"], lic
     project = tmp_path / "project"
     shutil.copytree(ROOT / "tests/golden/readiness/project", project)
     run(str(bin_ / "acxelin-readiness"), "scan", str(project), "-o", str(tmp_path / "out"), "-q")

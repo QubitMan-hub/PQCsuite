@@ -9,6 +9,8 @@ description = "Shared mechanisms for the Acxelin products: config, safe file wri
 requires-python = ">=3.11"
 dependencies = ["cryptography>=49"]
 authors = [{name = "Acxelin Quantum"}]
+license = {file = "LICENSE"}
+classifiers = ["License :: Other/Proprietary License", "Private :: Do Not Upload"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

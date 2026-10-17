@@ -53,3 +53,7 @@ Grades, accepted groups and SSH algorithms need nothing extra. To read the certi
 - The quality gate's precision and recall come from a labelled corpus that was tuned on, so they guard against regressions. They are not a claim about unseen code.
 
 More: `docs/manual.md`, `docs/upgrade.md` (coming from Wolf Pack or the PQC Suite) and `docs/threat-model.md`.
+
+## Licence
+
+Proprietary: © 2026 Acxelin Quantum, all rights reserved. See `LICENSE`.

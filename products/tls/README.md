@@ -81,3 +81,7 @@ The Helm templates have not been rendered or linted here, only the plain YAML fi
 - Hardware and cloud signing (`--kms`, `--signer-command`) are implemented, but they have not been run against real HSMs or cloud accounts here.
 
 More: `docs/manual.md`, `docs/upgrade.md` (coming from the PQC Suite) and `docs/threat-model.md`.
+
+## Licence
+
+Proprietary: © 2026 Acxelin Quantum, all rights reserved. See `LICENSE`.

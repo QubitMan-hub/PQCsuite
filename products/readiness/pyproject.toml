@@ -10,6 +10,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = ["cryptography>=43", "acxelin-core>=1,<2"]
 authors = [{name = "Acxelin Quantum"}]
+license = {file = "LICENSE"}
+classifiers = ["License :: Other/Proprietary License", "Private :: Do Not Upload"]
 
 [project.optional-dependencies]
 crawler = ["tree-sitter>=0.25,<0.27", "tree-sitter-javascript>=0.23,<0.26", "tree-sitter-typescript>=0.23,<0.24", "tree-sitter-java>=0.23,<0.24",
