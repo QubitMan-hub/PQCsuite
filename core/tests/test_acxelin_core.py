@@ -225,3 +225,14 @@ def test_a_route_can_answer_with_a_file_download_but_only_when_signed_in():
         assert e.value.code == 401
     finally:
         server.shutdown()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows ACLs")
+def test_secret_files_on_windows_get_an_owner_only_acl(tmp_path):
+    import subprocess
+    files.write(tmp_path / "s", b"x", secret=True)
+    files.append(tmp_path / "audit.jsonl", "line")
+    for f in (tmp_path / "s", tmp_path / "audit.jsonl"):
+        acl = subprocess.run(["icacls", str(f)], capture_output=True, text=True).stdout
+        assert os.environ["USERNAME"].lower() in acl.lower(), acl
+        assert not any(w in acl for w in ("Everyone", "BUILTIN\\Users", "Authenticated Users")), acl

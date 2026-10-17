@@ -1,0 +1,21 @@
+name: dependency-audit
+on:
+  push:
+    paths: ["core/pyproject.toml", "products/*/pyproject.toml", ".github/workflows/dependency-audit.yml"]
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Known vulnerabilities in each product's installed dependencies
+        run: |
+          pip install pip-audit
+          for p in readiness tls; do python -m venv /tmp/$p && /tmp/$p/bin/pip install -q ./core "./products/$p" && /tmp/$p/bin/pip freeze --exclude-editable | grep -v "^acxelin-" > /tmp/$p.txt && pip-audit --strict -r /tmp/$p.txt; done
