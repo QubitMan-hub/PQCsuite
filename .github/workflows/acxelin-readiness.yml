@@ -38,6 +38,15 @@ jobs:
           pip install playwright==1.56.0
           python -m playwright install --with-deps chromium
           npm ci --prefix tools/browser
+      - name: The one-command installer a client runs (install.ps1 on Windows, install.sh elsewhere)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            powershell -ExecutionPolicy Bypass -File products/readiness/install.ps1
+            "$LOCALAPPDATA/Acxelin/bin/acxelin-readiness.cmd" doctor
+          else
+            sh products/readiness/install.sh && "$HOME/.local/bin/acxelin-readiness" doctor
+          fi
       - name: Tests, the browser journeys and the clean-wheel install
         run: python -m pytest -q products/readiness/tests
         env: {ACXELIN_INSTALL_TEST: "1"}

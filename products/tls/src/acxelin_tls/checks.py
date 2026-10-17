@@ -123,5 +123,5 @@ def prerequisites():
         rows.append({"product": "tls", "level": "fail", "message": reason,
                      "action": "Install OpenSSL 3.5+ for this architecture and set ACXELIN_OPENSSL to its folder; run `acxelin-tls doctor` again"})
     else:
-        rows.append({"product": "tls", "level": "ok", "message": f"OpenSSL {openssl.lib().version} can do post-quantum TLS 1.3", "action": ""})
+        rows.append({"product": "tls", "level": "ok", "message": f"{openssl.lib().version} can do post-quantum TLS 1.3", "action": ""})
     return rows

@@ -120,6 +120,16 @@ def cmd_try(a):
     return 0
 
 
+START = """Acxelin TLS: post-quantum TLS and mutual TLS in front of the services you run, with your own certificate authority.
+
+Start here:
+  acxelin-tls console      your certificate authority, certificates and edges, in your browser
+  acxelin-tls try          a one-minute tour: a post-quantum client gets through, a classical one is refused
+  acxelin-tls doctor       check that this machine can do post-quantum TLS
+  acxelin-tls --help       every command (edge, bundle, connect, ca ...)
+New here? `acxelin-tls try` first; `acxelin-tls doctor` if anything fails."""
+
+
 def parser():
     ap = argparse.ArgumentParser(prog=NAME, description="Acxelin TLS: post-quantum TLS 1.3 and mTLS in front of the services you already run, with its own certificate authority.")
     ap.add_argument("--version", action="version", version=f"{NAME} {__version__}")
@@ -152,8 +162,7 @@ def main(argv=None):
     ap = parser()
     a = ap.parse_args(argv)
     if not a.cmd:
-        ap.print_help()
-        print(f"\nNew here? `{NAME} try` runs a one-minute tour; `{NAME} doctor` checks this machine.")
+        print(START)
         sys.exit(0)
     h = logging.StreamHandler()
     h.setFormatter(JSONFormatter() if a.log_json else logging.Formatter("%(asctime)s %(levelname)s %(message)s"))

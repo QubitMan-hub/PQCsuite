@@ -9,13 +9,16 @@ Acxelin Readiness reads source code, configuration, keys and certificates, binar
 
 ## Install
 
-From a checkout (Python 3.11 to 3.14; Linux, Windows or macOS):
+Python 3.11 to 3.14, on Linux, Windows or macOS. One command installs it for your user and puts `acxelin-readiness` on your PATH:
 
-```
-pip install ./core "./products/readiness[crawler]"
-```
+| Where | Command |
+|---|---|
+| Linux, macOS | `sh install.sh` |
+| Windows | `powershell -ExecutionPolicy Bypass -File install.ps1` |
 
-From a release, unpack its wheelhouse and run `pip install --no-index --find-links wheelhouse acxelin-readiness`. The `crawler` extra adds JavaScript, TypeScript, Java and Go call relationships.
+Run it in an unpacked release wheelhouse (it installs offline from the wheels next to it) or in `products/readiness` of a checkout. It checks your Python, finds OpenSSL 3.5, runs `acxelin-readiness doctor` and says what to do next. `sh install.sh --uninstall` (or `-Uninstall`) removes it.
+
+For a virtual environment of your own: `pip install ./core ./products/readiness`.
 
 ## Use
 

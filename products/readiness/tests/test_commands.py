@@ -49,3 +49,9 @@ def test_console_container_flag_listens_on_every_interface_and_opens_no_browser(
     assert cli.main(["console", "--container", "--home", str(tmp_path)]) == 0
     assert seen == {"home": tmp_path, "open": False, "host": "0.0.0.0"}
     assert cli.main(["console", "--no-browser", "--home", str(tmp_path)]) == 0 and seen["host"] == "127.0.0.1"
+
+
+def test_no_arguments_shows_where_to_start(capsys):
+    assert cli.main([]) == 0
+    out = capsys.readouterr().out
+    assert "Start here" in out and "acxelin-readiness scan" in out and "acxelin-readiness console" in out

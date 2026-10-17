@@ -18,11 +18,21 @@ SETTINGS = {"exclude": list, "include_vendor": bool, "tls": list, "ssh": list, "
             "crqc_year": int, "threshold": (int, float), "fail_on": str, "name": str, "policy": dict}
 
 
+START = """Acxelin Readiness: find the cryptography a quantum computer breaks, and what to migrate first.
+
+Start here:
+  acxelin-readiness scan PATH     find the cryptography in a repository, then open readiness-out/report.html
+  acxelin-readiness console       scan repositories and endpoints from your browser
+  acxelin-readiness grade HOST    grade a TLS or SSH endpoint from A to F
+  acxelin-readiness doctor        check what this machine can scan
+  acxelin-readiness --help        every command"""
+
+
 def main(argv=None):
     warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
     ap = argparse.ArgumentParser(prog="acxelin-readiness", description="Cryptographic inventory (CycloneDX 1.6 CBOM) and quantum migration planner")
-    ap.add_argument("--version", action="version", version=__version__)
-    sub = ap.add_subparsers(dest="cmd", required=True)
+    ap.add_argument("--version", action="version", version=f"acxelin-readiness {__version__}")
+    sub = ap.add_subparsers(dest="cmd")
     s = sub.add_parser("scan", help="send the pipeline over a repository and/or live TLS and SSH endpoints")
     s.add_argument("path", nargs="?", default=None, help="folder to scan, or a container image saved with `docker save` or as an OCI archive (default: current folder, or none if only --tls/--ssh are given)")
     s.add_argument("--tls", action="append", default=[], metavar="HOST:PORT", help="probe a live TLS endpoint, including which key-exchange groups it accepts (repeatable)")
@@ -77,6 +87,9 @@ def main(argv=None):
         a = ap.parse_args(argv)
     except SystemExit as e:
         raise SystemExit(1 if e.code == 2 else e.code)
+    if not a.cmd:
+        print(START)
+        return 0
 
     if a.cmd == "merge":
         return merge(a)

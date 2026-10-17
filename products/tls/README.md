@@ -9,14 +9,16 @@ Acxelin TLS has three parts:
 
 ## Install
 
-Python 3.11 to 3.14, and **OpenSSL 3.5 or newer** (Debian 13 ships it, and the container image has it):
+Python 3.11 to 3.14, and OpenSSL 3.5 or newer (Debian 13 and macOS with `brew install openssl@3` have it; on Windows, `choco install openssl`). One command installs it for your user and puts `acxelin-tls` on your PATH:
 
-```
-pip install ./core ./products/tls
-acxelin-tls doctor
-```
+| Where | Command |
+|---|---|
+| Linux, macOS | `sh install.sh` |
+| Windows | `powershell -ExecutionPolicy Bypass -File install.ps1` |
 
-From a release, unpack its wheelhouse and run `pip install --no-index --find-links wheelhouse acxelin-tls`. `doctor` says whether this machine can do post-quantum TLS. If OpenSSL 3.5 is installed somewhere other than the system default, point `ACXELIN_OPENSSL` at its folder.
+Run it in an unpacked release wheelhouse (it installs offline from the wheels next to it) or in `products/tls` of a checkout. It checks your Python, finds OpenSSL 3.5, runs `acxelin-tls doctor` and says what to do next. `sh install.sh --uninstall` (or `-Uninstall`) removes it.
+
+For a virtual environment of your own: `pip install ./core ./products/tls`.
 
 ## See it work
 

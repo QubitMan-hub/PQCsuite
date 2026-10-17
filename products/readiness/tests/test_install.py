@@ -41,7 +41,7 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     report = (tmp_path / "out/report.html").read_text()
     assert "@font-face" in report and "Acxelin Readiness" in report
     assert "full TLS handshakes" in run(str(bin_ / "acxelin-readiness"), "doctor").stdout
-    assert run(str(bin_ / "acxelin-readiness"), "--version").stdout.strip() == "1.0.0"
+    assert run(str(bin_ / "acxelin-readiness"), "--version").stdout.strip() == "acxelin-readiness 1.0.0"
     # the console starts from the installed wheel: its page, fonts and script ship, and nothing works without a session
     import socket
     import time

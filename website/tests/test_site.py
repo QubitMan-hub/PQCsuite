@@ -15,8 +15,8 @@ AXE = ROOT / "tools/browser/node_modules/axe-core/axe.min.js"
 sys.path.insert(0, str(ROOT / "tools"))
 import build_site  # noqa: E402
 
-PRODUCTS = {"readiness": ("Acxelin Readiness", "See Acxelin Readiness", 'pip install ./core "./products/readiness[crawler]"'),
-            "tls": ("Acxelin TLS", "See Acxelin TLS", "pip install ./core ./products/tls\nacxelin-tls doctor")}
+PRODUCTS = {"readiness": ("Acxelin Readiness", "See Acxelin Readiness", "sh install.sh"),
+            "tls": ("Acxelin TLS", "See Acxelin TLS", "sh install.sh")}
 PAGES = ["index.html"] + [f"{s}/{p}" for s, (_, pages) in build_site.SECTIONS.items() for p, _ in pages]
 OLD = re.compile(r"Wolf ?Pack|wolfpack|PQC ?Suite(?!/)|pqcsuite(?!/)", re.I)  # the repository path QubitMan-hub/PQCsuite/... is a real URL
 

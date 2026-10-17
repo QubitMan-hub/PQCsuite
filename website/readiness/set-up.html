@@ -4,9 +4,10 @@
 <h1>Set up Acxelin Readiness</h1>
 <p class="lead">It runs on Linux, Windows and macOS with Python 3.11 to 3.14. You do not need another Acxelin product.</p>
 <ol class="steps">
-<li><h2>Install</h2><p>From a checkout of the repository:</p>
-<pre><code>pip install ./core "./products/readiness[crawler]"</code></pre>
-<p>The <code>crawler</code> extra adds call relationships for JavaScript, TypeScript, Java and Go. From a release, unpack its wheelhouse and run <code>pip install --no-index --find-links wheelhouse acxelin-readiness</code>.</p></li>
+<li><h2>Install</h2>
+<p>One command installs it for your user and puts <code>acxelin-readiness</code> on your PATH. Run it in an unpacked release wheelhouse, or in <code>products/readiness</code> of a checkout:</p>
+<pre><code>sh install.sh</code></pre>
+<p>On Windows: <code>powershell -ExecutionPolicy Bypass -File install.ps1</code>. It checks Python, finds OpenSSL 3.5, runs <code>acxelin-readiness doctor</code> and says what to do next.</p></li>
 <li><h2>Scan a repository</h2>
 <pre><code>acxelin-readiness scan path/to/repository</code></pre>
 <p>Open <code>readiness-out/report.html</code> in a browser. The CBOM and SARIF files are next to it.</p></li>

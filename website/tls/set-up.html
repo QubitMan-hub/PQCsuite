@@ -5,9 +5,9 @@
 <p class="lead">It needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. You do not need another Acxelin product.</p>
 <ol class="steps">
 <li><h2>Install</h2>
-<pre><code>pip install ./core ./products/tls
-acxelin-tls doctor</code></pre>
-<p><code>doctor</code> says whether this machine can do post-quantum TLS. Debian 13 ships OpenSSL 3.5, and the container image has it. If OpenSSL 3.5 is installed elsewhere, point <code>ACXELIN_OPENSSL</code> at its folder. From a release, unpack its wheelhouse and run <code>pip install --no-index --find-links wheelhouse acxelin-tls</code>.</p></li>
+<p>One command installs it for your user and puts <code>acxelin-tls</code> on your PATH. Run it in an unpacked release wheelhouse, or in <code>products/tls</code> of a checkout:</p>
+<pre><code>sh install.sh</code></pre>
+<p>On Windows: <code>powershell -ExecutionPolicy Bypass -File install.ps1</code>. It checks Python, finds OpenSSL 3.5, runs <code>acxelin-tls doctor</code> and says what to do next.</p></li>
 <li><h2>See it work</h2>
 <pre><code>acxelin-tls try</code></pre>
 <p>A one-minute tour with nothing to set up. <a href="demo.html">The demo page</a> shows its real output.</p></li>
