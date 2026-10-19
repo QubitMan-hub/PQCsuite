@@ -57,7 +57,7 @@ jobs:
           choco install wireguard -y --no-progress
           $sig = Get-AuthenticodeSignature "$env:ProgramFiles\WireGuard\wireguard.exe"
           if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'WireGuard LLC') { throw "wireguard.exe signature: $($sig.Status) $($sig.SignerCertificate.Subject)" }
-      - run: pip install -e ".[test,integration]"
+      - run: pip install -e ./core -e ./products/tls -e ".[test,integration]"
       - name: VPN client with WireGuard for Windows, a real tunnel service brought up, rotated and removed
         env:
           PQCSUITE_REAL_WIREGUARD: "1"
@@ -167,7 +167,7 @@ jobs:
             --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce --enable-hmac \
             --enable-kdf --enable-kernel-netlink --enable-socket-default --enable-updown --enable-resolve --enable-attr --enable-constraints \
             --enable-revocation && make -j4 && sudo make install && sudo chmod -R a+rX /opt/pqc
-      - run: pip install -e ".[vpn]"
+      - run: pip install -e ./core -e ./products/tls -e ".[vpn]"
       - name: Real application for VPN traffic checks
         run: sudo apt-get update && sudo apt-get install -y redis-server
       - name: Two sites in network namespaces, real ESP traffic
