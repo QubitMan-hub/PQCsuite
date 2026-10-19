@@ -8,9 +8,7 @@ import sys
 from .. import NAME, __version__, explain, tls
 from ..pki import CAError
 from ..vault import VaultError
-from ..vpn.charon import CharonError
-from ..vpn.wireguard import WGError
-from . import suite, vault, vpn
+from . import suite, vault
 
 
 class JSONFormatter(logging.Formatter):
@@ -67,15 +65,12 @@ def explain_options(p):
 
 
 def parser():
-    ap = argparse.ArgumentParser(prog=NAME, description="Post-quantum products: TLS 1.3 + mTLS, VPN, Vault and Readiness assessment.")
+    ap = argparse.ArgumentParser(prog=NAME, description="Post-quantum products: Vault, and the console for certificates, edges, backups and readiness.")
     ap.add_argument("--version", action="version", version=f"{NAME} {__version__}")
     ap.add_argument("--log-json", action="store_true", help="structured JSON logs")
     ap.add_argument("-v", "--verbose", action="store_true")
     sub = ap.add_subparsers(dest="cmd")
-    common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--dir", default="pki", help="CA folder (default: pki)")
     suite.add(sub)
-    vpn.add(sub, common)
     vault.add(sub)
     suite.add_console(sub)
     explain_options(ap)
@@ -97,7 +92,7 @@ def main(argv=None):
     except BrokenPipeError:  # output piped into head, or a pager closed early
         os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
         sys.exit(1)
-    except (CAError, CharonError, WGError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
+    except (CAError, VaultError, tls.TLSError, ValueError, OSError, ImportError) as e:
         print(f"error: {explain(e)}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:

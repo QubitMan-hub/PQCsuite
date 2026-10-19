@@ -13,8 +13,10 @@ Design and stage reports: `docs/superpowers/specs/` and `docs/superpowers/plans/
 - `products/readiness/` (acxelin-readiness): Readiness + CBOM: scan, grade, report, merge, doctor, console.
 - `products/tls/` (acxelin-tls): TLS/mTLS edge, the CA commands, ACME, console, Docker, systemd.
 - `website/`: the shared home page and one section per product (`tools/build_site.py`); demo content is real product output.
-- `pqcsuite/`, `tests/`, `examples/`, `deploy/`, `docker/`, `packaging/`, `docs/`: VPN and Vault until Stage 3 (VPN) and
-  Stage 4 (Vault) move them to `products/vpn` and `products/vault`; Stage 6 then deletes these folders.
+- `products/vpn/` (acxelin-vpn): site-to-site IPsec, WireGuard remote access, the desktop app and its installers, the VPN's
+  CA subset, console and CBOM export, the gateway image and systemd units.
+- `pqcsuite/`, `tests/`, `examples/`, `docs/`: Vault and the old console until Stage 4 moves Vault to `products/vault`;
+  `pqcsuite.vpn` and the other moved modules are re-exports. Stage 6 then deletes these folders.
 
 ## Rules
 
@@ -31,7 +33,7 @@ Design and stage reports: `docs/superpowers/specs/` and `docs/superpowers/plans/
 7. Consoles: loopback only (`--container` in Docker), single-use launch tickets in the URL fragment, session tokens in
    sessionStorage, no cookies, Host and Origin checks, lockout after 10 wrong attempts a minute, no secrets in URLs or logs.
 8. Customer-facing pages use Acxelin's style. Proprietary licence: "© 2026 Acxelin Quantum, all rights reserved".
-9. Releases are per product by tag, core first (`core-vX.Y.Z`, then `tls-vX.Y.Z`, `readiness-vX.Y.Z`); the owner decides
+9. Releases are per product by tag, core first (`core-vX.Y.Z`, then `tls-vX.Y.Z`, `vpn-vX.Y.Z`, `readiness-vX.Y.Z`); the owner decides
    when. PyPI uploads are blocked on purpose.
 10. The mentor's AcxelinPQC repository is a feature reference only; never copy its code.
 11. A stage is done only on executed evidence; report failures and skips with their causes.
@@ -39,11 +41,12 @@ Design and stage reports: `docs/superpowers/specs/` and `docs/superpowers/plans/
 ## Commands
 
 ```
-pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e ".[test]" ruff==0.14.0
+pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e "./products/vpn[vpn,test]" -e ".[test]" ruff==0.14.0
 ruff check .
 python -m pytest -q core/tests products/tls/tests tools/tests
 python -m pytest -q products/readiness/tests website/tests
-python -m pytest -q tests        # VPN and Vault; run the three separately (two test_install.py files clash)
+python -m pytest -q products/vpn/tests
+python -m pytest -q tests        # Vault; run each product's tests separately (same-named test files clash)
 ```
 
 On Linux set `ACXELIN_OPENSSL` and `LD_LIBRARY_PATH` to an OpenSSL 3.5+ lib folder.

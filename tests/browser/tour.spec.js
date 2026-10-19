@@ -2,7 +2,6 @@ const { test, expect } = require("@playwright/test");
 const AxeBuilder = require("@axe-core/playwright").default;
 
 const CONSOLE = "http://127.0.0.1:8900/";
-const WINDOW = "http://127.0.0.1:8901/";
 const card = (page) => page.locator(".tour-card");
 const asNewcomer = (page) => page.addInitScript(() => Object.defineProperty(navigator, "webdriver", { get: () => false }));
 
@@ -39,13 +38,4 @@ test("the console tour opens each page in turn", async ({ page }) => {
   await page.keyboard.press("Escape");
   await page.click("#tour");
   await walk(page, 9);
-});
-
-test("the VPN window tour", async ({ page, request }) => {
-  await asNewcomer(page);
-  const r = await request.post(WINDOW + "api/ticket", { headers: { Authorization: "Bearer browser-test" }, data: {} });
-  await page.goto(WINDOW + "#" + (await r.json()).ticket);
-  await walk(page, 6);
-  await page.click("#tour");
-  await expect(card(page)).toContainText("Step 1 of 6");
 });

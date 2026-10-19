@@ -18,15 +18,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn -e ".[test,integration,scan-web,desktop]"
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn -e ".[test,integration,scan-web]"
       - run: python -m pytest -q
-      - name: Repository checks (each product stands alone; installers; release rules; VPN wire compatibility with the suite)
+      - name: Repository checks (each product stands alone; installers; release rules; the VPN's CBOM in Readiness)
         if: runner.os == 'Linux'
-        run: python -m pytest -q tools/tests products/vpn/tests
-      - name: Desktop app on Windows, the real tray icon included; a skipped test fails the step
-        if: runner.os == 'Windows'
-        shell: bash
-        run: python -m pytest tests/test_vpn_desktop.py -v -rs | tee desktop.txt && ! grep -q SKIPPED desktop.txt
+        run: python -m pytest -q tools/tests
   macos:
     runs-on: macos-latest
     steps:
@@ -36,44 +32,19 @@ jobs:
           python-version: "3.13"
       - name: OpenSSL 3.5+ from Homebrew, so the TLS tests run too
         run: brew install openssl@3 && echo "PQCSUITE_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
-      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ".[test,integration,scan-web,desktop]" && pqcsuite doctor && pqcsuite try
-      - name: Desktop app on macOS, the real menu-bar icon included; a skipped test fails the step
-        shell: bash
-        run: python -m pytest tests/test_vpn_desktop.py -v -rs | tee desktop.txt && ! grep -q SKIPPED desktop.txt
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn -e ".[test,integration,scan-web]" && pqcsuite doctor && pqcsuite try
       - name: A second loopback address, as Linux has, for the per-host limit test
         run: sudo ifconfig lo0 alias 127.0.0.2 up
       - run: python -m pytest -q
-      - name: VPN client with Homebrew's WireGuard, a real tunnel brought up, rotated and removed
-        run: |
-          brew install wireguard-tools
-          sudo -E env PQCSUITE_REAL_WIREGUARD=1 "$(command -v python)" -m unittest tests.test_vpn_platforms.RealTunnelTest -v
-  windows-vpn:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-      - name: WireGuard for Windows, refused unless WireGuard LLC signed it
-        shell: pwsh
-        run: |
-          choco install wireguard -y --no-progress
-          $sig = Get-AuthenticodeSignature "$env:ProgramFiles\WireGuard\wireguard.exe"
-          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'WireGuard LLC') { throw "wireguard.exe signature: $($sig.Status) $($sig.SignerCertificate.Subject)" }
-      - run: pip install -e ./core -e ./products/tls -e ".[test,integration]"
-      - name: VPN client with WireGuard for Windows, a real tunnel service brought up, rotated and removed
-        env:
-          PQCSUITE_REAL_WIREGUARD: "1"
-        run: python -m unittest tests.test_vpn_platforms -v
   scenarios:
-    # the old suite's tests with real services (VPN and Vault until their stages; TLS and Readiness test in their own workflows)
+    # the old suite's tests with real services (Vault until its stage; TLS, Readiness and VPN test in their own workflows)
     runs-on: ubuntu-latest
     container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: A real database for the Vault restore scenario
         run: apt-get update && apt-get install -y --no-install-recommends git openssl curl postgresql
-      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ".[test,integration,scan-web]" && pqcsuite doctor
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn -e ".[test,integration,scan-web]" && pqcsuite doctor
       - run: python -m coverage run -m pytest -q
       - name: Coverage floor
         run: |
@@ -89,7 +60,7 @@ jobs:
       - name: Known vulnerabilities in the runtime and optional dependencies
         run: |
           pip install pip-audit==2.10.1
-          python -c 'import tomllib; p=tomllib.load(open("pyproject.toml","rb"))["project"]; extra=p["optional-dependencies"]; print("\n".join(d for d in p["dependencies"] + extra["vpn"] + extra["kms"] + extra["desktop"] if not d.startswith("acxelin-")))' > deps.txt
+          python -c 'import tomllib; p=tomllib.load(open("pyproject.toml","rb"))["project"]; extra=p["optional-dependencies"]; print("\n".join(d for d in p["dependencies"] + extra["vpn"] + extra["kms"] if not d.startswith("acxelin-")))' > deps.txt
           pip-audit -r deps.txt
   lint:
     runs-on: ubuntu-latest
@@ -117,97 +88,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls ".[scan-web]"
-      - name: The suite console and the VPN window in Chromium, with axe accessibility checks
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn ".[scan-web]"
+      - name: The suite console in Chromium, with axe accessibility checks
         working-directory: tests/browser
         run: |
           npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium
           npx playwright test
-  installers:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-      - uses: ./.github/actions/installer
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: acxelin-vpn-${{ runner.os }}
-          path: dist/installers
-  vpn:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-      - name: Cache OpenSSL 3.5 and strongSwan 6.1
-        id: cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: /opt/pqc
-          key: openssl-3.5.9-strongswan-6.1.0-v2
-      - name: Build OpenSSL 3.5 and strongSwan 6.1
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update && sudo apt-get install -y build-essential libgmp-dev pkg-config
-          # OpenSSL's hash is the one openssl.org publishes; strongSwan's GitHub release has none, so its hash is pinned from the
-          # first download and guards against the file changing since
-          curl -fsSL -o openssl.tgz https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz
-          curl -fsSL -o strongswan.tbz https://github.com/strongswan/strongswan/releases/download/6.1.0/strongswan-6.1.0.tar.bz2
-          printf '%s  %s\n' 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a openssl.tgz \
-            fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4 strongswan.tbz | sha256sum -c -
-          tar xzf openssl.tgz && tar xjf strongswan.tbz
-          (cd openssl-3.5.9 && ./Configure --prefix=/opt/pqc --libdir=lib shared no-tests && make -j4 && sudo make install_sw)
-          cd strongswan-6.1.0 && PKG_CONFIG_PATH=/opt/pqc/lib/pkgconfig CPPFLAGS=-I/opt/pqc/include LDFLAGS="-L/opt/pqc/lib -Wl,-rpath,/opt/pqc/lib" \
-            ./configure --prefix=/opt/pqc --disable-defaults --enable-openssl --enable-ml --enable-vici --enable-swanctl --enable-charon \
-            --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce --enable-hmac \
-            --enable-kdf --enable-kernel-netlink --enable-socket-default --enable-updown --enable-resolve --enable-attr --enable-constraints \
-            --enable-revocation && make -j4 && sudo make install && sudo chmod -R a+rX /opt/pqc
-      - run: pip install -e ./core -e ./products/tls -e ./products/vpn -e ".[vpn]" pytest
-      - name: Upgrade path, Acxelin VPN agrees the same keys as the suite in both directions (real OpenSSL 3.5; a skip fails)
-        run: |
-          set -o pipefail
-          ACXELIN_OPENSSL=/opt/pqc/lib LD_LIBRARY_PATH=/opt/pqc/lib python -m pytest tools/tests/test_vpn_wire.py -v -rs | tee wire.txt
-          ! grep -q SKIPPED wire.txt
-      - name: Real application for VPN traffic checks
-        run: sudo apt-get update && sudo apt-get install -y redis-server
-      - name: Two sites in network namespaces, real ESP traffic
-        run: |
-          sudo modprobe -a esp4 xfrm_user || true
-          sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib PQCSUITE_STRONGSWAN=/opt/pqc PQCSUITE_VPN_DATAPLANE=1 \
-            python -m unittest tests.test_vpn -v
-      - name: WireGuard remote access in network namespaces, real traffic
-        run: |
-          set -o pipefail
-          sudo apt-get install -y wireguard-tools
-          sudo modprobe wireguard || true
-          sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib python -m unittest tests.test_wireguard -v 2>&1 | tee wg.log
-          grep -q "test_traffic_rotation_and_revocation .* ok" wg.log
-          grep -q "test_all_traffic_through_the_tunnel_recovery_and_kill_switch .* ok" wg.log
-      - name: VPN demo (branch over IPsec, laptop over WireGuard)
-        run: sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib PQCSUITE_STRONGSWAN=/opt/pqc python examples/vpn_demo.py --auto
-  cloud-image:
-    runs-on: ubuntu-24.04
-    container: debian:trixie@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c   # a stand-in for the Debian 13 VM; update by hand
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Packer template
-        run: |
-          apt-get update && apt-get install -y curl unzip sudo
-          curl -fsSL -o packer.zip https://releases.hashicorp.com/packer/1.14.1/packer_1.14.1_linux_amd64.zip
-          echo "b9c39b150fd856c6a6ab1639acc01a181d85033f4e0dc6c9ef87bbb692a59c31  packer.zip" | sha256sum -c - && unzip -q packer.zip -d /usr/local/bin
-          packer init deploy/packer && packer fmt -check deploy/packer
-          packer validate -var gcp_project=ci -var azure_subscription_id=00000000-0000-0000-0000-000000000000 deploy/packer
-      - name: The image's provisioning script on Debian 13 (systemctl stubbed; no systemd in a container)
-        run: |
-          printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/systemctl && chmod +x /usr/local/bin/systemctl
-          mkdir -p /tmp/pqcsuite && cp -r pyproject.toml README.md pqcsuite deploy core products /tmp/pqcsuite/
-          sh deploy/packer/provision.sh
-          test -x /opt/strongswan/libexec/ipsec/charon && ls /etc/systemd/system/pqcsuite-*.service

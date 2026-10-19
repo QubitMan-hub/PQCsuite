@@ -64,3 +64,54 @@ def test_invite_then_join_needs_no_other_product():
             f"sys.exit(pytest.main(['-q', '-p', 'no:cacheprovider', {str(test) + '::GatewayTest::test_invite_then_join_enrolls_and_agrees_keys_in_one_step'!r}]))")
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=300, cwd=test.parent)
     assert r.returncode == 0 and "1 passed" in r.stdout, r.stdout + r.stderr
+
+
+# Moved from the suite's tests/test_cli.py with their assertions; the commands are now acxelin-vpn's.
+
+def test_a_diagnostic_agreement_does_not_claim_a_connection():
+    from unittest.mock import patch
+    with patch("acxelin_vpn.wireguard.Client") as client:
+        client.return_value.once.return_value = {"address": "10.0.0.2", "endpoint": "gateway:51820", "routes": ["10.0.0.0/24"], "rotate_s": 120}
+        code, out = run("connect", "gateway:7443", "--cert-dir", "client", "--once", "--no-apply")
+    assert code == 0
+    assert "no tunnel activated" in out and "--once does not keep keys fresh" in out and "connected as" not in out
+    assert not client.call_args.args[4]
+
+
+def test_config_files_name_what_is_missing_or_wrong(tmp_path):
+    cfg = tmp_path / "c.toml"
+    cfg.write_text('[site]\nname = "x"\n')
+    code, out = run("up", "--config", str(cfg))
+    assert code == 1 and "[site]: missing address" in out and "Traceback" not in out
+    cfg.write_text('[wireguard]\nname = "x"\n')
+    code, out = run("gateway", "--config", str(cfg))
+    assert code == 1 and "[wireguard]: missing endpoint" in out and "Traceback" not in out
+
+
+def test_check_without_the_gateway_extra_says_how_to_add_it():
+    from unittest import mock
+    with mock.patch.dict(sys.modules, {"vici": None}):
+        code, out = run("check")
+    assert code == 1 and 'acxelin-vpn[vpn]' in out
+
+
+def test_a_guided_device_key_connect_prompts_without_disclosing_the_secret(tmp_path):
+    from unittest.mock import patch
+    from acxelin_core.pki import CA
+    ca = CA.init(tmp_path / "ca", "Test")
+    ca.issue("device", "client", out=tmp_path / "device", passphrase=b"PRIVATE_DEVICE_PASSPHRASE")
+    args = ["connect", "gateway.example:7443", "--cert-dir", str(tmp_path / "device"), "--no-apply", "--once"]
+    with patch("sys.stdin.isatty", return_value=True), patch("getpass.getpass", return_value="PRIVATE_DEVICE_PASSPHRASE"), \
+            patch("acxelin_vpn.wireguard.Client") as client:
+        client.return_value.once.return_value = {"address": "10.0.0.2", "endpoint": "gateway.example:51820", "routes": [], "rotate_s": 120}
+        code, out = run(*args)
+    assert code == 0 and client.call_args.args[6] == b"PRIVATE_DEVICE_PASSPHRASE" and "PRIVATE_DEVICE" not in out
+    with patch("sys.stdin.isatty", return_value=False), patch("acxelin_vpn.wireguard.Client") as client:
+        code, out = run(*args)
+    assert code != 0 and "--key-passphrase-env" in out
+    client.assert_not_called()
+    with patch("acxelin_vpn.platforms.install") as install, patch("acxelin_vpn.wireguard.Client") as client:
+        code, out = run("install", "gateway.example:7443", "--cert-dir", str(tmp_path / "device"))
+    assert code != 0
+    install.assert_not_called()
+    client.assert_not_called()

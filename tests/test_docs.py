@@ -9,8 +9,8 @@ from pathlib import Path
 from pqcsuite.cli import parser
 
 ROOT = Path(__file__).resolve().parent.parent
-# Commands that moved to Acxelin Readiness and Acxelin TLS; the old documents that still name them are replaced in Stage 6, when this list goes.
-MOVED = {"scan", "readiness", "ca", "tls"}
+# Commands that moved to Acxelin Readiness, Acxelin TLS and Acxelin VPN; the old documents that still name them are replaced in Stage 6, when this list goes.
+MOVED = {"scan", "readiness", "ca", "tls", "vpn"}
 DOCS = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "docs/*.md", "pqcsuite/console/console.html", "examples/*.toml",
         "deploy/**/*.service", "deploy/**/*.yaml", "deploy/**/*.tpl", "deploy/**/*.hcl", "deploy/**/*.sh"]
 COMMAND = re.compile(r"(?<!-t )(?:^|(?<=[\s$/]))pqcsuite ((?:[a-z][\w-]*)(?: [a-z][\w-]*)?)([^\n;|&#)]*)")
@@ -64,7 +64,7 @@ class DocsTest(unittest.TestCase):
                         rest = " ".join(words[len(cmd):]) + m.group(2)
                         wrong += [f"{where}  (no option {o})" for o in re.findall(r"(?<![\w-])(--[a-z][a-z0-9-]*|-[a-z])\b", rest)
                                   if o not in known[cmd]]
-        self.assertGreater(seen, 40, "the command pattern stopped matching the documentation")  # 50 quoted commands once the suite manual left
+        self.assertGreater(seen, 20, "the command pattern stopped matching the documentation")  # 27 quoted commands once the VPN left
         self.assertEqual(wrong, [])
 
     def test_links_inside_the_repository_lead_somewhere(self):

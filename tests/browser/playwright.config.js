@@ -9,6 +9,5 @@ module.exports = defineConfig({
   use: { browserName: "chromium" },
   webServer: [
     { command: `${python} console_server.py`, url: "http://127.0.0.1:8900/", reuseExistingServer: false },
-    { command: `${python} vpn_server.py`, url: "http://127.0.0.1:8901/", reuseExistingServer: false },
   ],
 });

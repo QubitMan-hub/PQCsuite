@@ -1,6 +1,14 @@
 """During an upgrade a gateway on Acxelin VPN 1.0 agrees keys with one still on PQC Suite 0.4.3, in both directions, over
-real post-quantum mutual TLS: the same session gives both sides the same IKE PSK, PPK, PPK id and WireGuard PSK. This is the
-one test that imports both, so it lives at the repository level."""
+real post-quantum mutual TLS: the same session gives both sides the same IKE PSK, PPK, PPK id and WireGuard PSK. The 0.4.3 side
+is the released code itself, taken from the v0.4.3 tag (or ACXELIN_VPN_OLD, an unpacked 0.4.3 tree), never today's suite."""
+import io
+import os
+import subprocess
+import sys
+import tarfile
+import tempfile
+from pathlib import Path
+
 import pytest
 
 from acxelin_core import tls
@@ -12,11 +20,34 @@ try:
 except tls.OpenSSLUnavailable as e:
     pytest.skip(str(e), allow_module_level=True)
 
-import acxelin_vpn
-import pqcsuite.vpn as old_vpn
-from acxelin_vpn import controller as new_ctl, wireguard as new_wg
-from acxelin_vpn.policies import POLICY
-from pqcsuite.vpn import controller as old_ctl, wireguard as old_wg
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def released():
+    """The 0.4.3 `pqcsuite` package, first on the path, in place of anything already imported under that name."""
+    old = os.environ.get("ACXELIN_VPN_OLD")
+    if not old:
+        tar = subprocess.run(["git", "archive", "v0.4.3", "pqcsuite"], cwd=ROOT, capture_output=True)
+        if tar.returncode:
+            pytest.skip(f"the v0.4.3 tag is not here (git fetch --tags): {tar.stderr.decode(errors='replace').strip()}", allow_module_level=True)
+        old = tempfile.mkdtemp(prefix="pqcsuite-0.4.3-")
+        tarfile.open(fileobj=io.BytesIO(tar.stdout)).extractall(old, filter="data")
+    for name in [m for m in sys.modules if m == "pqcsuite" or m.startswith("pqcsuite.")]:
+        del sys.modules[name]
+    sys.path.insert(0, old)
+    import pqcsuite
+    assert Path(pqcsuite.__file__).resolve().is_relative_to(Path(old).resolve()) and pqcsuite.__version__ == "0.4.3", pqcsuite.__file__
+    if os.environ.get("ACXELIN_OPENSSL"):
+        os.environ.setdefault("PQCSUITE_OPENSSL", os.environ["ACXELIN_OPENSSL"])
+
+
+released()
+
+import acxelin_vpn  # noqa: E402
+import pqcsuite.vpn as old_vpn  # noqa: E402
+from acxelin_vpn import controller as new_ctl, wireguard as new_wg  # noqa: E402
+from acxelin_vpn.policies import POLICY  # noqa: E402
+from pqcsuite.vpn import controller as old_ctl, wireguard as old_wg  # noqa: E402
 
 
 class Charon:

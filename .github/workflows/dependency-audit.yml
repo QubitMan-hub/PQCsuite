@@ -18,4 +18,4 @@ jobs:
       - name: Known vulnerabilities in each product's installed dependencies
         run: |
           pip install pip-audit
-          for p in readiness tls; do python -m venv /tmp/$p && /tmp/$p/bin/pip install -q ./core "./products/$p" && /tmp/$p/bin/pip freeze --exclude-editable | grep -v "^acxelin-" > /tmp/$p.txt && pip-audit --strict -r /tmp/$p.txt; done
+          for p in readiness tls "vpn[vpn,desktop]"; do n=${p%%\[*}; python -m venv /tmp/$n && /tmp/$n/bin/pip install -q ./core "./products/$p" && /tmp/$n/bin/pip freeze --exclude-editable | grep -v "^acxelin-" > /tmp/$n.txt && pip-audit --strict -r /tmp/$n.txt; done

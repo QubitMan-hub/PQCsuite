@@ -1,4 +1,4 @@
-"""Write the golden fixtures with today's code: python tools/make_fixtures.py tests/golden
+"""Write the golden fixtures with the suite as it was before the restructure: check out 5f8c349, then python tools/make_fixtures.py tests/golden
 
 Every key, certificate, token and passphrase here is synthetic and created on the spot; names end in .invalid.
 Lifetimes reach past 2099 so the fixtures do not expire while the restructure uses them.

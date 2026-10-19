@@ -206,9 +206,9 @@ def prerequisites(product='all'):
         if sys.platform.startswith('linux') and importlib.util.find_spec('vici') and shutil.which('swanctl') and shutil.which('ip'):
             add('vpn', 'ok', 'IPsec control tools found; kernel support and tunnel traffic still require deployment tests')
         else:
-            add('vpn', 'warn', 'This machine is not set up as an IPsec gateway (fine for a laptop)', 'Gateways need Linux with strongSwan, VICI and iproute2; laptops use the Acxelin VPN app or pqcsuite vpn join')
+            add('vpn', 'warn', 'This machine is not set up as an IPsec gateway (fine for a laptop)', 'Gateways need Linux with strongSwan, VICI and iproute2; laptops use the Acxelin VPN app or `acxelin-vpn join`')
         if not shutil.which('wg'):
             add('vpn', 'warn', 'WireGuard command was not found on PATH', 'Install the official WireGuard tools for this platform before device enrollment')
         if not all(importlib.util.find_spec(m) for m in ('pystray', 'PIL')):
-            add('vpn', 'warn', 'The desktop app (tray icon) is not installed; `pqcsuite vpn app` opens the VPN window in a browser instead', 'pip install "pqcsuite[desktop]"')
+            add('vpn', 'warn', 'The desktop app (tray icon) is not installed; `acxelin-vpn app` opens the VPN window in a browser instead', 'pip install "acxelin-vpn[desktop]"')
     return rows

@@ -1,0 +1,218 @@
+name: acxelin-vpn
+on:
+  push:
+    paths:
+      - "products/vpn/**"
+      - ".github/workflows/acxelin-vpn.yml"
+      - "core/**"
+      - "tools/**"
+      - ".github/actions/**"
+  pull_request:
+    paths:
+      - "products/vpn/**"
+      - ".github/workflows/acxelin-vpn.yml"
+      - "core/**"
+      - "tools/**"
+      - ".github/actions/**"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.11", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: OpenSSL 3.5+ (Homebrew on macOS, Chocolatey on Windows; Linux runs the tunnels job with its own build)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then brew install openssl@3 && echo "ACXELIN_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"; fi
+          if [ "$RUNNER_OS" = Windows ]; then choco install openssl -y --no-progress && echo "ACXELIN_OPENSSL=C:\\Program Files\\OpenSSL-Win64\\bin" >> "$GITHUB_ENV"; fi
+      - run: pip install ./core "./products/vpn[vpn,desktop,test]"
+      - name: Playwright's Chromium and axe-core, for the console and app window journeys
+        shell: bash
+        run: |
+          pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+          npm ci --prefix tools/browser
+      - name: The one-command installer a client runs (install.ps1 on Windows, install.sh elsewhere)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            powershell -ExecutionPolicy RemoteSigned -File products/vpn/install.ps1
+            "$LOCALAPPDATA/Acxelin/bin/acxelin-vpn.cmd" --version
+          else
+            sh products/vpn/install.sh
+            "$HOME/.local/bin/acxelin-vpn" --version
+          fi
+      - name: Tests, the browser journeys and the clean-wheel install
+        run: python -m pytest -q products/vpn/tests
+        env: {ACXELIN_INSTALL_TEST: "1"}
+  desktop:
+    # the real tray icon and menu-bar icon; a skipped test fails the step
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install ./core "./products/vpn[desktop,test]"
+      - shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest products/vpn/tests/test_vpn_desktop.py -v -rs | tee desktop.txt && ! grep -q SKIPPED desktop.txt
+  windows-tunnel:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: WireGuard for Windows, refused unless WireGuard LLC signed it
+        shell: pwsh
+        run: |
+          choco install wireguard -y --no-progress
+          $sig = Get-AuthenticodeSignature "$env:ProgramFiles\WireGuard\wireguard.exe"
+          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'WireGuard LLC') { throw "wireguard.exe signature: $($sig.Status) $($sig.SignerCertificate.Subject)" }
+      - run: pip install ./core "./products/vpn[test]"
+      - name: VPN client with WireGuard for Windows, a real tunnel service brought up, rotated and removed; a skip fails the step
+        shell: bash
+        env:
+          ACXELIN_REAL_WIREGUARD: "1"
+        run: |
+          set -o pipefail
+          python -m pytest products/vpn/tests/test_vpn_platforms.py -v -rs | tee tunnel.txt && ! grep -q "RealTunnelTest.*SKIPPED" tunnel.txt
+  macos-tunnel:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: brew install openssl@3 wireguard-tools && echo "ACXELIN_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
+      - run: pip install ./core "./products/vpn[test]"
+      - name: VPN client with Homebrew's WireGuard, a real tunnel brought up, rotated and removed; a skip fails the step
+        run: |
+          set -o pipefail
+          sudo -E env ACXELIN_REAL_WIREGUARD=1 "$(command -v python)" -m pytest products/vpn/tests/test_vpn_platforms.py -k RealTunnelTest -v -rs | tee tunnel.txt
+          ! grep -q SKIPPED tunnel.txt
+  tunnels:
+    # OpenSSL 3.5 and strongSwan 6.1 built from source; real IPsec and WireGuard between network namespaces
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Cache OpenSSL 3.5 and strongSwan 6.1
+        id: cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /opt/pqc
+          key: openssl-3.5.9-strongswan-6.1.0-v2
+      - name: Build OpenSSL 3.5 and strongSwan 6.1
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y build-essential libgmp-dev pkg-config
+          # OpenSSL's hash is the one openssl.org publishes; strongSwan's GitHub release has none, so its hash is pinned from the
+          # first download and guards against the file changing since
+          curl -fsSL -o openssl.tgz https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz
+          curl -fsSL -o strongswan.tbz https://github.com/strongswan/strongswan/releases/download/6.1.0/strongswan-6.1.0.tar.bz2
+          printf '%s  %s\n' 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a openssl.tgz \
+            fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4 strongswan.tbz | sha256sum -c -
+          tar xzf openssl.tgz && tar xjf strongswan.tbz
+          (cd openssl-3.5.9 && ./Configure --prefix=/opt/pqc --libdir=lib shared no-tests && make -j4 && sudo make install_sw)
+          cd strongswan-6.1.0 && PKG_CONFIG_PATH=/opt/pqc/lib/pkgconfig CPPFLAGS=-I/opt/pqc/include LDFLAGS="-L/opt/pqc/lib -Wl,-rpath,/opt/pqc/lib" \
+            ./configure --prefix=/opt/pqc --disable-defaults --enable-openssl --enable-ml --enable-vici --enable-swanctl --enable-charon \
+            --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce --enable-hmac \
+            --enable-kdf --enable-kernel-netlink --enable-socket-default --enable-updown --enable-resolve --enable-attr --enable-constraints \
+            --enable-revocation && make -j4 && sudo make install && sudo chmod -R a+rX /opt/pqc
+      - run: pip install ./core "./products/vpn[vpn,test]"
+      - name: Upgrade path, Acxelin VPN agrees the same keys as the released PQC Suite 0.4.3 in both directions (a skip fails)
+        run: |
+          set -o pipefail
+          git fetch --depth 1 origin tag v0.4.3
+          ACXELIN_OPENSSL=/opt/pqc/lib LD_LIBRARY_PATH=/opt/pqc/lib python -m pytest tools/tests/test_vpn_wire.py -v -rs | tee wire.txt
+          ! grep -q SKIPPED wire.txt
+      - name: Real application for VPN traffic checks
+        run: sudo apt-get update && sudo apt-get install -y redis-server wireguard-tools
+      - name: Two sites in network namespaces, real ESP traffic
+        run: |
+          sudo modprobe -a esp4 xfrm_user || true
+          sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib ACXELIN_OPENSSL=/opt/pqc/lib ACXELIN_STRONGSWAN=/opt/pqc ACXELIN_VPN_DATAPLANE=1 \
+            python -m pytest products/vpn/tests/test_vpn.py -v -rs
+      - name: WireGuard remote access in network namespaces, real traffic
+        run: |
+          set -o pipefail
+          sudo modprobe wireguard || true
+          sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib ACXELIN_OPENSSL=/opt/pqc/lib python -m pytest products/vpn/tests/test_wireguard.py -v -rs 2>&1 | tee wg.log
+          grep -q "test_traffic_rotation_and_revocation PASSED" wg.log
+          grep -q "test_all_traffic_through_the_tunnel_recovery_and_kill_switch PASSED" wg.log
+      - name: VPN demo (branch over IPsec, laptop over WireGuard)
+        run: sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib ACXELIN_OPENSSL=/opt/pqc/lib ACXELIN_STRONGSWAN=/opt/pqc python products/vpn/demo.py --auto
+  installers:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: ./.github/actions/installer
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: acxelin-vpn-${{ runner.os }}
+          path: dist/installers
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the gateway image and run it as a customer would
+        run: |
+          docker build -f products/vpn/deploy/Dockerfile -t acxelin-vpn:ci .
+          docker run --rm acxelin-vpn:ci doctor
+          docker run --rm acxelin-vpn:ci --version | grep -q "acxelin-vpn 1.0.0"
+      - name: A site starts strongSwan with ML-KEM and answers on its status address
+        run: |
+          pip install ./core ./products/vpn
+          d=$(mktemp -d) && acxelin-vpn ca init --name "CI Root" --dir "$d/ca" --no-encrypt
+          acxelin-vpn ca issue site hq.example --san 203.0.113.10 --dir "$d/ca" --out "$d/hq" && acxelin-vpn ca crl --dir "$d/ca"
+          printf '%s\n' '[site]' 'name = "hq.example"' 'address = "203.0.113.10"' 'cert = "/etc/acxelin-vpn/hq/chain.pem"' \
+            'key = "/etc/acxelin-vpn/hq/key.pem"' 'ca = "/etc/acxelin-vpn/ca/ca.crt"' 'crl = "/etc/acxelin-vpn/ca/crl.pem"' \
+            'keyring_listen = "0.0.0.0:7443"' 'metrics = "127.0.0.1:9101"' '[[peer]]' 'name = "branch.example"' 'address = "198.51.100.7"' \
+            'local_subnets = ["10.1.0.0/16"]' 'remote_subnets = ["10.2.0.0/16"]' > "$d/site.toml"
+          chmod -R a+rX "$d"
+          docker run -d --name site --cap-add NET_ADMIN -v "$d:/etc/acxelin-vpn:ro" acxelin-vpn:ci
+          for i in $(seq 30); do docker exec site acxelin-vpn check 2>/dev/null | grep -q ML_KEM_768 && break; sleep 1; done
+          docker exec site acxelin-vpn check | grep -q ML_KEM_768
+          docker exec site python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:9101/status').read().decode())" | grep -q branch.example
+          docker logs site 2>&1 | grep -q "keyring: listening on 0.0.0.0:7443"
+          docker rm -f site
+      - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)
+        env:
+          TRIVY: "0.74.0"
+          TRIVY_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+        run: |
+          curl -fsSL -o trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY/trivy_${TRIVY}_Linux-64bit.tar.gz"
+          echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c - && tar xzf trivy.tgz trivy
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL acxelin-vpn:ci
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 acxelin-vpn:ci
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: pipx run ruff==0.14.0 check core products/vpn tools

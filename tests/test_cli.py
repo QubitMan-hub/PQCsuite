@@ -26,19 +26,6 @@ class CLITest(unittest.TestCase):
         self.assertNotIn("Traceback", err.getvalue())
         return err.getvalue()
 
-    def test_vpn_diagnostic_agreement_does_not_claim_a_connection(self):
-        from unittest.mock import patch
-        out = io.StringIO()
-        with patch("pqcsuite.vpn.wireguard.Client") as client, contextlib.redirect_stdout(out):
-            client.return_value.once.return_value = {"address": "10.0.0.2", "endpoint": "gateway:51820", "routes": ["10.0.0.0/24"], "rotate_s": 120}
-            with self.assertRaises(SystemExit) as result:
-                main(["vpn", "connect", "gateway:7443", "--cert-dir", "client", "--once", "--no-apply"])
-            self.assertEqual(result.exception.code, 0)
-        self.assertIn("no tunnel activated", out.getvalue())
-        self.assertIn("--once does not keep keys fresh", out.getvalue())
-        self.assertNotIn("connected as", out.getvalue())
-        self.assertFalse(client.call_args.args[4])
-
     def test_json_logs_keep_the_traceback(self):
         import json
         import logging
@@ -67,13 +54,6 @@ class CLITest(unittest.TestCase):
 
 
 
-    def test_vpn_config_files_name_what_is_missing_or_wrong(self):
-        cfg = self.d / "c.toml"
-        cfg.write_text('[site]\nname = "x"\n')
-        self.assertIn("[site]: missing address", self.fails("vpn", "up", "--config", cfg))
-        cfg.write_text('[wireguard]\nname = "x"\n')
-        self.assertIn("[wireguard]: missing endpoint", self.fails("vpn", "gateway", "--config", cfg))
-
     def test_every_option_explains_itself(self):
         import argparse
         from pqcsuite.cli import parser
@@ -95,10 +75,6 @@ class CLITest(unittest.TestCase):
             main([])
         self.assertEqual(e.exception.code, 0)
         self.assertIn("pqcsuite try", out.getvalue())
-        import sys
-        from unittest import mock
-        with mock.patch.dict(sys.modules, {"vici": None}):
-            self.assertIn('pip install "pqcsuite[vpn]"', self.fails("vpn", "check"))
 
 
     def test_vault_never_overwrites_keys_or_archives(self):
@@ -207,32 +183,3 @@ def test_setup_preserves_existing_config_and_separates_optional_tls(tmp_path, ca
     import json
     report = json.loads(capsys.readouterr().out)
     assert result.value.code == 0 and report['checks'][0]['product'] == 'vault'
-
-
-
-
-def test_guided_device_key_connect_prompts_without_disclosing_secret(tmp_path, capsys):
-    import pytest
-    from unittest.mock import patch
-    ca = CA.init(tmp_path/'ca', 'Test')
-    ca.issue('device', 'client', out=tmp_path/'device', passphrase=b'PRIVATE_DEVICE_PASSPHRASE')
-    args = ['vpn', 'connect', 'gateway.example:7443', '--cert-dir', str(tmp_path/'device'), '--no-apply', '--once']
-    with patch('sys.stdin.isatty', return_value=True), patch('getpass.getpass', return_value='PRIVATE_DEVICE_PASSPHRASE'), patch('pqcsuite.vpn.wireguard.Client') as client:
-        client.return_value.once.return_value = {'address': '10.0.0.2', 'endpoint': 'gateway.example:51820', 'routes': [], 'rotate_s': 120}
-        with pytest.raises(SystemExit) as result:
-            main(args)
-        assert result.value.code == 0
-        assert client.call_args.args[6] == b'PRIVATE_DEVICE_PASSPHRASE'
-        assert 'PRIVATE_DEVICE' not in capsys.readouterr().out
-    with patch('sys.stdin.isatty', return_value=False), patch('pqcsuite.vpn.wireguard.Client') as client:
-        with pytest.raises(SystemExit) as result:
-            main(args)
-        assert result.value.code != 0
-        client.assert_not_called()
-        assert '--key-passphrase-env' in capsys.readouterr().err
-    with patch('pqcsuite.vpn.platforms.install') as install, patch('pqcsuite.vpn.wireguard.Client') as client:
-        with pytest.raises(SystemExit) as result:
-            main(['vpn', 'install', 'gateway.example:7443', '--cert-dir', str(tmp_path/'device')])
-        assert result.value.code != 0
-        install.assert_not_called()
-        client.assert_not_called()

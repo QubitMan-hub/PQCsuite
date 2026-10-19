@@ -13,7 +13,7 @@ CI scans `pqcsuite/` with Acxelin Readiness on every change and fails if cryptog
 | Where | What | Why |
 |---|---|---|
 | `pqcsuite/vault.py` | X25519, P-384 (ECDH) | The classical half of the hybrid key wrap with ML-KEM-768 or ML-KEM-1024. Breaking it alone does not open a file. |
-| `pqcsuite/vpn/wireguard.py` | X25519 | WireGuard's own handshake. Quantum safety comes from the pre-shared key, derived over ML-DSA mutual TLS with X25519MLKEM768 and replaced every 2 minutes. |
+| `products/vpn/src/acxelin_vpn/wireguard.py` | X25519 | WireGuard's own handshake. Quantum safety comes from the pre-shared key, derived over ML-DSA mutual TLS with X25519MLKEM768 and replaced every 2 minutes. |
 | `products/tls/src/acxelin_tls/acme.py` | RSA, ECDSA, Ed25519 | Verifying ACME clients' account keys (RFC 8555). Certificates it issues are ML-DSA only. |
 | `products/tls/src/acxelin_tls/acme.py` | TLS 1.3 (classical key exchange) | The ACME server's own HTTPS listener (`--tls-cert`), TLS 1.3 only. Python's `ssl` cannot offer ML-KEM, so its key exchange is classical; the certificates it issues are ML-DSA. |
 | `core/src/acxelin_core/pki/signers.py` | SHA-1 | The RFC 5280 subject key identifier, a lookup label, not a security function (`usedforsecurity=False`). |

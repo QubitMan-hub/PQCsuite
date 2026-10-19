@@ -4,10 +4,10 @@ Headquarters, a branch and a laptop each get a network namespace (a small privat
 cables. The branch reaches headquarters over IPsec with a hybrid ML-KEM key exchange and a post-quantum PPK; the laptop
 reaches it over WireGuard with a pre-shared key agreed over ML-DSA mutual TLS. Revoking a certificate cuts each off.
 
-    sudo python examples/vpn_demo.py            # pauses before each step; press Enter to go on
-    sudo python examples/vpn_demo.py --auto     # runs straight through and checks every result
+    sudo python products/vpn/demo.py            # pauses before each step; press Enter to go on
+    sudo python products/vpn/demo.py --auto     # runs straight through and checks every result
 
-Needs Linux, root, iproute2 and pqcsuite with OpenSSL 3.5+. The branch part needs strongSwan 6.0.2+ (set PQCSUITE_STRONGSWAN to
+Needs Linux, root, iproute2 and acxelin-vpn with OpenSSL 3.5+. The branch part needs strongSwan 6.0.2+ (set ACXELIN_STRONGSWAN to
 its install prefix if charon is not in /usr/lib/ipsec); the laptop part needs wireguard-tools and WireGuard (the kernel
 module, or wireguard-go). A part whose software is missing is skipped with a message.
 """
@@ -22,8 +22,8 @@ import textwrap
 import time
 from pathlib import Path
 
-# The certificate authority's commands: acxelin-tls until Acxelin VPN brings its own `acxelin-vpn ca` (Stage 3).
-CA = "acxelin-tls"
+# The certificate authority's commands come with Acxelin VPN.
+CA = "acxelin-vpn"
 
 HQ, BRANCH, LAPTOP = "dbk-hq", "dbk-branch", "dbk-laptop"
 PLACES = {HQ: "headquarters", BRANCH: "branch 0417", LAPTOP: "laptop", None: "CA"}
@@ -34,7 +34,7 @@ def sh(*cmd, check=True):
 
 
 def charon_path():
-    prefix = os.environ.get("PQCSUITE_STRONGSWAN")
+    prefix = os.environ.get("ACXELIN_STRONGSWAN")
     places = [Path(prefix) / "libexec/ipsec/charon"] if prefix else [Path("/usr/lib/ipsec/charon"), Path("/usr/libexec/ipsec/charon"),
                                                                      Path("/usr/libexec/strongswan/charon")]
     return next((p for p in places if p.exists()), None)
@@ -42,7 +42,7 @@ def charon_path():
 
 def wireguard_ready():
     kernel = Path("/sys/module/wireguard").exists() or shutil.which("modprobe") and sh("modprobe", "wireguard", check=False).returncode == 0
-    return shutil.which("wg") and shutil.which("wg-quick") and (kernel or shutil.which("wireguard-go") or os.environ.get("PQCSUITE_WIREGUARD_GO"))
+    return shutil.which("wg") and shutil.which("wg-quick") and (kernel or shutil.which("wireguard-go") or os.environ.get("ACXELIN_WIREGUARD_GO"))
 
 
 class Demo:
@@ -86,7 +86,7 @@ class Demo:
 
     def serial(self, name):
         """The serial of the valid certificate called `name`, looked up without printing the whole list."""
-        r = subprocess.run([CA, "ca", "list", "--json"], cwd=self.work, capture_output=True, text=True)
+        r = subprocess.run([sys.executable, "-m", "acxelin_vpn", "ca", "list", "--json"], cwd=self.work, capture_output=True, text=True)
         return next(c["serial"] for c in json.loads(r.stdout) if c["common_name"] == name)
 
     def stop(self):
@@ -100,10 +100,10 @@ class Demo:
 
 
 class VPNDemo(Demo):
-    def at(self, ns, *args, expect=0, contains=(), tool="pqcsuite"):
+    def at(self, ns, *args, expect=0, contains=(), tool="acxelin-vpn"):
         """Run a command at one place, printed as the person there would type it."""
         tool = CA if args[:1] == ("ca",) else tool
-        cmd = [sys.executable, "-m", "pqcsuite", *map(str, args)] if tool == "pqcsuite" else [tool, *map(str, args)]
+        cmd = [sys.executable, "-m", "acxelin_vpn", *map(str, args)] if tool == "acxelin-vpn" else [tool, *map(str, args)]
         shown = " ".join(f'"{a}"' if " " in str(a) else str(a) for a in args)
         print(f"\n[{PLACES[ns]}] $ {tool} {shown}")
         return self.attempt(lambda: subprocess.run(["ip", "netns", "exec", ns, *cmd] if ns else cmd, cwd=self.work, capture_output=True,
@@ -206,24 +206,24 @@ def branch_part(d, charon):
                         f" filelog {{ log {{ path = {work}/charon-{name}.log\n flush_line = yes\n default = 1\n }} }}\n}}\n", encoding="utf-8")
         d.spawn(ns, f"strongswan-{name}", "unshare", "-m", "sh", "-c", f"mount -t tmpfs tmpfs /run && STRONGSWAN_CONF={conf} exec {charon}")
     d.wait(lambda: (work / "hq.demobank.example.vici").exists() and (work / "branch-0417.demobank.example.vici").exists(), "strongSwan did not start")
-    kems = d.at(HQ, "vpn", "check", "--config", "hq.toml", expect=None)
+    kems = d.at(HQ, "check", "--config", "hq.toml", expect=None)
     if "ML_KEM_768" not in kems:
         print("\n  This strongSwan has no ML-KEM (it needs 6.0.2+ with OpenSSL 3.5+ or the ml plugin), so the branch part stops here.")
         return
     print("\n  Start the controller at each site; the branch dials headquarters.")
-    d.spawn(HQ, "vpn-hq", sys.executable, "-m", "pqcsuite", "vpn", "up", "--config", "hq.toml")
-    d.spawn(BRANCH, "vpn-branch", sys.executable, "-m", "pqcsuite", "vpn", "up", "--config", "branch.toml")
-    print("\n[headquarters] $ pqcsuite vpn up --config hq.toml\n[branch 0417] $ pqcsuite vpn up --config branch.toml")
-    status = lambda: sh("ip", "netns", "exec", HQ, sys.executable, "-m", "pqcsuite", "vpn", "status", "--config", str(work / "hq.toml")).stdout
+    d.spawn(HQ, "vpn-hq", sys.executable, "-m", "acxelin_vpn", "up", "--config", "hq.toml")
+    d.spawn(BRANCH, "vpn-branch", sys.executable, "-m", "acxelin_vpn", "up", "--config", "branch.toml")
+    print("\n[headquarters] $ acxelin-vpn up --config hq.toml\n[branch 0417] $ acxelin-vpn up --config branch.toml")
+    status = lambda: sh("ip", "netns", "exec", HQ, sys.executable, "-m", "acxelin_vpn", "status", "--config", str(work / "hq.toml")).stdout
     d.wait(lambda: "ESTABLISHED" in status() and "PPK yes" in status(), "the tunnel did not come up with a PPK")
 
     d.step("Is it really post-quantum?", "strongSwan itself reports the key exchange of the live tunnel, and that the PPK is in use.")
-    d.at(HQ, "vpn", "status", "--config", "hq.toml", contains=["ML_KEM_768", "PPK yes"])
+    d.at(HQ, "status", "--config", "hq.toml", contains=["ML_KEM_768", "PPK yes"])
     print("\n  Say: CURVE_25519 and ML_KEM_768 together, and PPK yes. Both halves would have to be broken to read this link.")
     d.pings_within(BRANCH, "192.168.10.1", "192.168.20.1")
     if "INSTALLED" in status():
         d.at(BRANCH, "-c", "3", "-I", "192.168.20.1", "192.168.10.1", tool="ping", contains=["3 received"])
-        d.at(HQ, "vpn", "status", "--config", "hq.toml", contains=["INSTALLED"])
+        d.at(HQ, "status", "--config", "hq.toml", contains=["INSTALLED"])
         print("\n  Say: the branch's network reaches headquarters' network, and the byte counters show it went through the tunnel.")
     else:
         print("\n  This machine's kernel could not install the encrypted path (no AES-GCM for IPsec; see "
@@ -235,7 +235,7 @@ def branch_part(d, charon):
            "the branch cannot agree new keys either.")
     d.at(None, "ca", "revoke", d.serial("branch-0417.demobank.example"), "--reason", "keyCompromise", contains=["revoked"])
     d.wait(lambda: "branch-0417" not in status(), "headquarters kept the revoked branch's tunnel", 45)
-    d.at(HQ, "vpn", "status", "--config", "hq.toml", contains=["no tunnels"])
+    d.at(HQ, "status", "--config", "hq.toml", contains=["no tunnels"])
     print("\n  Say: no tunnel. Nobody touched the gateways.")
 
 
@@ -263,13 +263,13 @@ def laptop_part(d):
         private_key = "{work}/gateway-wireguard.key"
         state = "{work}/gateway-state.json"
         """), encoding="utf-8")
-    d.spawn(HQ, "wireguard-gateway", sys.executable, "-m", "pqcsuite", "vpn", "gateway", "--config", "gateway.toml")
-    print("\n[headquarters] $ pqcsuite vpn gateway --config gateway.toml")
+    d.spawn(HQ, "wireguard-gateway", sys.executable, "-m", "acxelin_vpn", "gateway", "--config", "gateway.toml")
+    print("\n[headquarters] $ acxelin-vpn gateway --config gateway.toml")
     d.wait(lambda: sh("ip", "netns", "exec", HQ, "wg", "show", "dbk-wg0", check=False).returncode == 0, "the WireGuard gateway did not start")
     time.sleep(0.5)
-    d.spawn(LAPTOP, "wireguard-laptop", sys.executable, "-m", "pqcsuite", "vpn", "connect", "10.40.0.1:7443", "--cert-dir", "certs/priya",
+    d.spawn(LAPTOP, "wireguard-laptop", sys.executable, "-m", "acxelin_vpn", "connect", "10.40.0.1:7443", "--cert-dir", "certs/priya",
             "--server-name", "vpn.demobank.example", "--interface", "dbk-wg1")
-    print("[laptop] $ pqcsuite vpn connect 10.40.0.1:7443 --cert-dir certs/priya --server-name vpn.demobank.example")
+    print("[laptop] $ acxelin-vpn connect 10.40.0.1:7443 --cert-dir certs/priya --server-name vpn.demobank.example")
     d.wait(lambda: d.pings(LAPTOP, "192.168.10.1"), "no traffic through the WireGuard tunnel")
     d.at(LAPTOP, "-c", "3", "192.168.10.1", tool="ping", contains=["3 received"])
     d.at(HQ, "show", "dbk-wg0", tool="wg", contains=["preshared key"])
@@ -284,7 +284,7 @@ def laptop_part(d):
 
 def main():
     sys.stdout.reconfigure(line_buffering=True)
-    os.environ.setdefault("PQCSUITE_CA_PASSPHRASE", "demo-only-passphrase")  # CA keys are encrypted; scripts pass the passphrase
+    os.environ.setdefault("ACXELIN_VPN_CA_PASSPHRASE", "demo-only-passphrase")  # CA keys are encrypted; scripts pass the passphrase
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--auto", action="store_true", help="run without pauses and check every result")
     ap.add_argument("--dir", help="work folder (default: a new temporary folder)")
@@ -293,7 +293,7 @@ def main():
         raise SystemExit("the VPN demo needs Linux, root (sudo) and iproute2: it builds three small networks on this machine")
     charon, wireguard = charon_path(), wireguard_ready()
     if not charon and not wireguard:
-        raise SystemExit("install strongSwan 6.0.2+ (or set PQCSUITE_STRONGSWAN) or wireguard-tools, so there is a VPN to show")
+        raise SystemExit("install strongSwan 6.0.2+ (or set ACXELIN_STRONGSWAN) or wireguard-tools, so there is a VPN to show")
     work = Path(a.dir or tempfile.mkdtemp(prefix="demobank-vpn-")).resolve()
     work.mkdir(parents=True, exist_ok=True)
     d = VPNDemo(work, a.auto)
