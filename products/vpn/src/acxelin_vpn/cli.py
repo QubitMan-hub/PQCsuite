@@ -270,19 +270,23 @@ def cmd_inventory(a):
 
 
 def cmd_doctor(a):
+    machine = checks.prerequisites()
+    results = [r for d in a.ca for r in checks.ca(d)] + [r for f in a.config for r in checks.config(f)]
+    broken = any(r["level"] == "fail" for r in machine)
+    fails, warns = sum(r[0] == "fail" for r in results), sum(r[0] == "warn" for r in results)
+    code = 3 if broken else 2 if fails else 1 if warns and a.strict else 0
+    if a.json:
+        print(json.dumps({"version": __version__, "checks": machine + [{"product": "deployment", "level": lv, "message": m, "action": ""} for lv, m in results]}, indent=1))
+        return code
     print(f"{NAME} {__version__}, Python {sys.version.split()[0]}")
     mark = {"ok": "ok  ", "warn": "WARN", "fail": "FAIL"}
-    broken = False
-    for r in checks.prerequisites():
+    for r in machine:
         print(f"{mark[r['level']]}  {r['message'].rstrip('.')}" + (f". {r['action']}" if r["action"] else ""))
-        broken = broken or r["level"] == "fail"
-    results = [r for d in a.ca for r in checks.ca(d)] + [r for f in a.config for r in checks.config(f)]
     for level, msg in results:
         print(f"{mark[level]}  {msg}")
-    fails, warns = sum(r[0] == "fail" for r in results), sum(r[0] == "warn" for r in results)
     if results:
         print(f"\n{fails} problem(s), {warns} warning(s)")
-    return 3 if broken else 2 if fails else 1 if warns and a.strict else 0
+    return code
 
 
 HELP = {
@@ -323,8 +327,9 @@ def parser():
     p.add_argument("--ca", action="append", default=[], metavar="DIR", help="a CA folder to check (repeatable)")
     p.add_argument("--config", action="append", default=[], metavar="FILE", help="a site or gateway configuration to check (repeatable)")
     p.add_argument("--strict", action="store_true", help="exit 1 on warnings")
+    p.add_argument("--json", action="store_true")
     p = v.add_parser("up", help="run a site: key agreement, rotation, revocation, metrics")
-    p.add_argument("--config", required=True, help="site TOML (see examples/site-hq.toml)")
+    p.add_argument("--config", required=True, help="site TOML (see config/site-hq.toml)")
     for name, text in (("status", "is this machine protected? (a person's computer) or tunnels, algorithms and traffic (a site)"),
                        ("check", "is strongSwan reachable and does it have ML-KEM?")):
         p = v.add_parser(name, help=text)
@@ -364,7 +369,7 @@ def parser():
     p.add_argument("--start-at-login", choices=("on", "off"), help="show the tray icon when you log in (it connects only when you ask)")
     p.add_argument("--background", action="store_true", help="start in the tray without opening the window")
     p = v.add_parser("gateway", help="WireGuard remote-access gateway: address pool, PSK from ML-DSA mutual TLS, rotation, revocation")
-    p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see examples/gateway.toml)")
+    p.add_argument("--config", required=True, help="TOML with a [wireguard] section (see config/gateway.toml)")
     for name, text in (("connect", "connect this computer (Linux, Windows or macOS) to a WireGuard gateway and keep its PSK fresh"),
                        ("install", "check gateway access and install a service that connects at machine startup")):
         p = v.add_parser(name, help=text)

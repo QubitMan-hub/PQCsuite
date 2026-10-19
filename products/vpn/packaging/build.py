@@ -1,10 +1,10 @@
 """Build the Acxelin VPN installer for this operating system, or check an installed one.
 
-    python packaging/build.py --openssl DIR    Windows: DIR holds libssl-3-x64.dll; macOS: openssl@3's lib folder
-    LD_LIBRARY_PATH=DIR python packaging/build.py    Linux: DIR is OpenSSL 3.5's lib folder
-    python packaging/build.py smoke PROGRAM     check an installed acxelin-vpn
+    python products/vpn/packaging/build.py --openssl DIR    Windows: DIR holds libssl-3-x64.dll; macOS: openssl@3's lib folder
+    LD_LIBRARY_PATH=DIR python products/vpn/packaging/build.py    Linux: DIR is OpenSSL 3.5's lib folder
+    python products/vpn/packaging/build.py smoke PROGRAM     check an installed acxelin-vpn
 
-Writes dist/installers/: Acxelin-VPN-VERSION-Setup.exe (Inno Setup), Acxelin-VPN-VERSION.dmg, or acxelin-vpn_VERSION_ARCH.deb.
+Writes dist/installers/ (at the repository root): : Acxelin-VPN-VERSION-Setup.exe (Inno Setup), Acxelin-VPN-VERSION.dmg, or acxelin-vpn_VERSION_ARCH.deb.
 Needs PyInstaller and the desktop extra; on Windows, Inno Setup 6. The installers are not code-signed."""
 import argparse
 import json
@@ -17,12 +17,13 @@ import tempfile
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-from pqcsuite import __version__  # noqa: E402
+from acxelin_vpn import __version__
 
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
 DIST, BUILD = ROOT / "dist", ROOT / "build" / "installer"
 NAME = "Acxelin VPN"
+CHECK = "from acxelin_core import openssl; print(openssl.lib().version)"
 
 
 def run(*cmd, **kw):
@@ -36,7 +37,7 @@ def run(*cmd, **kw):
 
 
 def icon():
-    from pqcsuite.vpn.desktop import image
+    from acxelin_vpn.desktop import image
     BUILD.mkdir(parents=True, exist_ok=True)
     big = image("protected", 1024 if sys.platform == "darwin" else 256)
     if os.name == "nt":
@@ -73,8 +74,7 @@ def openssl(folder):
                 run("install_name_tool", "-change", dep, "@loader_path/libcrypto.3.dylib", out / "libssl.3.dylib")
         for n in names:
             run("codesign", "--force", "--sign", "-", out / n)
-    check = "import os,ctypes;from pqcsuite import tls;l=tls.lib();print(l.version)"
-    version = subprocess.run([sys.executable, "-c", check], env=os.environ | {"PQCSUITE_OPENSSL": str(out)}, capture_output=True, text=True)
+    version = subprocess.run([sys.executable, "-c", CHECK], env=os.environ | {"ACXELIN_OPENSSL": str(out)}, capture_output=True, text=True)
     if version.returncode:
         raise SystemExit(f"the OpenSSL in {src} is not usable for post-quantum TLS: {version.stderr.strip()[-400:]}")
     print("bundling", version.stdout.strip(), flush=True)
@@ -86,13 +86,13 @@ def bundle(libs):
     if libs:
         env["ACXELIN_OPENSSL"] = str(libs)
     elif sys.platform.startswith("linux"):
-        check = subprocess.run([sys.executable, "-c", "from pqcsuite import tls; print(tls.lib().version)"], capture_output=True, text=True)
+        check = subprocess.run([sys.executable, "-c", CHECK], capture_output=True, text=True)
         if check.returncode:
             raise SystemExit("run this with LD_LIBRARY_PATH pointing at OpenSSL 3.5's lib folder, so the package carries it: "
                              + check.stderr.strip()[-300:])
         print("bundling", check.stdout.strip(), flush=True)
     run(sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--distpath", DIST / "bundle", "--workpath", BUILD / "pyinstaller",
-        ROOT / "packaging" / "acxelin-vpn.spec", env=env)
+        HERE / "acxelin-vpn.spec", env=env)
     return DIST / "bundle"
 
 
@@ -129,7 +129,7 @@ Name: "{{autoprograms}}\Acxelin VPN"; Filename: "{{app}}\Acxelin VPN.exe"
 Name: "{{autodesktop}}\Acxelin VPN"; Filename: "{{app}}\Acxelin VPN.exe"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Acxelin VPN"; ValueData: """{{app}}\Acxelin VPN.exe"" vpn desktop --background"; Tasks: startatlogin; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Acxelin VPN"; ValueData: """{{app}}\Acxelin VPN.exe"" desktop --background"; Tasks: startatlogin; Flags: uninsdeletevalue
 
 [Run]
 Filename: "{{app}}\Acxelin VPN.exe"; Description: "Open Acxelin VPN"; Flags: nowait postinstall skipifsilent runasoriginaluser
@@ -202,21 +202,21 @@ def linux(folder, out):
 def smoke(program):
     """An installed package works: post-quantum TLS loads from the OpenSSL inside it, and its VPN service starts, answers on
     its loopback API, and stops when asked."""
-    from pqcsuite.vpn import app
+    from acxelin_vpn import app, desktop
     doctor = subprocess.run([program, "doctor", "--json"], capture_output=True, text=True, timeout=180)
     try:
         report = json.loads(doctor.stdout)
     except ValueError:
         raise SystemExit(f"{program} doctor --json gave no report ({doctor.returncode}): {(doctor.stdout + doctor.stderr)[-1500:]}") from None
-    tls = [c for c in report["checks"] if c["product"] == "tls"]
+    tls = [c for c in report["checks"] if c["product"] == "key agreement"]
     if not tls or tls[0]["level"] != "ok":
         raise SystemExit(f"post-quantum TLS is not available in the package: {tls}")
-    print("TLS:", tls[0]["message"], flush=True)
+    print("key agreement:", tls[0]["message"], flush=True)
     with tempfile.TemporaryDirectory() as d:
         session = Path(d) / "wg0.desktop.json"
-        port = __import__("pqcsuite.vpn.desktop", fromlist=["free_port"]).free_port()
+        port = desktop.free_port()
         session.write_text(json.dumps({"port": port, "token": "smoke-test-key-0123456789abcdef"}))
-        service = subprocess.Popen([program, "vpn", "app", "--no-apply", "--no-browser", "--session", str(session), "--folder", d])
+        service = subprocess.Popen([program, "app", "--no-apply", "--no-browser", "--session", str(session), "--folder", d])
         try:
             for _ in range(120):
                 try:

@@ -1,6 +1,6 @@
 """Gate a release: python tools/release_check.py TAG
 
-The tag (core-v1.0.0, tls-v1.0.0, readiness-v1.0.0) must match the version in that package's pyproject.toml and a heading in
+The tag (core-v1.0.0, tls-v1.0.0, vpn-v1.0.0, readiness-v1.0.0) must match the version in that package's pyproject.toml and a heading in
 its CHANGELOG.md, and a product's acxelin-core range must include a core version that was already released (a core-v* tag).
 """
 import re
@@ -13,13 +13,13 @@ from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parents[1]
-FOLDERS = {"core": ROOT / "core", "tls": ROOT / "products/tls", "readiness": ROOT / "products/readiness"}
+FOLDERS = {"core": ROOT / "core", "tls": ROOT / "products/tls", "readiness": ROOT / "products/readiness", "vpn": ROOT / "products/vpn"}
 
 
 def parse_tag(tag):
-    m = re.fullmatch(r"(?:refs/tags/)?(core|tls|readiness)-v(\d+\.\d+\.\d+)", tag)
+    m = re.fullmatch(r"(?:refs/tags/)?(core|tls|vpn|readiness)-v(\d+\.\d+\.\d+)", tag)
     if not m:
-        raise ValueError(f"{tag!r} is not a release tag: use core-vX.Y.Z, tls-vX.Y.Z or readiness-vX.Y.Z")
+        raise ValueError(f"{tag!r} is not a release tag: use core-vX.Y.Z, tls-vX.Y.Z, vpn-vX.Y.Z or readiness-vX.Y.Z")
     return m.group(1), m.group(2)
 
 

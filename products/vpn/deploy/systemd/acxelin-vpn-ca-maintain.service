@@ -1,0 +1,13 @@
+[Unit]
+Description=Acxelin VPN CA maintenance: renew expiring certificates, re-sign the revocation list
+ConditionPathExists=/var/lib/acxelin-vpn/ca/ca.crt
+
+[Service]
+Type=oneshot
+User=acxelin
+EnvironmentFile=-/etc/acxelin-vpn/ca.env
+ExecStart=/opt/acxelin-vpn/bin/acxelin-vpn ca maintain --dir /var/lib/acxelin-vpn/ca
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/acxelin-vpn/ca
+PrivateTmp=yes

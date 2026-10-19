@@ -20,11 +20,12 @@ def build(product, out, extras=""):
     return out
 
 
+EXTRAS = {"vpn": "[vpn]"}
 CUSTOMER = ["install.sh", "install.ps1", "README.md", "LICENSE", "CHANGELOG.md", "docs", "config", "deploy/systemd"]
 
 
 def package(product, out):
-    out = build(product, out)
+    out = build(product, out, EXTRAS.get(product, ""))
     src = ROOT / "products" / product
     for name in CUSTOMER:
         if (src / name).is_dir():

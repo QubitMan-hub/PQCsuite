@@ -1,0 +1,19 @@
+[Unit]
+Description=Acxelin VPN enrollment service (EST over post-quantum TLS), where invitations enroll
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/var/lib/acxelin-vpn/ca/ca.crt
+
+[Service]
+User=acxelin
+EnvironmentFile=-/etc/acxelin-vpn/ca.env
+ExecStart=/opt/acxelin-vpn/bin/acxelin-vpn ca serve --dir /var/lib/acxelin-vpn/ca --cert /etc/acxelin-vpn/enroll/chain.pem --key /etc/acxelin-vpn/enroll/key.pem
+Restart=always
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/acxelin-vpn/ca
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

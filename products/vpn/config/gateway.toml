@@ -1,4 +1,4 @@
-# acxelin-vpn gateway --config examples/gateway.toml
+# acxelin-vpn gateway --config config/gateway.toml
 # The gateway certificate is a server (or site) certificate named after `name`; users get client certificates from the same CA.
 [wireguard]
 name = "vpn.acme.example"

@@ -19,7 +19,7 @@ def install(script, tmp_path, *args):
 
 
 @slow
-@pytest.mark.parametrize("product,first", [("readiness", "scan"), ("tls", "console")])
+@pytest.mark.parametrize("product,first", [("readiness", "scan"), ("tls", "console"), ("vpn", "join")])
 def test_install_from_a_checkout_then_use_reinstall_and_uninstall(tmp_path, product, first):
     r = install(ROOT / f"products/{product}/install.sh", tmp_path)
     assert r.returncode == 0, r.stdout + r.stderr
@@ -47,10 +47,31 @@ def test_install_offline_from_a_release_wheelhouse(tmp_path):
     assert out.returncode == 0, out.stderr
 
 
-def test_the_installers_of_both_products_differ_only_in_the_product_name():
+@slow
+def test_the_vpn_release_folder_installs_offline_and_carries_its_units(tmp_path):
+    sys.path.insert(0, str(ROOT / "tools"))
+    from wheelhouse import package
+    house = package("vpn", tmp_path / "acxelin-vpn-1.0.0-wheelhouse")
+    shipped = {p.relative_to(house).as_posix() for p in house.rglob("*") if p.is_file()}
+    units = {f"deploy/systemd/{u}" for u in ("acxelin-vpn-ipsec.service", "acxelin-vpn-wireguard.service", "strongswan-pqc.service",
+                                              "acxelin-vpn-enroll.service", "acxelin-vpn-ca-maintain.service", "acxelin-vpn-ca-maintain.timer")}
+    assert {"install.sh", "install.ps1", "README.md", "LICENSE", "CHANGELOG.md", "docs/manual.md", "docs/upgrade.md", "config/site-hq.toml",
+            "config/gateway.toml"} | units <= shipped
+    assert any(n.startswith("vici-") for n in shipped), "a gateway installs acxelin-vpn[vpn] from the folder, offline"
+    assert not [n for n in shipped if n.startswith(("acxelin_readiness", "acxelin_tls", "pqcsuite"))], shipped
+    r = install(house / "install.sh", tmp_path)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "from the wheels next to it" in r.stdout and "acxelin-vpn join" in r.stdout
+    cmd = str(tmp_path / "bin/acxelin-vpn")
+    assert "usage: acxelin-vpn" in subprocess.run([cmd, "--help"], capture_output=True, text=True).stdout
+    doctor = subprocess.run([cmd, "doctor"], capture_output=True, text=True)
+    assert doctor.returncode in (0, 3) and "acxelin-vpn 1.0.0" in doctor.stdout, doctor.stdout + doctor.stderr
+
+
+def test_the_installers_of_every_product_differ_only_in_the_product_name():
     for name in ("install.sh", "install.ps1"):
-        a, b = ((ROOT / f"products/{p}/{name}").read_text().replace(p, "PRODUCT") for p in ("tls", "readiness"))
-        assert a == b, name
+        a, *rest = ((ROOT / f"products/{p}/{name}").read_text().replace(p, "PRODUCT") for p in ("tls", "readiness", "vpn"))
+        assert all(a == b for b in rest), name
 
 
 @slow

@@ -1,22 +1,22 @@
 # PyInstaller: one folder holding "Acxelin VPN" (the desktop app, no console) and "acxelin-vpn" (the same program with a
-# console, for support and scripts), sharing one copy of Python and the libraries. Built by packaging/build.py.
+# console, for support and scripts), sharing one copy of Python and the libraries. Built by build.py next to it.
 import os
 import sys
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-root = Path(SPECPATH).parent
+here = Path(SPECPATH)
 openssl = os.environ.get("ACXELIN_OPENSSL")
 icon = os.environ.get("ACXELIN_ICON")
 version = os.environ.get("ACXELIN_VERSION", "0")
 TRAYS = {"win32": ["win32"], "darwin": ["darwin"]}.get(sys.platform, ["xorg", "appindicator", "gtk"]) + ["dummy"]  # importing pystray needs a display
 binaries = [(str(p), "openssl") for p in Path(openssl).iterdir() if p.suffix in (".dll", ".dylib")] if openssl else []
 
-a = Analysis([str(root / "packaging" / "acxelin_vpn.py")], pathex=[str(root)], binaries=binaries,
-             datas=collect_data_files("pqcsuite") + collect_data_files("acxelin_core") + collect_data_files("acxelin_tls"),
-             hiddenimports=collect_submodules("pqcsuite") + ["PIL.Image", "PIL.ImageDraw"] + [f"pystray._{b}" for b in TRAYS],
-             excludes=["tkinter", "acxelin_readiness", "boto3", "botocore", "pytest", "hypothesis"])
+a = Analysis([str(here / "launcher.py")], binaries=binaries,
+             datas=collect_data_files("acxelin_vpn") + collect_data_files("acxelin_core"),
+             hiddenimports=collect_submodules("acxelin_vpn") + ["PIL.Image", "PIL.ImageDraw"] + [f"pystray._{b}" for b in TRAYS],
+             excludes=["tkinter", "pqcsuite", "acxelin_tls", "acxelin_readiness", "boto3", "botocore", "pytest", "hypothesis"])
 pyz = PYZ(a.pure)
 gui = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Acxelin VPN", console=False, icon=icon)
 cli = EXE(pyz, a.scripts, [], exclude_binaries=True, name="acxelin-vpn", console=True, icon=icon)

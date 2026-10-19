@@ -1,0 +1,17 @@
+[Unit]
+Description=Acxelin VPN WireGuard gateway: each person's PSK agreed over ML-DSA mutual TLS, rotated, cut on revocation
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/acxelin-vpn/gateway.toml
+
+[Service]
+ExecStart=/opt/acxelin-vpn/bin/acxelin-vpn gateway --config /etc/acxelin-vpn/gateway.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+StateDirectory=acxelin-vpn
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

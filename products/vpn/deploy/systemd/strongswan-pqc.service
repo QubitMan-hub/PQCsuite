@@ -1,0 +1,12 @@
+[Unit]
+Description=strongSwan charon 6.1 built against OpenSSL 3.5 (ML-KEM), for Acxelin VPN
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/acxelin-vpn/site.toml
+
+[Service]
+ExecStart=/opt/strongswan/libexec/ipsec/charon
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

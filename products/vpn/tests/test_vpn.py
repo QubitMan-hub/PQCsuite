@@ -113,7 +113,7 @@ class ConfigTest(unittest.TestCase):
             recovered.transport.socket.close.assert_called_once()
 
     def test_example_configs_load(self):
-        root = Path(__file__).parent.parent / "examples"
+        root = Path(__file__).parent.parent / "config"
         for f in ("site-hq.toml", "site-branch.toml"):
             self.assertTrue(load_config(root / f).peers)
         from acxelin_vpn.wireguard import load_gateway
