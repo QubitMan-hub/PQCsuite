@@ -173,3 +173,29 @@ def test_signer_bio_allocation_failure_never_reaches_the_parser(operation):
             with mock.patch.object(lib, 'PEM_write_bio_PKCS8PrivateKey', side_effect=AssertionError('NULL BIO reached writer')):
                 with pytest.raises(signers.SignerError, match='allocat'):
                     signers.OpenSSLSigner.generate('ML-DSA-65')
+
+
+@pytest.mark.skipif(REASON, reason=REASON or '')
+def test_chain_loads_without_a_writable_temporary_directory_and_still_leaves_out_the_root(tmp_path):
+    """A read-only root filesystem (Kubernetes readOnlyRootFilesystem) has no temporary directory; the chain is built in memory."""
+    import ctypes
+    import tempfile
+    from acxelin_core.pki import CA
+    from acxelin_core.server import Server
+    root = CA.init(tmp_path / 'root', 'Root')
+    issuing = CA.init(tmp_path / 'issuing', 'Issuing', parent=root)
+    for ca, extra in ((root, 0), (issuing, 1)):
+        folder, _ = ca.issue('localhost', 'server', out=tmp_path / ca.root.name / 'srv')
+        assert b'BEGIN CERTIFICATE' in (folder / 'chain.pem').read_bytes().split(b'END CERTIFICATE')[-2], 'chain.pem holds the root'
+        with mock.patch.object(tempfile, 'mkstemp', side_effect=OSError('No usable temporary directory found')):
+            ctx = support.server_context(folder / 'chain.pem', folder / 'key.pem')
+        sent = ctypes.c_void_p()
+        tls.lib().SSL_CTX_ctrl(ctx.ptr, 82, 0, ctypes.byref(sent))  # SSL_CTRL_GET_CHAIN_CERTS: what follows the leaf on the wire
+        assert (tls.lib().OPENSSL_sk_num(sent) if sent.value else 0) == extra, 'the self-signed root is never sent'
+        server = Server(('127.0.0.1', 0), lambda: ctx, lambda conn, addr: conn.sendall(b'ok'))
+        server.start()
+        try:
+            with tls.connect('127.0.0.1', server.port, support.client_context(root.anchor), 'localhost') as conn:
+                assert conn.recv() == b'ok'
+        finally:
+            server.stop(1)

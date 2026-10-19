@@ -73,10 +73,16 @@ class Scenario(unittest.TestCase):
     def setUp(self):
         self.d = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.d, True)
+        self.addCleanup(self.show_logs)
         self.procs = []
         self.addCleanup(self.stop_all)
         self.ca = CA.init(self.d / "pki", "Scenario Root")
         self.ca.crl()
+
+    def show_logs(self):
+        """pytest shows this only for a failing test: why a process the test started never answered."""
+        for log in sorted(self.d.glob("*.log")):
+            print(f"--- {log.name}\n{log.read_text(errors='replace')[-2000:]}")
 
     def stop_all(self):
         for p in reversed(self.procs):

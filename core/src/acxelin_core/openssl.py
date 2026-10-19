@@ -10,14 +10,13 @@ import os
 import platform
 import re
 import select
-import tempfile
 import time
 import warnings
 from pathlib import Path
 
 MIN_VERSION = 0x30500000
 TLS1_3_VERSION = 0x0304
-CTRL_MODE, MODE_NO_AUTO_CHAIN = 33, 0x8
+CTRL_MODE, MODE_NO_AUTO_CHAIN, CTRL_CHAIN_CERT = 33, 0x8, 89
 OP_CIPHER_SERVER_PREFERENCE = 1 << 22
 CTRL_SET_GROUPS_LIST, CTRL_SET_SIGALGS_LIST, CTRL_SET_TLSEXT_HOSTNAME = 92, 98, 55
 CTRL_SET_MIN_PROTO_VERSION, CTRL_SET_MAX_PROTO_VERSION = 123, 124
@@ -39,7 +38,7 @@ PROTOTYPES = {
         ("ERR_get_error", [], ctypes.c_ulong), ("ERR_error_string_n", [ctypes.c_ulong, P, ctypes.c_size_t], None), ("ERR_clear_error", [], None),
         ("BIO_new_mem_buf", [B, I], P), ("BIO_free", [P], I),
         ("PEM_read_bio_PrivateKey", [P, P, P, B], P), ("EVP_PKEY_free", [P], None),
-        ("i2d_X509", [P, ctypes.POINTER(P)], I), ("X509_free", [P], None),
+        ("i2d_X509", [P, ctypes.POINTER(P)], I), ("X509_free", [P], None), ("PEM_read_bio_X509", [P, P, P, P], P),
         ("X509_verify_cert_error_string", [L], S), ("X509_VERIFY_PARAM_set1_ip_asc", [P, S], I),
         ("OPENSSL_sk_num", [P], I), ("OPENSSL_sk_value", [P, I], P),
         ("BIO_new", [P], P), ("BIO_s_mem", [], P), ("BIO_ctrl", [P, I, L, P], L), ("EVP_aes_256_cbc", [], P),
@@ -55,6 +54,7 @@ PROTOTYPES = {
         ("SSL_CTX_new", [P], P), ("SSL_CTX_free", [P], None), ("SSL_CTX_ctrl", [P, I, L, P], L),
         ("SSL_CTX_set_options", [P, ctypes.c_uint64], ctypes.c_uint64),
         ("SSL_CTX_set_ciphersuites", [P, S], I), ("SSL_CTX_use_certificate_chain_file", [P, S], I),
+        ("SSL_CTX_use_certificate", [P, P], I),
         ("SSL_CTX_use_PrivateKey", [P, P], I), ("SSL_CTX_check_private_key", [P], I),
         ("SSL_CTX_load_verify_locations", [P, S, S], I), ("SSL_CTX_set_verify", [P, I, P], None), ("SSL_CTX_set_purpose", [P, I], I),
         ("SSL_CTX_set_session_id_context", [P, B, ctypes.c_uint], I), ("SSL_get1_session", [P], P), ("SSL_set_session", [P, P], I),
@@ -285,13 +285,25 @@ class Context:
         keep = blocks[:1] + [b for b in blocks[1:] if not _self_signed(b)]
         if len(keep) == len(blocks):
             return load(path)
-        fd, tmp = tempfile.mkstemp(suffix=".pem")
-        try:
-            os.write(fd, b"".join(keep))
-            os.close(fd)
-            load(tmp)
+        L_, certs = lib(), []
+        try:  # in memory: a read-only root filesystem has no temporary directory
+            for block in keep:
+                bio = L_.BIO_new_mem_buf(block, len(block))
+                if not bio:
+                    raise TLSError(f"cannot allocate a certificate BIO: {errors()}")
+                try:
+                    certs.append(L_.PEM_read_bio_X509(bio, None, None, None))
+                finally:
+                    L_.BIO_free(bio)
+                if not certs[-1]:
+                    raise TLSError(f"cannot read a certificate in {path}: {errors()}")
+            self._check(L_.SSL_CTX_use_certificate(self.ptr, certs[0]), f"load certificate {path}")
+            for cert in certs[1:]:
+                self._check(L_.SSL_CTX_ctrl(self.ptr, CTRL_CHAIN_CERT, 1, cert), f"add the chain in {path}")
         finally:
-            os.unlink(tmp)
+            for cert in certs:
+                if cert:
+                    L_.X509_free(cert)
 
     def _use_key(self, path, passphrase):
         L_ = lib()
