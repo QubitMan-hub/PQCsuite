@@ -11,7 +11,7 @@ from pqcsuite.cli import parser
 ROOT = Path(__file__).resolve().parent.parent
 # Commands that moved to Acxelin Readiness and Acxelin TLS; the old documents that still name them are replaced in Stage 6, when this list goes.
 MOVED = {"scan", "readiness", "ca", "tls"}
-DOCS = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "docs/*.md", "pqcsuite/console/console.html", "examples/*.toml", "site/*.html",
+DOCS = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "docs/*.md", "pqcsuite/console/console.html", "examples/*.toml",
         "deploy/**/*.service", "deploy/**/*.yaml", "deploy/**/*.tpl", "deploy/**/*.hcl", "deploy/**/*.sh"]
 COMMAND = re.compile(r"(?<!-t )(?:^|(?<=[\s$/]))pqcsuite ((?:[a-z][\w-]*)(?: [a-z][\w-]*)?)([^\n;|&#)]*)")
 
@@ -64,34 +64,17 @@ class DocsTest(unittest.TestCase):
                         rest = " ".join(words[len(cmd):]) + m.group(2)
                         wrong += [f"{where}  (no option {o})" for o in re.findall(r"(?<![\w-])(--[a-z][a-z0-9-]*|-[a-z])\b", rest)
                                   if o not in known[cmd]]
-        self.assertGreater(seen, 50, "the command pattern stopped matching the documentation")
+        self.assertGreater(seen, 40, "the command pattern stopped matching the documentation")  # 50 quoted commands once the suite manual left
         self.assertEqual(wrong, [])
 
     def test_links_inside_the_repository_lead_somewhere(self):
         broken = []
-        for path in files(["README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "docs/*.md", "wolf-pack/README.md"]):
+        for path in files(["README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "docs/*.md"]):
             for target in re.findall(r"\]\(([^)\s]+)\)", path.read_text(encoding="utf-8")):
                 if re.match(r"[a-z]+:", target) or target.startswith("#"):
                     continue
                 if not (path.parent / target.split("#")[0]).exists():
                     broken.append(f"{path.relative_to(ROOT)} -> {target}")
-        self.assertEqual(broken, [])
-
-    def test_every_link_inside_the_site_leads_somewhere(self):
-        site, broken = ROOT / "site", []
-        ids = {p.name: set(re.findall(r'\bid="([^"]+)"', p.read_text(encoding="utf-8"))) for p in site.glob("*.html")}
-        for page in site.glob("*.html"):
-            if page.name == "console-demo.html":  # the console's own script builds links from templates; its pages are tested in the browser
-                continue
-            for target in re.findall(r'\b(?:href|src)="([^"]+)"', page.read_text(encoding="utf-8")):
-                if re.match(r"[a-z]+:", target):
-                    continue
-                name, _, anchor = target.partition("#")
-                name = name or page.name
-                if not (site / name).exists():
-                    broken.append(f"{page.name} -> {target}")
-                elif anchor and name.endswith(".html") and anchor not in ids.get(name, set()):
-                    broken.append(f"{page.name} -> {target} (no such section)")
         self.assertEqual(broken, [])
 
 

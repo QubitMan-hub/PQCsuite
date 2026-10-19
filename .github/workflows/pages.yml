@@ -2,7 +2,7 @@ name: pages
 on:
   push:
     branches: [main]
-    paths: ["site/**", "docs/PRODUCT-MANUAL.md", "scripts/manual.py", "pqcsuite/brand.py", "pqcsuite/console/console.html", "pqcsuite/__init__.py", "wolf-pack/wolfpack/**", "wolf-pack/pyproject.toml", "examples/wolfpack-sample/**", ".github/workflows/pages.yml"]
+    paths: ["website/**", "products/*/docs/**", "products/*/src/**", "products/*/examples/**", "tools/build_site.py", "core/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,6 +12,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b  # OpenSSL 3.5, as website.yml builds
     permissions:
       pages: write
       id-token: write
@@ -20,18 +21,11 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-      - name: Generate sample reports with this commit's scanner
-        run: |
-          pip install . './wolf-pack[crawler]' markdown-it-py==4.2.0
-          python examples/wolfpack-sample/make_report.py
-          python scripts/manual.py
-      - name: The site with its public address stamped in (change it here when the site moves)
-        run: python3 site/publish.py https://qubitman-hub.github.io/PQCsuite/ dist/site
+      - run: apt-get update && apt-get install -y --no-install-recommends git
+      - name: The website, its demo pages produced by running the products from this commit
+        run: pip install ./core "./products/readiness[crawler]" ./products/tls && python tools/build_site.py
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: dist/site
+          path: build/site
       - id: deploy
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
