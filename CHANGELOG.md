@@ -7,6 +7,8 @@ Versions of the old Acxelin PQC Suite (`pqcsuite`). The products have their own 
 - The suite is split into standalone products: Acxelin Readiness + CBOM (`products/readiness`) and Acxelin TLS/mTLS + CA (`products/tls`) on the shared `core`; VPN and Vault stay here until they move. `pqcsuite` keeps the `vpn`, `vault`, `console`, `doctor`, `setup` and `try` commands.
 - Wolf Pack CBOM is gone; its engine is Acxelin Readiness. The suite website, manual, clinic and bank demos, and the suite release workflow are removed; each product has its own site section, docs, demo and release.
 - `pqcsuite` declares `acxelin-tls`, which it imports.
+- Each product has a full manual (`products/*/docs/manual.md`), shown as its Manual page on the website, and its release folder carries the manual, README, licence, example settings and service units with the wheels: a customer needs nothing else.
+- Acxelin TLS deploys with Docker, systemd or the installers; the Helm chart and Kubernetes examples are removed.
 
 ## 0.4.3 (5 October 2026)
 

@@ -39,12 +39,11 @@ jobs:
         run: |
           if [ "$PRODUCT" = core ]; then pip install ./core pytest && python -m pytest -q core/tests; else
             pip install ./core "./products/$PRODUCT[test]" && ACXELIN_INSTALL_TEST=1 python -m pytest -q "products/$PRODUCT/tests" --ignore="products/$PRODUCT/tests/browser"; fi
-      - name: Wheelhouse (the product, acxelin-core and every dependency) with checksums
+      - name: What the customer receives (the product's wheels with acxelin-core and every dependency, installers, manual, licence) with checksums
         run: |
           if [ "$PRODUCT" = core ]; then pip wheel --wheel-dir wheelhouse ./core; else python tools/wheelhouse.py "$PRODUCT" wheelhouse; fi
           python -m venv /tmp/check && /tmp/check/bin/pip install --no-index --find-links wheelhouse "acxelin-$PRODUCT"
           name="acxelin-$PRODUCT-$VERSION-wheelhouse"
-          [ "$PRODUCT" = core ] || cp "products/$PRODUCT/install.sh" "products/$PRODUCT/install.ps1" wheelhouse/
           mv wheelhouse "$name" && tar czf "$name.tar.gz" "$name"
           sha256sum "$name.tar.gz" "$name"/*.whl > SHA256SUMS
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2

@@ -1,7 +1,6 @@
 """The one-command installers: a client runs ./install.sh (Linux, macOS) or install.ps1 (Windows, tested in CI) and gets a
 working command on PATH, from a checkout or offline from a release wheelhouse."""
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -36,9 +35,11 @@ def test_install_from_a_checkout_then_use_reinstall_and_uninstall(tmp_path, prod
 @slow
 def test_install_offline_from_a_release_wheelhouse(tmp_path):
     sys.path.insert(0, str(ROOT / "tools"))
-    from wheelhouse import build
-    house = build("tls", tmp_path / "acxelin-tls-1.0.0-wheelhouse")
-    shutil.copy(ROOT / "products/tls/install.sh", house / "install.sh")
+    from wheelhouse import package
+    house = package("tls", tmp_path / "acxelin-tls-1.0.0-wheelhouse")
+    shipped = {p.relative_to(house).as_posix() for p in house.rglob("*") if p.is_file()}
+    assert {"install.sh", "install.ps1", "README.md", "LICENSE", "docs/manual.md", "config/example.toml", "deploy/systemd/acxelin-tls-edge.service"} <= shipped
+    assert not [n for n in shipped if n.startswith(("acxelin_readiness", "pqcsuite"))], shipped
     r = install(house / "install.sh", tmp_path)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "from the wheels next to it" in r.stdout

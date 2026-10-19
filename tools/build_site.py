@@ -1,7 +1,7 @@
 """Build the website into build/site: python tools/build_site.py
 
 Pages in website/ hold only their content; this wraps each with the shared head, header and footer. A section's pages show
-only that product's navigation. The Readiness sample report and CBOM are produced by running the product on its example project.
+only that product's navigation. Each product's Manual page is its docs/manual.md, the same file its release folder ships. The Readiness sample report and CBOM are produced by running the product on its example project.
 """
 import html
 import json
@@ -16,9 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC, OUT = ROOT / "website", ROOT / "build" / "site"
 SECTIONS = {
     "tls": ("Acxelin TLS", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
-                            ("demo.html", "Demo"), ("security.html", "Security")]),
+                            ("manual.html", "Manual"), ("demo.html", "Demo"), ("security.html", "Security")]),
     "readiness": ("Acxelin Readiness", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
-                                         ("sample.html", "Sample"), ("security.html", "Security")]),
+                                         ("manual.html", "Manual"), ("sample.html", "Sample"), ("security.html", "Security")]),
 }
 LAYOUT = r"""<!doctype html>
 <html lang="en">
@@ -94,6 +94,89 @@ def tls_tour():
     return html.escape(run.stdout.strip("\n"))
 
 
+ITEM, NUMBER, LEAD = re.compile(r"^(-|\d+\.) "), re.compile(r"^\d+\. "), ' class="lead"'
+
+
+def inline(text):
+    parts = re.split(r"`([^`]*)`", text)
+    out = []
+    for i, part in enumerate(parts):
+        if i % 2:
+            out.append(f"<code>{html.escape(part)}</code>")
+            continue
+        part = html.escape(part, quote=False)
+        part = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", part)
+        part = re.sub(r"\*(.+?)\*", r"<em>\1</em>", part)
+        out.append(re.sub(r"\[(.+?)\]\((.+?)\)", r'<a href="\2">\1</a>', part))
+    return "".join(out)
+
+
+def markdown(text):
+    """The Markdown the manuals use: headings, paragraphs, lists, tables and code blocks. Each ## heading is a section."""
+    lines, out, chapters, para = text.splitlines(), [], [], []
+    def flush():
+        if para:
+            out.append(f"<p{LEAD if len(out) == 1 else ''}>{inline(' '.join(para))}</p>")
+            para.clear()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith("```"):
+            flush()
+            end = next(j for j in range(i + 1, len(lines)) if lines[j].strip().startswith("```"))
+            out.append(f"<pre><code>{html.escape(chr(10).join(lines[i + 1:end]))}</code></pre>")
+            i = end + 1
+            continue
+        if line.startswith("|"):
+            flush()
+            rows = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                rows.append([c.strip() for c in lines[i].strip().strip("|").split("|")])
+                i += 1
+            head = "".join(f"<th>{inline(c)}</th>" for c in rows[0])
+            body = "".join("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in r) + "</tr>" for r in rows[2:])
+            label = html.escape(", ".join(re.sub(r"[`*]", "", c) for c in rows[0]), quote=True)
+            out.append(f'<div class="scroll" tabindex="0" role="region" aria-label="Table: {label}"><table><thead><tr>{head}</tr></thead>'
+                       f'<tbody>{body}</tbody></table></div>')
+            continue
+        if ITEM.match(line):
+            flush()
+            tag = "ul" if line.startswith("-") else "ol"
+            items = []
+            while i < len(lines) and ITEM.match(lines[i].strip()):
+                items.append(f"<li>{inline(ITEM.sub('', lines[i].strip()))}</li>")
+                i += 1
+            out.append(f"<{tag}>{''.join(items)}</{tag}>")
+            continue
+        heading = re.match(r"(#{1,3}) (.*)", line)
+        if heading:
+            flush()
+            level, title = len(heading.group(1)), heading.group(2)
+            if level == 2:
+                slug = re.sub(r"[^a-z0-9]+", "-", NUMBER.sub("", title).lower()).strip("-")
+                chapters.append((slug, title))
+                out.append(f'</section>\n<section class="chapter" aria-labelledby="{slug}">\n<h2 id="{slug}">{inline(title)}</h2>')
+            else:
+                out.append(f"<h{level}>{inline(title)}</h{level}>")
+        elif line:
+            para.append(line)
+        else:
+            flush()
+        i += 1
+    flush()
+    toc = "".join(f'<li><a href="#{slug}">{inline(NUMBER.sub("", title))}</a></li>' for slug, title in chapters)
+    first = next(n for n, block in enumerate(out) if block.startswith("</section>"))
+    out.insert(first, f'<nav class="toc" aria-label="Contents"><h2>Contents</h2><ol>{toc}</ol></nav>')
+    return "<section>\n" + "\n".join(out) + "\n</section>\n"
+
+
+def manual(section):
+    name = SECTIONS[section][0]
+    text = (ROOT / "products" / section / "docs/manual.md").read_text(encoding="utf-8")
+    return (f"<!-- title: {name} manual -->\n<!-- description: How to install, use and run {name}: first steps, everyday tasks, "
+            f"troubleshooting and questions. -->\n{markdown(text)}")
+
+
 def main():
     shutil.rmtree(OUT, ignore_errors=True)
     shutil.copytree(SRC / "assets", OUT / "assets")
@@ -102,9 +185,9 @@ def main():
     excerpt = sample(OUT)
     tour = tls_tour()
     mark = logo()
-    for src in sorted(SRC.rglob("*.html")):
-        rel = src.relative_to(SRC)
-        text = src.read_text(encoding="utf-8")
+    pages = [(src.relative_to(SRC), src.read_text(encoding="utf-8")) for src in sorted(SRC.rglob("*.html"))]
+    pages += [(Path(section, "manual.html"), manual(section)) for section in SECTIONS]
+    for rel, text in pages:
         meta = re.match(r"<!-- title: (.*?) -->\n<!-- description: (.*?) -->\n", text)
         if not meta:
             sys.exit(f"{rel}: the first two lines must be the title and description comments")

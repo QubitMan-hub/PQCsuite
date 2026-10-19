@@ -89,3 +89,12 @@ footer a { color: var(--muted); }
 .copy:hover { border-color: var(--ink); }
 .steps h2 { font-size: 1.3rem; margin-bottom: 8px; }
 .steps h3 { margin-top: 22px; }
+main .wrap > section.chapter { padding: 48px 0; }
+.chapter h3 { margin-top: 30px; }
+.chapter ul, .chapter ol { max-width: 68ch; padding-left: 1.2em; margin: 0 0 16px; }
+.chapter li + li { margin-top: 4px; }
+.chapter .scroll, .chapter .code { margin-bottom: 18px; }
+.toc { border-top: 1px solid var(--rule); padding-top: 24px; }
+.toc h2 { font-size: 1.1rem; color: var(--muted); }
+.toc ol { columns: 2 16rem; column-gap: 40px; padding-left: 1.2em; margin: 0; }
+.toc li { break-inside: avoid; padding: 3px 0; }

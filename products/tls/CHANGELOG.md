@@ -9,3 +9,4 @@ First release of Acxelin TLS as its own product, from the PQC Suite's TLS and ce
 - Metrics are named `acxelin_tls_*`.
 - No outbound contact with GitHub.
 - Deploys with Docker, systemd or the installers. The Helm chart and Kubernetes examples are gone.
+- A full manual (`docs/manual.md`), shipped in the release folder with the README, licence, example settings and systemd units.
