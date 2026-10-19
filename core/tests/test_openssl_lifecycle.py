@@ -126,6 +126,13 @@ def test_private_key_bio_allocation_failure_never_reaches_the_parser(connection,
                 connection.ctx._use_key(path, None)
 
 
+def test_an_encrypted_key_that_will_not_parse_is_called_a_wrong_passphrase(connection, tmp_path):
+    path = tmp_path / 'key.pem'
+    path.write_bytes(b'-----BEGIN ENCRYPTED PRIVATE KEY-----\nMIIBAjBdBgkqhkiG9w0BBQ0wUDAvBgkqhkiG9w0BBQwwIgQQ\n-----END ENCRYPTED PRIVATE KEY-----\n')
+    with pytest.raises(tls.TLSError, match='wrong passphrase'):
+        connection.ctx._use_key(path, b'nope')
+
+
 @pytest.mark.skipif(bool(REASON), reason=REASON or '')
 @pytest.mark.parametrize('operation', ['sign', 'verify'])
 def test_signer_digest_allocation_failure_never_reaches_initialization(operation):

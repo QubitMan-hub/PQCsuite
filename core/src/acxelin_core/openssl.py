@@ -317,7 +317,10 @@ class Context:
         finally:
             L_.BIO_free(bio)
         if not pkey:
-            raise TLSError(f"cannot read private key {path}: {errors()}" + ("" if passphrase else " (if it is encrypted, give its passphrase)"))
+            why = errors()
+            if passphrase and b"ENCRYPTED" in data:  # a wrong passphrase can decrypt to bytes that then fail as a malformed key
+                why = "wrong passphrase, or the key file is damaged"
+            raise TLSError(f"cannot read private key {path}: {why}" + ("" if passphrase else " (if it is encrypted, give its passphrase)"))
         try:
             self._check(L_.SSL_CTX_use_PrivateKey(self.ptr, pkey), f"use private key {path}")
             self._check(L_.SSL_CTX_check_private_key(self.ptr), f"match private key {path} to its certificate")
