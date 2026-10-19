@@ -1,5 +1,27 @@
 # Acxelin VPN
 
-Post-quantum site-to-site IPsec (strongSwan, hybrid ML-KEM, keys agreed over ML-DSA mutual TLS) and WireGuard remote access for people, with a desktop app.
+Post-quantum site-to-site IPsec and WireGuard remote access, with a desktop app. Each tunnel's keys are agreed over TLS 1.3 with
+hybrid ML-KEM and ML-DSA certificates from your own certificate authority, and rotated; a revoked site or person is cut off
+within 15 seconds.
+
+- **Sites:** strongSwan between Linux gateways, hybrid ML-KEM in IKE plus a post-quantum PPK.
+- **People:** a WireGuard gateway, an invitation file per person, and the desktop app for Windows, macOS and Linux.
+- **Administrators:** the certificate authority, a local console, health checks and a CBOM of what the VPN uses.
+
+```
+sh install.sh                                   # or install.ps1 on Windows; offline, from the release folder
+acxelin-vpn doctor
+acxelin-vpn ca init --name "Acme VPN Root" --dir pki
+acxelin-vpn invite alice --dir pki --enroll https://ca.acme.example:9443 --gateway vpn.acme.example:7443
+```
+
+The manual (`docs/manual.md`) covers two sites and a laptop in fifteen minutes, the console, the app and production.
+`docs/upgrade.md` is for moving from the PQC Suite; `docs/threat-model.md` says what is and is not protected.
+
+| In this folder | |
+|---|---|
+| `config/` | a headquarters site, a branch site and a WireGuard gateway, every setting explained |
+| `deploy/` | the gateway image's Dockerfile and the systemd units |
+| `packaging/` | how the desktop installers are built |
 
 © 2026 Acxelin Quantum, all rights reserved.
