@@ -79,7 +79,7 @@ def test_history_updates_are_preserved_across_processes(tmp_path):
     import sys
     from acxelin_readiness.workspace import read_history
     history=tmp_path/'history.json'
-    script='from pqcsuite.project import append_history; import sys; [append_history(sys.argv[1], {"project":sys.argv[2]+"-"+str(i), "finished":i, "summary":{}}) for i in range(20)]'
+    script='from acxelin_readiness.workspace import append_history; import sys; [append_history(sys.argv[1], {"project":sys.argv[2]+"-"+str(i), "finished":i, "summary":{}}) for i in range(20)]'
     children=[subprocess.Popen([sys.executable,'-c',script,str(history),str(i)]) for i in range(3)]
     try:
         assert [child.wait(timeout=30) for child in children]==[0,0,0]
@@ -91,7 +91,7 @@ def test_history_updates_are_preserved_across_processes(tmp_path):
 
 
 def test_workspace_rescan_tracking_missing_reappearing_and_privacy(tmp_path):
-    from pqcsuite.project import ProjectStore
+    from acxelin_readiness.workspace import ProjectStore
     repo = tmp_path/'repo'; repo.mkdir(); fixture(repo)
     store = ProjectStore(tmp_path/'private'/'workspace.json')
     first = store.save(repo, scan(repo))
@@ -121,7 +121,7 @@ def test_workspace_rescan_tracking_missing_reappearing_and_privacy(tmp_path):
 
 def test_workspace_invalid_updates_limits_and_competing_writers(tmp_path):
     from concurrent.futures import ThreadPoolExecutor
-    from pqcsuite.project import ProjectStore
+    from acxelin_readiness.workspace import ProjectStore
     fixture(tmp_path)
     store = ProjectStore(tmp_path/'workspace.json')
     assessment = store.save(tmp_path, scan(tmp_path))
@@ -148,7 +148,7 @@ def test_workspace_invalid_updates_limits_and_competing_writers(tmp_path):
 
 def test_cancel_and_budget_never_replace_completed_outputs(tmp_path):
     import threading
-    from pqcsuite.project import ScanStopped
+    from acxelin_readiness.workspace import ScanStopped
     fixture(tmp_path)
     out = tmp_path/'out'
     scan(tmp_path, out=out)
@@ -161,7 +161,7 @@ def test_cancel_and_budget_never_replace_completed_outputs(tmp_path):
 
 
 def test_sample_project_preserves_edits_and_refuses_symlinks(tmp_path):
-    from pqcsuite.project import sample_project
+    from acxelin_readiness.workspace import sample_project
     root = sample_project(tmp_path)
     assert scan(root)['summary']['resolved_calls'] == 1
     (root/'keys.py').write_text('customer edit')
@@ -197,7 +197,7 @@ def test_crypto_test_vectors_remain_visible_without_production_migration_candida
 def test_persisted_graph_compression_is_lossless_bounded_and_backward_compatible(tmp_path, monkeypatch):
     import base64
     import zlib
-    from pqcsuite.project import ProjectStore
+    from acxelin_readiness.workspace import ProjectStore
     fixture(tmp_path)
     store = ProjectStore(tmp_path/'state.json')
     original = scan(tmp_path)
@@ -215,7 +215,7 @@ def test_persisted_graph_compression_is_lossless_bounded_and_backward_compatible
 
 
 def test_workspace_upgrades_legacy_version_and_refuses_unknown_version(tmp_path):
-    from pqcsuite.project import ProjectStore
+    from acxelin_readiness.workspace import ProjectStore
     path = tmp_path / 'workspace.json'
     path.write_text(json.dumps({'version': 1, 'registrations': {}, 'projects': {}}))
     store = ProjectStore(path)

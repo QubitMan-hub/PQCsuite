@@ -11,7 +11,8 @@ from pathlib import Path
 
 from cryptography import x509
 
-from pqcsuite import PEM, serve_http, tls
+from acxelin_core import tls
+from acxelin_core.http import PEM, serve_http
 from acxelin_core.pki import CA, shared
 from support_tls import REASON, wait
 

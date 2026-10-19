@@ -58,7 +58,8 @@ jobs:
         run: |
           docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness:ci .
           docker run --rm acxelin-readiness:ci doctor
-          docker run --rm -v "$PWD/products/readiness/examples/payments-api:/scan:ro" -v "$PWD/out:/out" acxelin-readiness:ci scan /scan -o /out -q || test $? = 2
+          mkdir out  # owned by the runner's user, as a customer's folder would be; the image's own user cannot write to it
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/products/readiness/examples/payments-api:/scan:ro" -v "$PWD/out:/out" acxelin-readiness:ci scan /scan -o /out -q || test $? = 2
           test -s out/cbom.json && test -s out/report.html
       - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)
         env:

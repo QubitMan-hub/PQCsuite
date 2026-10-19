@@ -48,7 +48,7 @@ Grades, accepted groups and SSH algorithms need nothing extra. To read the certi
 ## Deploy
 
 - **GitHub Action:** `uses: QubitMan-hub/PQCsuite/products/readiness@<tag>` with inputs `path`, `fail-on`, `baseline`, `args`, `output` and `upload-sarif`.
-- **Docker:** `docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness .`, then `docker run --rm -v "$PWD:/scan" acxelin-readiness`.
+- **Docker:** `docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness .`, then `docker run --rm -v "$PWD:/scan" acxelin-readiness` (on Linux add `--user "$(id -u):$(id -g)"`, so the scan can write `readiness-out` into your folder).
 
 ## Limits
 

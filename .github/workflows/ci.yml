@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install -e ./core -e "./products/readiness[crawler]" -e ./products/tls -e ".[test,integration,scan-web,desktop]"
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ".[test,integration,scan-web,desktop]"
       - run: python -m pytest -q
       - name: Desktop app on Windows, the real tray icon included; a skipped test fails the step
         if: runner.os == 'Windows'
@@ -33,7 +33,7 @@ jobs:
           python-version: "3.13"
       - name: OpenSSL 3.5+ from Homebrew, so the TLS tests run too
         run: brew install openssl@3 && echo "PQCSUITE_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
-      - run: pip install -e ./core -e "./products/readiness[crawler]" -e ./products/tls -e ".[test,integration,scan-web,desktop]" && pqcsuite doctor && pqcsuite try
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ".[test,integration,scan-web,desktop]" && pqcsuite doctor && pqcsuite try
       - name: Desktop app on macOS, the real menu-bar icon included; a skipped test fails the step
         shell: bash
         run: python -m pytest tests/test_vpn_desktop.py -v -rs | tee desktop.txt && ! grep -q SKIPPED desktop.txt
@@ -70,7 +70,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: A real database for the Vault restore scenario
         run: apt-get update && apt-get install -y --no-install-recommends git openssl curl postgresql
-      - run: pip install -e ./core -e "./products/readiness[crawler]" -e ./products/tls -e ".[test,integration,scan-web]" && pqcsuite doctor
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ".[test,integration,scan-web]" && pqcsuite doctor
       - run: python -m coverage run -m pytest -q
       - name: Coverage floor
         run: |
@@ -114,7 +114,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - run: pip install -e ./core -e "./products/readiness[crawler]" -e ./products/tls ".[scan-web]"
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls ".[scan-web]"
       - name: The suite console and the VPN window in Chromium, with axe accessibility checks
         working-directory: tests/browser
         run: |

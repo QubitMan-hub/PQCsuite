@@ -85,14 +85,12 @@ class CommandTest(unittest.TestCase):
     @unittest.skipIf(REASON, REASON)
     def test_network_errors_are_in_words(self):
         import socket
-        from pqcsuite.readiness.scan import probe
         with socket.socket() as s:
             s.bind(("127.0.0.1", 0))
             closed = s.getsockname()[1]
         ca = ["--ca", self.d / "pki" / "ca.crt"]
         self.assertIn("--server-name nosuch.invalid", self.fails("connect", "nosuch.invalid:443", *ca))
         self.assertIn("connection refused", self.fails("connect", f"127.0.0.1:{closed}", *ca))
-        self.assertEqual(probe(f"127.0.0.1:{closed}", timeout=10)["error"], "connection refused (nothing is listening on that port)")
         self.assertIn("0 to 65535", self.fails("connect", "127.0.0.1:99999", *ca))
 
     def test_the_ca_key_is_encrypted_unless_asked_not_to(self):

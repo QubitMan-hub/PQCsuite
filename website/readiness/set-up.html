@@ -22,6 +22,7 @@ acxelin-readiness console link --port 8900</code></pre>
 <h3>In Docker</h3>
 <pre><code>docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness .
 docker run --rm -v "$PWD:/scan" acxelin-readiness</code></pre>
+<p>On Linux, add <code>--user "$(id -u):$(id -g)"</code> after <code>--rm</code> so the scan can write <code>readiness-out</code> into your folder; Docker Desktop on Windows and macOS needs nothing extra.</p>
 <p>For the console, start it with <code>--container</code> and publish its port to loopback only, then ask it for a link:</p>
 <pre><code>docker run -v readiness:/data -p 127.0.0.1:8900:8900 acxelin-readiness console --container
 docker exec -it NAME acxelin-readiness console link</code></pre></li>

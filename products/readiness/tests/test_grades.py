@@ -88,4 +88,4 @@ def test_grades_follow_what_each_server_accepts(tmp_path, request):
     assert "X25519" in got["transition"]["accepts"] and "X25519MLKEM768" in got["transition"]["accepts"]
     assert got["classical"]["accepts"] == ["secp256r1"]
     assert got["legacy"]["negotiated"] == "TLSv1.2" and got["legacy"]["certificate"]["key"] == "ECDSA-secp256r1"
-    assert got["closed"]["error"]
+    assert got["closed"]["error"] == "connection refused (nothing is listening on that port)"
