@@ -1,56 +1,48 @@
 # Contributing
 
-How to work on the suite itself: a development install, the tests, the website and releases. Using the products is in the [README](README.md).
+How to work on this repository. Using a product is in its own README under `products/`.
 
-## Repository map
+## Layout
 
-| Folder | Purpose |
+| Folder | What it is |
 |---|---|
-| `pqcsuite/` | Product runtime, APIs and console; shared private storage in `storage.py` |
-| `wolf-pack/wolfpack/` | Independently packaged scanner and shared Code Crawler |
-| `tests/`, `wolf-pack/tests/` | Product and scanner regression tests; browser journeys in `tests/browser/` |
-| `site/` | Public website and generated sample reports |
-| `examples/`, `deploy/` | Runnable customer workflows and deployment templates |
-| `docs/`, `scripts/` | Current architecture/release guidance and operational validation |
-| `wolf-pack/bench/`, `wolf-pack/eval/` | Labeled detection fixtures and evaluation provenance; intentionally weak crypto |
+| `core/` | acxelin-core: shared mechanisms, no product policy. Works with nothing else installed |
+| `products/readiness/`, `products/tls/` | One product each: `src/`, `tests/`, `docs/`, `examples/`, `deploy/`, `install.sh`, `install.ps1`, its own CHANGELOG |
+| `website/` | The shared home page and one section per product; `python tools/build_site.py` builds it into `build/site` |
+| `tools/` | Repository tooling: site build, `release_check.py`, `wheelhouse.py`, the browser test kit, golden-fixture generator |
+| `pqcsuite/`, `tests/`, `examples/`, `deploy/`, `docker/`, `packaging/`, `docs/` | VPN and Vault until they move to `products/vpn` and `products/vault`; then these go |
 
-Build outputs (`dist/`), package metadata (`*.egg-info/`), test caches/results and default scan outputs are ignored generated files, not additional implementations. Keep private/custom scan outputs outside the checkout. Separate package entry points and bundled fonts/licenses are required for independent installs and offline reports. Do not delete evaluation labels or supported detectors merely to reduce the file count.
+A product never imports another product, and core never names one; the import tests in each product fail if that changes.
 
-## Development install
+## Set up and test
 
-Python 3.11+, from a clone:
+Python 3.11+ and OpenSSL 3.5+ (`ACXELIN_OPENSSL` set to its lib folder, `bin` on Windows; on Linux also `LD_LIBRARY_PATH`).
 
 ```
-pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]"   # [test]: pytest, hypothesis and coverage; [integration]: certbot and acme, for the ACME tests (leave it out for a lighter setup)
-pqcsuite doctor
+pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e ".[test]" ruff==0.14.0 playwright==1.56.0
+npm ci --prefix tools/browser
+ruff check .
+python -m pytest -q core/tests products/tls/tests tools/tests
+python -m pytest -q products/readiness/tests website/tests
+python -m pytest -q tests                      # VPN and Vault
 ```
 
-## Tests
-
-```
-python -m pytest -q
-```
-
-The shared pytest runner at the repository root runs these and Wolf Pack's tests together, including project onboarding and optional JavaScript/TypeScript, Java and Go syntax-tree fixtures. The base runtime remains independent of the test and web-parser extras. The suite needs `cryptography` 49 or newer (for ML-KEM and ML-DSA); an older one stops every test at import with a message saying so.
-
-CI measures line coverage of `pqcsuite/` in the job with OpenSSL 3.5 and real applications (`python -m coverage run -m pytest -q`, then `python -m coverage report`) and fails below the floor in `pyproject.toml`; raise the floor when coverage rises, never lower it to pass. CI also lints with `ruff check .`, runs the website and console in Chromium with axe accessibility checks (`tests/browser`: `npm install`, `npx playwright install chromium`, `npx playwright test`), and scans `pqcsuite/` with Wolf Pack against the reviewed inventory in `docs/cbom.json`.
-
-`tests/test_docs.py` keeps the documentation honest: a command or option quoted in the README, `docs/`, the examples or the website that the CLI does not have, or a link that leads nowhere, fails the build. Fix the documentation, or the product, in the same change.
-
-The TLS tests run when OpenSSL 3.5+ is available. `tests/test_scenarios.py` puts real applications behind the products and checks them with independent clients: nginx (OpenSSL 3.5 command line and curl), PostgreSQL, Redis and MQTT through edge tunnels, EST enrollment, a vault backup with tampering, and readiness grades; each is skipped when the application is missing. CI also runs two IPsec sites and a WireGuard gateway in network namespaces with real traffic, installs the Helm chart in a kind cluster, and runs the image's provisioning script on Debian 13.
-
-`pip wheel . -w dist` builds the wheel; setuptools works in `dist/.build`, so no `build/` folder is left in the source tree.
-
-## Website
-
-The website is in `site/` and is published to https://qubitman-hub.github.io/PQCsuite/ by `.github/workflows/pages.yml` on every change to it. `python site/publish.py https://YOUR-ADDRESS/ dist/site` copies it into `dist/site` with the absolute addresses that link previews and search engines need (canonical links, preview images, `sitemap.xml`, `robots.txt`). Choose a fresh output folder: the publisher refuses the source tree and unrelated nonempty folders. Rebuilding its own output preserves extra files instead of deleting the whole folder.
-
-Generated pages, rebuilt with OpenSSL 3.5 after a change to what they show: `python scripts/manual.py` (the manual), `python examples/wolfpack-sample/make_report.py` (Wolf Pack samples), `python examples/readiness-sample/make_report.py` (the sample audit report) and `python scripts/console_demo.py` (the console demo, which records a real console over invented systems and answers the page's requests from that recording).
+Run the three pytest commands separately: two products each have a `test_install.py`, which clash in one run. Installer tests
+run with `ACXELIN_INSTALL_TEST=1`. Readiness's labelled corpus (`products/readiness/bench`) is a quality gate: precision and
+recall must not drop, and `truth.json` changes only in commits titled `truth:` that the owner approves.
 
 ## Releases
 
-A tag `vX.Y.Z` releases the suite and `wolf-pack-vX.Y.Z` releases Wolf Pack: push the tag, or open Actions → release → Run workflow and type it, and the workflow creates the tag on the branch's latest commit. Before tagging, set the version in the package's `pyproject.toml` (for the suite also `__version__`, the Helm chart's `version` and `appVersion`, and the Packer template's `version`) and rename its changelog's "Unreleased" section to `## X.Y.Z`; the release workflow refuses a tag that does not match. A suite release is published only when every CI and CodeQL job passed on its commit ([docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)). Each GitHub release carries the wheel and signed build provenance (`gh attestation verify FILE --repo QubitMan-hub/PQCsuite`); a suite release also carries `RELEASE_READINESS.md`, the CBOM, a CycloneDX SBOM and the tested dependency versions, and publishes the image `ghcr.io/qubitman-hub/pqcsuite:X.Y.Z`.
+One tag per product, core first: `core-vX.Y.Z`, then `tls-vX.Y.Z` or `readiness-vX.Y.Z`. Set the version in that package's
+`pyproject.toml` and add `## X.Y.Z` to its CHANGELOG first. `.github/workflows/release-products.yml` gates the tag with
+`tools/release_check.py` and publishes a wheelhouse with the installers, SHA-256 checksums, build provenance and the GHCR
+image. Nothing is uploaded to PyPI.
 
-Between releases, scheduled workflows keep the published product honest: `upstream` opens an issue when OpenSSL 3.5 or strongSwan has a newer release than the one the installers and gateway image are built with; `downloads` installs the latest release from its public links as a customer would (wheels, Linux package, container image) and checks every release link on the website and in the manual. `dependabot` merges a Dependabot pull request on its own only when it is a single patch-version update and every check on it passed, then runs CI and CodeQL on `main`; anything else waits for review.
+## Rules
 
-`pqcsuite` is a working name: `NAME` in `pqcsuite/__init__.py`.
+- Tests for intended behaviour come first; never weaken or delete a test to make something pass.
+- Every security behaviour has a test showing the attack refused.
+- Python only; the runtime cryptography is `cryptography` and OpenSSL 3.5 through core's binding, never the `openssl` command.
+- Everything must work on Windows.
+- Old names (`PQCSUITE_*`, `wolfpack:ignore`, `.wolfpack.toml`, `wolfpack:*` CBOM properties) are still read through each
+  product's 1.x line, with a warning. Breaking changes go in `products/*/docs/upgrade.md`.

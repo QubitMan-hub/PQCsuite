@@ -1,7 +1,7 @@
 # Pilot: the checks that need your accounts or hardware
 
-What CI cannot do, as a script to follow. Each part ends with what to record in the "Not yet validated" table of
-[RELEASE-READINESS.md](RELEASE-READINESS.md); every release report copies that table.
+What CI cannot do, as a script to follow. Each part ends with what to record; record it in the stage report under
+`docs/superpowers/plans/`.
 
 ## 1. A cloud image in a real account (about an hour per cloud)
 
