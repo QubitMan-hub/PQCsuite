@@ -259,6 +259,16 @@ def describe_vpn(s, details=False):
     return "\n".join(lines)
 
 
+def cmd_inventory(a):
+    from acxelin_core.files import write
+    from . import inventory
+    text = inventory.cbom(a.config, a.name)
+    write(Path(a.cbom), text.encode())
+    print(f"wrote {a.cbom}: a CycloneDX 1.6 CBOM of {len(json.loads(text)['components'])} cryptographic assets "
+          f"(algorithms, protocols, certificates, and keys by type and size; never a key's value)")
+    return 0
+
+
 def cmd_doctor(a):
     print(f"{NAME} {__version__}, Python {sys.version.split()[0]}")
     mark = {"ok": "ok  ", "warn": "WARN", "fail": "FAIL"}
@@ -371,9 +381,14 @@ def parser():
     p = v.add_parser("disconnect", help="take the tunnel down and lift the kill switch")
     p.add_argument("--interface", default="wg0")
     v.add_parser("uninstall", help="stop starting the VPN with this machine")
+    p = v.add_parser("inventory", help="the VPN's cryptography as a CycloneDX 1.6 CBOM, for Acxelin Readiness or any CBOM tool")
+    p.add_argument("--config", action="append", required=True, metavar="FILE", help="a site or gateway configuration (repeatable)")
+    p.add_argument("--cbom", default="cbom.json", metavar="FILE", help="where to write it (default: cbom.json)")
+    p.add_argument("--name", default="Acxelin VPN", help="what the CBOM is about, e.g. \"Acme VPN\" (default: Acxelin VPN)")
     for name, c in v.choices.items():
-        if name != "doctor":
+        if name not in ("doctor", "inventory"):
             c.set_defaults(func=cmd_vpn)
+    v.choices["inventory"].set_defaults(func=cmd_inventory)
     ca_commands.add(v, common)
     from . import console
     console.add(v)
