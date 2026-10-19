@@ -28,7 +28,7 @@ You receive Acxelin Readiness as one release folder, `acxelin-readiness-1.0.0-wh
 | Where | Run in the release folder |
 |---|---|
 | Linux, macOS | `sh install.sh` |
-| Windows | `powershell -ExecutionPolicy Bypass -File install.ps1` |
+| Windows | `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1` |
 
 The installer checks your Python, puts `acxelin-readiness` on your PATH, runs `acxelin-readiness doctor` and says what to do next. To remove it, run `sh install.sh --uninstall` (or `install.ps1 -Uninstall`). Your scan results stay where they were written.
 

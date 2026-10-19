@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = Windows ]; then
-            powershell -ExecutionPolicy Bypass -File products/tls/install.ps1
+            powershell -ExecutionPolicy RemoteSigned -File products/tls/install.ps1
             "$LOCALAPPDATA/Acxelin/bin/acxelin-tls.cmd" doctor
           else
             sh products/tls/install.sh | tee install.txt

@@ -1,37 +1,57 @@
 <!-- title: Set up Acxelin TLS -->
-<!-- description: Install Acxelin TLS, run the tour, create a certificate authority, put an edge in front of a service, and open the console locally, over SSH or in Docker. -->
+<!-- description: Check the Acxelin TLS release, install it for your user, run the tour, create a certificate authority, put an edge in front of a service, and open the console. -->
 <section>
 <h1>Set up Acxelin TLS</h1>
-<p class="lead">It needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. You do not need another Acxelin product.</p>
+<p class="lead">It needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. You do not need another Acxelin product, and nothing contacts Acxelin Quantum.</p>
 <ol class="steps">
+<li><h2>Check the release</h2>
+<p>The release is one archive, <code>acxelin-tls-{{VERSION}}-wheelhouse.tar.gz</code>, with a <code>SHA256SUMS</code> file and a build attestation that says which workflow built it. Check both before you unpack it:</p>
+<pre><code>sha256sum -c SHA256SUMS --ignore-missing
+gh attestation verify acxelin-tls-{{VERSION}}-wheelhouse.tar.gz --owner QubitMan-hub
+tar xzf acxelin-tls-{{VERSION}}-wheelhouse.tar.gz
+cd acxelin-tls-{{VERSION}}-wheelhouse</code></pre>
+<p class="see">You should see <b>OK</b> after the archive's name, and <b>Verification succeeded</b>. If either fails, do not install it.</p>
+<p>On Windows, compare the hash by eye with the line in <code>SHA256SUMS</code>:</p>
+<pre><code>(Get-FileHash .\acxelin-tls-{{VERSION}}-wheelhouse.tar.gz).Hash
+tar -xzf .\acxelin-tls-{{VERSION}}-wheelhouse.tar.gz
+cd .\acxelin-tls-{{VERSION}}-wheelhouse</code></pre></li>
 <li><h2>Install</h2>
-<p>One command installs it for your user and puts <code>acxelin-tls</code> on your PATH. Run it in an unpacked release wheelhouse, or in <code>products/tls</code> of a checkout:</p>
+<p>In the unpacked folder, or in <code>products/tls</code> of a checkout:</p>
 <pre><code>sh install.sh</code></pre>
-<p>On Windows: <code>powershell -ExecutionPolicy Bypass -File install.ps1</code>. It checks Python, finds OpenSSL 3.5, runs <code>acxelin-tls doctor</code> and says what to do next.</p></li>
+<p>On Windows, unblock the script once, then run it with signed-or-local scripts allowed for this one command:</p>
+<pre><code>Unblock-File .\install.ps1
+powershell -ExecutionPolicy RemoteSigned -File .\install.ps1</code></pre>
+<p class="see">It installs from the wheels in the folder, offline, then runs <code>acxelin-tls doctor</code>. You should see each check and <b>Start here</b> with the next commands.</p>
+<dl class="rows">
+<div><dt>What it changes</dt><dd>A private Python environment in <code>~/.acxelin/tls</code> and the command <code>~/.local/bin/acxelin-tls</code>. On Windows, <code>%LOCALAPPDATA%\Acxelin\tls</code> and <code>%LOCALAPPDATA%\Acxelin\bin</code>, which it adds to your user PATH. No administrator rights, nothing system-wide.</dd></div>
+<div><dt>OpenSSL 3.5</dt><dd>It uses the system's when it is new enough, otherwise Homebrew's, or the folder in <code>ACXELIN_OPENSSL</code>. On Windows: <code>choco install openssl</code>, then run the installer again.</dd></div>
+<div><dt>Remove it</dt><dd><code>sh install.sh --uninstall</code>, or <code>install.ps1 -Uninstall</code>. Your authorities, certificates and settings stay where you put them.</dd></div>
+</dl></li>
 <li><h2>See it work</h2>
 <pre><code>acxelin-tls try</code></pre>
-<p>A one-minute tour with nothing to set up. <a href="demo.html">The demo page</a> shows its real output.</p></li>
+<p>A one-minute tour with nothing to set up. <a href="demo.html">The demo</a> shows its real output, frame by frame.</p></li>
 <li><h2>Create the authority and a certificate</h2>
-<p>Use the console (next step), or the command line:</p>
+<p>Use the console (step 6), or the command line:</p>
 <pre><code>acxelin-tls ca init --name "Example Root CA" --dir pki
-acxelin-tls ca issue server web.example.com --dir pki --out web</code></pre></li>
+acxelin-tls ca issue server web.example.com --dir pki --out web</code></pre>
+<p class="see"><code>ca init</code> asks for a passphrase and encrypts the authority's key with it. Keep <code>pki</code> readable by its owner only.</p></li>
 <li><h2>Put the edge in front of a service</h2>
 <pre><code>acxelin-tls edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 \
   --cert web/chain.pem --key web/key.pem</code></pre>
-<p>Add <code>--require-client-cert --ca pki/ca.crt --crl pki/crl.pem</code> for mutual TLS. For several routes, write an <code>edge.toml</code> and run <code>acxelin-tls edge --config edge.toml</code>. Check it first with <code>acxelin-tls doctor --config edge.toml</code>.</p></li>
+<p><code>0.0.0.0</code> listens on every network interface. Open port 8443 in your firewall only to the clients that need it, and keep the service itself on <code>127.0.0.1</code> or a private network.</p>
+<p>Add <code>--require-client-cert --ca pki/ca.crt --crl pki/crl.pem</code> for mutual TLS. For several routes, write an <code>edge.toml</code>, check it with <code>acxelin-tls doctor --config edge.toml</code>, and run <code>acxelin-tls edge --config edge.toml</code>.</p></li>
 <li><h2>Open the console</h2>
 <pre><code>acxelin-tls console</code></pre>
-<p>Your browser opens already signed in. Create the certificate authority, give its key a passphrase, then issue and revoke certificates, add running edges to see their policy, test a connection, and read the health checks. The console keeps the passphrase in memory only, so it asks again after a restart.</p>
+<p>Your browser opens already signed in. Create the authority, then issue and revoke certificates, add running edges to see their policy, test a connection, and read the health checks. The console keeps the passphrase in memory only, so it asks again after a restart.</p>
 <h3>On a remote server</h3>
-<p>The console only listens on the machine it runs on. Forward a port, then ask the running console for a fresh link:</p>
+<p>The console listens only on the machine it runs on. Forward a port, then ask the running console for a fresh link:</p>
 <pre><code>ssh -L 8900:127.0.0.1:8900 server
 acxelin-tls console link --port 8900</code></pre>
 <p>Run the second command in that SSH session and open the address it prints on your laptop.</p>
 <h3>In Docker</h3>
-<pre><code>docker build -f products/tls/deploy/Dockerfile -t acxelin-tls .
-docker run -v acxelin-tls:/data -p 127.0.0.1:8900:8900 acxelin-tls console --container
+<pre><code>docker run -v acxelin-tls:/data -p 127.0.0.1:8900:8900 ghcr.io/qubitman-hub/acxelin-tls:{{VERSION}} console --container
 docker exec -it NAME acxelin-tls console link</code></pre></li>
 <li><h2>Keep it running</h2>
-<p>Run <code>acxelin-tls ca maintain --dir pki</code> every day. The Dockerfile and the systemd units are in <code>products/tls/deploy</code>.</p></li>
+<p>Run <code>acxelin-tls ca maintain --dir pki</code> every day; the release folder has systemd units and a daily timer for it. Before you go to production, read <a href="security.html">what Acxelin TLS defends against</a> and the <a href="manual.html">manual</a>.</p></li>
 </ol>
 </section>

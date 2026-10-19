@@ -1,4 +1,4 @@
-# Install Acxelin for this user on Windows:  powershell -ExecutionPolicy Bypass -File install.ps1      (remove:  ... -Uninstall)
+# Install Acxelin for this user on Windows:  Unblock-File .\install.ps1; powershell -ExecutionPolicy RemoteSigned -File .\install.ps1      (remove: ... -Uninstall)
 # Works offline from a release wheelhouse (the .whl files next to this script) or from a checkout of the repository.
 param([switch]$Uninstall)
 $ErrorActionPreference = "Stop"

@@ -27,7 +27,7 @@ You receive Acxelin TLS as one release folder, `acxelin-tls-1.0.0-wheelhouse`. I
 | Where | Run in the release folder |
 |---|---|
 | Linux, macOS | `sh install.sh` |
-| Windows | `powershell -ExecutionPolicy Bypass -File install.ps1` |
+| Windows | `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1` |
 
 The installer checks your Python, finds OpenSSL 3.5, puts `acxelin-tls` on your PATH and runs a health check. A ready machine prints:
 

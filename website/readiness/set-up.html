@@ -1,33 +1,52 @@
 <!-- title: Set up Acxelin Readiness -->
-<!-- description: Install Acxelin Readiness, scan a repository, open the console, gate pull requests and configure it. -->
+<!-- description: Check the Acxelin Readiness release, install it for your user, scan a repository, open the console, gate pull requests and configure it. -->
 <section>
 <h1>Set up Acxelin Readiness</h1>
-<p class="lead">It runs on Linux, Windows and macOS with Python 3.11 to 3.14. You do not need another Acxelin product.</p>
+<p class="lead">It runs on Linux, Windows and macOS with Python 3.11 to 3.14. You do not need another Acxelin product, and nothing contacts Acxelin Quantum.</p>
 <ol class="steps">
+<li><h2>Check the release</h2>
+<p>The release is one archive, <code>acxelin-readiness-{{VERSION}}-wheelhouse.tar.gz</code>, with a <code>SHA256SUMS</code> file and a build attestation that says which workflow built it. Check both before you unpack it:</p>
+<pre><code>sha256sum -c SHA256SUMS --ignore-missing
+gh attestation verify acxelin-readiness-{{VERSION}}-wheelhouse.tar.gz --owner QubitMan-hub
+tar xzf acxelin-readiness-{{VERSION}}-wheelhouse.tar.gz
+cd acxelin-readiness-{{VERSION}}-wheelhouse</code></pre>
+<p class="see">You should see <b>OK</b> after the archive's name, and <b>Verification succeeded</b>. If either fails, do not install it.</p>
+<p>On Windows, compare the hash by eye with the line in <code>SHA256SUMS</code>:</p>
+<pre><code>(Get-FileHash .\acxelin-readiness-{{VERSION}}-wheelhouse.tar.gz).Hash
+tar -xzf .\acxelin-readiness-{{VERSION}}-wheelhouse.tar.gz
+cd .\acxelin-readiness-{{VERSION}}-wheelhouse</code></pre></li>
 <li><h2>Install</h2>
-<p>One command installs it for your user and puts <code>acxelin-readiness</code> on your PATH. Run it in an unpacked release wheelhouse, or in <code>products/readiness</code> of a checkout:</p>
+<p>In the unpacked folder, or in <code>products/readiness</code> of a checkout:</p>
 <pre><code>sh install.sh</code></pre>
-<p>On Windows: <code>powershell -ExecutionPolicy Bypass -File install.ps1</code>. It checks Python, finds OpenSSL 3.5, runs <code>acxelin-readiness doctor</code> and says what to do next.</p></li>
+<p>On Windows, unblock the script once, then run it with signed-or-local scripts allowed for this one command:</p>
+<pre><code>Unblock-File .\install.ps1
+powershell -ExecutionPolicy RemoteSigned -File .\install.ps1</code></pre>
+<p class="see">It installs from the wheels in the folder, offline, then runs <code>acxelin-readiness doctor</code>. You should see each check and <b>Start here</b> with the next commands.</p>
+<dl class="rows">
+<div><dt>What it changes</dt><dd>A private Python environment in <code>~/.acxelin/readiness</code> and the command <code>~/.local/bin/acxelin-readiness</code>. On Windows, <code>%LOCALAPPDATA%\Acxelin\readiness</code> and <code>%LOCALAPPDATA%\Acxelin\bin</code>, which it adds to your user PATH. No administrator rights, nothing system-wide.</dd></div>
+<div><dt>OpenSSL 3.5</dt><dd>Optional. Scans of code, configuration, keys and most endpoints need nothing extra. See <a href="#tls">reading certificates of post-quantum-only servers</a> below.</dd></div>
+<div><dt>Remove it</dt><dd><code>sh install.sh --uninstall</code>, or <code>install.ps1 -Uninstall</code>. Your reports and settings stay where you put them.</dd></div>
+</dl></li>
 <li><h2>Scan a repository</h2>
 <pre><code>acxelin-readiness scan path/to/repository</code></pre>
-<p>Open <code>readiness-out/report.html</code> in a browser. The CBOM and SARIF files are next to it.</p></li>
+<p class="see">Open <code>readiness-out/report.html</code> in a browser. The CBOM and SARIF files are next to it. The folder holds short code snippets, so treat it as you treat the code.</p></li>
 <li><h2>Open the console</h2>
 <pre><code>acxelin-readiness console</code></pre>
 <p>Your browser opens already signed in. The first time, choose the folder that holds your repositories, add one, and scan it. The Endpoints tab grades live servers and shows what changed since the last check.</p>
 <h3>On a remote server</h3>
-<p>The console only listens on the machine it runs on. Forward a port, then ask the running console for a fresh link:</p>
+<p>The console listens only on the machine it runs on. Forward a port, then ask the running console for a fresh link:</p>
 <pre><code>ssh -L 8900:127.0.0.1:8900 server
 acxelin-readiness console link --port 8900</code></pre>
 <p>Run the second command in that SSH session and open the address it prints on your laptop.</p>
 <h3>In Docker</h3>
-<pre><code>docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness .
-docker run --rm -v "$PWD:/scan" acxelin-readiness</code></pre>
+<pre><code>docker run --rm -v "$PWD:/scan" ghcr.io/qubitman-hub/acxelin-readiness:{{VERSION}}</code></pre>
 <p>On Linux, add <code>--user "$(id -u):$(id -g)"</code> after <code>--rm</code> so the scan can write <code>readiness-out</code> into your folder; Docker Desktop on Windows and macOS needs nothing extra.</p>
 <p>For the console, start it with <code>--container</code> and publish its port to loopback only, then ask it for a link:</p>
-<pre><code>docker run -v readiness:/data -p 127.0.0.1:8900:8900 acxelin-readiness console --container
+<pre><code>docker run -v readiness:/data -p 127.0.0.1:8900:8900 ghcr.io/qubitman-hub/acxelin-readiness:{{VERSION}} console --container
 docker exec -it NAME acxelin-readiness console link</code></pre></li>
 <li><h2>Gate pull requests</h2>
-<pre><code>- uses: QubitMan-hub/PQCsuite/products/readiness@main
+<p>Pin the action to the release you installed, so the check you trust is the check that runs:</p>
+<pre><code>- uses: QubitMan-hub/PQCsuite/products/readiness@readiness-v{{VERSION}}
   with:
     fail-on: high
     baseline: cbom.json</code></pre>
@@ -40,7 +59,8 @@ fail_on = "high"
 
 [policy]
 profiles = ["nist-ir-8547"]
-forbid = ["MD5", "SHA-1"]</code></pre></li>
+forbid = ["MD5", "SHA-1"]</code></pre>
+<p>Before you scan systems you do not own, read <a href="security.html">what Acxelin Readiness does with your code</a>, and get written permission for every endpoint.</p></li>
 </ol>
 </section>
 

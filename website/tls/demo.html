@@ -2,21 +2,28 @@
 <!-- description: The real output of acxelin-tls try: a post-quantum client reaches a web server through the edge, and a classical client is refused. -->
 <section>
 <h1>A classical client is refused</h1>
-<p class="lead">This is the real output of <code>acxelin-tls try</code>, captured when this site was built. The web server in step 2 has no post-quantum support at all.</p>
-<pre><code>{{TLS_TOUR}}</code></pre>
+<p class="lead">The real run of <code>acxelin-tls try</code>, captured when this site was built. The web server in frame 2 has no post-quantum support at all.</p>
+{{TLS_CAPTURE}}
 </section>
 
 <section aria-labelledby="read">
 <h2 id="read">How to read it</h2>
-<dl class="rows">
-<div><dt>Steps 1 to 3</dt><dd>A private authority issues the edge a certificate, an ordinary web server starts, and the edge starts in front of it.</dd></div>
-<div><dt>Step 4</dt><dd>A post-quantum client asks for the page. The key exchange line is the group that was negotiated, and the certificate line is the signature algorithm the edge presented.</dd></div>
-<div><dt>Step 5</dt><dd>A client that only knows classical key exchange tries the same and is refused. There is no fallback to a key exchange a future quantum computer could break.</dd></div>
-</dl>
+<p>Each frame is one event, in the order it happened, and the tree under it shows what each side presented and negotiated. Frames 1 to 3 set the scene: a private authority issues the edge a certificate, an ordinary web server starts, and the edge starts in front of it.</p>
+<p>Frame 4 is the post-quantum client: its key exchange is the group that was negotiated, its certificate the signature the edge presented. Frame 5 is a client that knows only classical key exchange. It is refused, and nothing falls back to a key exchange a future quantum computer could break.</p>
+</section>
+
+<section aria-labelledby="transcript">
+<h2 id="transcript">The transcript</h2>
+<p>What <code>acxelin-tls try</code> printed, unedited.</p>
+<pre class="output"><code>{{TLS_TOUR}}</code></pre>
 </section>
 
 <section aria-labelledby="again">
+<div class="close">
+<div>
 <h2 id="again">Run it yourself</h2>
-<pre><code>acxelin-tls try</code></pre>
-<p>Then <a href="set-up.html">set up Acxelin TLS</a> to put an edge in front of your own service.</p>
+<p>Install Acxelin TLS, then run <code>acxelin-tls try</code>. It needs no configuration.</p>
+</div>
+<div class="actions"><a class="btn primary" href="set-up.html">Check and install</a></div>
+</div>
 </section>

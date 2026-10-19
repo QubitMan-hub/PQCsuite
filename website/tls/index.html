@@ -1,66 +1,93 @@
 <!-- title: Acxelin TLS: post-quantum TLS in front of services that cannot change -->
 <!-- description: Acxelin TLS is an edge proxy and certificate authority. Clients that cannot do post-quantum key exchange are refused, and the service behind it stays exactly as it is. -->
 <section>
-<div class="hero">
+<div class="opening">
 <div>
-<h1>Put post-quantum TLS in front of services that cannot change.</h1>
-<p class="lead">Acxelin TLS is an edge proxy and a certificate authority. A client that cannot do post-quantum key exchange is refused, and the service behind the edge keeps running exactly as it is.</p>
-<div class="actions"><a class="btn primary" href="set-up.html">Set up in three commands</a><a class="btn" href="demo.html">See it refuse a classical client</a></div>
+<h1>Post-quantum TLS in front of services that cannot change.</h1>
+<p class="lead">Acxelin TLS is an edge proxy with its own certificate authority. A client that cannot do post-quantum key exchange is refused; the service behind the edge keeps running exactly as it is.</p>
 </div>
-<figure class="shot"><img src="{root}assets/tls-console.png" width="1280" height="860" alt="The Acxelin TLS console showing a certificate authority named Example Root CA, its revocation list, and a table of issued certificates with one revoked."><figcaption>The console: create the authority, issue and revoke certificates.</figcaption></figure>
+<div class="get">
+<h2>Acxelin TLS {{VERSION}}</h2>
+<p>One archive, <code>acxelin-tls-{{VERSION}}-wheelhouse.tar.gz</code>, with <code>SHA256SUMS</code> and a signed build record. It installs offline, for your user only.</p>
+<pre><code>sha256sum -c SHA256SUMS --ignore-missing
+tar xzf acxelin-tls-{{VERSION}}-wheelhouse.tar.gz
+sh acxelin-tls-{{VERSION}}-wheelhouse/install.sh</code></pre>
+<p class="more"><a href="set-up.html">Every step, with Windows and the attestation check</a><a href="manual.html">Manual</a></p>
 </div>
+</div>
+{{TLS_CAPTURE}}
 </section>
 
 <section aria-labelledby="front">
-<h2 id="front">What you put it in front of</h2>
-<p>Traffic recorded today can be decrypted later by a quantum computer. The edge protects the connection without touching the service.</p>
-<dl class="rows">
-<div><dt>Any TCP service</dt><dd>A web application, PostgreSQL, pgvector, MQTT or anything else that listens on a port. The edge terminates post-quantum TLS and passes plain traffic on over the local network.</dd></div>
-<div><dt>A client that cannot change</dt><dd>A legacy client on one machine reaches a remote edge through a local port. The edge originates post-quantum TLS on its behalf.</dd></div>
-<div><dt>Mutual TLS</dt><dd>Require a client certificate from your own authority. A revoked client is refused as soon as the edge has the new revocation list.</dd></div>
-<div><dt>A ready-made setup</dt><dd><code>acxelin-tls bundle nginx --host web.example.com</code> writes the certificates, the edge configuration and a compose file for nginx, PostgreSQL, pgvector or MQTT.</dd></div>
-</dl>
-</section>
-
-<section aria-labelledby="authority">
-<h2 id="authority">Your own certificate authority</h2>
-<p>The certificates are ML-DSA, a post-quantum signature. You run the authority that issues them.</p>
-<dl class="rows">
-<div><dt>Issue, renew, revoke</dt><dd>From the console or the command line. A daily <code>ca maintain</code> renews what expires soon and re-signs the revocation list.</dd></div>
-<div><dt>Enrol machines</dt><dd>Devices enrol with a one-time token over EST (RFC 7030). Standard ACME clients, such as certbot, obtain ML-DSA certificates over ACME (RFC 8555).</dd></div>
-<div><dt>Keep the root offline</dt><dd>Run an issuing authority under a root that never touches the server. The key can live in AWS KMS or behind your own signing command, though neither has been run against real hardware here.</dd></div>
-</dl>
+<h2 id="front">Where the edge sits</h2>
+<p>Traffic recorded today can be decrypted once a quantum computer exists. The edge protects the part of the path that crosses the network, and neither end has to change.</p>
+<figure class="figure" aria-labelledby="front-cap">
+<ol class="path" aria-label="Terminate: protecting a service">
+<li class="node">Any client<small>post-quantum capable</small></li>
+<li class="link ok">post-quantum TLS 1.3</li>
+<li class="node edge">Acxelin TLS edge<small>terminate</small></li>
+<li class="link">plain TCP, loopback</li>
+<li class="node">Your service<small>unchanged</small></li>
+</ol>
+<ol class="path" aria-label="Originate: a client that cannot change">
+<li class="node">Legacy client<small>unchanged</small></li>
+<li class="link">plain TCP, local port</li>
+<li class="node edge">Acxelin TLS edge<small>originate</small></li>
+<li class="link ok">post-quantum TLS 1.3</li>
+<li class="node">Remote edge<small>terminate</small></li>
+</ol>
+<figcaption id="front-cap"><b>Fig. 2</b>The two route types. Green is the hop that crosses the network, carried over post-quantum TLS; plain traffic stays on the machine or a private network.</figcaption>
+</figure>
+<p>The service can be anything that listens on a port: a web application, PostgreSQL, pgvector, MQTT. <code>acxelin-tls bundle nginx --host web.example.com</code> writes the certificates, the edge configuration and a compose file. For mutual TLS, the edge also requires a client certificate from your own authority, and refuses a revoked client as soon as it has the new revocation list.</p>
 </section>
 
 <section aria-labelledby="policies">
 <h2 id="policies">Three policies</h2>
-<div class="scroll"><table>
-<thead><tr><th>Policy</th><th>What a connection may use</th></tr></thead>
-<tbody>
-<tr><td><code>strict</code> (default)</td><td>Post-quantum key exchange and ML-DSA certificates only</td></tr>
-<tr><td><code>transition</code></td><td>Also classical clients while you migrate, with a classical fallback certificate for browsers</td></tr>
-<tr><td><code>cnsa2</code></td><td>NSA CNSA 2.0: ML-KEM-1024, ML-DSA-87 and AES-256 only</td></tr>
-</tbody></table></div>
+<p>What each one lets a connection negotiate, read from the product's own policy table when this page was built. A hatched key marks a classical, quantum-exposed group.</p>
+{{TLS_LADDER}}
+<p>Nothing falls back silently. A connection that cannot meet the policy ends, and the edge's log says which side lacked what.</p>
+</section>
+
+<section aria-labelledby="authority">
+<div class="split">
+<div>
+<h2 id="authority">Your own certificate authority</h2>
+<p>Certificates are ML-DSA, the post-quantum signature standardised in FIPS 204. You run the authority that issues them.</p>
+</div>
+<div>
+<p>Issue, renew and revoke from the console in Fig. 3 or the command line; a daily <code>ca maintain</code> renews what expires soon and re-signs the revocation list.</p>
+<p>Machines enrol with a one-time token over EST (RFC 7030), and standard ACME clients such as certbot obtain ML-DSA certificates over ACME (RFC 8555). Keep the root offline and issue from an intermediate authority; its key can live in AWS KMS or behind your own signing command.</p>
+</div>
+</div>
+<figure class="shot"><img src="{root}assets/tls-console.png" width="1280" height="860" alt="The Acxelin TLS console showing a certificate authority named Example Root CA, its revocation list, and a table of issued certificates with one revoked."><figcaption><b>Fig. 3</b>The console, on loopback only: create the authority, issue and revoke certificates, test a connection.</figcaption></figure>
 </section>
 
 <section aria-labelledby="runs">
 <h2 id="runs">Where it runs</h2>
 <div class="cols">
-<div><h3>Docker</h3><p>One image with OpenSSL 3.5 included.</p><pre><code>docker build -f products/tls/deploy/Dockerfile -t acxelin-tls .</code></pre></div>
-<div><h3>systemd</h3><p>A unit for the edge, and a unit with a daily timer for authority maintenance.</p><pre><code>systemctl enable --now acxelin-tls-edge</code></pre></div>
+<div><h3>Docker</h3><p>One image with OpenSSL 3.5 included, published to GHCR with each release. With no arguments it runs the tour in Fig. 1.</p><pre><code>docker run --rm ghcr.io/qubitman-hub/acxelin-tls:{{VERSION}}</code></pre></div>
+<div><h3>systemd</h3><p>A unit for the edge, and a timer that runs authority maintenance daily. Both ship in the release folder.</p><pre><code>systemctl enable --now acxelin-tls-edge</code></pre></div>
 </div>
 </section>
 
 <section aria-labelledby="limits">
+<div class="limits">
 <h2 id="limits">What it does not claim</h2>
-<div class="note">
-<p>Browsers cannot verify ML-DSA certificates yet. For them, the <code>transition</code> policy serves a classical fallback certificate, and that connection is only as strong as classical TLS.</p>
-<p>A revoked certificate works until the edge next fetches the revocation list, which an edge that follows one does every 60 seconds by default. The service behind the edge sees plain traffic, so keep it on loopback or a private network.</p>
+<ul>
+<li>Browsers cannot verify ML-DSA certificates yet. For them, the <code>transition</code> policy serves a classical fallback certificate, and that connection is only as strong as classical TLS.</li>
+<li>A revoked certificate works until the edge next fetches the revocation list: every 60 seconds by default for an edge that follows one.</li>
+<li>The service behind the edge sees plain traffic. Keep it on loopback or a private network.</li>
+<li>Signing through AWS KMS or your own command has not yet been run against real HSM hardware.</li>
+</ul>
 </div>
 </section>
 
 <section aria-labelledby="start">
-<h2 id="start">Start with the one-minute tour</h2>
-<p>Nothing to set up: <code>acxelin-tls try</code> builds a certificate authority, a web server and an edge, and shows a classical client being refused.</p>
-<div class="actions"><a class="btn primary" href="set-up.html">Set up Acxelin TLS</a><a class="btn" href="how-it-works.html">How it works</a></div>
+<div class="close">
+<div>
+<h2 id="start">Run the tour on your own machine</h2>
+<p>After installing, <code>acxelin-tls try</code> builds an authority, a web server and an edge, and produces the run in Fig. 1 on your machine.</p>
+</div>
+<div class="actions"><a class="btn primary" href="set-up.html">Check and install</a><a class="btn" href="https://acxelinquantum.com/">Talk to Acxelin Quantum</a></div>
+</div>
 </section>

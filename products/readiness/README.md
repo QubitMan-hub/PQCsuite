@@ -14,7 +14,7 @@ Python 3.11 to 3.14, on Linux, Windows or macOS. One command installs it for you
 | Where | Command |
 |---|---|
 | Linux, macOS | `sh install.sh` |
-| Windows | `powershell -ExecutionPolicy Bypass -File install.ps1` |
+| Windows | `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1` |
 
 Run it in an unpacked release wheelhouse (it installs offline from the wheels next to it) or in `products/readiness` of a checkout. It checks your Python, finds OpenSSL 3.5, runs `acxelin-readiness doctor` and says what to do next. `sh install.sh --uninstall` (or `-Uninstall`) removes it.
 

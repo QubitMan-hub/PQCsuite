@@ -27,9 +27,14 @@
 </section>
 
 <section aria-labelledby="not">
+<div class="limits">
 <h2 id="not">What is not covered</h2>
-<div class="note">
-<p>Whoever holds the authority's key can issue certificates. Keep a root offline and use an issuing authority.</p>
-<p>A revoked certificate works until the edge next fetches the revocation list. The service behind the edge sees plain traffic. Browsers cannot verify ML-DSA, so serving them means a classical fallback certificate. Everything here was exercised on Linux with OpenSSL 3.5.9.</p>
+<ul>
+<li>Whoever holds the authority's key can issue certificates. Keep a root offline and issue from an intermediate authority.</li>
+<li>A revoked certificate works until the edge next fetches the revocation list.</li>
+<li>The service behind the edge sees plain traffic.</li>
+<li>Browsers cannot verify ML-DSA, so serving them means a classical fallback certificate.</li>
+<li>Everything here was exercised on Linux with OpenSSL 3.5.9.</li>
+</ul>
 </div>
 </section>

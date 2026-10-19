@@ -55,7 +55,8 @@ def test_home_to_install_command_copied(browser, site, section):
     assert page.url.endswith(f"/{section}/index.html")
     page.get_by_role("navigation", name=name).get_by_role("link", name="Set up", exact=True).click()
     page.get_by_role("heading", name=f"Set up {name}").wait_for()
-    page.get_by_role("button", name="Copy command").first.click()
+    step = page.locator("ol.steps > li").filter(has=page.get_by_role("heading", name="Install", exact=True))
+    step.get_by_role("button", name="Copy command").first.click()
     assert page.evaluate("navigator.clipboard.readText()") == install
     page.get_by_role("button", name="Copied").wait_for()
     ctx.close()
