@@ -5,10 +5,10 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: pip
-    directories: ["/", "/wolf-pack"]
+    directories: ["/", "/core", "/products/tls", "/products/readiness"]
     schedule:
       interval: weekly
   - package-ecosystem: docker
-    directories: ["/", "/docker"]
+    directories: ["/", "/docker", "/products/tls/deploy", "/products/readiness/deploy"]
     schedule:
       interval: weekly
