@@ -2,7 +2,7 @@
  "pqcsuite_invite": 1,
  "name": "laptop.golden.invalid",
  "enroll": "https://enroll.golden.invalid:8443",
- "ca_fingerprint": "0903105ddb8defab6779af6aa4f44ee7e708d666e06855e95fce8d26e5527638",
+ "ca_fingerprint": "90606db2743fa83b62021b1e0f8fb2e2a85cf838cedca9c0a58e786399bd344b",
  "gateway": "gateway.golden.invalid:51821",
  "server_name": "gateway.golden.invalid",
  "expires": "2099-01-01T00:00:00+00:00",

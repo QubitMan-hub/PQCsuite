@@ -20,6 +20,9 @@ venv/
 .env
 .env.*
 *.pqv
+# golden fixtures are synthetic test data and must be committed whole (tests/golden/README.md)
+!tests/golden/**
+tests/golden/**/__pycache__/
 *.part
 wolfpack-out/
 pqcsuite-out/
