@@ -38,6 +38,7 @@ fi
 ssl="${ACXELIN_OPENSSL:-}"
 if [ -z "$ssl" ] && ! openssl version 2>/dev/null | grep -qE "OpenSSL (3\.([5-9]|[1-9][0-9])|[4-9])"; then
   if command -v brew >/dev/null 2>&1 && [ -d "$(brew --prefix openssl@3 2>/dev/null)/lib" ]; then ssl="$(brew --prefix openssl@3)/lib"; fi
+  [ -n "$ssl" ] || old_ssl=1
 fi
 {
   echo "#!/bin/sh"
@@ -53,4 +54,10 @@ echo
 "$bin/$cmd" doctor || true
 echo
 "$bin/$cmd" 2>/dev/null | sed -n '/^Start here/,$p' || true
+if [ -n "${old_ssl:-}" ]; then
+  echo
+  echo "Post-quantum TLS needs OpenSSL 3.5 or newer, which this machine does not have. Install OpenSSL 3.5+ (or use Debian 13 or"
+  echo "Ubuntu 25.04+, or the container image), then run this installer again with its lib folder, so $cmd always finds it:"
+  echo "  ACXELIN_OPENSSL=/path/to/openssl-3.5/lib sh $0"
+fi
 case ":$PATH:" in *":$bin:"*) ;; *) echo; echo "Add $bin to your PATH to run $cmd from anywhere:  export PATH=\"$bin:\$PATH\"";; esac

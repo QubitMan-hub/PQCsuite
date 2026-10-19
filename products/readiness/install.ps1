@@ -44,6 +44,7 @@ if ($LASTEXITCODE -ne 0) { Write-Error "pip could not install $cmd"; exit 1 }
 # OpenSSL 3.5+ for post-quantum TLS: the folder you point at, or the usual installer's folder (choco install openssl).
 $ssl = $env:ACXELIN_OPENSSL
 if (-not $ssl -and (Test-Path "C:\Program Files\OpenSSL-Win64\bin")) { $ssl = "C:\Program Files\OpenSSL-Win64\bin" }
+if (-not $ssl) { $note = "If doctor reports no OpenSSL 3.5+ below: choco install openssl (or install OpenSSL 3.5+ elsewhere and set ACXELIN_OPENSSL to its bin folder), then run this installer again." }
 $wrapper = @("@echo off")
 if ($ssl) { $wrapper += "if not defined ACXELIN_OPENSSL set `"ACXELIN_OPENSSL=$ssl`"" }
 $wrapper += "`"$(Join-Path $home_ "Scripts\$cmd.exe")`" %*"
@@ -56,6 +57,7 @@ if (-not (($userPath -split ";") -contains $bin)) {
 }
 $env:Path = "$env:Path;$bin"
 Write-Output ""
+if ($note) { Write-Output $note; Write-Output "" }
 & (Join-Path $bin "$cmd.cmd") doctor
 Write-Output ""
 & (Join-Path $bin "$cmd.cmd") | Select-String -Pattern "Start here" -Context 0,10 | ForEach-Object { $_.Line; $_.Context.PostContext }

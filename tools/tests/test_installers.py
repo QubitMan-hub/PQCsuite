@@ -50,3 +50,16 @@ def test_the_installers_of_both_products_differ_only_in_the_product_name():
     for name in ("install.sh", "install.ps1"):
         a, b = ((ROOT / f"products/{p}/{name}").read_text().replace(p, "PRODUCT") for p in ("tls", "readiness"))
         assert a == b, name
+
+
+@slow
+def test_an_old_system_openssl_gets_a_way_forward_not_just_a_failure(tmp_path):
+    fake = tmp_path / "fake"
+    fake.mkdir()
+    (fake / "openssl").write_text("#!/bin/sh\necho 'OpenSSL 3.0.13 30 Jan 2024'\n")
+    (fake / "openssl").chmod(0o755)
+    env = {k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "PYTHONPATH", "ACXELIN_OPENSSL", "LD_LIBRARY_PATH")}
+    env |= {"ACXELIN_PREFIX": str(tmp_path / "prefix"), "ACXELIN_BIN": str(tmp_path / "bin"), "PATH": f"{fake}:{Path(sys.executable).parent}:/usr/bin:/bin"}
+    r = subprocess.run(["sh", str(ROOT / "products/tls/install.sh")], capture_output=True, text=True, env=env, cwd=tmp_path, timeout=280)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "ACXELIN_OPENSSL=/path/to/openssl-3.5/lib sh " in r.stdout

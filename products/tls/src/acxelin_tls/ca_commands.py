@@ -116,7 +116,7 @@ def cmd_enroll(a):
         from .checks import prerequisites
         failures = [r for r in prerequisites() if r['level'] == 'fail']
         if failures:
-            raise CAError(failures[0]['message'] + '. ' + failures[0]['action'])
+            raise CAError(failures[0]['message'].rstrip('.') + '. ' + failures[0]['action'])
         a.url = a.url or input('Enrollment service HTTPS URL: ').strip()
         a.common_name = a.common_name or input('Device or service name assigned by your administrator: ').strip()
         if not a.ca and not a.ca_fingerprint:

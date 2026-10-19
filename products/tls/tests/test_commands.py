@@ -173,3 +173,13 @@ def test_prerequisites_rows_have_the_shape_the_commands_read():
     from acxelin_tls import checks
     rows = checks.prerequisites()
     assert rows and all(set(r) == {"product", "level", "message", "action"} and r["level"] in ("ok", "warn", "fail") for r in rows)
+
+
+def test_doctor_does_not_contradict_the_openssl_message(capsys):
+    from unittest.mock import patch
+    too_old = ("this machine's OpenSSL 3.0.13 is too old: post-quantum TLS needs OpenSSL 3.5 or newer. Or start the program with "
+               "LD_LIBRARY_PATH set to its lib folder (ACXELIN_OPENSSL cannot help here: this process has already loaded the system OpenSSL).")
+    with patch("acxelin_core.openssl.available", return_value=too_old), contextlib.suppress(SystemExit):
+        main(["doctor"])
+    line = next(x for x in capsys.readouterr().out.splitlines() if x.startswith("FAIL"))
+    assert ".." not in line and line.count("ACXELIN_OPENSSL") == 1 and line.endswith("run `acxelin-tls doctor` again")
