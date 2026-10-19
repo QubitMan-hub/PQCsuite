@@ -28,7 +28,7 @@ def connection():
         ctx.close()
 
 
-@pytest.mark.skipif(REASON, reason=REASON or '')
+@pytest.mark.skipif(bool(REASON), reason=REASON or '')
 @pytest.mark.parametrize('operation', [
     'conn.pending()', 'conn.version', 'conn.cipher', 'conn.group', 'conn.peer_certificate()',
     'conn.peer_chain()', 'conn.export("test", b"")', 'conn.recv()', 'conn.sendall(b"test")', 'conn.handshake()',
@@ -126,7 +126,7 @@ def test_private_key_bio_allocation_failure_never_reaches_the_parser(connection,
                 connection.ctx._use_key(path, None)
 
 
-@pytest.mark.skipif(REASON, reason=REASON or '')
+@pytest.mark.skipif(bool(REASON), reason=REASON or '')
 @pytest.mark.parametrize('operation', ['sign', 'verify'])
 def test_signer_digest_allocation_failure_never_reaches_initialization(operation):
     lib = tls.lib()
@@ -141,7 +141,7 @@ def test_signer_digest_allocation_failure_never_reaches_initialization(operation
                 assert not signers.verify(signer.spki, b'data', b'signature')
 
 
-@pytest.mark.skipif(REASON, reason=REASON or '')
+@pytest.mark.skipif(bool(REASON), reason=REASON or '')
 def test_self_issued_rollover_chain_connects_to_the_original_root(tmp_path):
     from acxelin_core.pki import CA
     from acxelin_core.server import Server
@@ -159,7 +159,7 @@ def test_self_issued_rollover_chain_connects_to_the_original_root(tmp_path):
         server.stop(1)
 
 
-@pytest.mark.skipif(REASON, reason=REASON or '')
+@pytest.mark.skipif(bool(REASON), reason=REASON or '')
 @pytest.mark.parametrize('operation', ['load', 'generate'])
 def test_signer_bio_allocation_failure_never_reaches_the_parser(operation):
     lib = tls.lib()
@@ -175,7 +175,7 @@ def test_signer_bio_allocation_failure_never_reaches_the_parser(operation):
                     signers.OpenSSLSigner.generate('ML-DSA-65')
 
 
-@pytest.mark.skipif(REASON, reason=REASON or '')
+@pytest.mark.skipif(bool(REASON), reason=REASON or '')
 def test_chain_loads_without_a_writable_temporary_directory_and_still_leaves_out_the_root(tmp_path):
     """A read-only root filesystem (Kubernetes readOnlyRootFilesystem) has no temporary directory; the chain is built in memory."""
     import ctypes
