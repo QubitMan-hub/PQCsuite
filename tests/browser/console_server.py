@@ -5,11 +5,13 @@ import sys
 import tempfile
 from pathlib import Path
 
+from pqcsuite.pki import CA
+
 d = Path(tempfile.mkdtemp())
 run = lambda *a: subprocess.run([sys.executable, "-m", "pqcsuite", *a], check=True, cwd=d, stdout=subprocess.DEVNULL)
-run("ca", "init", "--dir", "ca", "--name", "Browser Test Root", "--no-encrypt")
-for kind, name, days in [("server", "api.example.test", "397"), ("client", "operator", "397"), ("server", "old.example.test", "10")]:
-    run("ca", "issue", "--dir", "ca", kind, name, "--out", name, "--days", days)
+ca = CA.init(d / "ca", "Browser Test Root")
+for kind, name, days in [("server", "api.example.test", 397), ("client", "operator", 397), ("server", "old.example.test", 10)]:
+    ca.issue(name, kind, days=days, out=d / name)
 project = d / "payments-api"
 project.mkdir()
 (project / "keys.py").write_text("from cryptography.hazmat.primitives.asymmetric import rsa\ndef make():\n return rsa.generate_private_key(public_exponent=65537, key_size=2048)\n")
