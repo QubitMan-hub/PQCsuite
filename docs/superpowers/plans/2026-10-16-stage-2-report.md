@@ -25,3 +25,9 @@
 - Windows and macOS runs, Docker, Trivy and kind/Helm: in CI after a push (no Docker, Helm or registry access in this sandbox).
 - Live AWS KMS (`signers-live`, your key and credentials) and a real HSM (your device).
 - A lawyer's review of the licence text.
+
+## Takeover check (2026-10-19, fresh machine: Linux, Python 3.11, OpenSSL 3.5.9)
+- Core + TLS + tools: 259 passed, 4 skipped (Windows ACLs; live KMS and HSM; no IPv6 in this kernel). Readiness + website: 207 passed. Old suite: 214 passed, 0 skipped, 2 failed: the strongSwan site-to-site tests, because this kernel has no XFRM interfaces ("Unknown device type"); CI runs them on a full kernel.
+- First runs here: both Docker images through their CI steps; Trivy 0 HIGH/CRITICAL on both; Go 1.24, Node and curl interop 6/6 in Debian 13 (649 new handshakes/s, 5,492 kept-alive requests/s); `helm lint --strict` and `helm template`; boto3 KMS signer; installers from a checkout; desktop extra under Xvfb; a real WireGuard tunnel (wireguard-go); WireGuard and PostgreSQL scenarios as root.
+- Fixed on the way: golden fixtures that .gitignore had kept out of Stage 0 (regenerated from 5f8c349); a Readiness grading test still calling the removed `pqcsuite tls`; an unpinned, unpatched Readiness image (4 fixable HIGH); boto3 missing from CI; contradictory OpenSSL advice in `doctor` and the installers; Dependabot watching removed paths.
+- Not run: Windows, macOS, kind cluster install, live KMS/HSM.
