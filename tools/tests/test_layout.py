@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 OTHERS = {"pqcsuite", "acxelin_readiness", "acxelin_tls", "acxelin_vpn", "acxelin_vault"}
-OWN = {"core": None, "products/readiness": "acxelin_readiness", "products/tls": "acxelin_tls"}
+OWN = {"core": None, "products/readiness": "acxelin_readiness", "products/tls": "acxelin_tls", "products/vpn": "acxelin_vpn"}
 
 
 def imports(path):

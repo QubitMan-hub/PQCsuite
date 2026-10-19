@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acxelin-vpn"
+version = "1.0.0"
+description = "Acxelin VPN: post-quantum site-to-site IPsec and WireGuard remote access, with a desktop app"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["cryptography>=49", "acxelin-core>=1,<2"]
+authors = [{name = "Acxelin Quantum"}]
+license = {file = "LICENSE"}
+classifiers = ["License :: Other/Proprietary License", "Private :: Do Not Upload"]
+
+[project.optional-dependencies]
+vpn = ["vici>=6.0"]
+desktop = ["pystray>=0.19.5", "pillow>=11"]
+test = ["coverage>=7.6", "pytest>=9"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"acxelin_vpn" = ["app.html"]

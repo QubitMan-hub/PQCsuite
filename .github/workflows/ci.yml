@@ -18,8 +18,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ".[test,integration,scan-web,desktop]"
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn -e ".[test,integration,scan-web,desktop]"
       - run: python -m pytest -q
+      - name: Repository checks (each product stands alone; installers; release rules; VPN wire compatibility with the suite)
+        if: runner.os == 'Linux'
+        run: python -m pytest -q tools/tests products/vpn/tests
       - name: Desktop app on Windows, the real tray icon included; a skipped test fails the step
         if: runner.os == 'Windows'
         shell: bash
@@ -167,7 +170,12 @@ jobs:
             --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce --enable-hmac \
             --enable-kdf --enable-kernel-netlink --enable-socket-default --enable-updown --enable-resolve --enable-attr --enable-constraints \
             --enable-revocation && make -j4 && sudo make install && sudo chmod -R a+rX /opt/pqc
-      - run: pip install -e ./core -e ./products/tls -e ".[vpn]"
+      - run: pip install -e ./core -e ./products/tls -e ./products/vpn -e ".[vpn]" pytest
+      - name: Upgrade path, Acxelin VPN agrees the same keys as the suite in both directions (real OpenSSL 3.5; a skip fails)
+        run: |
+          set -o pipefail
+          ACXELIN_OPENSSL=/opt/pqc/lib LD_LIBRARY_PATH=/opt/pqc/lib python -m pytest tools/tests/test_vpn_wire.py -v -rs | tee wire.txt
+          ! grep -q SKIPPED wire.txt
       - name: Real application for VPN traffic checks
         run: sudo apt-get update && sudo apt-get install -y redis-server
       - name: Two sites in network namespaces, real ESP traffic
