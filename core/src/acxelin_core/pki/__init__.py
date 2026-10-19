@@ -118,7 +118,8 @@ class CA:
         try:
             signer = signers.from_config(self.root, self.passphrase)
         except (signers.SignerError, OSError, KeyError, ValueError) as e:
-            if self.passphrase and ("Incorrect password" in str(e) or "decrypt" in str(e)):
+            # a wrong passphrase can decrypt to bytes with valid padding, and then it fails as unparseable key data
+            if self.passphrase and any(m in str(e) for m in ("Incorrect password", "decrypt", "deserialize")):
                 raise CAError("cannot open the CA key: wrong passphrase") from None
             raise CAError(f"cannot open the CA key: {e}") from None
         if signer.spki != _spki(self.cert):

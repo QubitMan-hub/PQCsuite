@@ -3,6 +3,7 @@ import os
 import tempfile
 import threading
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from cryptography import x509
@@ -203,6 +204,12 @@ class CATest(unittest.TestCase):
         self.assertEqual([r.algorithm for r in renewed], ["ML-DSA-87"])
         self.assertEqual(self.ca.renew(renewed[0].serial, out=out)[1].algorithm, "ML-DSA-87")
         self.assertEqual(self.ca.renew(renewed[0].serial, algorithm="ML-DSA-65", out=out)[1].algorithm, "ML-DSA-65")
+
+    def test_a_wrong_passphrase_is_named_even_when_it_decrypts_to_unparseable_bytes(self):
+        garbage = ValueError("Could not deserialize key data. Details: ASN.1 parsing error: short data")
+        with mock.patch("acxelin_core.pki.signers.from_config", side_effect=garbage):
+            with self.assertRaisesRegex(CAError, "wrong passphrase"):
+                CA(self.root, b"wrong").signer
 
     def test_reading_needs_no_passphrase_and_signing_does(self):
         self.ca.issue("web.example", "server")

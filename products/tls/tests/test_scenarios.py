@@ -1,12 +1,15 @@
 """End-to-end scenarios with real applications behind the products, driven through the `acxelin-tls` command line and checked
 with independent clients (the OpenSSL 3.5 command line, curl, psql, redis-cli, mosquitto). Each scenario is skipped when its
 application is not installed."""
+import functools
+import http.server
 import os
 import shutil
 import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -322,10 +325,15 @@ class BrowserTest(Scenario):
 
     def test_a_browser_gets_post_quantum_key_exchange_through_transition_and_is_refused_by_strict(self):
         page = self.browser()
-        www, web = self.d / "www", free_port()
+        www = self.d / "www"
         www.mkdir()
         (www / "index.html").write_text("<title>behind the edge</title><h1>hello from behind the edge</h1>")
-        self.spawn(sys.executable, "-m", "http.server", web, "--bind", "127.0.0.1", "--directory", www)
+        # served from a port this process already holds: a port freed for another process to bind can be taken first (macOS)
+        httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(www)))
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        web = httpd.server_address[1]
         srv, _ = self.ca.issue("localhost", "server", ["localhost", "127.0.0.1"], out=self.d / "srv")
         ec_certificate(self.d, "localhost")
         port, metrics, strict = free_port(), free_port(), free_port()
