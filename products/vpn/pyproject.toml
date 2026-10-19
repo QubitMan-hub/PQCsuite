@@ -23,3 +23,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "acxelin_vpn" = ["app.html"]
+
+[project.scripts]
+acxelin-vpn = "acxelin_vpn.cli:main"

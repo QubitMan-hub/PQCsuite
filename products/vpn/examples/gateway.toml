@@ -1,0 +1,25 @@
+# acxelin-vpn gateway --config examples/gateway.toml
+# The gateway certificate is a server (or site) certificate named after `name`; users get client certificates from the same CA.
+[wireguard]
+name = "vpn.acme.example"
+endpoint = "vpn.acme.example:51820"     # where clients send WireGuard UDP
+keyring_listen = "0.0.0.0:7443"         # post-quantum mutual TLS key agreement
+pool = "10.99.0.0/24"                   # the gateway is 10.99.0.1; each user keeps one address
+routes = ["192.168.10.0/24"]            # networks behind the gateway, routed through the tunnel
+# full_tunnel = true                    # instead: all of the laptops' traffic, forwarded with NAT; laptops get a kill switch
+dns = ["192.168.10.53"]
+cert = "/etc/acxelin-vpn/vpn/chain.pem"
+key = "/etc/acxelin-vpn/vpn/key.pem"
+ca = "/etc/acxelin-vpn/ca.crt"
+crl = "/etc/acxelin-vpn/crl.pem"
+# crl_url = "http://ca.internal:8080/crl.pem"   # when the CA runs elsewhere: fetched every crl_every (60) seconds into crl
+interface = "wg0"
+listen_port = 51820
+private_key = "/etc/acxelin-vpn/vpn/wireguard.key"
+state = "/var/lib/acxelin-vpn/wireguard-state.json"
+rotate_minutes = 2
+users = []                              # empty: any client certificate of the CA; or a list of common names
+metrics = "127.0.0.1:9101"
+
+[wireguard.sites]                       # clients that are branch sites, and the subnets behind them
+"branch.acme.example" = ["192.168.20.0/24"]
