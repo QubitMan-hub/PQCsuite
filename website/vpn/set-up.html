@@ -1,0 +1,52 @@
+<!-- title: Set up Acxelin VPN -->
+<!-- description: Check the Acxelin VPN release, install it, create the certificate authority, connect two sites, start remote access, invite a person and open the console. -->
+<section>
+<h1>Set up Acxelin VPN</h1>
+<p class="lead">Gateways need Linux, and the gateway image has everything else. People's computers need the desktop app and WireGuard. The administrator's command line needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. Nothing contacts Acxelin Quantum.</p>
+<ol class="steps">
+<li><h2>Check the release</h2>
+<p>The release is one archive, <code>acxelin-vpn-{{VERSION}}-wheelhouse.tar.gz</code>, the desktop installers, a <code>SHA256SUMS</code> file and build attestations that say which workflow built them. Check them before you unpack or install anything:</p>
+<pre><code>sha256sum -c SHA256SUMS --ignore-missing
+gh attestation verify acxelin-vpn-{{VERSION}}-wheelhouse.tar.gz --owner QubitMan-hub
+tar xzf acxelin-vpn-{{VERSION}}-wheelhouse.tar.gz
+cd acxelin-vpn-{{VERSION}}-wheelhouse</code></pre>
+<p class="see">You should see <b>OK</b> after each file's name, and <b>Verification succeeded</b>. If either fails, do not install it.</p></li>
+<li><h2>Install</h2>
+<p>For the administrator, in the unpacked folder:</p>
+<pre><code>sh install.sh</code></pre>
+<p>On Windows, unblock the script once, then run it with signed-or-local scripts allowed for this one command:</p>
+<pre><code>Unblock-File .\install.ps1
+powershell -ExecutionPolicy RemoteSigned -File .\install.ps1</code></pre>
+<p class="see">It installs from the wheels in the folder, offline, then runs <code>acxelin-vpn doctor</code>. You should see each check and <b>Start here</b> with the next commands.</p>
+<dl class="rows">
+<div><dt>What it changes</dt><dd>A private Python environment in <code>~/.acxelin/vpn</code> and the command <code>~/.local/bin/acxelin-vpn</code>. On Windows, <code>%LOCALAPPDATA%\Acxelin\vpn</code> and <code>%LOCALAPPDATA%\Acxelin\bin</code>, which it adds to your user PATH.</dd></div>
+<div><dt>Gateways</dt><dd>Pull <code>ghcr.io/qubitman-hub/acxelin-vpn:{{VERSION}}</code>, or install on the host with the systemd units in <code>deploy/systemd</code>; the <a href="manual.html">manual</a> has both.</dd></div>
+<div><dt>Remove it</dt><dd><code>sh install.sh --uninstall</code>, or <code>install.ps1 -Uninstall</code>. Your authority, certificates and settings stay where you put them.</dd></div>
+</dl></li>
+<li><h2>Create the authority and the gateways' certificates</h2>
+<pre><code>acxelin-vpn ca init --name "Acme VPN Root" --dir pki
+acxelin-vpn ca issue site hq.acme.example --san 203.0.113.10 --dir pki --out pki/issued/hq
+acxelin-vpn ca issue site branch1.acme.example --san 198.51.100.7 --dir pki --out pki/issued/branch1</code></pre>
+<p class="see"><code>ca init</code> asks for a passphrase and encrypts the authority's key with it. Each gateway gets its own folder, <code>pki/ca.crt</code> and <code>pki/crl.pem</code>; the authority's key stays where it is.</p></li>
+<li><h2>Connect the two sites</h2>
+<p>Put each site's configuration in <code>/etc/acxelin-vpn/site.toml</code>, starting from <code>config/site-hq.toml</code> and <code>config/site-branch.toml</code>, then on each gateway:</p>
+<pre><code>docker run -d --name vpn --network host --cap-add NET_ADMIN \
+  -v /etc/acxelin-vpn:/etc/acxelin-vpn:ro ghcr.io/qubitman-hub/acxelin-vpn:{{VERSION}}
+docker exec vpn acxelin-vpn status --config /etc/acxelin-vpn/site.toml</code></pre>
+<p>Open UDP 500 and 4500 between the gateways, and TCP 7443 to headquarters. An established tunnel is not proof on its own: send real traffic between the subnets and check the byte counters move.</p></li>
+<li><h2>Start remote access</h2>
+<p>Next to the authority, the enrollment service that invitations use; on the headquarters gateway, the WireGuard gateway with your pool, routes and DNS in <code>/etc/acxelin-vpn/gateway.toml</code>:</p>
+<pre><code>acxelin-vpn ca issue server ca.acme.example --san ca.acme.example --dir pki --out pki/issued/enroll
+acxelin-vpn ca serve --dir pki --cert pki/issued/enroll/chain.pem --key pki/issued/enroll/key.pem</code></pre>
+<pre><code>docker run -d --name wg --network host --cap-add NET_ADMIN -v /etc/acxelin-vpn:/etc/acxelin-vpn \
+  ghcr.io/qubitman-hub/acxelin-vpn:{{VERSION}} gateway --config /etc/acxelin-vpn/gateway.toml</code></pre></li>
+<li><h2>Invite a person</h2>
+<pre><code>acxelin-vpn invite alice --dir pki --enroll https://ca.acme.example:9443 --gateway vpn.acme.example:7443</code></pre>
+<p>Send <code>alice.acxinvite</code> through a channel you trust; it works once, within 24 hours. Alice installs the desktop app and WireGuard, opens the file, chooses a passphrase and presses <b>Connect</b>. The window says <b>Protected</b>.</p></li>
+<li><h2>Open the console</h2>
+<pre><code>acxelin-vpn console</code></pre>
+<p>Your browser opens already signed in. Add each gateway by its status address to see tunnels and who is connected; invite and revoke from the People tab. For a remote machine, forward port 8901 over SSH and run <code>acxelin-vpn console link --port 8901</code> there.</p></li>
+<li><h2>Keep it running</h2>
+<p>Run <code>acxelin-vpn ca maintain --dir pki</code> every day; a gateway whose revocation list has expired refuses everyone. The release folder has a daily timer for it. Before a wide rollout, test sleep and wake, a Wi-Fi change, a gateway restart and a revocation on the computers you actually use, and read <a href="security.html">what Acxelin VPN defends against</a>.</p></li>
+</ol>
+</section>

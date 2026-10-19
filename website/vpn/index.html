@@ -1,0 +1,96 @@
+<!-- title: Acxelin VPN: post-quantum IPsec and WireGuard for sites and people -->
+<!-- description: Acxelin VPN connects sites over IPsec and people over WireGuard. Each tunnel's keys are agreed over post-quantum mutual TLS, rotated, and refused once revoked. -->
+<section>
+<div class="opening">
+<div>
+<h1>Tunnels whose keys a quantum computer cannot recover.</h1>
+<p class="lead">Acxelin VPN connects your sites over IPsec and your people over WireGuard. Every tunnel's keys are agreed over post-quantum mutual TLS with certificates from your own authority, replaced on a schedule, and refused the moment a site or person is revoked.</p>
+</div>
+<div class="get">
+<h2>Acxelin VPN {{VERSION}}</h2>
+<p>One archive, <code>acxelin-vpn-{{VERSION}}-wheelhouse.tar.gz</code>, with <code>SHA256SUMS</code> and a signed build record, plus the desktop app for Windows, macOS and Linux and a gateway image.</p>
+<pre><code>sha256sum -c SHA256SUMS --ignore-missing
+tar xzf acxelin-vpn-{{VERSION}}-wheelhouse.tar.gz
+sh acxelin-vpn-{{VERSION}}-wheelhouse/install.sh</code></pre>
+<p class="more"><a href="set-up.html">Every step, from the authority to the first laptop</a><a href="manual.html">Manual</a></p>
+</div>
+</div>
+{{VPN_CAPTURE}}
+</section>
+
+<section aria-labelledby="tunnels">
+<h2 id="tunnels">Two kinds of tunnel, one way of agreeing keys</h2>
+<p>Both ends prove who they are with ML-DSA certificates over TLS 1.3 with hybrid ML-KEM, and derive the tunnel's keys from that session. Nothing secret crosses the network, and a peer without a valid certificate gets no keys at all.</p>
+<figure class="figure" aria-labelledby="tunnels-cap">
+<ol class="path" aria-label="Site to site">
+<li class="node">Branch gateway<small>acxelin-vpn up</small></li>
+<li class="link ok">IPsec: hybrid ML-KEM, post-quantum PPK</li>
+<li class="node edge">Headquarters gateway<small>strongSwan 6.1</small></li>
+<li class="link">plain traffic, private network</li>
+<li class="node">Your networks<small>unchanged</small></li>
+</ol>
+<ol class="path" aria-label="Remote access">
+<li class="node">A person's computer<small>the desktop app</small></li>
+<li class="link ok">WireGuard with a post-quantum PSK</li>
+<li class="node edge">WireGuard gateway<small>acxelin-vpn gateway</small></li>
+<li class="link">plain traffic, private network</li>
+<li class="node">Internal services<small>unchanged</small></li>
+</ol>
+<figcaption id="tunnels-cap"><b>Fig. 2</b>Green is the hop that crosses the network. For sites, IKE's own key exchange is hybrid ML-KEM and a PPK (RFC 8784) is mixed in; for people, the pre-shared key mixed into every WireGuard handshake comes from the post-quantum key agreement.</figcaption>
+</figure>
+</section>
+
+<section aria-labelledby="people">
+<div class="split">
+<div>
+<h2 id="people">One file per person</h2>
+<p>The administrator invites someone from the console or with <code>acxelin-vpn invite</code>. The invitation holds the enrollment address, the authority's fingerprint and a one-time token, so nobody copies four values by hand.</p>
+<p>The person opens it in the desktop app, chooses a passphrase, and connects. The key is made on their computer and never leaves it.</p>
+</div>
+<figure class="shot narrow"><img src="{root}assets/vpn-app.png" width="480" height="760" alt="The Acxelin VPN window with an invitation for alice open, asking for a passphrase for this computer before connecting."><figcaption><b>Fig. 3</b>The desktop app opening an invitation. A tray shield says whether this computer is protected.</figcaption></figure>
+</div>
+</section>
+
+<section aria-labelledby="console">
+<div class="split">
+<div>
+<h2 id="console">The console, for the administrator</h2>
+<p>Each site's tunnels with their key exchange, encryption and last rotation; who is connected and since when; invitations and revocations, each written to an owner-only audit log; and health checks that say what to do.</p>
+</div>
+<div>
+<p>It runs on the administrator's machine and listens there only. Revoking someone takes two clicks, and their tunnel is cut at the gateway's next check.</p>
+</div>
+</div>
+<figure class="shot"><img src="{root}assets/vpn-console.png" width="1280" height="890" alt="The Acxelin VPN console's People tab: three people with their certificates, one revoked, the invitation form, and recent activity showing an invitation and a revocation."><figcaption><b>Fig. 4</b>The console's People tab after an invitation and a revocation.</figcaption></figure>
+</section>
+
+<section aria-labelledby="runs">
+<h2 id="runs">Where it runs</h2>
+<div class="cols">
+<div><h3>Gateways</h3><p>A Docker image with strongSwan 6.1, OpenSSL 3.5 and WireGuard's tools, or systemd units on the host. Each release publishes the image to GHCR.</p><pre><code>docker run --network host --cap-add NET_ADMIN -v /etc/acxelin-vpn:/etc/acxelin-vpn ghcr.io/qubitman-hub/acxelin-vpn:{{VERSION}}</code></pre></div>
+<div><h3>People's computers</h3><p>A Windows Setup, a macOS disk image and a Linux package, each with OpenSSL 3.5 inside. WireGuard is the only other thing to install.</p></div>
+</div>
+</section>
+
+<section aria-labelledby="limits">
+<div class="limits">
+<h2 id="limits">What it does not claim</h2>
+<ul>
+<li>WireGuard's own handshake is classical. The post-quantum protection for people is the pre-shared key mixed into it, replaced every two minutes.</li>
+<li>Phones, and the IKEv2 clients built into operating systems, cannot do the key agreement, so they are not supported.</li>
+<li>A revoked site or person keeps access until their gateway has the new revocation list: up to 15 seconds, plus the fetch interval when the list is fetched.</li>
+<li>On Windows, the kill switch can lift for a moment while the tunnel is recreated.</li>
+<li>The desktop installers are not code-signed yet.</li>
+</ul>
+</div>
+</section>
+
+<section aria-labelledby="start">
+<div class="close">
+<div>
+<h2 id="start">Connect two sites and a laptop</h2>
+<p>The set-up guide goes from the authority to a protected laptop, with the commands for each step.</p>
+</div>
+<div class="actions"><a class="btn primary" href="set-up.html">Check and install</a><a class="btn" href="https://acxelinquantum.com/">Talk to Acxelin Quantum</a></div>
+</div>
+</section>

@@ -1,0 +1,42 @@
+<!-- title: How Acxelin VPN works -->
+<!-- description: How Acxelin VPN agrees each tunnel's keys over post-quantum mutual TLS, rotates them, cuts off a revoked site or person, and what the gateways report. -->
+<section>
+<h1>How a tunnel gets its keys</h1>
+<p class="lead">The same four steps for a branch site and for a person's laptop. A peer that fails any of them gets no keys, and nothing falls back to a key exchange a quantum computer could break.</p>
+<ol class="steps">
+<li><h2>Mutual TLS</h2><p>One side connects to the other's key agreement service, on port 7443, over TLS 1.3 with a hybrid ML-KEM group: X25519MLKEM768, SecP384r1MLKEM1024 or SecP256r1MLKEM768. Both present ML-DSA certificates from your authority, and both are checked against its revocation list. A classical client, a certificate from elsewhere or the wrong kind of certificate is refused.</p></li>
+<li><h2>Keys from the session</h2><p>Both sides derive the same secrets from that TLS session with an exporter (RFC 5705), bound to both names and a fresh tag. For IPsec that is the IKE pre-shared key and a post-quantum PPK (RFC 8784) with its id; for WireGuard, the pre-shared key. The keys themselves never cross the network.</p></li>
+<li><h2>Rotation</h2><p>Sites agree new keys every hour by default, people's computers every two minutes. A side that stops re-agreeing is removed after three missed rotations, so stale keys do not linger.</p></li>
+<li><h2>Revocation</h2><p>A revoked certificate gets no new keys. Every 15 seconds the gateway checks the certificates it has given keys to, and cuts the tunnel of any that is revoked. Without a current revocation list it refuses everyone.</p></li>
+</ol>
+</section>
+
+<section aria-labelledby="ipsec">
+<h2 id="ipsec">Site to site</h2>
+<p>strongSwan 6.1 carries the traffic. Acxelin VPN loads each agreed key into it, sets the IKE proposal, and starts or replaces the tunnel. Both ends of a tunnel use the same profile.</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Profiles"><table>
+<thead><tr><th>Profile</th><th>IKE key exchange</th><th>Encryption</th></tr></thead>
+<tbody>
+<tr><td><code>standard</code> (default)</td><td>X25519 + ML-KEM-768, with the PPK</td><td>AES-256-GCM</td></tr>
+<tr><td><code>high</code> (CNSA 2.0 level)</td><td>P-384 + ML-KEM-1024, with the PPK</td><td>AES-256-GCM</td></tr>
+</tbody></table></div>
+</section>
+
+<section aria-labelledby="remote">
+<h2 id="remote">Remote access</h2>
+<p>The WireGuard gateway hands each person an address from its pool and routes the networks behind it. With <code>full_tunnel</code>, all of a laptop's traffic goes through the gateway and the laptop gets a kill switch that blocks traffic outside the tunnel while protection is down. The gateway can limit access to a list of names, or let in anyone with a client certificate from your authority.</p>
+</section>
+
+<section aria-labelledby="report">
+<h2 id="report">What the gateways report</h2>
+<p>With <code>metrics</code> set, a site and a WireGuard gateway serve <code>/metrics</code> for Prometheus and <code>/status</code> as JSON, which the console reads.</p>
+<div class="scroll" tabindex="0" role="region" aria-label="Metrics"><table>
+<thead><tr><th>Metric</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>acxelin_vpn_tunnel_up</code></td><td>1 while the site's tunnel to that peer is installed</td></tr>
+<tr><td><code>acxelin_vpn_bytes_total</code></td><td>traffic through each tunnel, in and out</td></tr>
+<tr><td><code>acxelin_vpn_events_total</code></td><td>key agreements, refusals and revoked peers</td></tr>
+<tr><td><code>acxelin_vpn_wireguard_client_up</code></td><td>1 while that person's computer has completed a recent handshake</td></tr>
+</tbody></table></div>
+<p><code>acxelin-vpn inventory</code> writes what the VPN uses as a CycloneDX 1.6 CBOM, for an audit: tunnels, key exchanges, ciphers, certificates, and whether a PSK and PPK are present, by type and size, never a value.</p>
+</section>

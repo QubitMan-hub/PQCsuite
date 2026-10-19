@@ -1,0 +1,29 @@
+<!-- title: Acxelin VPN demo: a revoked branch is refused -->
+<!-- description: The real run of two Acxelin VPN sites agreeing keys over post-quantum mutual TLS, then the branch being revoked and refused. -->
+<section>
+<h1>A revoked branch is refused</h1>
+<p class="lead">Two real Acxelin VPN controllers, headquarters and a branch, captured when this site was built. They agree their tunnel's keys over post-quantum mutual TLS; then the branch's certificate is revoked and it gets nothing more.</p>
+{{VPN_CAPTURE}}
+</section>
+
+<section aria-labelledby="read">
+<h2 id="read">How to read it</h2>
+<p>Frames 1 and 2 set the scene: a private authority issues both sites ML-DSA certificates, and headquarters starts its key agreement service. Frame 3 is the branch connecting: the key exchange is the hybrid group that was negotiated, and each side presented its ML-DSA certificate.</p>
+<p>Frame 4 is what each side would load into strongSwan. The key values are never shown or logged; the build compares the two sides' keys and fails if they differ. strongSwan itself does not run while the site is built, so this run stops at the keys; the tunnels themselves are tested between network namespaces in the product's own test suite. Frames 5 to 7 are the revocation: the branch is refused at its next attempt, and headquarters cuts it off.</p>
+</section>
+
+<section aria-labelledby="transcript">
+<h2 id="transcript">The log</h2>
+<p>What the two controllers logged, unedited. "charon recorder" is the stand-in for strongSwan.</p>
+<pre class="output"><code>{{VPN_LOG}}</code></pre>
+</section>
+
+<section aria-labelledby="again">
+<div class="close">
+<div>
+<h2 id="again">Connect your own sites</h2>
+<p>The set-up guide connects two sites and a laptop, step by step.</p>
+</div>
+<div class="actions"><a class="btn primary" href="set-up.html">Check and install</a></div>
+</div>
+</section>

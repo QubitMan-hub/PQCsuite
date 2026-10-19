@@ -1,0 +1,41 @@
+<!-- title: Acxelin VPN security -->
+<!-- description: What Acxelin VPN defends against, what its tests show, how its console and desktop app are protected, and what is not covered. -->
+<section>
+<h1>What Acxelin VPN defends against</h1>
+<p class="lead">It protects traffic between sites, and between people and your network, against an attacker who records it now to decrypt later, one who sits in the middle of a key agreement, and one who holds a certificate you have revoked. Each row below is a behaviour its tests check.</p>
+<div class="scroll"><table>
+<thead><tr><th>Threat</th><th>Defence</th></tr></thead>
+<tbody>
+<tr><td>Recording IPsec traffic to break it later</td><td>IKE's key exchange is hybrid ML-KEM, and a post-quantum PPK is mixed in. Real tunnels between network namespaces are tested in CI.</td></tr>
+<tr><td>Recording WireGuard traffic to break it later</td><td>Each computer's pre-shared key comes from a post-quantum key agreement and is replaced every two minutes.</td></tr>
+<tr><td>A man in the middle of the key agreement</td><td>TLS 1.3 with hybrid ML-KEM and ML-DSA certificates from your authority on both sides. A classical or wrong-role peer is refused.</td></tr>
+<tr><td>Replaying a key agreement</td><td>Keys come from that session's exporter, bound to both names and a fresh tag.</td></tr>
+<tr><td>A revoked site or person</td><td>No new keys, and the tunnel is cut within 15 seconds of the revocation list reaching the gateway. An expired list refuses everyone.</td></tr>
+<tr><td>Traffic leaking while a full tunnel is down</td><td>The kill switch blocks it. An upgrade replaces the previous release's kill switch with no gap.</td></tr>
+<tr><td>Secrets in an export</td><td>The CBOM records PSK and PPK type and size only. A test searches it for every key, token and passphrase as bytes, hex, base64 and PEM.</td></tr>
+</tbody></table></div>
+</section>
+
+<section aria-labelledby="local">
+<h2 id="local">The console and the desktop app</h2>
+<dl class="rows">
+<div><dt>Local only</dt><dd>Both listen on 127.0.0.1 and refuse requests whose host name is not a loopback name or whose origin is another site, so a web page you visit cannot reach them.</dd></div>
+<div><dt>Launch links</dt><dd>Each opens from a link that works once, kept in the address fragment so it never reaches a server or a log. The session uses no cookies, and after ten wrong attempts in a minute an address is refused.</dd></div>
+<div><dt>Passphrases</dt><dd>The authority's passphrase is held in the console's memory and never written. The app never offers to save a computer's passphrase, and only its background service runs with administrator rights.</dd></div>
+<div><dt>Audit</dt><dd>Invitations and revocations are written to an owner-only log, which never holds an invitation's token.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="not">
+<div class="limits">
+<h2 id="not">What is not covered</h2>
+<ul>
+<li>WireGuard's own handshake is classical; the post-quantum part is the pre-shared key mixed into it.</li>
+<li>Whoever holds the authority's key can issue certificates and join the VPN. Keep it encrypted, and off the gateways.</li>
+<li>Whoever uses an invitation first enrols with it. Send it through a channel you trust.</li>
+<li>Malware on a laptop or gateway sees traffic before it is encrypted.</li>
+<li>Phones are not supported, and on Windows the kill switch can lift for a moment while the tunnel is recreated.</li>
+<li>Tunnels were exercised in Linux network namespaces with strongSwan 6.1 and OpenSSL 3.5.9, and on GitHub's Windows and macOS runners, not on customer networks.</li>
+</ul>
+</div>
+</section>

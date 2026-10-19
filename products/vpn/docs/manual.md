@@ -199,7 +199,7 @@ Set `profile` per `[[peer]]`. Both sides of a tunnel must use the same one.
 
 ### For an audit
 
-`acxelin-vpn inventory` writes what the VPN uses as a CycloneDX 1.6 CBOM: tunnels, key exchanges, ciphers, certificates, and whether a PSK and a PPK are present (type and size only, never a value). Any CBOM tool reads it, including Acxelin Readiness.
+`acxelin-vpn inventory` writes what the VPN uses as a CycloneDX 1.6 CBOM: tunnels, key exchanges, ciphers, certificates, and whether a PSK and a PPK are present (type and size only, never a value). Any CBOM tool reads it.
 
 ## 6. The console
 
@@ -315,7 +315,7 @@ With `metrics = "HOST:PORT"`, a site serves `/metrics` (Prometheus) and `/status
 
 **Does it contact the internet?** Only the addresses you configure: peers, gateways, the enrollment service and a `crl_url`. It never contacts Acxelin Quantum.
 
-**Can I upgrade gateways one at a time from the PQC Suite?** Yes. A gateway on Acxelin VPN agrees the same keys as one still on PQC Suite 0.4.3. See `docs/upgrade.md`.
+**Can I upgrade gateways one at a time from release 0.4.3?** Yes. A gateway on 1.0 agrees the same keys as one still on 0.4.3, so you can move one site, check its tunnels, then the next. See `docs/upgrade.md`.
 
 **Does it need any other Acxelin product?** No. It installs and runs on its own, from its own release folder.
 

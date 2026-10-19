@@ -231,6 +231,7 @@ footer a { color: var(--muted); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .shot { margin: 0; }
 .shot img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--pane); }
+.shot.narrow img { max-width: 380px; }
 .shot figcaption { margin-top: 10px; font-size: .9rem; color: var(--muted); }
 .shot figcaption b { font-family: var(--mono); font-weight: 600; font-size: .82rem; color: var(--ink); margin-right: 8px; }
 .capture + p, .timeline + p, .ladder + p { margin-top: 16px; }

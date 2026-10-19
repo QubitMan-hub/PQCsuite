@@ -16,7 +16,8 @@ sys.path.insert(0, str(ROOT / "tools"))
 import build_site  # noqa: E402
 
 PRODUCTS = {"readiness": ("Acxelin Readiness", "See Acxelin Readiness", "sh install.sh"),
-            "tls": ("Acxelin TLS", "See Acxelin TLS", "sh install.sh")}
+            "tls": ("Acxelin TLS", "See Acxelin TLS", "sh install.sh"),
+            "vpn": ("Acxelin VPN", "See Acxelin VPN", "sh install.sh")}
 PAGES = ["index.html"] + [f"{s}/{p}" for s, (_, pages) in build_site.SECTIONS.items() for p, _ in pages]
 OLD = re.compile(r"Wolf ?Pack|wolfpack|PQC ?Suite(?!/)|pqcsuite(?!/)", re.I)  # the repository path QubitMan-hub/PQCsuite/... is a real URL
 
@@ -66,7 +67,7 @@ def test_each_product_page_names_only_its_own_product_and_the_home_page_only_rou
     base, _ = site
     page = browser.new_page()
     for section, (name, _, _) in PRODUCTS.items():
-        others = [n for s, (n, _, _) in PRODUCTS.items() if s != section] + ["Acxelin VPN", "Acxelin Q-Vault"]
+        others = [n for s, (n, _, _) in PRODUCTS.items() if s != section] + ["Acxelin Q-Vault"]
         expected = [name] + [label for _, label in build_site.SECTIONS[section][1]]
         for page_name, _ in build_site.SECTIONS[section][1]:
             page.goto(f"{base}/{section}/{page_name}")
@@ -90,6 +91,11 @@ def test_demos_are_real_output(browser, site):
     page.goto(base + "/tls/demo.html")
     tour = page.locator("pre code").first.inner_text()
     assert "refused, as it should be" in tour and "MLKEM768" in tour and "ML-DSA" in tour
+    page.goto(base + "/vpn/demo.html")
+    log = page.locator("pre code").first.inner_text()
+    assert "TLSv1.3 X25519MLKEM768" in log and "new keys" in log and "was revoked" in log and "discarded its keys" in log
+    page.get_by_role("button", name=re.compile("Both sides derive the same keys")).click()
+    assert page.get_by_text("yes, compared after the run").is_visible()
     page.close()
 
 

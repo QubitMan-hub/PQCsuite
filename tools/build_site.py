@@ -1,7 +1,7 @@
 """Build the website into build/site: python tools/build_site.py
 
 Pages in website/ hold only their content; this wraps each with the shared head, header and footer. A section's pages show
-only that product's navigation. Each product's Manual page is its docs/manual.md, the same file its release folder ships. The Readiness sample report and CBOM are produced by running the product on its example project.
+only that product's navigation. Each product's Manual page is its docs/manual.md, the same file its release folder ships. The Readiness sample report and CBOM are produced by running the product on its example project, and the VPN demo by two of its controllers agreeing keys.
 """
 import html
 import json
@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC, OUT = ROOT / "website", ROOT / "build" / "site"
 SECTIONS = {
     "tls": ("Acxelin TLS", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
+                            ("manual.html", "Manual"), ("demo.html", "Demo"), ("security.html", "Security")]),
+    "vpn": ("Acxelin VPN", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
                             ("manual.html", "Manual"), ("demo.html", "Demo"), ("security.html", "Security")]),
     "readiness": ("Acxelin Readiness", [("index.html", "Overview"), ("how-it-works.html", "How it works"), ("set-up.html", "Set up"),
                                          ("manual.html", "Manual"), ("sample.html", "Sample"), ("security.html", "Security")]),
@@ -113,6 +115,80 @@ def tls_tour():
     return run.stdout.strip("\n"), run.stderr
 
 
+class Recorder:
+    """Stands in for strongSwan at build time: records what the controller hands it. Key bytes are kept for comparison only."""
+    def __init__(self):
+        self.keys, self.conns = [], []
+
+    def version(self):
+        return "recorder"
+
+    def ml_kem(self):
+        return ["ML_KEM_768"]
+
+    def load_keys(self, *a):
+        self.keys.append(a)
+
+    def load_conn(self, conn):
+        self.conns.append(conn)
+
+    def tunnels(self):
+        return []
+
+    def shared_ids(self):
+        return []
+
+    def __getattr__(self, name):
+        return lambda *a, **k: None
+
+
+def vpn_tour():
+    """Two real Acxelin VPN controllers on this machine: a branch agrees keys with headquarters over ML-DSA mutual TLS, then
+    the branch is revoked and refused. strongSwan does not run at build time; a recorder takes what would be loaded into it."""
+    import io
+    import logging
+    from acxelin_core.pki import CA
+    from acxelin_vpn import Peer, Site
+    from acxelin_vpn.controller import Controller
+    log = io.StringIO()
+    handler = logging.StreamHandler(log)
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    root = logging.getLogger()
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            ca = CA.init(d / "ca", "Acme VPN Root")
+            issued = {n: ca.issue(n, "site", ["127.0.0.1"], out=d / n)[1] for n in ("hq.acme.example", "branch1.acme.example")}
+            ca.crl()
+            site = lambda name, other, listen="", **kw: Site(name, "127.0.0.1", str(d / name / "chain.pem"), str(d / name / "key.pem"), str(d / "ca/ca.crt"),
+                                                             crl=str(d / "ca/crl.pem"), keyring_listen=listen,
+                                                             peers=[Peer(other, "127.0.0.1", ["10.1.0.0/16"], ["10.2.0.0/16"], **kw)])
+            hq = Controller(site("hq.acme.example", "branch1.acme.example", "127.0.0.1:0"), charon=Recorder())
+            hq.start()
+            try:
+                branch = Controller(site("branch1.acme.example", "hq.acme.example", initiate=True, keyring=f"127.0.0.1:{hq.server.port}"), charon=Recorder())
+                branch.agree(branch.site.peers[0])
+                revoked_at = __import__("time").strftime("%H:%M:%S")
+                ca.revoke(issued["branch1.acme.example"].serial, "keyCompromise")
+                ca.crl()
+                try:
+                    branch.agree(branch.site.peers[0])
+                    sys.exit("the revoked branch was not refused; the VPN demo would be wrong")
+                except Exception:  # noqa: BLE001  the refusal is what the demo shows, read from headquarters' log
+                    pass
+                hq.enforce_revocations()
+            finally:
+                hq.stop.set()
+                hq.server.stop(1)
+            facts = {"revoked_at": revoked_at, "root": ca.algorithm, "site": issued["branch1.acme.example"].algorithm, "same": branch.charon.keys[0][2:] == hq.charon.keys[0][2:],
+                     "psk": len(branch.charon.keys[0][2]), "ppk": len(branch.charon.keys[0][3]), "conn": branch.charon.conns[-1]["hq.acme.example"]}
+    finally:
+        root.removeHandler(handler)
+    return log.getvalue(), facts
+
+
 def find(pattern, text, what):
     m = re.search(pattern, text)
     if not m:
@@ -138,6 +214,8 @@ def frames(rows, label, caption, number, legend, start=1):
 
 
 TRY_BAR = "<strong>acxelin-tls try</strong> · captured when this site was built"
+VPN_BAR = "<strong>Acxelin VPN key agreement, headquarters and a branch</strong> · captured when this site was built"
+VPN_KEYS = [("ok", "post-quantum"), ("bad", "refused or cut off")]
 TRY_KEYS = [("ok", "accepted, post-quantum"), ("bad", "refused")]
 SCAN_BAR = "<strong>acxelin-readiness scan payments-api</strong> · captured when this site was built"
 SCAN_KEYS = [("bad", "broken today"), ("exposed", "quantum-exposed"), ("ok", "post-quantum")]
@@ -167,6 +245,43 @@ def tls_rows(out):
         (no.group(1), "A client offering only X25519 tries the same", "bad", "refused",
          [("edge log", f"handshake failed: {no.group(2)}", False), ("outcome", f"Refused, as it should be: {why}.", True)], False),
     ]
+
+
+def vpn_rows(log, facts):
+    """The two-site run as seven frames: set-up, the mutual TLS handshake, the keys handed to strongSwan, then the revocation."""
+    t = lambda m: m.group(1)
+    listen = find(r"(\d\d:\d\d:\d\d),\d+ INFO keyring: listening on ([\d.]+:\d+)", log, "the key agreement service starting")
+    shake = find(r"(\d\d:\d\d:\d\d),\d+ INFO keyring: [\d.]+:\d+ (TLSv1\.3) (\S+) (\S+) peer=CN=(\S+)", log, "the mutual TLS handshake")
+    keys = find(r"(\d\d:\d\d:\d\d),\d+ INFO hq\.acme\.example: new keys (\w+) \(", log, "headquarters' new keys")
+    refused = find(r"(\d\d:\d\d:\d\d),\d+ WARNING keyring: rejected [\d.]+:\d+: (certificate \w+ was revoked on [\d-]+)", log, "the refusal")
+    cut = find(r"(\d\d:\d\d:\d\d),\d+ WARNING branch1\.acme\.example: .*?; (closed its tunnel and discarded its keys)", log, "the tunnel being cut")
+    if not facts["same"]:
+        sys.exit("the two sites derived different keys; the VPN demo would be wrong")
+    conn = facts["conn"]
+    return [
+        (t(listen), "The authority issues both sites their certificates", "info", "set up",
+         [("root", facts["root"], False), ("hq.acme.example", facts["site"], False), ("branch1.acme.example", facts["site"], False)], False),
+        (t(listen), "Headquarters waits for branches to agree keys", "info", "set up",
+         [("listening", listen.group(2), False), ("accepts", "TLS 1.3, hybrid ML-KEM, ML-DSA certificates from this authority", True)], False),
+        (t(shake), "The branch connects over mutual TLS", "ok", "accepted, post-quantum",
+         [("protocol", shake.group(2), False), ("key exchange", f"{shake.group(3)}  (ML-KEM-768 + X25519)", False), ("cipher", shake.group(4), False),
+          ("branch presented", f"CN={shake.group(5)}, {facts['site']}", False), ("headquarters presented", f"CN=hq.acme.example, {facts['site']}", False)], False),
+        (t(keys), "Both sides derive the same keys and hand them to strongSwan", "ok", "post-quantum",
+         [("IKE pre-shared key", f"{facts['psk']} bytes, from the TLS session", True), ("post-quantum PPK", f"{facts['ppk']} bytes, RFC 8784", True),
+          ("same on both sides", "yes, compared after the run" if facts["same"] else "no", True), ("agreement", keys.group(2), False),
+          ("IKE proposal", conn["proposals"][0], False), ("ESP proposal", conn["children"]["net"]["esp_proposals"][0], False)], True),
+        (facts["revoked_at"], "The branch's certificate is revoked", "info", "revoked",
+         [("reason", "keyCompromise", False), ("revocation list", "re-signed by the authority", True)], False),
+        (t(refused), "The branch tries to agree new keys", "bad", "refused",
+         [("headquarters' log", refused.group(2), False), ("outcome", "No new keys. Nothing falls back.", True)], False),
+        (t(cut), "Headquarters cuts the branch off", "bad", "cut off",
+         [("headquarters' log", cut.group(2), False), ("in production", "within 15 seconds of the revocation list reaching the gateway", True)], False),
+    ]
+
+
+def vpn_capture(log, facts):
+    return frames(vpn_rows(log, facts), "agree", (VPN_BAR, "The real run, frame by frame. strongSwan does not run when this site is built, so frame 4 shows what "
+                  "was handed to it. Choose a frame to see what each side presented and derived."), 1, VPN_KEYS)
 
 
 def tls_capture(out):
@@ -229,11 +344,13 @@ def readiness_capture(bom):
     return frames(rows, "scan", (SCAN_BAR, f"All {len(rows)} assets the sample scan ranked, most urgent first. Choose one to see why it ranks there and what to change."), 1, SCAN_KEYS)
 
 
-def home_proof(out, bom):
-    """The home page shows each product working: the decisive frames of the try run and the top of the sample scan's queue."""
+def home_proof(out, bom, vpn):
+    """The home page shows each product working: the top of the sample scan's queue, the decisive frames of the try run, and the
+    VPN's key agreement and refusal."""
     scan = readiness_rows(bom)[:3]
     return (frames(scan, "home-scan", (SCAN_BAR, f"Acxelin Readiness: the three most urgent of the {len(readiness_rows(bom))} assets it ranked in a sample payments service."), 1, SCAN_KEYS)
-            + frames(tls_rows(out)[3:], "home-try", (TRY_BAR, "Acxelin TLS: a post-quantum client is let through to an unchanged web server; a classical one is refused."), 2, TRY_KEYS, start=4))
+            + frames(tls_rows(out)[3:], "home-try", (TRY_BAR, "Acxelin TLS: a post-quantum client is let through to an unchanged web server; a classical one is refused."), 2, TRY_KEYS, start=4)
+            + frames(vpn_rows(*vpn)[2:6], "home-agree", (VPN_BAR, "Acxelin VPN: two sites agree their tunnel's keys over post-quantum mutual TLS; once revoked, the branch is refused."), 3, VPN_KEYS, start=3))
 
 
 def mosca(bom):
@@ -368,12 +485,14 @@ def main():
         (OUT / section).mkdir(parents=True)
     bom, excerpt = sample(OUT)
     tour, log = tls_tour()
+    vpn = vpn_tour()
     from acxelin_readiness import __version__ as readiness_version
     from acxelin_tls import __version__ as tls_version
+    from acxelin_vpn import __version__ as vpn_version
     fill = {"{{CBOM_EXCERPT}}": excerpt, "{{TLS_TOUR}}": html.escape(tour), "{{TLS_CAPTURE}}": tls_capture(f"{tour}\n{log}"), "{{TLS_LADDER}}": policy_ladder(),
             "{{READINESS_CAPTURE}}": readiness_capture(bom), "{{MOSCA}}": mosca(bom),
-            "{{HOME_PROOF}}": home_proof(f"{tour}\n{log}", bom)}
-    versions = {"tls": tls_version, "readiness": readiness_version}
+            "{{VPN_CAPTURE}}": vpn_capture(*vpn), "{{VPN_LOG}}": html.escape(vpn[0].strip()), "{{HOME_PROOF}}": home_proof(f"{tour}\n{log}", bom, vpn)}
+    versions = {"tls": tls_version, "readiness": readiness_version, "vpn": vpn_version}
     mark = logo()
     pages = [(src.relative_to(SRC), src.read_text(encoding="utf-8")) for src in sorted(SRC.rglob("*.html"))]
     pages += [(Path(section, "manual.html"), manual(section)) for section in SECTIONS]
