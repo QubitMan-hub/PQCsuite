@@ -130,13 +130,13 @@ class ChecksTest(unittest.TestCase):
         import io
         from unittest import mock
         from pqcsuite import cli
-        missing = [{'product': 'repository', 'level': 'fail', 'message': 'Wolf Pack is not installed', 'action': 'Install it'}]
+        missing = [{'product': 'repository', 'level': 'fail', 'message': 'Acxelin Readiness is not installed', 'action': 'Install it'}]
         for product, code in (("all", 0), ("repository", 3)):
             out = io.StringIO()
             with mock.patch.object(checks, "prerequisites", return_value=missing), mock.patch.object(cli.tls, "lib"), \
                     mock.patch.object(cli.tls, "client_context"), contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as done:
                 cli.main(["doctor", "--product", product])
-            self.assertIn("Repository scans: Wolf Pack is not installed. Install it", out.getvalue())
+            self.assertIn("Repository scans: Acxelin Readiness is not installed. Install it", out.getvalue())
             self.assertEqual(done.exception.code, code, "only a product asked for by name makes doctor fail")
 
     def test_repository_doctor_does_not_need_openssl_35(self):
@@ -144,7 +144,7 @@ class ChecksTest(unittest.TestCase):
         import io
         from unittest import mock
         from pqcsuite import cli
-        ok = [{'product': 'repository', 'level': 'ok', 'message': 'Wolf Pack is installed', 'action': ''}]
+        ok = [{'product': 'repository', 'level': 'ok', 'message': 'Acxelin Readiness is installed', 'action': ''}]
         for product, code in (("repository", 0), ("tls", 3), ("all", 3)):
             with mock.patch.object(checks, "prerequisites", return_value=ok), \
                     mock.patch.object(cli.tls, "lib", side_effect=cli.tls.TLSError("OpenSSL 3.0 has no ML-KEM")), \

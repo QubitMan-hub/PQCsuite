@@ -1,9 +1,7 @@
 name: ci
 on:
   push:
-    paths-ignore: ["wolf-pack/docs/**", "wolf-pack/eval/**"]
   pull_request:
-    paths-ignore: ["wolf-pack/docs/**", "wolf-pack/eval/**"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,7 +18,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web,desktop]"
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ".[test,integration,scan-web,desktop]"
       - run: python -m pytest -q
       - name: Desktop app on Windows, the real tray icon included; a skipped test fails the step
         if: runner.os == 'Windows'
@@ -35,7 +33,7 @@ jobs:
           python-version: "3.13"
       - name: OpenSSL 3.5+ from Homebrew, so the TLS tests run too
         run: brew install openssl@3 && echo "PQCSUITE_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
-      - run: pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web,desktop]" && pqcsuite doctor && pqcsuite try
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ".[test,integration,scan-web,desktop]" && pqcsuite doctor && pqcsuite try
       - name: Desktop app on macOS, the real menu-bar icon included; a skipped test fails the step
         shell: bash
         run: python -m pytest tests/test_vpn_desktop.py -v -rs | tee desktop.txt && ! grep -q SKIPPED desktop.txt
@@ -59,28 +57,25 @@ jobs:
           choco install wireguard -y --no-progress
           $sig = Get-AuthenticodeSignature "$env:ProgramFiles\WireGuard\wireguard.exe"
           if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'WireGuard LLC') { throw "wireguard.exe signature: $($sig.Status) $($sig.SignerCertificate.Subject)" }
-      - run: pip install -e ".[test,integration]"
+      - run: pip install -e ./core -e ./products/tls -e ".[test,integration]"
       - name: VPN client with WireGuard for Windows, a real tunnel service brought up, rotated and removed
         env:
           PQCSUITE_REAL_WIREGUARD: "1"
         run: python -m unittest tests.test_vpn_platforms -v
-  tls:
+  scenarios:
+    # the old suite's tests with real services (VPN and Vault until their stages; TLS and Readiness test in their own workflows)
     runs-on: ubuntu-latest
     container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Real applications for the scenario tests
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends git openssl curl nginx postgresql redis-server redis-tools \
-            mosquitto mosquitto-clients openssh-server
-      - run: pip install -e "./wolf-pack[dev,crawler]" -e ".[test,integration,scan-web]" && pqcsuite doctor
+      - name: A real database for the Vault restore scenario
+        run: apt-get update && apt-get install -y --no-install-recommends git openssl curl postgresql
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ".[test,integration,scan-web]" && pqcsuite doctor
       - run: python -m coverage run -m pytest -q
       - name: Coverage floor
         run: |
           python -m coverage report --skip-covered --sort=cover
           echo "::notice title=Coverage::pqcsuite/ line coverage $(python -m coverage report --format=total)%"
-      - run: python examples/clinic_demo.py --auto
-      - run: python examples/bank_demo.py --auto
   audit:
     runs-on: ubuntu-latest
     steps:
@@ -91,9 +86,8 @@ jobs:
       - name: Known vulnerabilities in the runtime and optional dependencies
         run: |
           pip install pip-audit==2.10.1
-          pip-audit .
-          python -c 'import tomllib; from pathlib import Path; suite=tomllib.loads(Path("pyproject.toml").read_text())["project"]["optional-dependencies"]; wolf=tomllib.loads(Path("wolf-pack/pyproject.toml").read_text())["project"]["optional-dependencies"]; print("\n".join(suite["vpn"] + suite["kms"] + suite["desktop"] + wolf["crawler"]))' > extras.txt
-          pip-audit -r extras.txt
+          python -c 'import tomllib; p=tomllib.load(open("pyproject.toml","rb"))["project"]; extra=p["optional-dependencies"]; print("\n".join(d for d in p["dependencies"] + extra["vpn"] + extra["kms"] + extra["desktop"] if not d.startswith("acxelin-")))' > deps.txt
+          pip-audit -r deps.txt
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -106,10 +100,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
-      - run: pip install ./wolf-pack
-      - name: Wolf Pack on the suite; new high-risk cryptography since docs/cbom.json fails the build
-        run: wolfpack scan pqcsuite -o cbom --baseline docs/cbom.json --fail-on high
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - run: pip install ./core ./products/readiness
+      - name: Acxelin Readiness on the old suite; new high-risk cryptography since docs/cbom.json fails the build
+        run: acxelin-readiness scan pqcsuite -o cbom --baseline docs/cbom.json --fail-on high
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pqcsuite-cbom
           path: cbom
@@ -120,27 +114,13 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - run: pip install "./wolf-pack[crawler]" ".[scan-web]"
-      - name: Website and console in Chromium, with axe accessibility checks
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls ".[scan-web]"
+      - name: The suite console and the VPN window in Chromium, with axe accessibility checks
         working-directory: tests/browser
         run: |
           npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium
           npx playwright test
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: docker build -t pqcsuite:ci . && docker run --rm pqcsuite:ci doctor && docker run --rm pqcsuite:ci
-      - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)
-        env:
-          TRIVY: "0.74.0"
-          TRIVY_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
-        run: |
-          curl -fsSL -o trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY/trivy_${TRIVY}_Linux-64bit.tar.gz"
-          echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c - && tar xzf trivy.tgz trivy
-          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL pqcsuite:ci
-          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 pqcsuite:ci
   installers:
     strategy:
       fail-fast: false
@@ -153,7 +133,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: ./.github/actions/installer
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: acxelin-vpn-${{ runner.os }}
           path: dist/installers
@@ -187,14 +167,14 @@ jobs:
             --enable-ikev2 --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey --enable-random --enable-nonce --enable-hmac \
             --enable-kdf --enable-kernel-netlink --enable-socket-default --enable-updown --enable-resolve --enable-attr --enable-constraints \
             --enable-revocation && make -j4 && sudo make install && sudo chmod -R a+rX /opt/pqc
-      - run: pip install -e ".[vpn]"
+      - run: pip install -e ./core -e ./products/tls -e ".[vpn]"
       - name: Real application for VPN traffic checks
         run: sudo apt-get update && sudo apt-get install -y redis-server
       - name: Two sites in network namespaces, real ESP traffic
         run: |
           sudo modprobe -a esp4 xfrm_user || true
           sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib PQCSUITE_STRONGSWAN=/opt/pqc PQCSUITE_VPN_DATAPLANE=1 \
-            python -m unittest tests.test_vpn tests.test_tls -v
+            python -m unittest tests.test_vpn -v
       - name: WireGuard remote access in network namespaces, real traffic
         run: |
           set -o pipefail
@@ -205,45 +185,6 @@ jobs:
           grep -q "test_all_traffic_through_the_tunnel_recovery_and_kill_switch .* ok" wg.log
       - name: VPN demo (branch over IPsec, laptop over WireGuard)
         run: sudo -E env "PATH=$PATH" LD_LIBRARY_PATH=/opt/pqc/lib PQCSUITE_STRONGSWAN=/opt/pqc python examples/vpn_demo.py --auto
-  kubernetes:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Cluster and image
-        run: |
-          kind create cluster --wait 120s
-          docker build -t pqcsuite:ci . && kind load docker-image pqcsuite:ci
-          helm lint --strict deploy/helm/pqcsuite
-          helm lint --strict deploy/helm/pqcsuite --set ca.issuingSecret=issuing --set ca.passphraseSecret=issuing-pass
-          helm template t deploy/helm/pqcsuite --set ca.issuingSecret=issuing | grep -q "secretName: issuing"
-      - name: Install the CA
-        run: helm install pqc deploy/helm/pqcsuite --set image.repository=pqcsuite --set image.tag=ci --set image.pullPolicy=Never --wait --timeout 240s
-      - name: Issue an edge certificate in the cluster and put the edge in front of a web app
-        run: |
-          kubectl create deployment web --image=pqcsuite:ci -- python -m http.server 8080 --directory /tmp
-          kubectl expose deployment web --port 80 --target-port 8080
-          ca() { kubectl exec pqc-ca-0 -c maintain -- "$@"; }
-          ca pqcsuite ca issue --dir /data/pki server pqc-edge.default.svc --san pqc-edge --out /data/issued/edge
-          mkdir edge && for f in chain.pem key.pem; do ca cat /data/issued/edge/$f > edge/$f; done && ca cat /data/pki/chain.pem > edge/ca.crt
-          kubectl create secret generic edge-tls --from-file=edge/
-          helm upgrade pqc deploy/helm/pqcsuite --reuse-values --set edge.enabled=true --set 'edge.routes[0].name=web' \
-            --set 'edge.routes[0].port=8443' --set 'edge.routes[0].target=web:80' \
-            --set 'edge.routes[1].name=partners' --set 'edge.routes[1].port=9443' --set 'edge.routes[1].target=web:80' \
-            --set 'edge.routes[1].requireClientCert=true' --wait --timeout 180s
-          kubectl logs deploy/pqc-edge | grep "CRL from http://pqc-ca.default.svc:8080/crl.pem saved"
-      - name: Post-quantum request through the edge
-        run: |
-          kubectl cp deploy/k8s/smoke.py pqc-ca-0:/data/issued/smoke.py -c maintain
-          kubectl exec pqc-ca-0 -c maintain -- python /data/issued/smoke.py pqc default
-      - name: The CA key is encrypted, the services cannot see the root, and the root is an offline-style parent
-        run: |
-          kubectl exec pqc-ca-0 -c maintain -- sh -c 'grep -q ENCRYPTED /data/pki/ca.key && test ! -e /data/root && test -f /data/pki/root.crt'
-          kubectl exec pqc-ca-0 -c acme -- sh -c 'test ! -e /data/root && test ! -e /data/issued && test -z "$ROOT_PASSPHRASE"'
-          kubectl exec pqc-ca-0 -c maintain -- pqcsuite doctor --ca /data/pki | tee doctor.txt
-          ! grep -q "not encrypted" doctor.txt
-      - name: Diagnostics
-        if: failure()
-        run: kubectl get pods -A; kubectl describe pods; kubectl logs -l app.kubernetes.io/instance=pqc --all-containers --tail 100
   cloud-image:
     runs-on: ubuntu-24.04
     container: debian:trixie@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c   # a stand-in for the Debian 13 VM; update by hand
@@ -259,6 +200,6 @@ jobs:
       - name: The image's provisioning script on Debian 13 (systemctl stubbed; no systemd in a container)
         run: |
           printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/systemctl && chmod +x /usr/local/bin/systemctl
-          mkdir -p /tmp/pqcsuite && cp -r pyproject.toml README.md pqcsuite deploy /tmp/pqcsuite/
+          mkdir -p /tmp/pqcsuite && cp -r pyproject.toml README.md pqcsuite deploy core products /tmp/pqcsuite/
           sh deploy/packer/provision.sh
           test -x /opt/strongswan/libexec/ipsec/charon && ls /etc/systemd/system/pqcsuite-*.service

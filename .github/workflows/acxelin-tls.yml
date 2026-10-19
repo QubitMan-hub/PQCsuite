@@ -1,0 +1,120 @@
+name: acxelin-tls
+on:
+  push:
+    paths:
+      - "products/tls/**"
+      - ".github/workflows/acxelin-tls.yml"
+      - "core/**"
+      - "tools/**"
+      - ".github/actions/**"
+  pull_request:
+    paths:
+      - "products/tls/**"
+      - ".github/workflows/acxelin-tls.yml"
+      - "core/**"
+      - "tools/**"
+      - ".github/actions/**"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.11", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: OpenSSL 3.5+ (Homebrew on macOS, Chocolatey on Windows; Linux runs the Debian 13 job for the full TLS suite)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then brew install openssl@3 && echo "ACXELIN_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"; fi
+          if [ "$RUNNER_OS" = Windows ]; then choco install openssl -y --no-progress && echo "ACXELIN_OPENSSL=C:\\Program Files\\OpenSSL-Win64\\bin" >> "$GITHUB_ENV"; fi
+      - name: A second loopback address, as Linux has, for the per-host limit test
+        if: runner.os == 'macOS'
+        run: sudo ifconfig lo0 alias 127.0.0.2 up
+      - run: pip install ./core "./products/tls[test]"
+      - name: doctor (Ubuntu's OpenSSL 3.0 must be refused with the way forward; the Debian 13 job checks a ready machine)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" != Linux ]; then acxelin-tls doctor; exit; fi
+          rc=0; out=$(acxelin-tls doctor) || rc=$?; echo "$out"
+          test "$rc" = 3 && echo "$out" | grep -q "needs OpenSSL 3.5 or newer"
+      - name: Playwright's Chromium and axe-core, for the console and website journeys
+        shell: bash
+        run: |
+          pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+          npm ci --prefix tools/browser
+      - name: The one-command installer a client runs (install.ps1 on Windows, install.sh elsewhere)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            powershell -ExecutionPolicy Bypass -File products/tls/install.ps1
+            "$LOCALAPPDATA/Acxelin/bin/acxelin-tls.cmd" doctor
+          else
+            sh products/tls/install.sh | tee install.txt
+            if [ "$RUNNER_OS" = Linux ]; then grep -q "ACXELIN_OPENSSL=/path/to/openssl-3.5/lib sh" install.txt; else "$HOME/.local/bin/acxelin-tls" doctor; fi
+          fi
+      - name: Tests, the browser journeys and the clean-wheel install
+        run: python -m pytest -q products/tls/tests
+        env: {ACXELIN_INSTALL_TEST: "1"}
+  linux-openssl-3-5:
+    # Debian 13's system OpenSSL is 3.5, so every TLS test runs here instead of being skipped
+    runs-on: ubuntu-latest
+    container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Real services for the scenario tests (nginx, Redis, MQTT, PostgreSQL) and OpenSSL's own client
+        run: apt-get update && apt-get install -y --no-install-recommends procps git curl openssl nginx redis-server mosquitto mosquitto-clients postgresql postgresql-client
+      - run: pip install ./core "./products/tls[test]"
+      - run: acxelin-tls doctor
+      - run: python -m pytest -q products/tls/tests --ignore=products/tls/tests/browser
+        env: {ACXELIN_INSTALL_TEST: "1"}
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the image and run it as a customer would
+        run: |
+          docker build -f products/tls/deploy/Dockerfile -t acxelin-tls:ci .
+          docker run --rm acxelin-tls:ci doctor
+          docker run --rm acxelin-tls:ci
+          docker run --rm acxelin-tls:ci --version | grep -q "acxelin-tls 1.0.0"
+      - name: The console starts in the container and answers only through the loopback-published port
+        run: |
+          docker run -d --name console -p 127.0.0.1:8900:8900 acxelin-tls:ci console --container
+          for i in $(seq 30); do curl -sf -o /dev/null http://127.0.0.1:8900/ && break; sleep 1; done
+          curl -sf http://127.0.0.1:8900/ | grep -q "Acxelin TLS"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8900/api/status)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: evil.example' http://127.0.0.1:8900/)" = 421
+          docker rm -f console
+      - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)
+        env:
+          TRIVY: "0.74.0"
+          TRIVY_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+        run: |
+          curl -fsSL -o trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY/trivy_${TRIVY}_Linux-64bit.tar.gz"
+          echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c - && tar xzf trivy.tgz trivy
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL acxelin-tls:ci
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 acxelin-tls:ci
+  interop:
+    # Real clients against the edge: Node and curl on Debian 13's OpenSSL 3.5, and Go 1.24
+    runs-on: ubuntu-latest
+    container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: apt-get update && apt-get install -y --no-install-recommends golang-go nodejs curl ca-certificates
+      - run: pip install ./core ./products/tls && products/tls/tests/interop/run.sh
+      - name: How fast the edge is
+        run: python products/tls/tests/interop/bench.py 5
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: pipx run ruff==0.14.0 check core products/tls tools

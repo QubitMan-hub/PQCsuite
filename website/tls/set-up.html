@@ -1,0 +1,37 @@
+<!-- title: Set up Acxelin TLS -->
+<!-- description: Install Acxelin TLS, run the tour, create a certificate authority, put an edge in front of a service, and open the console locally, over SSH or in Docker. -->
+<section>
+<h1>Set up Acxelin TLS</h1>
+<p class="lead">It needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. You do not need another Acxelin product.</p>
+<ol class="steps">
+<li><h2>Install</h2>
+<p>One command installs it for your user and puts <code>acxelin-tls</code> on your PATH. Run it in an unpacked release wheelhouse, or in <code>products/tls</code> of a checkout:</p>
+<pre><code>sh install.sh</code></pre>
+<p>On Windows: <code>powershell -ExecutionPolicy Bypass -File install.ps1</code>. It checks Python, finds OpenSSL 3.5, runs <code>acxelin-tls doctor</code> and says what to do next.</p></li>
+<li><h2>See it work</h2>
+<pre><code>acxelin-tls try</code></pre>
+<p>A one-minute tour with nothing to set up. <a href="demo.html">The demo page</a> shows its real output.</p></li>
+<li><h2>Create the authority and a certificate</h2>
+<p>Use the console (next step), or the command line:</p>
+<pre><code>acxelin-tls ca init --name "Example Root CA" --dir pki
+acxelin-tls ca issue server web.example.com --dir pki --out web</code></pre></li>
+<li><h2>Put the edge in front of a service</h2>
+<pre><code>acxelin-tls edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 \
+  --cert web/chain.pem --key web/key.pem</code></pre>
+<p>Add <code>--require-client-cert --ca pki/ca.crt --crl pki/crl.pem</code> for mutual TLS. For several routes, write an <code>edge.toml</code> and run <code>acxelin-tls edge --config edge.toml</code>. Check it first with <code>acxelin-tls doctor --config edge.toml</code>.</p></li>
+<li><h2>Open the console</h2>
+<pre><code>acxelin-tls console</code></pre>
+<p>Your browser opens already signed in. Create the certificate authority, give its key a passphrase, then issue and revoke certificates, add running edges to see their policy, test a connection, and read the health checks. The console keeps the passphrase in memory only, so it asks again after a restart.</p>
+<h3>On a remote server</h3>
+<p>The console only listens on the machine it runs on. Forward a port, then ask the running console for a fresh link:</p>
+<pre><code>ssh -L 8900:127.0.0.1:8900 server
+acxelin-tls console link --port 8900</code></pre>
+<p>Run the second command in that SSH session and open the address it prints on your laptop.</p>
+<h3>In Docker</h3>
+<pre><code>docker build -f products/tls/deploy/Dockerfile -t acxelin-tls .
+docker run -v acxelin-tls:/data -p 127.0.0.1:8900:8900 acxelin-tls console --container
+docker exec -it NAME acxelin-tls console link</code></pre></li>
+<li><h2>Keep it running</h2>
+<p>Run <code>acxelin-tls ca maintain --dir pki</code> every day. The Dockerfile and the systemd units are in <code>products/tls/deploy</code>.</p></li>
+</ol>
+</section>

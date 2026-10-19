@@ -1,0 +1,10 @@
+{
+ "pqcsuite_invite": 1,
+ "name": "laptop.golden.invalid",
+ "enroll": "https://enroll.golden.invalid:8443",
+ "ca_fingerprint": "90606db2743fa83b62021b1e0f8fb2e2a85cf838cedca9c0a58e786399bd344b",
+ "gateway": "gateway.golden.invalid:51821",
+ "server_name": "gateway.golden.invalid",
+ "expires": "2099-01-01T00:00:00+00:00",
+ "token": "golden-token-not-secret"
+}

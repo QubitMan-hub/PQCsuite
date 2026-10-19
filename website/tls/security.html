@@ -1,0 +1,35 @@
+<!-- title: Acxelin TLS security -->
+<!-- description: What Acxelin TLS defends against, what its tests show, how its console is protected, and what is not covered. -->
+<section>
+<h1>What Acxelin TLS defends against</h1>
+<p class="lead">It protects traffic against an attacker who records it now to decrypt later, and against one who forces a weaker negotiation. Each row below is a behaviour its tests check.</p>
+<div class="scroll"><table>
+<thead><tr><th>Threat</th><th>Defence</th></tr></thead>
+<tbody>
+<tr><td>Forced downgrade to classical key exchange or certificates</td><td>The <code>strict</code> policy refuses classical clients.</td></tr>
+<tr><td>Replay of a recorded session</td><td>The server does nothing on a replay.</td></tr>
+<tr><td>A revoked client</td><td>The edge follows the revocation list and refuses the client. An expired or damaged list refuses everyone, with the reason logged.</td></tr>
+<tr><td>Slow or silent clients holding connections</td><td>Handshake and idle timeouts, and a connection limit per route.</td></tr>
+<tr><td>Guessing an enrolment token</td><td>Tokens are one-time with a secret part. Failures are audited in an owner-only log that never holds the secret.</td></tr>
+<tr><td>Secrets in output</td><td>Authority and key passphrases and token secrets never appear in command output, logs or files at rest.</td></tr>
+</tbody></table></div>
+</section>
+
+<section aria-labelledby="console">
+<h2 id="console">The console</h2>
+<p>The console is for one person on one machine.</p>
+<dl class="rows">
+<div><dt>Local only</dt><dd>It listens on 127.0.0.1 and refuses requests whose host name is not a loopback name or whose origin is another site, so a web page you visit cannot reach it.</dd></div>
+<div><dt>Launch links</dt><dd>Opening it uses a link that works once, kept in the address fragment so it never reaches a server or a log, and removed from the address bar and history on arrival. The session it starts uses no cookies.</dd></div>
+<div><dt>Keys on request only</dt><dd>Issued private keys are written to files on this computer. A key reaches the browser only when you choose Download with key, never for a revoked certificate or an encrypted key, and every issue, renewal, revocation and download is recorded in an owner-only audit log. The authority's passphrase is held in memory and is never written anywhere.</dd></div>
+<div><dt>Limits</dt><dd>After ten wrong attempts in a minute from one address it refuses further tries. Request logs record the method, path and status, never a query, header or body.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="not">
+<h2 id="not">What is not covered</h2>
+<div class="note">
+<p>Whoever holds the authority's key can issue certificates. Keep a root offline and use an issuing authority.</p>
+<p>A revoked certificate works until the edge next fetches the revocation list. The service behind the edge sees plain traffic. Browsers cannot verify ML-DSA, so serving them means a classical fallback certificate. Everything here was exercised on Linux with OpenSSL 3.5.9.</p>
+</div>
+</section>

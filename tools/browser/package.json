@@ -1,0 +1,1 @@
+{"name": "acxelin-browser-tools", "private": true, "description": "axe-core for the Playwright journeys (run: npm ci in this folder)", "dependencies": {"axe-core": "4.11.0"}}

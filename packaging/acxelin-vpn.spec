@@ -14,9 +14,9 @@ TRAYS = {"win32": ["win32"], "darwin": ["darwin"]}.get(sys.platform, ["xorg", "a
 binaries = [(str(p), "openssl") for p in Path(openssl).iterdir() if p.suffix in (".dll", ".dylib")] if openssl else []
 
 a = Analysis([str(root / "packaging" / "acxelin_vpn.py")], pathex=[str(root)], binaries=binaries,
-             datas=collect_data_files("pqcsuite"),
+             datas=collect_data_files("pqcsuite") + collect_data_files("acxelin_core") + collect_data_files("acxelin_tls"),
              hiddenimports=collect_submodules("pqcsuite") + ["PIL.Image", "PIL.ImageDraw"] + [f"pystray._{b}" for b in TRAYS],
-             excludes=["tkinter", "wolfpack", "boto3", "botocore", "pytest", "hypothesis"])
+             excludes=["tkinter", "acxelin_readiness", "boto3", "botocore", "pytest", "hypothesis"])
 pyz = PYZ(a.pure)
 gui = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Acxelin VPN", console=False, icon=icon)
 cli = EXE(pyz, a.scripts, [], exclude_binaries=True, name="acxelin-vpn", console=True, icon=icon)

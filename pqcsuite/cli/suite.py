@@ -24,7 +24,7 @@ def cmd_doctor(a):
     print(f"CA and Vault: ready (cryptography {cryptography.__version__}, with its own {backend.openssl_version_text()})")
     try:
         lib = tls.lib()
-        ctx = tls.client_context(verify=False)  # wolfpack:ignore (only checks that a context can be built; nothing connects)
+        ctx = tls.client_context(verify=False)  # acxelin:ignore (only checks that a context can be built; nothing connects)
         ctx.close()
         print(f"TLS edge, VPN key agreement and readiness scans: ready (this machine's {lib.version}; groups {tls.PQC_GROUPS})")
         broken = False
@@ -117,7 +117,7 @@ def cmd_try(a):
             page = reply.split(b"\r\n\r\n", 1)[-1].decode().strip()
             print(f"   page          {page}")
             step(5, "A client that only knows classical key exchange (X25519) tries the same:")
-            # wolfpack:ignore (a classical client on purpose: the tour shows the edge refusing it)
+            # acxelin:ignore (a classical client on purpose: the tour shows the edge refusing it)
             classical = Context(False, "X25519", None, tls.CIPHERSUITES, None, None, None, str(d / "pki" / "ca.crt"), True)
             try:
                 tls.connect("127.0.0.1", edge.port, classical, "localhost", 10).close()

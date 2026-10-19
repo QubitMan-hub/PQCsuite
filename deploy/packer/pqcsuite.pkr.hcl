@@ -90,7 +90,7 @@ build {
     inline = ["mkdir -p /tmp/pqcsuite"]
   }
   provisioner "file" {
-    sources     = ["${path.root}/../../pyproject.toml", "${path.root}/../../README.md", "${path.root}/../../pqcsuite", "${path.root}/../../deploy"]
+    sources     = ["${path.root}/../../pyproject.toml", "${path.root}/../../README.md", "${path.root}/../../pqcsuite", "${path.root}/../../deploy", "${path.root}/../../core", "${path.root}/../../products"]
     destination = "/tmp/pqcsuite/"
   }
   provisioner "shell" {

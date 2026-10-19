@@ -1,0 +1,94 @@
+name: acxelin-readiness
+on:
+  push:
+    paths:
+      - "products/readiness/**"
+      - ".github/workflows/acxelin-readiness.yml"
+      - "core/**"
+      - "tools/**"
+      - ".github/actions/**"
+  pull_request:
+    paths:
+      - "products/readiness/**"
+      - ".github/workflows/acxelin-readiness.yml"
+      - "core/**"
+      - "tools/**"
+      - ".github/actions/**"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.11", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install ./core "./products/readiness[test,crawler]"
+      - run: acxelin-readiness doctor
+      - name: Playwright's Chromium and axe-core, for the console and website journeys
+        shell: bash
+        run: |
+          pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+          npm ci --prefix tools/browser
+      - name: The one-command installer a client runs (install.ps1 on Windows, install.sh elsewhere)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            powershell -ExecutionPolicy Bypass -File products/readiness/install.ps1
+            "$LOCALAPPDATA/Acxelin/bin/acxelin-readiness.cmd" doctor
+          else
+            sh products/readiness/install.sh && "$HOME/.local/bin/acxelin-readiness" doctor
+          fi
+      - name: Tests, the browser journeys and the clean-wheel install
+        run: python -m pytest -q products/readiness/tests
+        env: {ACXELIN_INSTALL_TEST: "1"}
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the image and scan the sample project with it
+        run: |
+          docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness:ci .
+          docker run --rm acxelin-readiness:ci doctor
+          mkdir out  # owned by the runner's user, as a customer's folder would be; the image's own user cannot write to it
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/products/readiness/examples/payments-api:/scan:ro" -v "$PWD/out:/out" acxelin-readiness:ci scan /scan -o /out -q || test $? = 2
+          test -s out/cbom.json && test -s out/report.html
+      - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)
+        env:
+          TRIVY: "0.74.0"
+          TRIVY_SHA256: 2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a
+        run: |
+          curl -fsSL -o trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v$TRIVY/trivy_${TRIVY}_Linux-64bit.tar.gz"
+          echo "$TRIVY_SHA256  trivy.tgz" | sha256sum -c - && tar xzf trivy.tgz trivy
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL acxelin-readiness:ci
+          ./trivy image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore.yaml --exit-code 1 acxelin-readiness:ci
+  real-world:
+    # Real repositories in Python, JavaScript and Go: the scan must finish, write a valid CBOM, and find their cryptography
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install ./core "./products/readiness[crawler,test]"
+      - name: Scan pyjwt, paramiko, forge and go-jose
+        run: |
+          for r in jpadilla/pyjwt paramiko/paramiko digitalbazaar/forge go-jose/go-jose; do
+            n=$(basename $r); git clone -q --depth 1 https://github.com/$r $n
+            acxelin-readiness scan $n -o out-$n -q || test $? = 2
+            python products/readiness/tools/validate_cbom.py out-$n/cbom.json
+            python -c "import json,sys; a=[c for c in json.load(open('out-$n/cbom.json'))['components'] if c.get('type')=='cryptographic-asset']; print('$n', len(a), 'assets'); sys.exit(not a)"
+          done
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: pipx run ruff==0.14.0 check core products/readiness tools

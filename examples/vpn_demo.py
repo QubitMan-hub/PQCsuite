@@ -12,6 +12,7 @@ its install prefix if charon is not in /usr/lib/ipsec); the laptop part needs wi
 module, or wireguard-go). A part whose software is missing is skipped with a message.
 """
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -21,8 +22,8 @@ import textwrap
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-from clinic_demo import Demo  # noqa: E402
+# The certificate authority's commands: acxelin-tls until Acxelin VPN brings its own `acxelin-vpn ca` (Stage 3).
+CA = "acxelin-tls"
 
 HQ, BRANCH, LAPTOP = "dbk-hq", "dbk-branch", "dbk-laptop"
 PLACES = {HQ: "headquarters", BRANCH: "branch 0417", LAPTOP: "laptop", None: "CA"}
@@ -44,9 +45,64 @@ def wireguard_ready():
     return shutil.which("wg") and shutil.which("wg-quick") and (kernel or shutil.which("wireguard-go") or os.environ.get("PQCSUITE_WIREGUARD_GO"))
 
 
+class Demo:
+    def __init__(self, work, auto):
+        self.work, self.auto, self.procs, self.n = work, auto, [], 0
+
+    def step(self, title, story):
+        self.n += 1
+        print(f"\n{'=' * 78}\n{self.n}. {title}\n{'=' * 78}")
+        print(textwrap.fill(story, 78))
+        if not self.auto:
+            self.pause("\n  [Enter] to run it ")
+
+    def attempt(self, go, expect, contains):
+        """Run a command until it does what the step expects. With --auto a miss stops the demo; live, the presenter can run it
+        again or go on, so one surprise does not end the meeting."""
+        while True:
+            r = go()
+            out = (r.stdout + r.stderr).rstrip()
+            print(textwrap.indent(out, "  ") if out else "  (no output)")
+            if (expect is None or r.returncode == expect) and all(c in out for c in contains):
+                return out
+            why = f"exit {r.returncode}, expected {expect}; wanted {list(contains)}"
+            if self.auto:
+                raise SystemExit(f"\ndemo: step {self.n} did not go as planned ({why})")
+            print(f"\n  This did not go as planned ({why}).")
+            try:
+                choice = input("  [Enter] run it again, s + Enter to go on, q + Enter to stop: ").strip().lower()
+            except EOFError:
+                choice = "q"
+            if choice == "q":
+                raise SystemExit(f"\ndemo: stopped at step {self.n}")
+            if choice == "s":
+                return out
+
+    def pause(self, prompt):
+        try:
+            input(prompt)
+        except EOFError:
+            self.auto = True
+
+    def serial(self, name):
+        """The serial of the valid certificate called `name`, looked up without printing the whole list."""
+        r = subprocess.run([CA, "ca", "list", "--json"], cwd=self.work, capture_output=True, text=True)
+        return next(c["serial"] for c in json.loads(r.stdout) if c["common_name"] == name)
+
+    def stop(self):
+        for p in self.procs:
+            p.terminate()
+        for p in self.procs:
+            try:
+                p.wait(5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+
+
 class VPNDemo(Demo):
     def at(self, ns, *args, expect=0, contains=(), tool="pqcsuite"):
         """Run a command at one place, printed as the person there would type it."""
+        tool = CA if args[:1] == ("ca",) else tool
         cmd = [sys.executable, "-m", "pqcsuite", *map(str, args)] if tool == "pqcsuite" else [tool, *map(str, args)]
         shown = " ".join(f'"{a}"' if " " in str(a) else str(a) for a in args)
         print(f"\n[{PLACES[ns]}] $ {tool} {shown}")

@@ -4,7 +4,7 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
-/build/
+build/
 /dist/
 .pytest_cache/
 .ruff_cache/
@@ -20,12 +20,15 @@ venv/
 .env
 .env.*
 *.pqv
+# golden fixtures are synthetic test data and must be committed whole (tests/golden/README.md)
+!tests/golden/**
+tests/golden/**/__pycache__/
 *.part
-wolfpack-out/
+readiness-out/
 pqcsuite-out/
 
-# the Wolf Pack corpus holds deliberate test keys and weak code
-!wolf-pack/bench/corpus/**
+# the Readiness quality corpus holds deliberate test keys and weak code
+!products/readiness/bench/corpus/**
 
 # browser tests
 node_modules/
@@ -40,9 +43,7 @@ Thumbs.db
 # Private console workspace
 .pqcsuite/
 
-# archify working folders (finished diagrams go in docs/architecture)
+# archify working folders (finished diagrams go in the product's docs)
 .archify/
 
-# archify receipts (local paths; regenerate with finalize)
-site/architecture/*.json
 console-audit.jsonl

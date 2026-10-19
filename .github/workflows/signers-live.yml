@@ -1,0 +1,23 @@
+name: signers-live
+# The CA key in a real AWS KMS key. Runs on demand, because it needs an account: set the repository secrets AWS_ACCESS_KEY_ID and
+# AWS_SECRET_ACCESS_KEY (for a principal allowed kms:GetPublicKey and kms:Sign on the key), and the variables ACXELIN_LIVE_KMS_KEY_ID
+# (an ML_DSA_65 or ML_DSA_87 key) and AWS_REGION. HSMs: run core/tests/test_signers_external.py::test_live_hsm on a machine with the
+# device, with ACXELIN_LIVE_HSM_COMMAND and ACXELIN_LIVE_HSM_PUBLIC_KEY set.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  kms:
+    runs-on: ubuntu-latest
+    container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ACXELIN_LIVE_KMS_KEY_ID: ${{ vars.ACXELIN_LIVE_KMS_KEY_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: pip install ./core boto3 pytest
+      - run: test -n "$ACXELIN_LIVE_KMS_KEY_ID" || { echo "set the ACXELIN_LIVE_KMS_KEY_ID variable"; exit 1; }
+      - run: python -m pytest -q core/tests/test_signers_external.py -k live_aws_kms

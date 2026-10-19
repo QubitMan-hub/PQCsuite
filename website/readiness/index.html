@@ -1,0 +1,67 @@
+<!-- title: Acxelin Readiness: find where a quantum computer breaks your cryptography -->
+<!-- description: Acxelin Readiness reads code, configuration, certificates, images and live endpoints, ranks what to migrate first, and writes a CycloneDX 1.6 cryptographic bill of materials. -->
+<section>
+<div class="hero">
+<div>
+<h1>Find where a quantum computer breaks your cryptography.</h1>
+<p class="lead">Acxelin Readiness reads your code, configuration, certificates, images and live endpoints, ranks what to migrate first, and writes the cryptographic bill of materials your auditors and tools expect.</p>
+<div class="actions"><a class="btn primary" href="set-up.html">Set up in three commands</a><a class="btn" href="sample.html">See a sample report</a></div>
+</div>
+<figure class="shot"><img src="{root}assets/readiness-report.png" width="1280" height="900" alt="The Acxelin Readiness report for the sample payments service: a ranked list of cryptographic assets from critical to ok, each with the fix to apply."><figcaption>A real report, made from the sample payments service.</figcaption></figure>
+</div>
+</section>
+
+<section aria-labelledby="reads">
+<h2 id="reads">What it reads</h2>
+<p>One scan covers the places cryptography hides, not only the code.</p>
+<dl class="rows">
+<div><dt>Source code</dt><dd>Python, JavaScript, TypeScript, Java, Go, C and C++, Rust, C#, Swift, PHP, Ruby and shell: calls, imports, constants, algorithm names and the parameters passed in.</dd></div>
+<div><dt>Configuration</dt><dd>YAML, JSON, TOML, nginx, Apache, sshd, Kubernetes and Terraform: the algorithm and cipher lists you actually deploy.</dd></div>
+<div><dt>Keys and certificates</dt><dd>PEM and DER certificates, private keys, keystores, SSH keys and known hosts.</dd></div>
+<div><dt>Containers and binaries</dt><dd>Images saved with <code>docker save</code> or as OCI archives, and compiled files that carry library versions and algorithm strings.</dd></div>
+<div><dt>Dependencies</dt><dd>Package manifests and lockfiles of the common ecosystems.</dd></div>
+<div><dt>Live endpoints</dt><dd>TLS servers (which key-exchange groups they accept, their certificate, a grade from A to F) and SSH servers (algorithm lists and host keys).</dd></div>
+<div><dt>Network captures</dt><dd>Handshakes in <code>.pcap</code> and <code>.pcapng</code> files: what clients and servers really negotiated.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="gets">
+<h2 id="gets">What you get</h2>
+<p>Every scan writes the same set of files to <code>readiness-out/</code>.</p>
+<dl class="rows">
+<div><dt><code>report.html</code></dt><dd>One self-contained page: every asset ranked from critical to ok, with the fix and the places it appears. A button downloads the migration plan as <code>migration.csv</code>.</dd></div>
+<div><dt><code>cbom.json</code></dt><dd>A CycloneDX 1.6 cryptographic bill of materials, with relationships and evidence for every asset.</dd></div>
+<div><dt><code>readiness.sarif</code></dt><dd>The same findings for code scanning in GitHub and other SARIF viewers.</dd></div>
+<div><dt><code>findings.json</code></dt><dd>Every detection and the verdict on it: accepted, held back, rejected or suppressed, with the reason.</dd></div>
+<div><dt><code>relationships.json</code></dt><dd>Which functions reach the cryptography, for the languages with call analysis.</dd></div>
+</dl>
+</section>
+
+<section aria-labelledby="runs">
+<h2 id="runs">Where it runs</h2>
+<div class="cols">
+<div><h3>In every pull request</h3><p>Fail the build only on cryptography a change introduces, by comparing with the CBOM from the main branch.</p>
+<pre><code>acxelin-readiness scan . --baseline cbom.json --fail-on high</code></pre></div>
+<div><h3>For an audit</h3><p>Check against NIST IR 8547 and the NSA's CNSA 2.0 suite, and fail when a rule is already broken.</p>
+<pre><code>acxelin-readiness scan . \
+  --policy nist-ir-8547 --policy cnsa-2.0 \
+  --fail-on-policy</code></pre></div>
+<div><h3>Across many systems</h3><p>Merge the CBOMs of every system, including ones made by other tools, into one ranked inventory.</p>
+<pre><code>acxelin-readiness merge out-a out-b \
+  --name "Example Bank"</code></pre></div>
+</div>
+</section>
+
+<section aria-labelledby="limits">
+<h2 id="limits">What it does not claim</h2>
+<div class="note">
+<p>A scan cannot prove cryptography is absent. Code that builds algorithm names at run time, or loads them from outside the scanned files, can be missed.</p>
+<p>It never changes your files and never sends them anywhere. It reports where cryptography sits and of what kind, never the key itself.</p>
+</div>
+</section>
+
+<section aria-labelledby="start">
+<h2 id="start">Start with one repository</h2>
+<p>Three commands install it and scan a folder. The console then lets you do the same without the command line.</p>
+<div class="actions"><a class="btn primary" href="set-up.html">Set up Acxelin Readiness</a><a class="btn" href="how-it-works.html">How it works</a></div>
+</section>

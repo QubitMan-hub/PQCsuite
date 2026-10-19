@@ -8,7 +8,7 @@ version = "0.4.3"
 description = "Post-quantum TLS 1.3 and mTLS, VPN, Vault and Readiness assessment"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["cryptography>=49"]
+dependencies = ["cryptography>=49", "acxelin-core>=1,<2", "acxelin-tls>=1,<2"]  # until VPN and Vault move to their products
 authors = [{name = "Acxelin Quantum"}]
 
 [project.urls]
@@ -17,8 +17,8 @@ Source = "https://github.com/QubitMan-hub/PQCsuite"
 Changelog = "https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-scan = ["wolfpack-cbom>=1.4.0"]
-scan-web = ["wolfpack-cbom[crawler]>=1.4.0"]
+scan = ["acxelin-readiness>=1,<2"]
+scan-web = ["acxelin-readiness[crawler]>=1,<2"]
 vpn = ["vici>=6.0"]
 desktop = ["pystray>=0.19.5", "pillow>=11"]
 kms = ["boto3>=1.35"]
@@ -32,7 +32,6 @@ pqcsuite = "pqcsuite.cli:main"
 include = ["pqcsuite*"]
 
 [tool.setuptools.package-data]
-"pqcsuite" = ["tour.js"]
 "pqcsuite.console" = ["console.html"]
 "pqcsuite.vpn" = ["app.html"]
 
@@ -40,24 +39,20 @@ include = ["pqcsuite*"]
 build_base = "dist/.build"  # keeps `pip wheel .` from leaving build/ in the source tree
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "wolf-pack/tests"]
-# the Wolf Pack corpus is deliberately weak code to scan, never tests to run
+testpaths = ["tests"]
+# the Readiness corpus is deliberately weak code to scan, never tests to run
 norecursedirs = ["corpus", ".*", "build", "dist", "*.egg", "venv", "node_modules"]
-pythonpath = ["wolf-pack"]
 
 [tool.coverage.run]
 source = ["pqcsuite"]
 
 [tool.coverage.report]
-fail_under = 83  # CI measures 84% in the tls job, which runs every test that needs OpenSSL 3.5 and real applications
+fail_under = 74  # VPN and Vault only, as measured in the scenarios job; TLS and Readiness moved to products/ with their own tests
 
 [tool.ruff]
 target-version = "py311"
-extend-exclude = ["wolf-pack/bench/corpus", "wolf-pack/site/demo", "wolf-pack/eval/heldout/repos", "examples/wolfpack-sample/payments-api"]
+extend-exclude = ["products/readiness/bench/corpus", "products/readiness/examples/payments-api"]
 
 [tool.ruff.lint]
 ignore = ["E401", "E702", "E731", "E741"]
 
-[tool.ruff.lint.per-file-ignores]
-"wolf-pack/eval/heldout/heldout.py" = ["E402"]
-"wolf-pack/tests/test_heldout.py" = ["E402"]

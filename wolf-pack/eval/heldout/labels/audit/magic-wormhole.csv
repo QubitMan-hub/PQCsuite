@@ -1,7 +1,0 @@
-file,used,declared,notes
-snapcraft.yaml,-,-,
-src/wormhole/_dilation/connection.py,-,-,? drives a Noise session configured elsewhere; no primitive named
-src/wormhole/_dilation/subchannel.py,-,-,
-src/wormhole/_send.py,-,-,calls encrypt helpers defined in _key.py
-src/wormhole/_status.py,-,-,
-src/wormhole/cli/cli.py,-,-,

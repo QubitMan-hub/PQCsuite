@@ -1,0 +1,37 @@
+name: acxelin-core
+on:
+  push:
+    paths: ["core/**", ".github/workflows/acxelin-core.yml"]
+  pull_request:
+    paths: ["core/**", ".github/workflows/acxelin-core.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.11", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: OpenSSL 3.5+ (Homebrew on macOS, Chocolatey on Windows; Linux runs the Debian 13 job for the full TLS suite)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then brew install openssl@3 && echo "ACXELIN_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"; fi
+          if [ "$RUNNER_OS" = Windows ]; then choco install openssl -y --no-progress && echo "ACXELIN_OPENSSL=C:\\Program Files\\OpenSSL-Win64\\bin" >> "$GITHUB_ENV"; fi
+      - name: Core alone, with no product installed
+        run: pip install ./core pytest
+      - run: python -m pytest -q core/tests
+  linux-openssl-3-5:
+    runs-on: ubuntu-latest
+    container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Full core suite, with boto3 for the KMS signer test (requests checked against AWS's own KMS API model)
+        run: pip install ./core pytest boto3 && python -m pytest -q -rs core/tests

@@ -35,10 +35,10 @@ This is the brief for an outside reviewer. It says what the suite protects, wher
 
 - The published algorithms themselves (FIPS 203, 204, 205) and OpenSSL's implementation of them.
 - FIPS 140-3 validation: the suite has not been through it and does not claim it.
-- Wolf Pack CBOM (`wolf-pack/`), a separate inventory tool that holds no keys. Its `bench/corpus/certs/signing.key` is a deliberate test key.
+- Acxelin Readiness (`products/readiness/`), an inventory tool that holds no keys. Its `bench/corpus/certs/signing.key` is a deliberate test key.
 
 ## Building a test setup
 
-CI (`.github/workflows/ci.yml`) is the reference: it builds OpenSSL 3.5 and strongSwan 6.1, runs the unit tests, puts nginx, PostgreSQL, Redis and MQTT behind the edge, runs two IPsec sites and a WireGuard gateway in network namespaces, and installs the Helm chart in a kind cluster. The demos in `examples/` (`clinic_demo.py`, `bank_demo.py`, `vpn_demo.py`) walk through the main flows end to end.
+CI (`.github/workflows/ci.yml`) is the reference: it builds OpenSSL 3.5 and strongSwan 6.1, runs the unit tests and a Vault restore into PostgreSQL, and runs two IPsec sites and a WireGuard gateway in network namespaces with real traffic. `examples/vpn_demo.py` walks through the VPN end to end. The TLS product's workflow (`acxelin-tls.yml`) puts nginx, PostgreSQL, Redis and MQTT behind the edge, and checks its Docker image.
 
 Findings: email info@acxelinquantum.com with "security" in the subject (see SECURITY.md).

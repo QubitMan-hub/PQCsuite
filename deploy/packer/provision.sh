@@ -17,11 +17,11 @@ sudo rm -rf "/tmp/strongswan-${STRONGSWAN}"
 sudo apt-get purge -y build-essential libssl-dev libgmp-dev pkg-config && sudo apt-get autoremove -y
 sudo useradd --system --home /var/lib/pqcsuite --create-home pqc
 sudo python3 -m venv /opt/pqcsuite
-sudo /opt/pqcsuite/bin/pip install --no-cache-dir "/tmp/pqcsuite[vpn]"
+sudo /opt/pqcsuite/bin/pip install --no-cache-dir /tmp/pqcsuite/core /tmp/pqcsuite/products/tls "/tmp/pqcsuite[vpn]"
 sudo ln -sf /opt/pqcsuite/bin/pqcsuite /usr/local/bin/pqcsuite
 sudo install -d -m 0750 -o pqc /etc/pqcsuite
 sudo install -m 0644 /tmp/pqcsuite/deploy/systemd/* /etc/systemd/system/
 sudo systemctl daemon-reload
-for unit in pqcsuite-edge strongswan-pqc pqcsuite-ipsec pqcsuite-wireguard pqcsuite-maintain.timer; do sudo systemctl enable "$unit"; done
+for unit in strongswan-pqc pqcsuite-ipsec pqcsuite-wireguard; do sudo systemctl enable "$unit"; done
 pqcsuite doctor
 sudo rm -rf /tmp/pqcsuite

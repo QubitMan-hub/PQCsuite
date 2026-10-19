@@ -1,6 +1,14 @@
 # Changelog
 
-Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf-pack/CHANGELOG.md`. A release is a tag `vX.Y.Z`; it is published only when every CI and CodeQL job passed on its commit, and its GitHub release carries the wheel, `RELEASE_READINESS.md`, the suite's own CBOM (Wolf Pack's inventory of `pqcsuite/`), a CycloneDX SBOM, the tested dependency versions and build provenance. From 0.2.0 the container image is published to `ghcr.io/qubitman-hub/pqcsuite`.
+Versions of the old Acxelin PQC Suite (`pqcsuite`). The products have their own changelogs: `core/CHANGELOG.md` and `products/*/CHANGELOG.md`.
+
+## Unreleased
+
+- The suite is split into standalone products: Acxelin Readiness + CBOM (`products/readiness`) and Acxelin TLS/mTLS + CA (`products/tls`) on the shared `core`; VPN and Vault stay here until they move. `pqcsuite` keeps the `vpn`, `vault`, `console`, `doctor`, `setup` and `try` commands.
+- Wolf Pack CBOM is gone; its engine is Acxelin Readiness. The suite website, manual, clinic and bank demos, and the suite release workflow are removed; each product has its own site section, docs, demo and release.
+- `pqcsuite` declares `acxelin-tls`, which it imports.
+- Each product has a full manual (`products/*/docs/manual.md`), shown as its Manual page on the website, and its release folder carries the manual, README, licence, example settings and service units with the wheels: a customer needs nothing else.
+- Acxelin TLS deploys with Docker, systemd or the installers; the Helm chart and Kubernetes examples are removed.
 
 ## 0.4.3 (5 October 2026)
 
@@ -101,7 +109,7 @@ Versions of Acxelin PQC Suite (`pqcsuite`). Wolf Pack CBOM has its own, in `wolf
 
 Proof and polish: more of what was not yet validated now runs on every release, every report carries the Acxelin look, and code scanning findings are fixed.
 
-- **More of the "Not yet validated" list done** ([docs/RELEASE-READINESS.md](docs/RELEASE-READINESS.md)): property-based tests with Hypothesis (`tests/test_properties.py`); replay of a recorded mutual-TLS session, and no TLS 1.3 early data (`tests/test_replay.py`); a soak test (`scripts/soak.py`) that runs for 2 hours every week in CI; sustained load in each release's benchmark; the unit and TLS tests on macOS in CI. Each release report now lists the dependency and cryptographic-asset changes since the previous release. What still needs your own accounts or hardware (cloud images, managed Kubernetes, production hardware, an independent review) is scripted in [docs/PILOT.md](docs/PILOT.md).
+- **More of the "Not yet validated" list done** (`docs/RELEASE-READINESS.md`, since removed with the suite release): property-based tests with Hypothesis (`tests/test_properties.py`); replay of a recorded mutual-TLS session, and no TLS 1.3 early data (`tests/test_replay.py`); a soak test (`scripts/soak.py`) that runs for 2 hours every week in CI; sustained load in each release's benchmark; the unit and TLS tests on macOS in CI. Each release report now lists the dependency and cryptographic-asset changes since the previous release. What still needs your own accounts or hardware (cloud images, managed Kubernetes, production hardware, an independent review) is scripted in [docs/PILOT.md](docs/PILOT.md).
 - **Acxelin look for every report:** the readiness report and the compliance evidence report now match the console (colours, typeface, logo, light and dark), and remain single self-contained files.
 - **From code scanning:** the console opened an error instead of the overview for addresses naming a built-in property (`#constructor`); the ACME server's own HTTPS listener accepts TLS 1.3 only (its key exchange stays classical, as SECURITY.md records); line breaks are removed from request paths before the ACME error log records them, so a crafted path cannot forge log lines. CodeQL no longer scans the deliberately weak cryptography that Wolf Pack's benchmark and the sample scans must find.
 - **Fixed:** `readiness scan` did not warn about an untrusted certificate (a private CA, or a TLS-inspecting proxy) on servers without TLS 1.3, the usual classical case.
