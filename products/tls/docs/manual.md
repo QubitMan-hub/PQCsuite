@@ -193,7 +193,7 @@ Your browser opens, already signed in. The first time, create the certificate au
 
 | Tab | What you do there |
 |---|---|
-| **Certificates** | Issue, download, renew and revoke. A private key reaches the browser only when you choose Download with key, and never for a revoked certificate or an encrypted key. |
+| **Certificates** | Issue, download, renew and revoke. A private key reaches the browser only when you choose With key, and never for a revoked certificate or an encrypted key. |
 | **Edges** | Add a running edge by its metrics address to see its policy and negotiated key exchanges. Test a connection to any host, with a client certificate for mutual TLS. |
 | **Health** | Whether this computer can run Acxelin TLS, and whether the CA, its CRL and its certificates are in good shape. |
 

@@ -5,56 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Acxelin Readiness</title>
 <style>
-/*BRAND*/
-main{max-width:1100px}
-.brandbar small{max-width:34ch;text-align:right}
-h1{font-size:24px}
-.lede{color:var(--mute);margin:0 0 22px;max-width:62ch;font-size:15px}
-.narrow{max-width:560px}
-label{display:block;font-weight:600;margin:18px 0 6px}
-input[type=text],textarea,select{width:100%;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
-textarea{min-height:120px;font-family:var(--mono);font-size:13px}
-input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
-.btn{font:600 14px/1 var(--sans);padding:11px 18px;border-radius:8px;border:1px solid transparent;background:var(--accent);color:#2e3c4e;cursor:pointer}
-.btn:hover{filter:brightness(.96)}
-.btn.quiet{background:transparent;color:var(--ink);border-color:var(--line)}
-.btn.quiet:hover{border-color:var(--ink)}
-.btn[disabled]{opacity:.55;cursor:default}
-.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 26px}
-.tabs button{font:500 15px var(--sans);background:none;border:0;border-bottom:2px solid transparent;padding:10px 16px;margin-bottom:-1px;color:var(--mute);cursor:pointer}
-.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
-.split{display:grid;grid-template-columns:230px 1fr;gap:36px}
-@media (max-width:780px){.split{grid-template-columns:1fr;gap:24px}}
-.list{list-style:none;margin:0 0 18px;padding:0}
-.list button{display:block;width:100%;text-align:left;font:inherit;background:none;border:0;border-radius:6px;padding:8px 10px;color:var(--ink);cursor:pointer}
-.list button:hover{background:var(--sunken)}
-.list button[aria-current=true]{background:var(--sunken);font-weight:600}
-h2{margin:0 0 4px}
-.sectionhead{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between;margin-bottom:6px}
-.state{color:var(--mute);min-height:1.55em;margin:8px 0 18px}
-.counts{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 6px}
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th{text-align:left;font-weight:500;color:var(--mute);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
-td.num{font-variant-numeric:tabular-nums}
-details.track{background:none;border:0;padding:0;margin:0}
-details.track summary{color:var(--accent-text);font-size:13px}
-.track form{display:grid;gap:8px;margin-top:8px;max-width:300px}
-.track label{margin:0;font-weight:500;font-size:13px}
-.msg{min-height:1.55em;color:var(--bad);margin:0 0 14px}
-.empty{padding:28px 0;color:var(--mute);max-width:60ch}
-.legend{color:var(--mute);font-size:13px;margin:10px 0 0;max-width:80ch}
-.changed{margin:22px 0 0}
-.changed li{margin:4px 0}
-code.cmd{background:var(--sunken);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
-.logo{width:150px}
+/*SHELL*/
+.split{grid-template-columns:minmax(0,230px) minmax(0,1fr)}
+@media (max-width:780px){.split{grid-template-columns:minmax(0,1fr)}}
+td.asset{font-family:var(--mono);font-size:13px}
+details.track summary{white-space:nowrap;list-style:none}details.track summary::-webkit-details-marker{display:none}
+details.track summary{text-decoration:underline;text-decoration-color:var(--rule-strong);text-underline-offset:3px}
 </style>
 </head>
 <body>
 <main>
-<header class="brandbar"><div class="logo"><!--LOGO--></div><small>Local console. Only this computer can open it.</small></header>
+<header class="brandbar"><div class="logo"><!--LOGO--></div><span class="product">Acxelin Readiness</span><small>Local console. Only this computer can open it.</small></header>
 <p class="msg" id="msg" role="alert"></p>
 <div id="app" aria-live="polite"><p class="lede">Opening the console…</p></div>
 </main>
@@ -71,7 +32,7 @@ const h = (tag, props = {}, ...kids) => {
 };
 const say = (text) => { $("#msg").textContent = text || ""; };
 const state = {tab: "projects", status: null, projects: null, endpoints: null, selected: 0, timer: null, targets: ""};
-const when = (t) => t ? new Date(t * 1000).toLocaleString() : "never";
+const when = (t) => t ? new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" : "never";
 const call = async (path, body) => { try { say(""); return await acx.api(path, body); } catch (e) { say(e.status === 401 ? "This session has ended. Run the console command again to open a new one." : e.message); throw e; } };
 
 function signedOut() {
@@ -118,7 +79,7 @@ function results(p) {
   const pri = last.summary.priorities || {};
   const counts = h("div", {class: "counts"}, ["critical", "high", "medium", "low", "ok"].filter((k) => pri[k]).map((k) => h("span", {}, tier(k), " ", String(pri[k]))));
   const assets = last.assets.filter((a) => !a.test_only);
-  const rows = assets.map((a) => h("tr", {}, h("td", {}, a.name), h("td", {}, tier(a.tier)), h("td", {}, a.action || a.why || ""), h("td", {class: "num"}, String(a.locations.length)), h("td", {}, trackForm(a))));
+  const rows = assets.map((a) => h("tr", {}, h("td", {class: "asset"}, a.name), h("td", {}, tier(a.tier)), h("td", {}, a.action || a.why || ""), h("td", {class: "num"}, String(a.locations.length)), h("td", {}, trackForm(a))));
   out.replaceChildren(h("p", {class: "state"}, "Scanned " + when(last.finished) + ". " + last.summary.crypto_assets + " cryptographic assets found."), counts,
     assets.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Table, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Asset", "Priority", "What to do", "Places", "Owner"].map((c) => h("th", {}, c)))), h("tbody", {}, rows))) : h("p", {class: "empty"}, "No cryptography was found in this repository."),
     last.notes && last.notes.length ? h("p", {class: "legend"}, last.notes.join(" ")) : "");
@@ -162,7 +123,7 @@ function pollProject() { clearInterval(state.timer); state.timer = setInterval(a
 // ---- endpoints
 
 const GRADES = {A: "post-quantum key exchange only", B: "post-quantum offered, classical still accepted", C: "classical only: traffic recorded today can be decrypted later", F: "unreachable, or no TLS at all"};
-const GRADE_TONE = {A: "ok", B: "warn", C: "bad", F: "mute"};
+const GRADE_TONE = {A: "ok", B: "exposed", C: "bad", F: "mute"};
 function endpointResults(e) {
   const out = $("#ep-result");
   if (!out) return;
@@ -182,7 +143,7 @@ function endpointResults(e) {
 function proxyNote(rows) {
   const issuers = rows.map((r) => r.certificate && r.certificate.issuer).filter(Boolean);
   if (issuers.length < 2 || new Set(issuers).size !== 1 || new Set(rows.map((r) => r.target.split(":")[0])).size < 2) return "";
-  return h("p", {class: "legend", style: "color:var(--warn)"}, "Every endpoint presented a certificate from the same issuer. That usually means a TLS-inspecting proxy answered for all of them, so these grades describe the proxy, not the servers. Check from a network without inspection.");
+  return h("p", {class: "legend", style: "color:var(--ink)"}, "Every endpoint presented a certificate from the same issuer. That usually means a TLS-inspecting proxy answered for all of them, so these grades describe the proxy, not the servers. Check from a network without inspection.");
 }
 async function exportCbom() {
   try {

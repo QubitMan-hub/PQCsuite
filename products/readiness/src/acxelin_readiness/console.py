@@ -10,9 +10,10 @@ import time
 from pathlib import Path
 
 from acxelin_core import console as core
+from acxelin_core import shell
 from acxelin_core.files import write
 
-from . import brand, cbom, endpoints, pipeline, workspace
+from . import cbom, endpoints, pipeline, workspace
 
 MAX_TARGETS = 500
 
@@ -220,10 +221,7 @@ class Readiness:
 
 
 def page():
-    html = (Path(__file__).parent / "console.html").read_text(encoding="utf-8")
-    font, logo = brand._assets()
-    css = brand.CSS + '@font-face{font-family:"Host Grotesk";src:url(data:font/woff2;base64,' + font + ') format("woff2");font-weight:300 700;font-display:swap}'
-    return html.replace("/*BRAND*/", css).replace("<!--LOGO-->", logo).encode()
+    return shell.render((Path(__file__).parent / "console.html").read_text(encoding="utf-8"))
 
 
 def build(home):

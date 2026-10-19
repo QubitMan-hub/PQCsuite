@@ -6,56 +6,15 @@
 <title>Acxelin VPN</title>
 <style>
 /*SHELL*/
-main{max-width:1100px}
-.brandbar small{max-width:34ch;text-align:right}
-h1{font-size:24px}
-.lede{color:var(--mute);margin:0 0 22px;max-width:62ch;font-size:15px}
-.narrow{max-width:560px}
-label{display:block;font-weight:600;margin:18px 0 6px}
-input[type=text],input[type=password],textarea,select{width:100%;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
-textarea{min-height:70px}
-input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
-.btn{font:600 14px/1 var(--sans);padding:11px 18px;border-radius:8px;border:1px solid transparent;background:var(--accent);color:#2e3c4e;cursor:pointer}
-.btn:hover{filter:brightness(.96)}
-.btn.quiet{background:transparent;color:var(--ink);border-color:var(--line)}
-.btn.quiet:hover{border-color:var(--ink)}
-.btn.small{padding:7px 12px;font-size:13px}
-.btn.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
-.btn[disabled]{opacity:.55;cursor:default}
-.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 26px}
-.tabs button{font:500 15px var(--sans);background:none;border:0;border-bottom:2px solid transparent;padding:10px 16px;margin-bottom:-1px;color:var(--mute);cursor:pointer}
-.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
-.split{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:36px}
-@media (max-width:860px){.split{grid-template-columns:1fr;gap:28px}}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.state{color:var(--mute);min-height:1.55em;margin:8px 0 18px}
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th{text-align:left;font-weight:500;color:var(--mute);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
-.msg{color:var(--bad);margin:0 0 14px}.msg:empty{margin:0}
-.ok-msg{color:var(--ok)}
-.empty{padding:20px 0;color:var(--mute);max-width:60ch}
-.legend{color:var(--mute);font-size:13px;margin:10px 0 0;max-width:80ch}
-code.cmd{background:var(--sunken);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
-.logo{width:150px}
-.facts{display:flex;flex-wrap:wrap;gap:6px 22px;margin:0 0 6px;color:var(--ink-2)}
-.edge{border-top:1px solid var(--line);padding:14px 0}
-td.nw{white-space:nowrap}
-.acts{list-style:none;padding:0;margin:8px 0 0}.acts li{padding:6px 0;border-bottom:1px solid var(--line)}
-.edge h3{font:500 16px var(--display);margin:0 0 4px}
-.result{margin-top:16px;padding:12px 14px;background:var(--sunken);border:1px solid var(--line);border-radius:8px}
-dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 18px;margin:0}dl.kv dt{color:var(--mute)}dl.kv dd{margin:0}
-.tunnel{border-top:1px solid var(--line);padding:14px 0}
+.tunnel{border-top:1px solid var(--rule);padding:14px 0}
 .tunnel h3{font:500 16px var(--display);margin:0 0 4px}
-.pill.mute{color:var(--ink)}
-@media (max-width:860px){.split{grid-template-columns:minmax(0,1fr)}.split>:last-child{order:-1}}
+.tunnel dl.kv{grid-template-columns:9.5rem minmax(0,1fr)}.tunnel dl.kv dd{font-family:var(--mono);font-size:13px}
+@media (max-width:860px){.split>:last-child{order:-1}}
 </style>
 </head>
 <body>
 <main>
-<header class="brandbar"><div class="logo"><!--LOGO--></div><small>Local console. Only this computer can open it.</small></header>
+<header class="brandbar"><div class="logo"><!--LOGO--></div><span class="product">Acxelin VPN</span><small>Local console. Only this computer can open it.</small></header>
 <p class="msg" id="msg" role="alert"></p>
 <div id="app" aria-live="polite"><p class="lede">Opening the console…</p></div>
 </main>
@@ -74,7 +33,7 @@ const say = (text) => { $("#msg").textContent = text || ""; };
 const state = {tab: "sites", status: null};
 const call = async (path, body) => { try { say(""); return await acx.api(path, body); } catch (e) { say(e.status === 401 ? "This session has ended. Run the console command again to open a new one." : e.message); throw e; } };
 const day = (t) => t ? t.slice(0, 10) : "";
-const field = (id, label, input, hint) => [h("label", {for: id}, label), input, hint ? h("p", {class: "legend"}, hint) : ""];
+const field = (id, label, input, hint) => [h("label", {for: id}, label), input, hint ? h("p", {class: "legend"}, ...acxText(hint)) : ""];
 
 function signedOut() {
   $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "This link has expired"),
@@ -106,7 +65,7 @@ function shell() {
 }
 
 const ago = (s) => s == null ? "never" : s < 90 ? s + " s ago" : s < 5400 ? Math.round(s / 60) + " min ago" : Math.round(s / 3600) + " h ago";
-const when = (t) => t ? new Date(t * 1000).toLocaleString() : "";
+const when = (t) => t ? new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" : "";
 const pill = (tone, text) => h("span", {class: "pill " + tone}, text);
 const kv = (pairs) => h("dl", {class: "kv"}, pairs.filter(([, v]) => v != null && v !== "").flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, v)]));
 
@@ -114,7 +73,7 @@ function serviceForm(kind, label, hint, after) {
   const name = h("input", {type: "text", id: kind + "-name", autocomplete: "off", placeholder: kind === "site" ? "Headquarters" : "Remote access"});
   const url = h("input", {type: "text", id: kind + "-url", autocomplete: "off", placeholder: "http://127.0.0.1:9101"});
   const add = async () => { try { await call("services/add", {kind, name: name.value, url: url.value}); name.value = url.value = ""; await after(); } catch (e) {} };
-  return h("div", {}, h("h2", {}, label), h("p", {class: "lede"}, hint), ...field(kind + "-name", "Name", name), ...field(kind + "-url", "Status address", url),
+  return h("div", {}, h("h2", {}, label), h("p", {class: "lede"}, ...acxText(hint)), ...field(kind + "-name", "Name", name), ...field(kind + "-url", "Status address", url),
     h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn", onclick: add}, label)));
 }
 const removeButton = (name, after) => h("button", {class: "btn quiet small", "aria-label": "Remove " + name, onclick: async () => { try { await call("services/remove", {name}); await after(); } catch (e) {} }}, "Remove");
@@ -122,9 +81,9 @@ const removeButton = (name, after) => h("button", {class: "btn quiet small", "ar
 // ---- sites
 
 async function sitesView() {
-  $("#panel").replaceChildren(h("div", {class: "split"},
-    serviceForm("site", "Add a site", "The status address of a gateway running acxelin-vpn up with metrics = \"HOST:PORT\" in its [site].", paintSites),
-    h("div", {}, h("h1", {}, "Sites"), h("div", {id: "site-list"}))));
+  $("#panel").replaceChildren(h("h1", {}, "Sites"), h("div", {class: "split"},
+    serviceForm("site", "Add a site", "The status address of a gateway running `acxelin-vpn up` with `metrics = \"HOST:PORT\"` in its `[site]`.", paintSites),
+    h("div", {id: "site-list"})));
   await paintSites();
 }
 async function paintSites() {
@@ -156,15 +115,15 @@ async function peopleView() {
     try { const f = await acx.download("people/invite", {name: who.value, hours: Number(hours.value)}); say(""); $("#invited").replaceChildren(h("p", {class: "ok-msg"}, "Downloaded " + f + ". Send it to " + who.value + " through a channel you trust; it works once.")); who.value = ""; await paintPeople(); }
     catch (e) { say(e.status === 401 ? "This session has ended. Run the console command again to open a new one." : e.message); }
   };
-  $("#panel").replaceChildren(h("div", {class: "split"},
+  $("#panel").replaceChildren(h("h1", {}, "People"), h("div", {class: "split"},
     h("div", {}, h("form", {onsubmit: invite}, h("h2", {}, "Invite someone"), ...field("who", "Their name", who, "The name on their certificate. If the gateway lists users, add it there too."),
         ...field("hours", "Valid for (hours)", hours), h("div", {class: "row", style: "margin-top:14px"}, h("button", {class: "btn", type: "submit"}, "Download invitation")), h("div", {id: "invited", "aria-live": "polite"})),
       h("details", {style: "margin-top:24px", open: !(s.enroll && s.gateway)}, h("summary", {}, "Where invitations point"),
-        ...field("enroll", "Enrollment service", enroll, "Where acxelin-vpn ca serve runs."), ...field("gateway", "Gateway key agreement address", gateway),
+        ...field("enroll", "Enrollment service", enroll, "Where `acxelin-vpn ca serve` runs."), ...field("gateway", "Gateway key agreement address", gateway),
         ...field("server-name", "Gateway certificate name (if different from its host)", sname),
         h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn quiet", onclick: save}, "Save"), h("span", {id: "saved", class: "ok-msg"}))),
-      h("div", {style: "margin-top:24px"}, serviceForm("gateway", "Add a gateway", "The status address of acxelin-vpn gateway with metrics = \"HOST:PORT\" in its [wireguard].", paintPeople))),
-    h("div", {}, h("h1", {}, "People"), h("div", {id: "people-list"}))));
+      h("div", {style: "margin-top:24px"}, serviceForm("gateway", "Add a gateway", "The status address of `acxelin-vpn gateway` with `metrics = \"HOST:PORT\"` in its `[wireguard]`.", paintPeople))),
+    h("div", {id: "people-list"})));
   await paintPeople();
 }
 const ACTIONS = {invite: "Invited", revoke: "Revoked"};
@@ -174,10 +133,10 @@ async function paintPeople() {
   let d; try { d = await call("people"); } catch (e) { return; }
   const rows = d.people.map((p) => h("tr", {}, h("td", {}, p.name),
     h("td", {}, p.connected ? pill("ok", "Connected") : p.agreed ? pill("warn", "Keys agreed, no handshake") : pill("mute", "Not connected")),
-    h("td", {class: "nw"}, p.connected ? when(p.since) : ""), h("td", {}, p.address || ""),
+    h("td", {class: "num"}, p.connected ? when(p.since) : ""), h("td", {}, p.address || ""),
     h("td", {}, p.certificate === "valid" ? pill("ok", "Valid") : p.certificate === "revoked" ? pill("bad", "Revoked") : pill("mute", "Unknown")),
     h("td", {}, p.certificate === "valid" ? revokeButton(p) : "")));
-  out.replaceChildren(d.gateways.length ? "" : h("p", {class: "empty"}, "Add a gateway to see who is connected."),
+  out.replaceChildren(d.gateways.length ? "" : h("p", {class: "legend", style: "margin:0 0 12px"}, "Who is connected now shows once you add a gateway."),
     d.people.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "People, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Person", "Now", "Since", "Address", "Certificate", "Action"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
       : h("p", {class: "empty"}, "Nobody yet. Invite someone on the left."),
     h("h2", {style: "margin-top:26px"}, "Recent activity"),
@@ -185,10 +144,10 @@ async function paintPeople() {
       : h("p", {class: "empty"}, "Nothing yet."));
 }
 function revokeButton(p) {
-  const b = h("button", {class: "btn danger small", "aria-label": "Revoke " + p.name}, "Revoke");
+  const b = h("button", {class: "btn quiet small", "aria-label": "Revoke " + p.name}, "Revoke");
   let armed = false, timer;
   b.addEventListener("click", async () => {
-    const set = (text) => { b.textContent = text; b.setAttribute("aria-label", text + " " + p.name); };
+    const set = (text) => { b.textContent = text; b.setAttribute("aria-label", text + " " + p.name); b.className = "btn small " + (armed ? "danger" : "quiet"); };
     if (!armed) { armed = true; set("Confirm revoke"); timer = setTimeout(() => { armed = false; set("Revoke"); }, 6000); return; }
     clearTimeout(timer);
     try { await call("people/revoke", {name: p.name}); say(""); await paintPeople(); watchEnd(p.name); } catch (e) { armed = false; set("Revoke"); }
@@ -207,8 +166,9 @@ async function healthView() {
   const run = async () => {
     let d; try { d = await call("health"); } catch (e) { return; }
     const tone = {ok: "ok", warn: "warn", fail: "bad"}, label = {ok: "OK", warn: "Warning", fail: "Problem"};
-    out.replaceChildren(h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Checks, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Result", "Check", "What to do"].map((c) => h("th", {}, c)))),
-      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {}, pill(tone[c.level], label[c.level])), h("td", {}, c.message), h("td", {}, c.action || "")))))));
+    const acts = d.checks.some((c) => c.action);
+    out.replaceChildren(h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Checks, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Result", "Check", ...(acts ? ["What to do"] : [])].map((c) => h("th", {}, c)))),
+      h("tbody", {}, d.checks.map((c) => h("tr", {}, h("td", {}, pill(tone[c.level], label[c.level])), h("td", {}, ...acxText(c.message)), acts ? h("td", {}, ...acxText(c.action)) : ""))))));
   };
   $("#panel").replaceChildren(h("h1", {}, "Health"), h("p", {class: "lede"}, "Whether this computer can run Acxelin VPN, whether the certificate authority is in good shape, and whether every site and gateway answers."),
     h("div", {class: "row", style: "margin-bottom:18px"}, h("button", {class: "btn quiet", id: "recheck", onclick: run}, "Check again")), out);

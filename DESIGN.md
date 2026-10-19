@@ -176,6 +176,28 @@ Small, quiet radii: 4px for chips, inline code and Copy buttons, 6px for buttons
 ### Navigation
 - Product name in ink and 600 weight, then that product's pages in muted text. The current page sits on the selection slate. On phones the strip scrolls sideways under the logo.
 
+## Consoles
+
+The TLS, Readiness and VPN administrator consoles and the VPN app window use the same tokens, fonts and verdict law. The shared rules live in `core/src/acxelin_core/assets/shell.css`; each product's page adds only its own layout. Consoles are tools, so they run denser than the website and controls stay standard.
+
+### Console type ramp
+- **Page title** (500, 24px), **section** (500, 18px), **item** (600, 15px).
+- **Body** 14.5px/1.55; **labels** 13.5px in ink at 600; **lede** 15px muted.
+- **Data** 13px mono: table cells holding names, serials, dates and algorithms; facts rows; textareas.
+- **Small** 12 to 12.5px: table headers, pills, the brandbar hint. Nothing below 12px.
+
+### Console components
+- **Brandbar:** the logo, a hairline, the product name in ink at 600, and where the console can be opened in muted text on the right.
+- **Tabs:** muted labels on a hairline; the current tab is ink with a 2px ink underline.
+- **Buttons:** 40px tall (30px for `.small` buttons in table rows). Primary is ink; `.quiet` is the secondary; `.danger` (red outline) appears only on the second, confirming click of a revoke.
+- **Tables:** inside a pane with an 8px radius; the header sits on the sunken band; rows take a faint selection slate on hover.
+- **Pills:** 4px radius. Green for ok, red for refused or critical, the amber hatch with a hairline for quantum-exposed (`high`, grade B); `medium` (a classical fallback beside a hybrid) is an amber outline without the hatch. An operational warning that is not about quantum exposure is an ink outline. Everything else is neutral.
+- **Tables on phones:** below 560px each row stacks, its first cell as the title and the rest under their column names.
+- **Times:** `YYYY-MM-DD HH:MM UTC`; dates alone as `YYYY-MM-DD`.
+- **Commands in messages:** text between backticks shows as code.
+- **Errors:** a message on the red ground, in words that say what to do.
+- **App window:** one status ring coloured by the verdict, the product label, ink buttons, and the device facts in mono. No glows or gradients.
+
 ## Do's and Don'ts
 
 ### Do:
