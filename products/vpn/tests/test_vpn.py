@@ -407,7 +407,7 @@ class KeyAgreementFailureTest(unittest.TestCase):
         ctl.start()
         self.assertEqual(list(ctl.charon.load_conn.call_args.args[0]), ["branch.acme"])
         ctl.charon.tunnels.return_value = []
-        self.assertEqual(ctl.status()["branch.acme"], {"initiate": False, "profile": "standard", "keys_age_s": None, "tunnel": None})
+        self.assertEqual(ctl.status()["branch.acme"], {"initiate": False, "profile": "standard", "keys_age_s": None, "certificate": None, "tunnel": None})
         ctl.shutdown()
         self.assertTrue(ctl.stop.is_set())
         ctl.crl_follow.set.assert_called_once()

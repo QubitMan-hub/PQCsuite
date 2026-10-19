@@ -10,7 +10,7 @@ from pathlib import Path
 from acxelin_core import tls
 from acxelin_core.cli import JSONFormatter, ask, explain_options, positive, run_until_signal
 from acxelin_core.config import env_passphrase
-from acxelin_core.http import JSON, METRICS, ConfigWatch, explain, hostport, restart, serve_http
+from acxelin_core.http import JSON, METRICS, ConfigWatch, explain, restart, serve_http
 from acxelin_core.pki import CA, CAError, encrypted
 
 from . import NAME, __version__, ca_commands, checks
@@ -77,21 +77,15 @@ def laptop_status(path, a):
 
 
 def cmd_invite(a):
-    import datetime as dt
-    from cryptography.x509 import load_pem_x509_certificate
-    from acxelin_core.pki.est import create_token, fingerprint
-    hostport(a.gateway)
+    from acxelin_core.files import write
+    from . import join
     if not a.enroll.startswith("https://"):
         raise ValueError("--enroll must be the https:// address of `acxelin-vpn ca serve`")
-    ca = CA(a.dir)
-    token = create_token(ca, a.name, "client", hours=a.hours)
-    expires = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=a.hours)).replace(microsecond=0).isoformat()
     out = Path(a.out or f"{a.name}.acxinvite")
     if out.exists():
         raise ValueError(f"{out} already exists; choose another --out")
-    from acxelin_core.files import write
-    write(out, json.dumps({"acxelin_invite": 1, "name": a.name, "enroll": a.enroll, "ca_fingerprint": fingerprint(load_pem_x509_certificate(ca.anchor.read_bytes())),
-                           "gateway": a.gateway, "server_name": a.server_name, "expires": expires, "token": token}, indent=1).encode(), secret=True)
+    data, expires = join.make(CA(a.dir), a.name, a.enroll, a.gateway, a.server_name, a.hours)
+    write(out, data, secret=True)
     print(f"wrote {out}: it lets {a.name} enroll once before {expires} and then connect to {a.gateway}.\n"
           f"Send it through a channel you trust (it holds a one-time token and the CA fingerprint the device will trust).\n"
           f"On the device, in an administrator terminal: acxelin-vpn join {out.name}")
@@ -381,6 +375,8 @@ def parser():
         if name != "doctor":
             c.set_defaults(func=cmd_vpn)
     ca_commands.add(v, common)
+    from . import console
+    console.add(v)
     for sub in (v, next(a for a in v.choices["ca"]._actions if a.dest == "ca_cmd")):
         for a in sub._choices_actions:  # each command's own --help starts with what it does
             sub.choices[a.dest].description = sub.choices[a.dest].description or a.help

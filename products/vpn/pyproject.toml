@@ -22,7 +22,7 @@ test = ["coverage>=7.6", "pytest>=9"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"acxelin_vpn" = ["app.html"]
+"acxelin_vpn" = ["app.html", "console.html"]
 
 [project.scripts]
 acxelin-vpn = "acxelin_vpn.cli:main"

@@ -215,7 +215,9 @@ class Gateway:
             if old and old["public"] != pub:
                 self.wg.remove_peer(old["public"])
                 self.counts["replaced_devices"] += 1
-            self.clients[cn] = {"public": pub, "serial": cert.serial_number, "agreed": time.time(), "address": ip, "tag": tag}
+            now = time.time()
+            self.clients[cn] = {"public": pub, "serial": cert.serial_number, "agreed": now, "address": ip, "tag": tag,
+                                "since": old["since"] if old and old["public"] == pub else now}
         self.counts["key_agreements"] += 1
         log.info("%s: %s at %s, new PSK %s", cn, "rotated" if old else "connected", ip, tag)
         routes = FULL if self.cfg.full_tunnel else [str(self.cfg.network)] + self.cfg.routes
@@ -300,7 +302,8 @@ class Gateway:
 
     def status(self):
         peers = self.wg.peers()
-        return {cn: {"address": c["address"], "keys_age_s": int(time.time() - c["agreed"]), **peers.get(c["public"], {})}
+        return {cn: {"address": c["address"], "keys_age_s": int(time.time() - c["agreed"]), "since": int(c["since"]),
+                     "certificate": format(c["serial"], "x"), **peers.get(c["public"], {})}
                 for cn, c in self.clients.items()} | {"_events": dict(self.counts)}
 
     def metrics(self):

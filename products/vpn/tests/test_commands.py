@@ -30,7 +30,7 @@ def commands():
 def test_every_command_has_help():
     found = list(commands())
     expected = {"doctor", "up", "status", "check", "invite", "join", "app", "desktop", "gateway", "connect", "install", "disconnect",
-                "uninstall"} | {f"ca {c}" for c in ("init", "issue", "revoke", "crl", "maintain", "list", "serve")}
+                "uninstall", "console"} | {f"ca {c}" for c in ("init", "issue", "revoke", "crl", "maintain", "list", "serve")}
     assert {" ".join(c) for c in found} == expected
     for c in found:
         code, text = run(*c, "--help")

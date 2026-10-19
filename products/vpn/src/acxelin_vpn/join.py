@@ -68,6 +68,21 @@ def must_enroll(inv, device):
     return True
 
 
+def make(ca, name, enroll, gateway, server_name=None, hours=24):
+    """An invitation for `name`: where to enroll, the CA fingerprint to pin, the gateway, and a one-time enrollment token.
+    Returns the file's bytes and when it expires; the token is in the bytes only, so treat them as a secret."""
+    from cryptography.x509 import load_pem_x509_certificate
+    from acxelin_core.pki.est import create_token, fingerprint
+    hostport(gateway)
+    if not isinstance(enroll, str) or not enroll.startswith("https://"):
+        raise ValueError("the enrollment service must be the https:// address of `acxelin-vpn ca serve`")
+    token = create_token(ca, name, "client", hours=hours)
+    expires = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=hours)).replace(microsecond=0).isoformat()
+    inv = {"acxelin_invite": 1, "name": name, "enroll": enroll, "ca_fingerprint": fingerprint(load_pem_x509_certificate(ca.anchor.read_bytes())),
+           "gateway": gateway, "server_name": server_name, "expires": expires, "token": token}
+    return json.dumps(inv, indent=1).encode(), expires
+
+
 def enroll(inv, device, invitation, passphrase):
     """Pin the CA by the invitation's fingerprint, enroll with its one-time token, then remove the used token from the file."""
     from acxelin_core.pki import est

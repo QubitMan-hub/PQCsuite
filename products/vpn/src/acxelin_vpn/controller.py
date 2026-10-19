@@ -209,7 +209,8 @@ class Controller:
     def status(self):
         tunnels = {t["peer"]: t for t in self.charon.tunnels()}
         return {p.name: {"initiate": p.initiate, "profile": p.profile, "keys_age_s": int(time.time() - self.last_agreed[p.name])
-                         if p.name in self.last_agreed else None, "tunnel": tunnels.get(p.name)} for p in self.site.peers} | {
+                         if p.name in self.last_agreed else None, "certificate": format(self.serials[p.name], "x") if p.name in self.serials else None,
+                         "tunnel": tunnels.get(p.name)} for p in self.site.peers} | {
             "_events": dict(self.counts)}
 
     def metrics(self):
