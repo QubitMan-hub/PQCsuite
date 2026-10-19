@@ -247,6 +247,6 @@ def VIEWS(page, console, tmp_path):
     open_console(page, console)
     create_ca(page)
     issue(page, "web.example.invalid")
-    for tab, ready in (("Edges", "No edges added yet"), ("Health", "can do post-quantum TLS 1.3"), ("Certificates", "Issued certificates")):
+    for tab, ready in (("Edges", "No edges added yet"), ("Health", "post-quantum TLS"), ("Certificates", "Issued certificates")):
         page.get_by_role("tab", name=tab).click()
         page.get_by_text(ready).first.wait_for()

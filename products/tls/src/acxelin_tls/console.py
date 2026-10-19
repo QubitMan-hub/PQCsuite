@@ -366,9 +366,10 @@ class TLSConsole:
     @staticmethod
     def _accepted(conn):
         """In TLS 1.3 the server checks a client certificate after the client's side of the handshake is done, so a refusal
-        arrives on the first read: an alert, or the connection closing. Silence means the server is waiting for a request."""
+        arrives on the first read: an alert, or the connection closing. Silence means the server is waiting for a request.
+        An edge only dials its service after the handshake, and Windows takes about two seconds to report a refused connect."""
         try:
-            data = conn.recv(timeout=0.8)
+            data = conn.recv(timeout=3.0)
         except tls.TLSError as e:
             return None if "timed out" in str(e) else str(e)
         if data == b"":
