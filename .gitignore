@@ -4,7 +4,7 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
-/build/
+build/
 /dist/
 .pytest_cache/
 .ruff_cache/
@@ -49,4 +49,3 @@ Thumbs.db
 # archify receipts (local paths; regenerate with finalize)
 site/architecture/*.json
 console-audit.jsonl
-build
