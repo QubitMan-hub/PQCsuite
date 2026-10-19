@@ -11,7 +11,7 @@ Design and stage reports: `docs/superpowers/specs/` and `docs/superpowers/plans/
   console access contract and shell, the OpenSSL 3.5 binding, TLS contexts, CA, CRLs, signers (KMS, signing command), EST.
   No product names, policies or commands.
 - `products/readiness/` (acxelin-readiness): Readiness + CBOM: scan, grade, report, merge, doctor, console.
-- `products/tls/` (acxelin-tls): TLS/mTLS edge, the CA commands, ACME, console, Docker, Helm, systemd.
+- `products/tls/` (acxelin-tls): TLS/mTLS edge, the CA commands, ACME, console, Docker, systemd.
 - `website/`: the shared home page and one section per product (`tools/build_site.py`); demo content is real product output.
 - `pqcsuite/`, `tests/`, `examples/`, `deploy/`, `docker/`, `packaging/`, `docs/`: VPN and Vault until Stage 3 (VPN) and
   Stage 4 (Vault) move them to `products/vpn` and `products/vault`; Stage 6 then deletes these folders.

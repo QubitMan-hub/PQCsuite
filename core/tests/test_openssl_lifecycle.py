@@ -177,7 +177,7 @@ def test_signer_bio_allocation_failure_never_reaches_the_parser(operation):
 
 @pytest.mark.skipif(bool(REASON), reason=REASON or '')
 def test_chain_loads_without_a_writable_temporary_directory_and_still_leaves_out_the_root(tmp_path):
-    """A read-only root filesystem (Kubernetes readOnlyRootFilesystem) has no temporary directory; the chain is built in memory."""
+    """A read-only root filesystem (docker run --read-only) has no temporary directory; the chain is built in memory."""
     import ctypes
     import tempfile
     from acxelin_core.pki import CA

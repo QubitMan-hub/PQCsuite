@@ -18,5 +18,5 @@ USER acxelin
 WORKDIR /srv
 EXPOSE 8443 9100
 ENTRYPOINT ["acxelin-tls"]
-# With no arguments, the one-minute tour; deployments name their command (edge --config ..., as the Helm chart does).
+# With no arguments, the one-minute tour; deployments name their command (edge --config ...).
 CMD ["try"]

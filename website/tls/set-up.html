@@ -1,5 +1,5 @@
 <!-- title: Set up Acxelin TLS -->
-<!-- description: Install Acxelin TLS, run the tour, create a certificate authority, put an edge in front of a service, and open the console locally, over SSH, in Docker or in Kubernetes. -->
+<!-- description: Install Acxelin TLS, run the tour, create a certificate authority, put an edge in front of a service, and open the console locally, over SSH or in Docker. -->
 <section>
 <h1>Set up Acxelin TLS</h1>
 <p class="lead">It needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. You do not need another Acxelin product.</p>
@@ -30,10 +30,8 @@ acxelin-tls console link --port 8900</code></pre>
 <h3>In Docker</h3>
 <pre><code>docker build -f products/tls/deploy/Dockerfile -t acxelin-tls .
 docker run -v acxelin-tls:/data -p 127.0.0.1:8900:8900 acxelin-tls console --container
-docker exec -it NAME acxelin-tls console link</code></pre>
-<h3>In Kubernetes</h3>
-<p>The chart does not expose the console. Forward its port, then run <code>console link</code> through <code>kubectl exec</code>. The chart's notes print both commands.</p></li>
+docker exec -it NAME acxelin-tls console link</code></pre></li>
 <li><h2>Keep it running</h2>
-<p>Run <code>acxelin-tls ca maintain --dir pki</code> every day. The systemd units, the Helm chart and the sidecar example are in <code>products/tls/deploy</code>.</p></li>
+<p>Run <code>acxelin-tls ca maintain --dir pki</code> every day. The Dockerfile and the systemd units are in <code>products/tls/deploy</code>.</p></li>
 </ol>
 </section>

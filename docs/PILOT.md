@@ -24,25 +24,7 @@ sudo systemctl status strongswan-pqc             # the VPN units are installed
 
 Pass: all three succeed. Record the cloud, region, image ID and date.
 
-## 2. Managed Kubernetes (EKS, AKS or GKE; about an hour)
-
-On a small cluster, with `kubectl` pointed at it:
-
-```
-helm install pqc deploy/helm/pqcsuite --wait --timeout 5m
-kubectl exec pqc-ca-0 -c maintain -- pqcsuite doctor --ca /data/pki      # no FAIL; the CA key is encrypted
-kubectl exec pqc-ca-0 -c acme -- sh -c 'test ! -e /data/root && echo "no root in ACME"'
-```
-
-Then follow the "Issue an edge certificate" and "Post-quantum request through the edge" steps of the `kubernetes` job in
-`.github/workflows/ci.yml`: they issue a certificate, put the edge in front of a web app and send a post-quantum request
-through it (`deploy/k8s/smoke.py`). With a LoadBalancer in front of the edge (`--set edge.service.type=LoadBalancer`), also
-run from a laptop: `docker run --rm ghcr.io/qubitman-hub/pqcsuite readiness scan <the load balancer's address>:8443`; it
-should grade A.
-
-Pass: the smoke request prints `X25519MLKEM768` and an ML-DSA peer key. Record the provider, Kubernetes version and date.
-
-## 3. Production hardware
+## 2. Production hardware
 
 On the machine that will run the edge (Linux, OpenSSL 3.5+):
 
@@ -54,7 +36,7 @@ python scripts/soak.py --minutes 1440 --out soak.json           # 24 hours: memo
 For more connections a second, run the edge with `--workers N` (one per core) and point the load at it. Pass: the soak exits
 0. Record the CPU, the connections per second and the soak length.
 
-## 4. Independent security review
+## 3. Independent security review
 
 Give the reviewer [SECURITY-REVIEW.md](SECURITY-REVIEW.md) (assets, trust boundaries, what to test) and
 [THREAT-MODEL.md](THREAT-MODEL.md). The parts no library covers are the VPN key agreement (`pqcsuite/vpn/controller.py`,

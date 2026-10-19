@@ -39,6 +39,6 @@ This is the brief for an outside reviewer. It says what the suite protects, wher
 
 ## Building a test setup
 
-CI (`.github/workflows/ci.yml`) is the reference: it builds OpenSSL 3.5 and strongSwan 6.1, runs the unit tests and a Vault restore into PostgreSQL, and runs two IPsec sites and a WireGuard gateway in network namespaces with real traffic. `examples/vpn_demo.py` walks through the VPN end to end. The TLS product's workflow (`acxelin-tls.yml`) puts nginx, PostgreSQL, Redis and MQTT behind the edge and installs its Helm chart in a kind cluster.
+CI (`.github/workflows/ci.yml`) is the reference: it builds OpenSSL 3.5 and strongSwan 6.1, runs the unit tests and a Vault restore into PostgreSQL, and runs two IPsec sites and a WireGuard gateway in network namespaces with real traffic. `examples/vpn_demo.py` walks through the VPN end to end. The TLS product's workflow (`acxelin-tls.yml`) puts nginx, PostgreSQL, Redis and MQTT behind the edge, and checks its Docker image.
 
 Findings: email info@acxelinquantum.com with "security" in the subject (see SECURITY.md).

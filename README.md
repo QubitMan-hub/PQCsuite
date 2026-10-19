@@ -19,7 +19,7 @@ steps, the console and the manual. The website is https://qubitman-hub.github.io
 core/                 acxelin-core: shared mechanisms only (config, safe files, OpenSSL 3.5 binding, TLS contexts, CA, CRLs,
                       signers, EST, the console shell); no product names or policies
 products/readiness/   Acxelin Readiness + CBOM: src, tests, docs, examples, deploy (Docker), action.yml, installers
-products/tls/         Acxelin TLS/mTLS + CA: src, tests, docs, examples, deploy (Docker, Helm, systemd), installers
+products/tls/         Acxelin TLS/mTLS + CA: src, tests, docs, examples, deploy (Docker, systemd), installers
 website/              the shared home page and one section per product, built by tools/build_site.py
 tools/                repository tooling: the site build, release gate, wheelhouse, browser test kit, fixtures
 pqcsuite/ tests/ examples/ deploy/ docker/ packaging/ docs/

@@ -47,7 +47,6 @@
 <h2 id="runs">Where it runs</h2>
 <div class="cols">
 <div><h3>Docker</h3><p>One image with OpenSSL 3.5 included.</p><pre><code>docker build -f products/tls/deploy/Dockerfile -t acxelin-tls .</code></pre></div>
-<div><h3>Kubernetes</h3><p>A Helm chart for the authority, EST, ACME and edges, and a sidecar example for one pod.</p><pre><code>helm lint products/tls/deploy/helm/acxelin-tls</code></pre></div>
 <div><h3>systemd</h3><p>A unit for the edge, and a unit with a daily timer for authority maintenance.</p><pre><code>systemctl enable --now acxelin-tls-edge</code></pre></div>
 </div>
 </section>

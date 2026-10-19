@@ -66,15 +66,12 @@ ssh -L 8900:127.0.0.1:8900 server
 acxelin-tls console link --port 8900    # run in that SSH session; open the address it prints
 ```
 
-In Docker, start the console with `--container` and publish its port to loopback only: `docker run -v acxelin-tls:/data -p 127.0.0.1:8900:8900 acxelin-tls console --container`, then run `docker exec -it NAME acxelin-tls console link`. In Kubernetes, use `kubectl port-forward` and the same `console link` through `kubectl exec`.
+In Docker, start the console with `--container` and publish its port to loopback only: `docker run -v acxelin-tls:/data -p 127.0.0.1:8900:8900 acxelin-tls console --container`, then run `docker exec -it NAME acxelin-tls console link`.
 
 ## Deploy
 
 - **Docker:** `docker build -f products/tls/deploy/Dockerfile -t acxelin-tls .`
-- **Kubernetes:** a Helm chart at `deploy/helm/acxelin-tls` (CA, EST, ACME, CRL publishing and edges) and a sidecar example at `deploy/k8s/sidecar.yaml`.
 - **systemd:** `deploy/systemd/acxelin-tls-edge.service`, and `acxelin-tls-maintain.service` with its timer for the CA.
-
-The Helm templates have not been rendered or linted here, only the plain YAML files parsed. Run `helm lint` before installing.
 
 ## Limits
 

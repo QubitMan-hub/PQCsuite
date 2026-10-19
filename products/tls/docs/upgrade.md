@@ -26,7 +26,7 @@ Acxelin TLS replaces the suite's `tls` and `ca` commands, the TLS edge and the c
 - **Metrics are renamed:** `pqcsuite_connections_active`, `pqcsuite_events_total` and `pqcsuite_group_total` are now `acxelin_tls_*`. Update dashboards and alerts.
 - **Paths:** units and examples now use `/etc/acxelin-tls`, `/var/lib/acxelin-tls` and `/opt/acxelin-tls`, and the service user `acxelin`. Nothing is moved automatically; copy your files and, above all, your CA folder yourself.
 - **Container image:** `ghcr.io/qubitman-hub/acxelin-tls` replaces the suite image. Its entry point is `acxelin-tls`, so commands drop the leading `tls` (`edge --config ...`).
-- **Helm chart:** the chart is `acxelin-tls`. The console is no longer exposed in the cluster, so `ca.console.tokenSecret` is gone. Use `kubectl port-forward` and `acxelin-tls console link` (see the chart's notes).
+- **Helm chart and Kubernetes examples removed:** Acxelin TLS ships as a Docker image, systemd units and the installers. If you ran the suite's chart, run the same image with Docker, or keep your copy of the old chart.
 - **Console sign-in:** the long-lived `PQCSUITE_CONSOLE_TOKEN` is gone. The console opens with a one-time link.
 - **Removed:** `--check-updates` and the GitHub release check; products no longer contact GitHub.
 
