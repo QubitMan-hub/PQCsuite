@@ -13,6 +13,8 @@ GROUPS = {
 }
 HRR = hashlib.sha256(b"HelloRetryRequest").digest()
 SUITES = [0x1301, 0x1302, 0x1303, 0xC02B, 0xC02F, 0xC02C, 0xC030, 0xCCA9, 0xCCA8, 0x009C, 0x002F]
+LEGACY = {0x0301: "TLS 1.0", 0x0302: "TLS 1.1"}
+LEGACY_SUITES = [0xC014, 0xC013, 0xC00A, 0xC009, 0x0035, 0x002F, 0x000A]
 SIGALGS = [0x0403, 0x0503, 0x0603, 0x0804, 0x0805, 0x0806, 0x0401, 0x0501, 0x0601, 0x0807, 0x0808, 0x0904, 0x0905, 0x0906, 0x0201, 0x0203]
 
 
@@ -24,7 +26,8 @@ def _ext(t, body):
     return _u16(t) + _u16(len(body)) + body
 
 
-def client_hello(host, groups):
+def client_hello(host, groups, version=None):
+    """A TLS 1.3 ClientHello, or with `version` a TLS 1.0 or 1.1 one, which carries none of the newer extensions."""
     exts = b""
     try:
         ipaddress.ip_address(host)
@@ -34,14 +37,15 @@ def client_hello(host, groups):
     g = b"".join(_u16(x) for x in groups)
     exts += _ext(0x000A, _u16(len(g)) + g)
     exts += _ext(0x000B, b"\x01\x00")
-    s = b"".join(_u16(x) for x in SIGALGS)
-    exts += _ext(0x000D, _u16(len(s)) + s)
-    exts += _ext(0x002B, b"\x04\x03\x04\x03\x03")
-    exts += _ext(0x002D, b"\x01\x01")
-    exts += _ext(0x0033, b"\x00\x00")
-    cs = b"".join(_u16(x) for x in SUITES)
+    if version is None:
+        s = b"".join(_u16(x) for x in SIGALGS)
+        exts += _ext(0x000D, _u16(len(s)) + s)
+        exts += _ext(0x002B, b"\x04\x03\x04\x03\x03")
+        exts += _ext(0x002D, b"\x01\x01")
+        exts += _ext(0x0033, b"\x00\x00")
+    cs = b"".join(_u16(x) for x in (SUITES if version is None else LEGACY_SUITES))
     sid = os.urandom(32)
-    body = b"\x03\x03" + os.urandom(32) + bytes([32]) + sid + _u16(len(cs)) + cs + b"\x01\x00" + _u16(len(exts)) + exts
+    body = _u16(version or 0x0303) + os.urandom(32) + bytes([32]) + sid + _u16(len(cs)) + cs + b"\x01\x00" + _u16(len(exts)) + exts
     hs = b"\x01" + struct.pack(">I", len(body))[1:] + body
     return b"\x16\x03\x01" + _u16(len(hs)) + hs
 
@@ -56,11 +60,11 @@ def _recv(sock, n):
     return buf
 
 
-def server_hello(host, port, groups, timeout=5.0):
+def server_hello(host, port, groups, timeout=5.0, version=None, name=None):
     """Returns (kind, info). kind is 'hrr', 'hello', 'alert' or 'error'."""
     try:
         with socket.create_connection((host, port), timeout=timeout) as sock:
-            sock.sendall(client_hello(host, groups))
+            sock.sendall(client_hello(name or host, groups, version))
             hdr = _recv(sock, 5)
             if len(hdr) < 5:
                 return "error", "connection closed"
@@ -91,6 +95,17 @@ def server_hello(host, port, groups, timeout=5.0):
                 info["group"] = struct.unpack(">H", data[:2])[0]
             i += 4 + el
     return ("hrr" if rnd == HRR else "hello"), info
+
+
+def legacy_versions(host, port, timeout=5.0, name=None):
+    """[(name, suite)] of TLS 1.0 and 1.1 the server accepts. Offered as bytes, so the answer does not depend on whether this
+    machine's OpenSSL still speaks them (many builds and system policies no longer do)."""
+    found = []
+    for version, label in LEGACY.items():
+        kind, info = server_hello(host, port, [0x001D, 0x0017, 0x0018], timeout, version, name)
+        if kind == "hello" and info["version"] == version:
+            found.append((label, info["suite"]))
+    return found
 
 
 def tls_groups(host, port, timeout=5.0):

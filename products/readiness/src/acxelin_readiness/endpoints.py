@@ -5,7 +5,6 @@ import json
 import logging
 import re
 import socket
-import warnings
 from concurrent.futures import ThreadPoolExecutor
 
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
@@ -17,13 +16,13 @@ from acxelin_core.pki import algorithm_of
 
 from . import __version__
 from .brand import page as _page
+from .detectors.probe import legacy_versions
 
 log = logging.getLogger(__name__)
 CIPHERSUITES = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256"  # every TLS 1.3 suite, so the probe never limits what the server can pick
 PQ = ["X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024", "MLKEM768", "MLKEM1024"]
 CNSA2_GROUPS = {"SecP384r1MLKEM1024", "MLKEM1024"}
 CLASSICAL = ["X25519", "secp256r1", "secp384r1", "secp521r1", "X448", "ffdhe2048", "ffdhe3072"]
-LEGACY_TLS = ("TLSv1", "TLSv1_1")
 GRADES = {
     "A": "post-quantum key exchange only",
     "B": "post-quantum key exchange, classical still accepted",
@@ -51,6 +50,7 @@ def _unverified():
     """A client context for looking, not trusting: legacy probes only record what the server offers."""
     import ssl
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
     return ctx
 
@@ -72,7 +72,9 @@ def _trusted(host, port, server_name, timeout):
     that is not trusted usually means a TLS-inspecting proxy answered instead, as inside many company networks."""
     import ssl
     try:
-        with socket.create_connection((host, port), timeout=timeout) as raw, ssl.create_default_context().wrap_socket(raw, server_hostname=server_name):
+        ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        with socket.create_connection((host, port), timeout=timeout) as raw, ctx.wrap_socket(raw, server_hostname=server_name):
             return True
     except ssl.SSLCertVerificationError:
         return False
@@ -81,21 +83,8 @@ def _trusted(host, port, server_name, timeout):
 
 
 def _old_versions(host, port, server_name, timeout):
-    """TLS 1.0 and 1.1, which should be off everywhere; each is tried on its own."""
-    import ssl
-    found = []
-    for name in LEGACY_TLS:
-        v, ctx = getattr(ssl.TLSVersion, name), _unverified()
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                ctx.minimum_version = ctx.maximum_version = v
-            ctx.set_ciphers("ALL:@SECLEVEL=0")
-            with socket.create_connection((host, port), timeout=timeout) as raw, ctx.wrap_socket(raw, server_hostname=server_name):
-                found.append({"TLSv1": "TLSv1.0", "TLSv1_1": "TLSv1.1"}[name])
-        except (OSError, ValueError):
-            pass
-    return found
+    """TLS 1.0 and 1.1, which should be off everywhere."""
+    return [name.replace(" ", "v") for name, _ in legacy_versions(host, port, timeout, server_name)]
 
 
 def _hello(host, port, groups, server_name, timeout):

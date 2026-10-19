@@ -1,34 +1,21 @@
 import re
 import socket
 import ssl
-import warnings
 
 from cryptography import x509
 
 from ..catalog import lookup, curve, pq_from_text, HYBRIDS
 from ..model import Detection
 from .artifacts import cert_record
-from .probe import tls_groups, ssh_kexinit
+from .probe import legacy_versions, tls_groups, ssh_kexinit
 from .suites import suite, ssh_token
 
-LEGACY = [("TLS 1.0", ssl.TLSVersion.TLSv1), ("TLS 1.1", ssl.TLSVersion.TLSv1_1)]
-
-
-def _ctx(minv=None, maxv=None, legacy=False):
+def _ctx():
+    """A client context for looking, not trusting: the probe records what the server offers."""
     c = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    c.minimum_version = ssl.TLSVersion.TLSv1_2
     c.check_hostname = False
     c.verify_mode = ssl.CERT_NONE
-    if legacy:
-        try:
-            c.set_ciphers("ALL:@SECLEVEL=0")
-        except ssl.SSLError:
-            pass
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        if minv:
-            c.minimum_version = minv
-        if maxv:
-            c.maximum_version = maxv
     return c
 
 
@@ -100,16 +87,9 @@ def probe(target, timeout=6.0):
         sights += s
         ep["cert"] = f"{a.algo}" + (f"-{a.params.get('key_size') or a.params.get('curve')}" if a.params else "") + f", expires {a.details['not_after'][:10]}"
     ep["legacy"] = []
-    for name, v in LEGACY:
-        try:
-            ver, c, _ = _handshake(host, port, _ctx(v, v, legacy=True), timeout)
-            ep["legacy"].append(name)
-            add(name, f"server accepted {ver} ({c[0]})", negotiated=False)
-        except ssl.SSLError as e:
-            if "no protocols available" in str(e).lower() or "unsupported protocol" in str(e).lower() and "alert" not in str(e).lower():
-                notes.append(f"{loc}: {name} probe inconclusive (local OpenSSL will not offer it)")
-        except Exception:
-            pass
+    for name, code in legacy_versions(host, port, timeout):
+        ep["legacy"].append(name)
+        add(name, f"server accepted {name} (cipher suite 0x{code:04X})", negotiated=False)
     return sights, arts, notes, ep
 
 

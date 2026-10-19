@@ -201,7 +201,8 @@ def serve(app, listen=("127.0.0.1", 0)):
             self.wfile.write(d.data)
 
         def log_request(self, code="-", size="-"):
-            log.info("%s %s %s", self.command, self.path.split("?")[0].split("#")[0], code)
+            path = self.path.split("?")[0].split("#")[0].replace("\r", "").replace("\n", "")
+            log.info("%s %s %s", self.command, path, code)
 
         def log_message(self, fmt, *args):
             pass  # the default line holds the full request target; log_request above records it without query or fragment
