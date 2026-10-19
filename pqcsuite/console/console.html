@@ -88,12 +88,6 @@ button:disabled { opacity: .55; cursor: default; box-shadow: none; }
 .steps b { font-weight: 600; }
 .steps p { margin: 0; color: var(--ink-2); }
 pre { margin: 6px 0 0; padding: 10px 12px; background: #26313c; color: #f4efe2; border-radius: 8px; font: 12.5px/1.6 var(--mono); overflow-x: auto; }
-.also { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 20px; align-items: center; padding: 16px 18px; border: 1px dashed var(--line); border-radius: 12px; text-decoration: none; color: inherit; transition: border-color .15s, background .15s; }
-.also:hover { border-color: var(--accent); border-style: solid; background: var(--panel); }
-.also span { grid-column: 1 / -1; color: var(--accent-text); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; }
-.also b { font: 500 17px/1.3 var(--display); }
-.also small { grid-column: 1; color: var(--ink-2); font-size: 13px; }
-.also em { grid-column: 2; grid-row: 2 / span 2; font-style: normal; font-weight: 600; color: var(--accent-text); white-space: nowrap; }
 .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
 .cols > div { padding: 14px 18px; border-bottom: 1px solid var(--line); display: grid; gap: 2px; }
@@ -110,7 +104,6 @@ pre { margin: 6px 0 0; padding: 10px 12px; background: #26313c; color: #f4efe2; 
   nav a { white-space: nowrap; }
   nav .group { flex: none; align-self: stretch; width: 1px; margin: 6px 4px; padding: 0; overflow: hidden; color: transparent; background: var(--line); }
   main { padding: 22px 16px 40px; }
-  .also { grid-template-columns: minmax(0, 1fr); } .also em { grid-column: 1; grid-row: auto; }
 }
 details.guide { padding: 14px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 18px; }
 summary { cursor: pointer; font-weight: 500; } details p { color: var(--ink-2); } details pre { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -129,8 +122,7 @@ summary { cursor: pointer; font-weight: 500; } details p { color: var(--ink-2); 
 "use strict";
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const NAV = [["", { overview: "Overview" }], ["Products", { edges: "TLS 1.3 edges", certificates: "Certificates", vpn: "VPN", backups: "Vault", readiness: "Readiness" }],
-  ["Also from Acxelin", { wolfpack: "Wolf Pack CBOM" }]];
+const NAV = [["", { overview: "Overview" }], ["Products", { edges: "TLS 1.3 edges", certificates: "Certificates", vpn: "VPN", backups: "Vault", readiness: "Readiness" }]];
 const VIEWS = Object.assign({}, ...NAV.map(([, v]) => v));
 const logo = () => $("#logo").innerHTML;
 let token = null, generation = 0;
@@ -175,15 +167,14 @@ function shell() {
 
 const visit = (view) => () => { if (location.hash !== "#" + view) location.hash = view; return new Promise((r) => setTimeout(r, 350)); };
 const TOUR = [
-  { title: "Welcome to the PQC Suite console", text: "This is where you run the four Acxelin products on this server. Nine short steps show you each part. Use Next, or the arrow keys; Esc closes the tour." },
-  { target: "nav .links", title: "Everything is in this menu", text: "Overview comes first, then one page per product. Wolf Pack CBOM, which scans your source code, sits on its own below them." },
+  { title: "Welcome to the PQC Suite console", text: "This is where you run the four Acxelin products on this server. Eight short steps show you each part. Use Next, or the arrow keys; Esc closes the tour." },
+  { target: "nav .links", title: "Everything is in this menu", text: "Overview comes first, then one page per product." },
   { target: 'nav a[data-view="overview"]', before: visit("overview"), title: "Step one: Overview", text: "One tile per product: certificates expiring within 30 days, connections through your edges, remote users online, tunnels using ML-KEM, backups, and how many endpoints offer post-quantum key exchange. Amber or red means look closer; each tile opens its page." },
   { target: 'nav a[data-view="edges"]', before: visit("edges"), title: "TLS 1.3 edges", text: "Post-quantum front doors for your existing services. Each edge accepts post-quantum TLS from clients and forwards to your application unchanged." },
   { target: 'nav a[data-view="certificates"]', before: visit("certificates"), title: "Certificates", text: "Your own certificate authority with ML-DSA signatures: every certificate it issued, when each expires, and how to issue, renew or revoke one." },
   { target: 'nav a[data-view="vpn"]', before: visit("vpn"), title: "VPN", text: "Site-to-site tunnels and the laptops connected through WireGuard. Each connection shows whether its keys are post-quantum and when they last changed." },
   { target: 'nav a[data-view="backups"]', before: visit("backups"), title: "Vault", text: "Backups encrypted with hybrid post-quantum keys. Archives without a recovery key are flagged, so a lost key never means lost data." },
   { target: 'nav a[data-view="readiness"]', before: visit("readiness"), title: "Readiness", text: "Scans of your TLS and SSH endpoints: which already offer post-quantum key exchange, what changed since the last scan, and what to fix first." },
-  { target: 'nav a[data-view="wolfpack"]', before: visit("wolfpack"), title: "Wolf Pack CBOM", text: "The cryptography inside your own code: which algorithms each repository uses, where, and which functions reach them." },
   { target: "nav .foot", before: visit("overview"), title: "You are ready", text: "Tour replays this guide, Theme switches light and dark, and Sign out ends your session. Your work stays on this server." },
 ];
 
@@ -204,7 +195,7 @@ function route() {
   };
   $("#view").innerHTML = head(VIEWS[view], "Loading…") + `<div class="panel notice" role="status">Reading current data…</div>`;
   run();
-  timer = setInterval(() => { if (!document.hidden && !["certificates", "readiness", "wolfpack"].includes(view)) run(); }, 10000);
+  timer = setInterval(() => { if (!document.hidden && !["certificates", "readiness"].includes(view)) run(); }, 10000);
 }
 
 const table = (cols, rows, empty) => rows.length ? `<div class="scroll" tabindex="0"><table><thead><tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead>
@@ -250,10 +241,10 @@ function bindInventory(current) {
       if (bom.bomFormat !== "CycloneDX" || !Array.isArray(bom.components) || bom.components.length > 20000) throw new Error("Expected a CycloneDX CBOM with at most 20,000 components.");
       const assets = bom.components.filter(c => c?.type === "cryptographic-asset").map(c => {
         const props = Array.isArray(c.properties) ? c.properties : [];
-        const prop = name => props.find(p => p?.name === "wolfpack:" + name)?.value;
+        const prop = name => (props.find(p => p?.name === "acxelin:" + name) || props.find(p => p?.name === "wolfpack:" + name))?.value;  // wolfpack:* is the old name
         return { name: typeof c.name === "string" ? c.name : "Unnamed asset", tier: String(prop("tier") || "unknown"),
           action: String(prop("recommendation") || "Review this component's cryptographic use and migration requirements."),
-          why: String(prop("rationale") || "No Wolf Pack risk assessment supplied."),
+          why: String(prop("rationale") || "No risk assessment supplied."),
           files: (Array.isArray(c.evidence?.occurrences) ? c.evidence.occurrences : []).map(o => String(o?.location || "")).slice(0, 200) };
       });
       localInventory = { name: file.name, assets };
@@ -269,9 +260,9 @@ function drawInventory() {
   const q = $("#inventory-search").value.toLowerCase();
   const assets = (localInventory?.assets || []).filter(a => [a.name, a.tier, a.action, ...a.files].join(" ").toLowerCase().includes(q));
   $("#inventory-results").innerHTML = table(["Priority", "Asset", "Next action", "Evidence"], assets.map(a => [pill(a.tier, ["high", "critical"].includes(a.tier) ? "bad" : "mute"), a.name, a.action,
-    { html: `<details class="evidence"><summary>Inspect</summary><p>${esc(a.why)}</p><p>${esc(a.files.join(", ") || "No locations supplied")}</p></details>` }]), localInventory ? "No assets match this search." : "Load cbom.json from Wolf Pack to review code findings alongside your endpoint assessment.");
+    { html: `<details class="evidence"><summary>Inspect</summary><p>${esc(a.why)}</p><p>${esc(a.files.join(", ") || "No locations supplied")}</p></details>` }]), localInventory ? "No assets match this search." : "Load cbom.json from Acxelin Readiness to review code findings alongside your endpoint assessment.");
 }
-const inventoryPanel = () => `<div class="panel"><h2>Code inventory → migration priorities</h2><div class="notice">Import a Wolf Pack CycloneDX CBOM. Code findings and endpoint observations remain separate evidence; no combined readiness score is inferred. Imported recommendations are scanner claims, not proof of protection.</div>
+const inventoryPanel = () => `<div class="panel"><h2>Code inventory → migration priorities</h2><div class="notice">Import a CycloneDX CBOM from Acxelin Readiness. Code findings and endpoint observations remain separate evidence; no combined readiness score is inferred. Imported recommendations are scanner claims, not proof of protection.</div>
   <div class="toolbar"><label>Local CBOM<input id="inventory-file" type="file" accept=".json,application/json"></label><label>Search code inventory<input id="inventory-search" type="search"></label><button id="inventory-clear" class="quiet" type="button">Clear inventory</button><span id="inventory-message" role="status" aria-live="polite">Files stay in this browser tab and clear on sign out.</span></div><div id="inventory-results"></div></div>`;
 
 const verificationPanel = p => `<details class="guide"><summary>Verify a deployed service</summary><p>A source finding disappearing does not prove a deployed fix. Connect a finding to an approved endpoint, record the release mapping, and verify a trusted PQ connection against the certificate fingerprint from your deployment records. This does not verify the source-to-release mapping or every client path.</p>
@@ -362,8 +353,7 @@ const RENDER = {
       ${tile("VPN tunnels", `${v.quantum_safe}/${v.tunnels}`, v.unreachable ? "status incomplete; open VPN to investigate" : v.tunnels ? "up with ML-KEM and a PPK" : "no tunnels connected", v.unreachable ? "warn" : !v.tunnels ? "" : v.quantum_safe < v.tunnels ? "bad" : "ok", "vpn")}
       ${tile("Backups", b.count, b.latest ? `latest ${b.latest.slice(0, 16).replace("T", " ")}, ${b.signed} signed` : "none found", "", "backups")}
       ${tile("Readiness", r ? `${r.pq_key_exchange}/${r.endpoints}` : "–", r ? `endpoints offer post-quantum key exchange${r.changes ? `; ${r.changes} changed since the scan before` : ""}` : "run a scan on the Readiness page", r && (r.changes || r.pq_key_exchange < r.endpoints) ? "warn" : "", "readiness")}
-    </div>
-    <a class="also" href="#wolfpack"><span>Also from Acxelin</span><b>Wolf Pack CBOM</b><small>The readiness scan sees your endpoints. Wolf Pack finds the cryptography inside your own code, configuration and keys.</small><em>How to scan a repository →</em></a>`;
+    </div>`;
   },
 
   async certificates(current = () => true) {
@@ -475,22 +465,6 @@ pqcsuite vault decrypt backup.pqv -o restored --key me.key</pre>`;
         <div class="panel"><div class="notice">Headers are read without a key, so the suite, recipients and signer shown here are claims. Before relying on a backup, run <code>pqcsuite vault verify</code> with a recipient key, then restore it once to a fresh folder.</div></div>
         <details class="guide"><summary>Protect, verify, and recover an archive</summary>${steps}<p>For signed archives, add --ca with your trusted issuer certificate. Losing every recipient key makes recovery impossible.</p></details>`
       : `<div class="panel"><h2>Protect your first backup</h2><div class="notice">Make two recipients, yourself and an offline recovery key, so a lost laptop never means lost data. Encrypt for both, verify, and test a restore. Then start the console with <code>--backups FOLDER</code> to see your archives here.</div>${steps}</div>`);
-  },
-
-  async wolfpack(current = () => true) {
-    $("#view").innerHTML = head("Wolf Pack CBOM", "Finds the cryptography in your code, configuration, keys, binaries and dependencies, writes a CycloneDX 1.6 inventory, and ranks what to migrate first. The repository readiness workflow orchestrates its local scan and supported code relationships. Source stays on the scanner machine; the console receives assessment metadata. Standalone commands remain available for forensic exports and CI.", "Also from Acxelin") +
-      `<div class="panel"><h2>Start with repository readiness</h2><p>Add an approved repository, scan once, and inspect migration priorities together.</p><a href="#readiness" class="btn">Open repository readiness</a></div><details class="guide"><summary>Advanced: standalone scanning and CI</summary><ol class="steps">
-        <li><b>Install it</b><p>Python 3.11 or newer, from the wolf-pack folder of the PQC Suite repository.</p><pre>pip install ./wolf-pack</pre></li>
-        <li><b>Scan a folder</b><p>Add the endpoints you want probed as well; nothing else is contacted.</p><pre>wolfpack scan ./payments-api --tls api.example.com:443</pre></li>
-        <li><b>Keep it in CI</b><p>Findings become code scanning alerts, and the build stops on new critical ones.</p><pre>- uses: QubitMan-hub/PQCsuite/wolf-pack@main
-  with:
-    fail-on: critical</pre></li>
-        <li><b>See every system at once</b><p>Merge the scans into one inventory and dashboard, weakest system first; add a history to chart progress.</p><pre>wolfpack merge scans/ --name "Your organisation" --history runs.jsonl</pre></li></ol></details>
-      <div class="panel"><h2>Every scan writes</h2><div class="cols">
-        <div><code>cbom.json</code><span>The inventory, in CycloneDX 1.6</span></div>
-        <div><code>report.html</code><span>The migration list, to open offline or forward</span></div>
-        <div><code>wolfpack.sarif</code><span>Findings for GitHub code scanning</span></div>
-        <div><code>findings.json</code><span>Everything, including what was rejected and why</span></div></div></div>`;
   },
 
   async readiness(current = () => true) {

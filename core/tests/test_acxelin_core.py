@@ -152,7 +152,7 @@ def test_automation_token_file_is_owner_only(tmp_path):
 
 def test_core_imports_no_product_and_loads_no_openssl_on_import():
     code = "import sys, acxelin_core, acxelin_core.config, acxelin_core.files, acxelin_core.http, acxelin_core.console, acxelin_core.pki;" \
-           "bad=[m for m in sys.modules if m.split('.')[0] in ('pqcsuite','acxelin_readiness','acxelin_tls','acxelin_vpn','acxelin_vault','wolfpack')];" \
+           "bad=[m for m in sys.modules if m.split('.')[0] in ('pqcsuite','acxelin_readiness','acxelin_tls','acxelin_vpn','acxelin_vault')];" \
            "assert not bad, bad; assert 'acxelin_core.openssl' not in sys.modules"
     import subprocess
     assert subprocess.run([sys.executable, "-c", code], cwd=Path(__file__).parent).returncode == 0

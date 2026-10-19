@@ -113,7 +113,7 @@ class UpdatesTest(unittest.TestCase):
         return f"http://127.0.0.1:{httpd.server_address[1]}/releases"
 
     def test_the_newest_suite_release_is_found(self):
-        url = self.serve([{"tag_name": "wolf-pack-v9.0.0", "html_url": "w"}, {"tag_name": "v0.1.0", "html_url": "a"},
+        url = self.serve([{"tag_name": "tls-v9.0.0", "html_url": "w"}, {"tag_name": "v0.1.0", "html_url": "a"},
                           {"tag_name": "v0.10.0", "html_url": "b"}, {"tag_name": "v0.2.0", "html_url": "c"},
                           {"tag_name": "v1.0.0", "html_url": "d", "draft": True}, {"tag_name": "v2.0.0", "html_url": "e", "prerelease": True}])
         self.assertEqual(latest_release(url), {"version": "0.10.0", "url": "b", "newer": True})

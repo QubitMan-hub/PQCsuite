@@ -196,12 +196,12 @@ def prerequisites(product='all'):
     try:
         from .project import scanner
         scanner()
-        add('repository', 'ok', 'Wolf Pack is installed')
+        add('repository', 'ok', 'Acxelin Readiness is installed')
         missing = [name for name in ('tree_sitter', 'tree_sitter_javascript', 'tree_sitter_typescript', 'tree_sitter_java', 'tree_sitter_go') if importlib.util.find_spec(name) is None]
         if missing:
-            add('repository', 'warn', 'JavaScript/TypeScript, Java or Go relationships are unavailable', 'Install Wolf Pack with its crawler extra: pip install "wolfpack_cbom-VERSION-py3-none-any.whl[crawler]" (from a checkout: pip install -e "./wolf-pack[crawler]")')
+            add('repository', 'warn', 'JavaScript/TypeScript, Java or Go relationships are unavailable', 'pip install "acxelin-readiness[crawler]"')
     except (ImportError, ValueError):
-        add('repository', 'fail', 'Wolf Pack is not installed, so repository scans are unavailable', 'Install Wolf Pack with its crawler extra: pip install "wolfpack_cbom-VERSION-py3-none-any.whl[crawler]" (from a checkout: pip install -e "./wolf-pack[crawler]")')
+        add('repository', 'fail', 'Acxelin Readiness is not installed, so repository scans are unavailable', 'pip install "acxelin-readiness[crawler]"')
     if product in ('all', 'vpn'):
         if sys.platform.startswith('linux') and importlib.util.find_spec('vici') and shutil.which('swanctl') and shutil.which('ip'):
             add('vpn', 'ok', 'IPsec control tools found; kernel support and tunnel traffic still require deployment tests')

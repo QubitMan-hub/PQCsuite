@@ -176,7 +176,7 @@ def test_the_console_loads_no_other_product():
     import subprocess
     import sys
     code = "import sys, acxelin_readiness.console;" \
-           "bad=[m for m in sys.modules if m.split('.')[0] in ('pqcsuite','acxelin_tls','acxelin_vpn','acxelin_vault','wolfpack')]; assert not bad, bad"
+           "bad=[m for m in sys.modules if m.split('.')[0] in ('pqcsuite','acxelin_tls','acxelin_vpn','acxelin_vault')]; assert not bad, bad"
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
 
 

@@ -49,7 +49,7 @@ except ImportError:
 
 
 def latest_release(url=None, timeout=10):
-    """The newest published suite release (tags vX.Y.Z; Wolf Pack's are skipped) from GitHub, or from PQCSUITE_RELEASES_URL (a
+    """The newest published suite release (tags vX.Y.Z; the per-product tags are skipped) from GitHub, or from PQCSUITE_RELEASES_URL (a
     mirror inside your network). None when there is none. Nothing calls this unless asked to."""
     import http.client
     import urllib.request

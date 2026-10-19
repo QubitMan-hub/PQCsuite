@@ -28,7 +28,6 @@ Each old name still works and prints a one-line warning naming the new one. Old 
 | `.wolfpack.toml` | `.acxelin-readiness.toml` | the new file is used and the old one is ignored, with a warning |
 | `wolfpack:*` properties in CBOMs given to `merge` | `acxelin:*` | the new property wins |
 | `PQCSUITE_OPENSSL` | `ACXELIN_OPENSSL` | the new variable wins |
-| action path `QubitMan-hub/PQCsuite/wolf-pack` | `QubitMan-hub/PQCsuite/products/readiness` | n/a |
 
 ## Changed results
 
@@ -36,6 +35,7 @@ Each old name still works and prints a one-line warning naming the new one. Old 
 - **`merge`:** assets are now matched by what they are. Algorithms match by name and parameters, certificates and public keys by fingerprint. Secret material and protocol instances are never merged across systems.
   - When systems disagree about a field, every system's value is kept in `acxelin:observations`, and the field is named in `acxelin:conflict`.
   - `bom-ref` values are now `<asset type>/<hash>`.
+- **GitHub Action path:** the old path `QubitMan-hub/PQCsuite/wolf-pack` is removed. Change `uses:` to `QubitMan-hub/PQCsuite/products/readiness`; the inputs are the same. Workflows pinned to an older tag or commit keep working.
 - **Output names:** the folder is `readiness-out/` (was `wolfpack-out/`), the SARIF file `readiness.sarif` (was `wolfpack.sarif`), and the report's CSV download `migration.csv` (was `wolfpack-migration.csv`). In `findings.json`, `sightings` is now `detections`.
 
 ## Rolling back

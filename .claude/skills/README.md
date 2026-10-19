@@ -6,7 +6,7 @@
 
 Vendored without its own test suite and development lockfile; it needs Node.js 18+ and nothing else at run time
 (`node .claude/skills/archify/bin/archify.mjs doctor`). Not shipped with the product and excluded from CodeQL.
-Diagrams made with it live in `docs/architecture/` (the `.architecture.json` file is the source; the `.html` is the result).
+Diagrams made with it go in the docs of the product they describe (the `.architecture.json` file is the source; the `.html` is the result).
 
 To update: `npx skills add tt-a1i/archify -g`, read the changes, then copy `~/.agents/skills/archify` here again
 without `test/`, `node_modules/` and `package-lock.json`.

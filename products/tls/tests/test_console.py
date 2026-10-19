@@ -177,7 +177,7 @@ def test_the_console_signs_in_over_http_and_loads_no_other_product(app, home):
     import subprocess
     import sys
     code = "import sys, acxelin_tls.console;" \
-           "bad=[m for m in sys.modules if m.split('.')[0] in ('pqcsuite','acxelin_readiness','acxelin_vpn','acxelin_vault','wolfpack')]; assert not bad, bad"
+           "bad=[m for m in sys.modules if m.split('.')[0] in ('pqcsuite','acxelin_readiness','acxelin_vpn','acxelin_vault')]; assert not bad, bad"
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
 
 

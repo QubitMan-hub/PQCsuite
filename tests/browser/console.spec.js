@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 const AxeBuilder = require("@axe-core/playwright").default;
 
 const CONSOLE = "http://127.0.0.1:8900/";
-const VIEWS = ["overview", "edges", "certificates", "vpn", "backups", "readiness", "wolfpack"];
+const VIEWS = ["overview", "edges", "certificates", "vpn", "backups", "readiness"];
 
 async function signIn(page) {
   await page.goto(CONSOLE);
@@ -37,18 +37,14 @@ for (const scheme of ["light", "dark"]) {
   }
 }
 
-test("overview tiles open their pages; certificates are listed; Wolf Pack sits outside Products", async ({ page }) => {
+test("overview tiles open their pages; certificates are listed; every product sits under Products", async ({ page }) => {
   await signIn(page);
   await page.click('a.tile[href="#certificates"]');
   await expect(page).toHaveURL(/#certificates$/);
   await expect(page.locator("tbody tr")).toHaveCount(3);
   await expect(page.locator("tbody")).toContainText("old.example.test");
   const groups = await page.$$eval("nav .group", g => g.map(x => [x.textContent, x.nextElementSibling.dataset.view]));
-  expect(groups).toEqual([["Products", "edges"], ["Also from Acxelin", "wolfpack"]]);
-  await page.evaluate(() => (location.hash = "overview"));
-  await page.click("a.also");
-  await expect(page).toHaveURL(/#wolfpack$/);
-  await expect(page.locator("#view h1")).toHaveText("Wolf Pack CBOM");
+  expect(groups).toEqual([["Products", "edges"]]);
 });
 
 test("an address naming a built-in property opens the overview, not an error", async ({ page }) => {
@@ -64,7 +60,7 @@ test("an address naming a built-in property opens the overview, not an error", a
 
 test("no serious accessibility problems on the console pages", async ({ page }) => {
   await signIn(page);
-  for (const view of ["overview", "certificates", "wolfpack"]) {
+  for (const view of ["overview", "certificates", "readiness"]) {
     await page.evaluate(v => (location.hash = v), view);
     await expect(page.locator("#view h1")).toBeVisible();
     const found = (await new AxeBuilder({ page }).analyze()).violations.filter(v => ["serious", "critical"].includes(v.impact));
@@ -184,7 +180,7 @@ test('readiness filters real observations, explains evidence and exports safe CS
 test('CBOM import stays local, escapes content, preserves prior data on invalid input and clears on logout', async ({page}) => {
   let mutations=0;page.on('request',r=>{if(r.method()==='POST')mutations++;});await signIn(page);
   await page.evaluate(()=>(location.hash='readiness'));
-  const bom={bomFormat:'CycloneDX',components:[{type:'cryptographic-asset',name:'<img src=x onerror=alert(1)>',properties:[{name:'wolfpack:tier',value:'high'},{name:'wolfpack:recommendation',value:'Upgrade RSA usage'}],evidence:{occurrences:[{location:'src/login.py'}]}}]};
+  const bom={bomFormat:'CycloneDX',components:[{type:'cryptographic-asset',name:'<img src=x onerror=alert(1)>',properties:[{name:'acxelin:tier',value:'high'},{name:'wolfpack:recommendation',value:'Upgrade RSA usage'}],evidence:{occurrences:[{location:'src/login.py'}]}}]};
   await page.getByText('Advanced: review a CBOM from another scanner', {exact:true}).click();
   await page.setInputFiles('#inventory-file',{name:'cbom.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(bom))});
   await expect(page.locator('#inventory-message')).toContainText('1 cryptographic assets loaded locally');
