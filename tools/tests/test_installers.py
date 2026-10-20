@@ -1,6 +1,7 @@
 """The one-command installers: a client runs ./install.sh (Linux, macOS) or install.ps1 (Windows, tested in CI) and gets a
 working command on PATH, from a checkout or offline from a release wheelhouse."""
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -103,3 +104,17 @@ def test_an_old_system_openssl_gets_a_way_forward_not_just_a_failure(tmp_path):
     r = subprocess.run(["sh", str(ROOT / "products/tls/install.sh")], capture_output=True, text=True, env=env, cwd=tmp_path, timeout=280)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "ACXELIN_OPENSSL=/path/to/openssl-3.5/lib sh " in r.stdout
+
+
+@pytest.mark.skipif(not shutil.which("pwsh"), reason="needs PowerShell (GitHub's Ubuntu runners have it)")
+@pytest.mark.parametrize("product", ["tls", "readiness", "vpn"])
+def test_install_ps1_passes_py_its_arguments_whole(tmp_path, product):
+    """With the Windows py launcher present, the Python check must run `py -3 -c CODE`. A splatted string reached it as
+    `py - 3 -c CODE`, and `-` made Python read a program from the console: the installer stopped at Python's >>> prompt."""
+    script = (ROOT / f"products/{product}/install.ps1").read_text()
+    probe = script[script.index("$py = $null"):script.index("if (-not $py)")]
+    (tmp_path / "py").write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$(dirname "$0")/argv"\n')
+    (tmp_path / "py").chmod(0o755)
+    env = {**os.environ, "PATH": f"{tmp_path}{os.pathsep}{os.environ['PATH']}"}
+    subprocess.run(["pwsh", "-NoLogo", "-NoProfile", "-Command", probe], env=env, cwd=tmp_path, timeout=60, check=True)
+    assert (tmp_path / "argv").read_text().splitlines()[:2] == ["-3", "-c"]

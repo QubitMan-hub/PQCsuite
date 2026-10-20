@@ -18,7 +18,7 @@ if ($Uninstall) {
 $py = $null
 foreach ($c in @("py", "python")) {
   if (Get-Command $c -ErrorAction SilentlyContinue) {
-    $args3 = if ($c -eq "py") { @("-3") } else { @() }
+    $args3 = @(if ($c -eq "py") { "-3" })  # always a list: a splatted string goes in one character at a time
     & $c @args3 -c "import sys; sys.exit(sys.version_info < (3, 11))" 2>$null
     if ($LASTEXITCODE -eq 0) { $py = @($c) + $args3; break }
   }
