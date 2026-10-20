@@ -4,21 +4,37 @@
 <h1>Set up Acxelin TLS</h1>
 <p class="lead">It needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. You do not need another Acxelin product, and nothing contacts Acxelin Quantum.</p>
 <ol class="steps">
-<li><h2>Check the release</h2>
-<p>The release is one archive, <code>acxelin-tls-{{VERSION}}-wheelhouse.tar.gz</code>, with a <code>SHA256SUMS</code> file and a build attestation that says which workflow built it. Check both before you unpack it:</p>
-<pre><code>sha256sum -c SHA256SUMS --ignore-missing
-gh attestation verify acxelin-tls-{{VERSION}}-wheelhouse.tar.gz --owner QubitMan-hub
-tar xzf acxelin-tls-{{VERSION}}-wheelhouse.tar.gz
+<li><h2>Download</h2>
+<p>From the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/tls-v{{VERSION}}">release page</a>, save two files in the same folder:</p>
+<ul>
+<li><code>acxelin-tls-{{VERSION}}-wheelhouse.tar.gz</code>: the program</li>
+<li><code>SHA256SUMS</code>: a fingerprint of every file in the release</li>
+</ul>
+<p>Then open a terminal in that folder. On Windows, use PowerShell.</p></li>
+<li><h2>Check the download</h2>
+<p>This confirms the file is exactly the one we published, not damaged or changed on the way. It only reads the file.</p>
+<h3>Linux</h3>
+<pre><code>sha256sum -c SHA256SUMS --ignore-missing</code></pre>
+<p class="see">You should see the file's name followed by <b>OK</b>.</p>
+<h3>macOS</h3>
+<pre><code>shasum -a 256 acxelin-tls-{{VERSION}}-wheelhouse.tar.gz</code></pre>
+<h3>Windows</h3>
+<pre><code>Get-FileHash .\acxelin-tls-{{VERSION}}-wheelhouse.tar.gz</code></pre>
+<p class="see">On macOS and Windows this prints the file's fingerprint, a long string of letters and numbers. It should match the one next to the file's name in <code>SHA256SUMS</code> (capital or small letters do not matter).</p>
+<p>If the check fails, delete the file and download it again. Do not install it.</p>
+<details><summary>Optional: confirm who built it</summary>
+<p>If you use the GitHub command line, this shows that our release workflow built the file from this repository:</p>
+<pre><code>gh attestation verify acxelin-tls-{{VERSION}}-wheelhouse.tar.gz --owner QubitMan-hub</code></pre>
+<p class="see">You should see <b>Verification succeeded</b>.</p>
+</details></li>
+<li><h2>Unpack it</h2>
+<pre><code>tar xzf acxelin-tls-{{VERSION}}-wheelhouse.tar.gz
 cd acxelin-tls-{{VERSION}}-wheelhouse</code></pre>
-<p class="see">You should see <b>OK</b> after the archive's name, and <b>Verification succeeded</b>. If either fails, do not install it.</p>
-<p>On Windows, compare the hash by eye with the line in <code>SHA256SUMS</code>:</p>
-<pre><code>(Get-FileHash .\acxelin-tls-{{VERSION}}-wheelhouse.tar.gz).Hash
-tar -xzf .\acxelin-tls-{{VERSION}}-wheelhouse.tar.gz
-cd .\acxelin-tls-{{VERSION}}-wheelhouse</code></pre></li>
+<p class="see">This creates the folder <code>acxelin-tls-{{VERSION}}-wheelhouse</code> and moves into it. The same two lines work in PowerShell.</p></li>
 <li><h2>Install</h2>
-<p>In the unpacked folder, or in <code>products/tls</code> of a checkout:</p>
+<p>Still in that folder:</p>
 <pre><code>sh install.sh</code></pre>
-<p>On Windows, unblock the script once, then run it with signed-or-local scripts allowed for this one command:</p>
+<p>On Windows, the first line tells Windows you trust this downloaded script, and the second runs it:</p>
 <pre><code>Unblock-File .\install.ps1
 powershell -ExecutionPolicy RemoteSigned -File .\install.ps1</code></pre>
 <p class="see">It installs from the wheels in the folder, offline, then runs <code>acxelin-tls doctor</code>. You should see each check and <b>Start here</b> with the next commands.</p>
