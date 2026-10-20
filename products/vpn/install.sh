@@ -26,7 +26,9 @@ mkdir -p "$(dirname "$home")" "$bin"
 "$py" -m venv "$home"
 if ls "$here"/*.whl >/dev/null 2>&1; then
   echo "  from the wheels next to it (offline)"
-  "$home/bin/python" -m pip install -q --no-index --find-links "$here" "$cmd"
+  extra=$(cat "$here/extras" 2>/dev/null || true)  # the optional parts this folder carries, such as Readiness's crawler
+  "$home/bin/python" -m pip install -q --no-index --find-links "$here" "$cmd$extra" 2>/dev/null \
+    || "$home/bin/python" -m pip install -q --no-index --find-links "$here" "$cmd"  # without them where they have no wheel
 elif [ -f "$here/pyproject.toml" ] && [ -d "$here/../../core" ]; then
   echo "  from this checkout"
   "$home/bin/python" -m pip install -q "$here/../../core" "$here"

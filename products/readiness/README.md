@@ -9,7 +9,7 @@ Acxelin Readiness reads source code, configuration, keys and certificates, binar
 
 ## Install
 
-Python 3.11 to 3.14, on Linux, Windows or macOS. It installs for your user only, without internet access:
+Python 3.11 to 3.14, on Linux, Windows or macOS. It installs for your user only, without internet access, on Linux (x86-64, ARM), Windows (x64) and Apple-silicon Macs:
 
 1. Download `acxelin-readiness-1.0.0-wheelhouse.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/QubitMan-hub/acxelin/releases/tag/readiness-v1.0.0).
 2. Check the download: `sha256sum -c SHA256SUMS --ignore-missing` should print `OK` (on macOS and Windows, compare the fingerprint by hand; the manual shows how).

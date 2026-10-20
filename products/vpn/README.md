@@ -11,7 +11,7 @@ within 15 seconds.
 ## Install
 
 The administrator's command line needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. It installs for your user only, without
-internet access:
+internet access, on Linux (x86-64, ARM), Windows (x64) and Apple-silicon Macs:
 
 1. Download `acxelin-vpn-1.0.0-wheelhouse.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/QubitMan-hub/acxelin/releases/tag/vpn-v1.0.0).
 2. Check the download: `sha256sum -c SHA256SUMS --ignore-missing` should print `OK` (on macOS and Windows, compare the fingerprint by hand; the manual shows how).

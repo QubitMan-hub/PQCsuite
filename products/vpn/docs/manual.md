@@ -27,6 +27,8 @@ A key agreement that cannot meet the VPN's policy (TLS 1.3, hybrid ML-KEM, ML-DS
 
 ### The command line, for administrators
 
+The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, use the Docker image.
+
 Get two files from the [release page](https://github.com/QubitMan-hub/acxelin/releases/tag/vpn-v1.0.0) and save them in one folder:
 
 - `acxelin-vpn-1.0.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access

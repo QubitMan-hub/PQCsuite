@@ -38,7 +38,9 @@ jobs:
       - name: Test what is being released
         run: |
           if [ "$PRODUCT" = core ]; then pip install ./core pytest && python -m pytest -q core/tests; else
-            pip install ./core "./products/$PRODUCT[test]" && ACXELIN_INSTALL_TEST=1 python -m pytest -q "products/$PRODUCT/tests" --ignore="products/$PRODUCT/tests/browser"; fi
+            extra=$(python -c "import sys; sys.path.insert(0, 'tools'); from wheelhouse import EXTRAS; print(EXTRAS.get('$PRODUCT', '').strip('[]'))")
+            pip install ./core "./products/$PRODUCT[test${extra:+,$extra}]"  # with the optional parts the release folder carries
+            ACXELIN_INSTALL_TEST=1 python -m pytest -q "products/$PRODUCT/tests" --ignore="products/$PRODUCT/tests/browser"; fi
       - name: What the customer receives (the product's wheels with acxelin-core and every dependency, installers, manual, licence) with checksums
         run: |
           if [ "$PRODUCT" = core ]; then pip wheel --wheel-dir wheelhouse ./core; else python tools/wheelhouse.py "$PRODUCT" wheelhouse; fi

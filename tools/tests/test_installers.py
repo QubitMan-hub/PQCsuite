@@ -33,6 +33,24 @@ def test_install_from_a_checkout_then_use_reinstall_and_uninstall(tmp_path, prod
 
 
 @slow
+def test_the_readiness_folder_installs_offline_everywhere_with_the_crawler(tmp_path):
+    """The folder carries compiled wheels for every system it supports, and the installer adds the crawler, so a customer's
+    offline scan follows values through JavaScript, TypeScript, Java and Go like the image and the sample report."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    from wheelhouse import package
+    house = package("readiness", tmp_path / "acxelin-readiness-1.0.0-wheelhouse")
+    names = [w.name for w in house.glob("*.whl")]
+    for dist in ("cryptography", "tree_sitter-", "tree_sitter_typescript"):
+        for plat in ("win_amd64", "macosx_11_0_arm64", "manylinux2014_aarch64"):
+            assert any(n.startswith(dist) and plat in n for n in names), (dist, plat)
+    assert all(any(n.startswith("tree_sitter-") and f"cp{v}-" in n for n in names) for v in ("311", "312", "313", "314"))
+    r = install(house / "install.sh", tmp_path)
+    assert r.returncode == 0, r.stdout + r.stderr
+    python = tmp_path / "prefix/readiness/bin/python"
+    assert subprocess.run([str(python), "-c", "import tree_sitter, tree_sitter_typescript"]).returncode == 0, "the crawler is installed"
+
+
+@slow
 def test_install_offline_from_a_release_wheelhouse(tmp_path):
     sys.path.insert(0, str(ROOT / "tools"))
     from wheelhouse import package

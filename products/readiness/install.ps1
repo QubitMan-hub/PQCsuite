@@ -32,7 +32,11 @@ New-Item -ItemType Directory -Force -Path $bin | Out-Null
 $python = Join-Path $home_ "Scripts\python.exe"
 if (Get-ChildItem -Path $here -Filter *.whl -ErrorAction SilentlyContinue) {
   Write-Output "  from the wheels next to it (offline)"
-  & $python -m pip install -q --no-index --find-links $here $cmd
+  $extra = if (Test-Path (Join-Path $here "extras")) { (Get-Content (Join-Path $here "extras") -Raw).Trim() } else { "" }
+  $ErrorActionPreference = "Continue"  # pip's message on stderr must not stop the script before the fallback runs
+  & $python -m pip install -q --no-index --find-links $here "$cmd$extra" 2>$null
+  if ($LASTEXITCODE -ne 0) { & $python -m pip install -q --no-index --find-links $here $cmd }  # without them where they have no wheel
+  $ErrorActionPreference = "Stop"
 } elseif ((Test-Path (Join-Path $here "pyproject.toml")) -and (Test-Path (Join-Path $here "..\..\core"))) {
   Write-Output "  from this checkout"
   & $python -m pip install -q (Join-Path $here "..\..\core") $here
