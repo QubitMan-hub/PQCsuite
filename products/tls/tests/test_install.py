@@ -12,6 +12,7 @@ import venv
 from pathlib import Path
 
 import pytest
+from acxelin_tls import __version__
 
 ROOT = Path(__file__).resolve().parents[3]
 pytestmark = pytest.mark.skipif(os.environ.get("ACXELIN_INSTALL_TEST") != "1", reason="set ACXELIN_INSTALL_TEST=1")
@@ -37,7 +38,7 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
               "    dist = m.distribution(d); print(any(f.name == 'LICENSE' for f in dist.files), 'Proprietary' in ' '.join(dist.metadata.get_all('Classifier')))").stdout
     assert lic.split() == ["True", "True", "True", "True"], lic
     cli = str(bin_ / "acxelin-tls")
-    assert run(cli, "--version").stdout.strip() == "acxelin-tls 1.0.0"
+    assert run(cli, "--version").stdout.strip() == f"acxelin-tls {__version__}"
     # the CA commands work from the wheel, with no other product
     pki = tmp_path / "pki"
     run(cli, "ca", "init", "--name", "Wheel CA", "--dir", str(pki), "--no-encrypt")

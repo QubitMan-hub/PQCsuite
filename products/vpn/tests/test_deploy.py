@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from acxelin_vpn import cli
+from acxelin_vpn import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
 UNITS = sorted((ROOT / "deploy/systemd").iterdir())
@@ -69,4 +70,4 @@ def test_doctor_reports_the_machine_as_json_for_the_package_check(capsys):
     with pytest.raises(SystemExit):
         cli.main(["doctor", "--json"])
     report = __import__("json").loads(capsys.readouterr().out)
-    assert report["version"] == "1.0.0" and report["checks"][0]["product"] == "key agreement"
+    assert report["version"] == __version__ and report["checks"][0]["product"] == "key agreement"

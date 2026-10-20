@@ -4,12 +4,14 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 pytestmark = pytest.mark.skipif(os.name == "nt", reason="the POSIX installer; install.ps1 runs in Windows CI")
+version = lambda p: tomllib.loads((ROOT / f"products/{p}/pyproject.toml").read_text())["project"]["version"]
 slow = pytest.mark.skipif(os.environ.get("ACXELIN_INSTALL_TEST") != "1", reason="set ACXELIN_INSTALL_TEST=1")
 
 
@@ -25,7 +27,7 @@ def test_install_from_a_checkout_then_use_reinstall_and_uninstall(tmp_path, prod
     r = install(ROOT / f"products/{product}/install.sh", tmp_path)
     assert r.returncode == 0, r.stdout + r.stderr
     cmd = tmp_path / "bin" / f"acxelin-{product}"
-    assert subprocess.run([str(cmd), "--version"], capture_output=True, text=True).stdout.strip() == f"acxelin-{product} 1.0.0"
+    assert subprocess.run([str(cmd), "--version"], capture_output=True, text=True).stdout.strip() == f"acxelin-{product} {version(product)}"
     assert f"acxelin-{product} {first}" in r.stdout, "the installer ends by saying what to do next"
     again = install(ROOT / f"products/{product}/install.sh", tmp_path)
     assert again.returncode == 0, again.stderr
@@ -39,7 +41,7 @@ def test_the_readiness_folder_installs_offline_everywhere_with_the_crawler(tmp_p
     offline scan follows values through JavaScript, TypeScript, Java and Go like the image and the sample report."""
     sys.path.insert(0, str(ROOT / "tools"))
     from wheelhouse import package
-    house = package("readiness", tmp_path / "acxelin-readiness-1.0.0-wheelhouse")
+    house = package("readiness", tmp_path / f"acxelin-readiness-{version('readiness')}-wheelhouse")
     names = [w.name for w in house.glob("*.whl")]
     for dist in ("cryptography", "tree_sitter-", "tree_sitter_typescript"):
         for plat in ("win_amd64", "macosx_11_0_arm64", "manylinux2014_aarch64"):
@@ -55,7 +57,7 @@ def test_the_readiness_folder_installs_offline_everywhere_with_the_crawler(tmp_p
 def test_install_offline_from_a_release_wheelhouse(tmp_path):
     sys.path.insert(0, str(ROOT / "tools"))
     from wheelhouse import package
-    house = package("tls", tmp_path / "acxelin-tls-1.0.0-wheelhouse")
+    house = package("tls", tmp_path / f"acxelin-tls-{version('tls')}-wheelhouse")
     shipped = {p.relative_to(house).as_posix() for p in house.rglob("*") if p.is_file()}
     assert {"install.sh", "install.ps1", "README.md", "LICENSE", "docs/manual.md", "config/example.toml", "deploy/systemd/acxelin-tls-edge.service"} <= shipped
     assert not [n for n in shipped if n.startswith("acxelin_readiness")], shipped
@@ -70,7 +72,7 @@ def test_install_offline_from_a_release_wheelhouse(tmp_path):
 def test_the_vpn_release_folder_installs_offline_and_carries_its_units(tmp_path):
     sys.path.insert(0, str(ROOT / "tools"))
     from wheelhouse import package
-    house = package("vpn", tmp_path / "acxelin-vpn-1.0.0-wheelhouse")
+    house = package("vpn", tmp_path / f"acxelin-vpn-{version('vpn')}-wheelhouse")
     shipped = {p.relative_to(house).as_posix() for p in house.rglob("*") if p.is_file()}
     units = {f"deploy/systemd/{u}" for u in ("acxelin-vpn-ipsec.service", "acxelin-vpn-wireguard.service", "strongswan-pqc.service",
                                               "acxelin-vpn-enroll.service", "acxelin-vpn-ca-maintain.service", "acxelin-vpn-ca-maintain.timer")}
@@ -84,7 +86,7 @@ def test_the_vpn_release_folder_installs_offline_and_carries_its_units(tmp_path)
     cmd = str(tmp_path / "bin/acxelin-vpn")
     assert "usage: acxelin-vpn" in subprocess.run([cmd, "--help"], capture_output=True, text=True).stdout
     doctor = subprocess.run([cmd, "doctor"], capture_output=True, text=True)
-    assert doctor.returncode in (0, 3) and "acxelin-vpn 1.0.0" in doctor.stdout, doctor.stdout + doctor.stderr
+    assert doctor.returncode in (0, 3) and f"acxelin-vpn {version('vpn')}" in doctor.stdout, doctor.stdout + doctor.stderr
 
 
 def test_the_installers_of_every_product_differ_only_in_the_product_name():

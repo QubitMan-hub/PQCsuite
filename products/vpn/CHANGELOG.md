@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- Windows: `install.ps1` no longer stops at Python's `>>>` prompt on computers with the `py` launcher (Python from
+  python.org or the Microsoft Store). It passed `py` its `-3` one character at a time.
+
 ## 1.0.0
 
 First release of Acxelin VPN.

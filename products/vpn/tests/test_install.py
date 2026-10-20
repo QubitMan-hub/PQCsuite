@@ -13,6 +13,7 @@ import venv
 from pathlib import Path
 
 import pytest
+from acxelin_vpn import __version__
 
 ROOT = Path(__file__).resolve().parents[3]
 pytestmark = pytest.mark.skipif(os.environ.get("ACXELIN_INSTALL_TEST") != "1", reason="set ACXELIN_INSTALL_TEST=1")
@@ -33,7 +34,7 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     assert not any("editable_project_location" in d for d in installed.values())
     assert not set(installed) & {"acxelin-readiness", "acxelin-tls"}
     cli = str(bin_ / "acxelin-vpn")
-    assert run(cli, "--version").stdout.strip() == "acxelin-vpn 1.0.0"
+    assert run(cli, "--version").stdout.strip() == f"acxelin-vpn {__version__}"
     doctor = subprocess.run([cli, "doctor", "--json"], cwd=tmp_path, env=clean, capture_output=True, text=True)
     assert doctor.returncode in (0, 3), doctor.stderr  # 3: this machine's OpenSSL is older than 3.5, and doctor says so
     assert json.loads(doctor.stdout)["checks"][0]["product"] == "key agreement"

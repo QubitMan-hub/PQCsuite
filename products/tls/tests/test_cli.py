@@ -11,6 +11,7 @@ from acxelin_core import openssl
 from acxelin_core.pki import CA
 
 from acxelin_tls import cli, common
+from acxelin_tls import __version__
 
 needs_openssl = pytest.mark.skipif(openssl.available() is not None, reason="needs OpenSSL 3.5+ (set ACXELIN_OPENSSL)")
 
@@ -22,7 +23,7 @@ def run(*args, env=None):
 
 def test_version_and_help_name_the_product_only():
     code, out, _ = run("--version")
-    assert code == 0 and out.strip() == "acxelin-tls 1.0.0"
+    assert code == 0 and out.strip() == f"acxelin-tls {__version__}"
     code, out, _ = run("--help")
     assert code == 0
     for command in ("edge", "bundle", "serve", "connect", "ca", "try", "doctor", "status", "console"):
@@ -96,7 +97,7 @@ def test_a_bundle_never_sends_the_reader_to_another_product(tmp_path):
     text = out + (tmp_path / "b/README.txt").read_text() + (tmp_path / "b/docker-compose.yml").read_text() + (tmp_path / "b/edge.toml").read_text()
     assert "acxelin-tls connect shop.example.invalid:443" in text
     assert not any(w in text.lower() for w in ("readiness", "vpn"))
-    assert "acxelin-tls:1.0.0" in text and "/etc/acxelin-tls/edge.toml" in text
+    assert f"acxelin-tls:{__version__}" in text and "/etc/acxelin-tls/edge.toml" in text
 
 
 def test_main_is_importable_and_returns_a_status():
