@@ -117,3 +117,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" dist/installers/* --clobber
+  checksums:
+    # the desktop installers join SHA256SUMS, so people check them the same way as the archive
+    needs: [gate, installers]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" -R "$REPO" -p SHA256SUMS -p "Acxelin-VPN-*" -p "acxelin-vpn_*"
+          sha256sum Acxelin-VPN-* acxelin-vpn_* >> SHA256SUMS
+          gh release upload "$GITHUB_REF_NAME" -R "$REPO" SHA256SUMS --clobber
