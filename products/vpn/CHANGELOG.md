@@ -18,4 +18,6 @@ First release of Acxelin VPN as its own product, from the PQC Suite's VPN. See `
   a Windows Setup, a macOS disk image and a Linux package. The Packer cloud images are gone.
 - `doctor --json`, for scripts and the installer check.
 - The app and `status` say when the key was last renewed, warn in words when renewals stop, and count failed renewals.
+- One audit log beside the CA for invitations and revocations from the console and the command line; the People tab merges in
+  enrollments and renewals. Each laptop logs its own kill-switch changes.
 - A full manual (`docs/manual.md`), shipped in the release folder with the README, licence, example settings and systemd units.

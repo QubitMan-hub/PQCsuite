@@ -334,7 +334,7 @@ function render(s) {
       ["Gateway name", k.gateway], ["Key renewed every", k.psk_rotation_s + " s"], ["Key renewed", ago(st.last_key_s)],
       ["Next key in", st.next_key_s + " s"], ["Last handshake", st.handshake_age_s == null ? "none yet" : st.handshake_age_s + " s ago"],
       ["Routes", (st.routes || []).join(", "), "mono"], ["Device", st.device],
-    ]);
+    ].concat(st.kill_switch_changed ? [["Kill switch changed", st.kill_switch_changed.action.replace("kill switch ", "turned ") + ", " + st.kill_switch_changed.time.replace("T", " ").replace("Z", " UTC")]] : []));
   }
   $("setup").hidden = running || (!!inv && !s.error);
   $("form").hidden = running || !inv || !!s.error;

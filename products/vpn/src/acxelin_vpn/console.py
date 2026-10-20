@@ -13,16 +13,15 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-from collections import deque
 from pathlib import Path
 
 from acxelin_core import console as core
 from acxelin_core import shell
-from acxelin_core.files import append, write
+from acxelin_core.files import write
 from acxelin_core.http import explain
 from acxelin_core.pki import CA, CAError, encrypted
 
-from . import __version__, checks, join
+from . import __version__, audit, checks, join
 from .ca_commands import CA_PASS_ENV
 
 NAME = re.compile(r"[A-Za-z0-9@._-]{1,128}")
@@ -86,24 +85,10 @@ class VPNConsole:
         write(self.home / name, json.dumps(data, indent=1).encode())
 
     def audit(self, action, detail):
-        line = json.dumps({"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "action": action, **detail})
-        with self.lock:
-            self.home.mkdir(parents=True, exist_ok=True)
-            append(self.home / "audit.jsonl", line)
+        audit.record(self.ca_dir, action, **detail)
 
     def activity(self, n=15):
-        try:
-            with open(self.home / "audit.jsonl", encoding="utf-8", errors="replace") as f:
-                lines = deque(f, n)
-        except FileNotFoundError:
-            return []
-        out = []
-        for line in reversed(lines):
-            try:
-                out.append(json.loads(line))
-            except ValueError:
-                pass
-        return out
+        return audit.recent(self.ca_dir, n)
 
     # --- the certificate authority
 

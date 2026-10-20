@@ -37,7 +37,7 @@ from acxelin_core.http import explain, hostport
 from acxelin_core.pki import CAError, algorithm_of, follow_crl
 from acxelin_core.server import Server
 
-from . import legacy
+from . import audit, legacy
 from .controller import TAG, common_name, read_line
 from .policies import POLICY
 from .platforms import FULL, WG, WGError, addresses, this_machine
@@ -340,6 +340,7 @@ class Client:
         self.due, self.failures = 0.0, 0
         self.last = self.error = self.since = self.reported = self.agreed_at = None
         self.details, self.on_status = {}, on_status
+        self.ks_on, self.ks_changed = False, None
         self.status_file = status_file or (Path(tunnel.folder) / f"{interface}.status.json" if apply and hasattr(tunnel, "folder") else None)
 
     def agree(self):
@@ -366,10 +367,17 @@ class Client:
             if "0.0.0.0/0" in reply["routes"]:
                 host, port = hostport(reply["endpoint"])
                 self.kill_switch.on(self.tunnel.device(), (addresses(host), port), (addresses(self.host), self.port))
+                self.killswitch(True)
             else:
                 self.kill_switch.off()
+                self.killswitch(False)
         if self.config_out:
             write(Path(self.config_out), wg_quick(self.private, reply, psk).encode(), secret=True)
+
+    def killswitch(self, on):
+        """Record a change (not every renewal) in the computer's own audit log, next to the tunnel's state."""
+        if on != self.ks_on and hasattr(self.tunnel, "folder"):
+            self.ks_on, self.ks_changed = on, audit.record(self.tunnel.folder, f"kill switch {'on' if on else 'off'}", device=self.name)
 
     def once(self):
         reply, psk = self.agree()
@@ -414,6 +422,8 @@ class Client:
              "renewal_failures": self.failures}
         if self.agreed_at:
             s["last_key_s"] = round(time.time() - self.agreed_at)
+        if self.ks_changed:
+            s["kill_switch_changed"] = {k: self.ks_changed[k] for k in ("time", "action")}
         if self.failures:
             s["retry_in_s"] = max(0, round(self.due - time.time()))
         if self.last and not self.error:
@@ -454,6 +464,7 @@ class Client:
         if self.apply_:
             self.tunnel.down()
             self.kill_switch.off()
+            self.killswitch(False)
         self.last = self.agreed_at = None
         self.failures = 0
         self.report({"state": "disconnected", "gateway": f"{self.host}:{self.port}", "device": self.name, "error": None, "updated": time.time()})

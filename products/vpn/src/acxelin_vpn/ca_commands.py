@@ -8,7 +8,7 @@ from acxelin_core.cli import ask, positive, run_until_signal
 from acxelin_core.config import env_passphrase
 from acxelin_core.pki import ALGORITHMS, CA, CA_ALGORITHMS, REASONS, CAError, encrypted
 
-from . import legacy
+from . import audit, legacy
 
 CA_PASS_ENV = "ACXELIN_VPN_CA_PASSPHRASE"
 
@@ -44,7 +44,9 @@ def cmd_ca(a):
         print(f"  {out / 'cert.pem'}\n  {out / 'chain.pem'}  (certificate + CA: what a gateway presents)\n  {out / 'key.pem'}")
     elif a.ca_cmd == "revoke":
         ca.revoke(a.serial, a.reason)
-        print(f"revoked {ca.find(a.serial).serial}; {Path(a.dir) / 'crl.pem'} updated. Gateways following it with crl_url cut the "
+        r = ca.find(a.serial)
+        audit.record(a.dir, "revoke", name=r.common_name, serial=r.serial, reason=a.reason)
+        print(f"revoked {r.serial}; {Path(a.dir) / 'crl.pem'} updated. Gateways following it with crl_url cut the "
               f"tunnel within a minute; copy it to any others")
     elif a.ca_cmd == "crl":
         ca.crl(a.days)

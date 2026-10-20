@@ -13,7 +13,7 @@ from acxelin_core.config import env_passphrase
 from acxelin_core.http import JSON, METRICS, ConfigWatch, explain, restart, serve_http
 from acxelin_core.pki import CA, CAError, encrypted
 
-from . import NAME, __version__, ca_commands, checks
+from . import NAME, __version__, audit, ca_commands, checks
 from .charon import CharonError
 from .platforms import WGError
 
@@ -86,6 +86,7 @@ def cmd_invite(a):
         raise ValueError(f"{out} already exists; choose another --out")
     data, expires = join.make(CA(a.dir), a.name, a.enroll, a.gateway, a.server_name, a.hours)
     write(out, data, secret=True)
+    audit.record(a.dir, "invite", name=a.name, expires=expires)
     print(f"wrote {out}: it lets {a.name} enroll once before {expires} and then connect to {a.gateway}.\n"
           f"Send it through a channel you trust (it holds a one-time token and the CA fingerprint the device will trust).\n"
           f"On the device, in an administrator terminal: acxelin-vpn join {out.name}")
@@ -267,6 +268,9 @@ def describe_vpn(s, details=False):
         age = s.get("handshake_age_s")
         lines.append(f"  key last renewed {s['last_key_s']} s ago; last handshake {'never' if age is None else f'{age} s ago'}; next key in {s['next_key_s']} s; "
                      f"device {s['device']}; routes {', '.join(s['routes'])}")
+        if s.get("kill_switch_changed"):
+            c = s["kill_switch_changed"]
+            lines.append(f"  {c['action']} since {c['time']} (this computer's audit log)")
     return "\n".join(lines)
 
 

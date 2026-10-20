@@ -126,7 +126,7 @@ async function peopleView() {
     h("div", {id: "people-list"})));
   await paintPeople();
 }
-const ACTIONS = {invite: "Invited", revoke: "Revoked"};
+const ACTIONS = {invite: "Invited", revoke: "Revoked", enroll: "Enrolled", renew: "Renewed", "enrollment refused": "Refused an enrollment for"};
 async function paintPeople() {
   const out = $("#people-list");
   if (!out) return;

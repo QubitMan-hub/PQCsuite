@@ -215,7 +215,7 @@ Your browser opens, already signed in. The console asks for the CA key's passphr
 | **People** | Invite a person and download their invitation file. Add the WireGuard gateway by its status address to see who is connected now and since when. Revoke a person in two clicks; their session ends at the gateway's next check. |
 | **Health** | Whether this computer can run Acxelin VPN, whether the CA, its CRL and its certificates are in good shape, and whether every site and gateway answers, each with what to do. |
 
-Invitations and revocations are written to an audit log that only you can read, and the People tab shows the latest.
+Invitations and revocations, from the console or the command line, are written to `audit.jsonl` in the CA folder, which only you can read. The People tab shows the latest of them together with enrollments, refused enrollments and renewals from the enrollment service's log beside it. No token, key or passphrase is written. Each laptop keeps its own `audit.jsonl` of kill-switch changes in its tunnel folder; the app's connection details and `acxelin-vpn status --details` show the last one.
 
 The console listens only on the machine it runs on. For a remote server, forward a port and ask the running console for a fresh link:
 
