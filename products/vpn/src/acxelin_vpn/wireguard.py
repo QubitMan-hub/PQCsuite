@@ -17,7 +17,6 @@ import json
 import logging
 import os
 import platform
-import secrets
 import shutil
 import subprocess
 import threading
@@ -35,16 +34,14 @@ from acxelin_core.config import build, env_passphrase, read_toml
 from acxelin_core.files import write
 from acxelin_core.http import explain, hostport
 from acxelin_core.pki import CAError, algorithm_of, follow_crl
-from acxelin_core.server import Server
 
-from . import audit, legacy
-from .controller import TAG, common_name, read_line
-from .policies import POLICY
+from . import agreement, audit, legacy
+from .agreement import TAG, common_name, read_line
 from .platforms import FULL, WG, WGError, addresses, this_machine
 
 log = logging.getLogger(__name__)
 LIVE = {"users", "routes", "dns", "sites", "rotate_minutes"}
-LABEL = "EXPORTER-pqcsuite-wireguard-v1"
+LABEL, context = agreement.WIREGUARD, agreement.wireguard_context
 RAW = (serialization.Encoding.Raw, serialization.PublicFormat.Raw)
 
 
@@ -67,10 +64,6 @@ def valid_key(text):
         return len(base64.b64decode(text, validate=True)) == 32
     except (ValueError, TypeError):
         return False
-
-
-def context(gateway, client, tag, client_public, gateway_public):
-    return "|".join((gateway, client, tag, client_public, gateway_public)).encode()
 
 
 def ensure_interface(name, address, routes=()):
@@ -199,16 +192,16 @@ class Gateway:
         if (self.cfg.users and cn not in self.cfg.users) or not valid_key(pub) or not TAG.match(tag) or pub == self.public:
             self.counts["refused"] += 1
             log.warning("keyring: refused %s from %s", cn or "unknown", addr[0])
-            conn.sendall(b'{"ok": false}\n')
+            agreement.send(conn, {"ok": False})
             return
-        psk = conn.export(LABEL, context(self.cfg.name, cn, tag, pub, self.public), 32)
+        psk = agreement.wireguard_psk(conn, self.cfg.name, cn, tag, pub, self.public)
         with self.lock:
             try:
                 ip = self.lease(cn)
             except CAError as e:
                 self.counts["refused"] += 1
                 log.warning("keyring: refused %s: %s", cn, e)
-                conn.sendall(b'{"ok": false}\n')
+                agreement.send(conn, {"ok": False})
                 return
             old = self.clients.get(cn)
             self.wg.set_peer(pub, b64(psk), [f"{ip}/32"] + self.cfg.sites.get(cn, []))
@@ -224,7 +217,7 @@ class Gateway:
         reply = {"ok": True, "address": f"{ip}/{self.cfg.network.prefixlen}", "gateway": self.cfg.name, "gateway_public": self.public,
                  "endpoint": self.cfg.endpoint, "routes": routes, "dns": self.cfg.dns,
                  "rotate_s": int(self.cfg.rotate_minutes * 60)}
-        conn.sendall(json.dumps(reply).encode() + b"\n")
+        agreement.send(conn, reply)
 
     def expire(self, revocation=None):
         """Remove clients whose certificate was revoked, and clients that stopped re-agreeing keys."""
@@ -261,10 +254,8 @@ class Gateway:
             self.wg.remove_peer(stale)
         if c.crl_url:
             self.crl_follow = follow_crl(c.crl_url, c.crl, c.ca, c.crl_every)
-        make = lambda: tls.server_context(POLICY, c.cert, c.key, c.ca, True, env_passphrase(c.key_passphrase_env))
-        self.server = Server(hostport(c.keyring_listen), make, self.respond, watch=[c.cert, c.key, c.ca], crl=c.crl or None,
-                             ca=c.ca, max_connections=256, name="keyring")
-        self.server.start()
+        self.server = agreement.keyring(c.keyring_listen, c.cert, c.key, c.ca, self.respond, c.crl,
+                                        lambda: env_passphrase(c.key_passphrase_env), max_connections=256)
 
         def watch():
             while not self.stop.wait(min(15, c.rotate_minutes * 30)):
@@ -344,15 +335,14 @@ class Client:
         self.status_file = status_file or (Path(tunnel.folder) / f"{interface}.status.json" if apply and hasattr(tunnel, "folder") else None)
 
     def agree(self):
-        ctx = tls.client_context(POLICY, self.ca, self.dir / "chain.pem", self.dir / "key.pem", self.passphrase)
-        tag = secrets.token_hex(6)
-        with tls.connect(self.host, self.port, ctx, self.server_name, timeout=15) as conn:
-            conn.sendall(json.dumps({"v": 1, "public": self.public, "tag": tag}).encode() + b"\n")
+        tag = agreement.new_tag()
+        with agreement.dial((self.host, self.port), self.ca, self.dir / "chain.pem", self.dir / "key.pem", self.passphrase, self.server_name, 15) as conn:
+            agreement.send(conn, {"v": 1, "public": self.public, "tag": tag})
             reply = read_line(conn)
             if reply.get("ok") is not True or not valid_key(str(reply.get("gateway_public", ""))):
                 raise tls.TLSError("the gateway refused the key agreement (is this certificate allowed?)")
             peer = conn.peer_certificate()
-            psk = conn.export(LABEL, context(common_name(peer), self.name, tag, self.public, reply["gateway_public"]), 32)
+            psk = agreement.wireguard_psk(conn, common_name(peer), self.name, tag, self.public, reply["gateway_public"])
             self.details = {"tls_group": conn.group, "gateway_certificate": algorithm_of(peer.public_key()), "gateway": common_name(peer)}
         return reply, b64(psk)
 

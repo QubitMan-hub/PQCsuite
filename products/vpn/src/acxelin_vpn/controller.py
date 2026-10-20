@@ -1,52 +1,22 @@
 """Runs one site: agrees keys with each peer over post-quantum mutual TLS, loads them into charon, rotates them, and cuts
 tunnels whose peer certificate has been revoked."""
-import json
 import logging
-import re
-import secrets
 import threading
 import time
 from collections import Counter
-
-from cryptography.x509.oid import NameOID
 
 from acxelin_core import tls
 from acxelin_core.config import env_passphrase
 from acxelin_core.http import explain, hostport
 from acxelin_core.pki import CAError, follow_crl
-from acxelin_core.server import Revocation, Server
+from acxelin_core.server import Revocation
 
-from .policies import POLICY
+from . import agreement
+from .agreement import TAG, common_name, read_line
 from .charon import Charon, CharonError, conn_config, ppk_pattern, protected
 
 log = logging.getLogger(__name__)
-LABEL = "EXPORTER-pqcsuite-ipsec-v1"
-TAG = re.compile(r"^[0-9a-f]{12}$")
-
-
-def common_name(cert):
-    cn = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
-    return cn[0].value if cn else ""
-
-
-def context(a, b, tag):
-    return "|".join(sorted((a, b)) + [tag]).encode()
-
-
-def read_line(conn, limit=4096):
-    buf = b""
-    while not buf.endswith(b"\n"):
-        chunk = conn.recv(limit - len(buf), timeout=10)
-        if not chunk or len(buf) + len(chunk) >= limit:
-            raise tls.TLSError("key agreement message missing or too long")
-        buf += chunk
-    try:
-        msg = json.loads(buf)
-    except ValueError:
-        msg = None
-    if not isinstance(msg, dict):
-        raise tls.TLSError("the key agreement message is not a JSON object")
-    return msg
+LABEL, context = agreement.IPSEC, agreement.ipsec_context
 
 
 class Controller:
@@ -85,16 +55,15 @@ class Controller:
 
     def agree(self, peer):
         """Initiator side: connect to the peer's keyring, prove who we are, derive the keys, wait for the peer to confirm."""
-        ctx = tls.client_context(POLICY, self.site.ca, self.site.cert, self.site.key, self.passphrase())
-        with tls.connect(*hostport(peer.keyring, peer.address), ctx, server_name=peer.name, timeout=10) as conn:
+        with agreement.dial(hostport(peer.keyring, peer.address), self.site.ca, self.site.cert, self.site.key, self.passphrase(), peer.name) as conn:
             cert = conn.peer_certificate()
             if common_name(cert) != peer.name:
                 raise tls.TLSError(f"{peer.keyring} presented {common_name(cert)!r}, expected {peer.name!r}")
             if self.revocation:
                 self.revocation.check(cert.serial_number)
-            tag = secrets.token_hex(6)
-            conn.sendall(json.dumps({"v": 1, "site": self.site.name, "tag": tag}).encode() + b"\n")
-            material = conn.export(LABEL, context(self.site.name, peer.name, tag), 64)
+            tag = agreement.new_tag()
+            agreement.send(conn, {"v": 1, "site": self.site.name, "tag": tag})
+            material = agreement.ipsec_keys(conn, self.site.name, peer.name, tag)
             if read_line(conn).get("ok") is not True:
                 raise tls.TLSError(f"{peer.name} refused the key agreement")
         self.install(peer, tag, material, cert)
@@ -109,10 +78,10 @@ class Controller:
         if not peer or peer.initiate or msg.get("site") != name or not TAG.match(str(msg.get("tag", ""))):
             self.counts["key_agreements_refused"] += 1
             log.warning("keyring: refused %s from %s", name or "unknown", addr[0])
-            conn.sendall(b'{"ok": false}\n')
+            agreement.send(conn, {"ok": False})
             return
-        self.install(peer, msg["tag"], conn.export(LABEL, context(self.site.name, name, msg["tag"]), 64), cert)
-        conn.sendall(b'{"ok": true}\n')
+        self.install(peer, msg["tag"], agreement.ipsec_keys(conn, self.site.name, name, msg["tag"]), cert)
+        agreement.send(conn, {"ok": True})
 
     def tunnel(self, name):
         """The newest IKE SA with this peer; during a rotation the old one lingers until the responder replaces it."""
@@ -182,10 +151,7 @@ class Controller:
             if not p.initiate:
                 self.charon.load_conn(conn_config(s, p))
         if s.keyring_listen:
-            make = lambda: tls.server_context(POLICY, s.cert, s.key, s.ca, True, self.passphrase())
-            self.server = Server(hostport(s.keyring_listen), make, self.respond, watch=[s.cert, s.key, s.ca], crl=s.crl or None,
-                                 ca=s.ca, max_connections=64, name="keyring")
-            self.server.start()
+            self.server = agreement.keyring(s.keyring_listen, s.cert, s.key, s.ca, self.respond, s.crl, self.passphrase)
         for p in s.peers:
             if p.initiate:
                 threading.Thread(target=self.initiator_loop, args=(p,), daemon=True, name=p.name).start()
