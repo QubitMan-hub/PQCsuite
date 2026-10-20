@@ -17,4 +17,5 @@ First release of Acxelin VPN as its own product, from the PQC Suite's VPN. See `
 - Deploys with the gateway Docker image (strongSwan 6.1, OpenSSL 3.5), systemd units, or the installers. The desktop app ships as
   a Windows Setup, a macOS disk image and a Linux package. The Packer cloud images are gone.
 - `doctor --json`, for scripts and the installer check.
+- The app and `status` say when the key was last renewed, warn in words when renewals stop, and count failed renewals.
 - A full manual (`docs/manual.md`), shipped in the release folder with the README, licence, example settings and systemd units.

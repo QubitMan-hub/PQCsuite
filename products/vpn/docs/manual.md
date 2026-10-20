@@ -238,6 +238,8 @@ Run the second command in that SSH session, then open the address it prints on y
 | **Connecting** | Keys are agreed; the tunnel has not completed its first handshake yet. |
 | **Not protected** | The gateway could not be reached or refused this computer; the reason follows. It retries on its own; with a full tunnel, internet traffic stays blocked meanwhile. |
 
+Connection details say when the key was last renewed. If renewals stop, the window says so in words: when the key is more than twice its renewal period old ("has not been renewed for 62 min"), and, when the gateway cannot be reached, how many tries in a row have failed and when the last good key was agreed. `acxelin-vpn status --details` prints the same.
+
 Only the background VPN service runs with administrator rights; the tray and the window run as you. The window is served only on 127.0.0.1 and opens only from a one-time address. It never offers to save your passphrase. On Linux, the tray menu needs a desktop with AppIndicator support (GNOME with its AppIndicator extension, KDE and most others); without it, clicking the shield opens the window, and Disconnect is in the window.
 
 **Without the installer:** `acxelin-vpn app`, in an administrator terminal, serves the same window in your browser.

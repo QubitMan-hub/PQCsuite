@@ -159,6 +159,63 @@ class GatewayTest(unittest.TestCase):
         c.close()
         self.assertEqual(seen[-1]["state"], "disconnected")
 
+    def test_session_health_says_how_old_the_key_is_and_warns_when_renewal_stops(self):
+        from acxelin_vpn.cli import describe_vpn
+
+        class Tunnel:
+            folder, up_, age = self.d, False, 4
+
+            def routes(self, routes):
+                return routes
+
+            def up(self, text):
+                self.up_ = True
+
+            def down(self):
+                self.up_ = False
+
+            def wg(self):
+                return self
+
+            def set_psk(self, *args):
+                pass
+
+            def device(self):
+                return "wg0"
+
+            def handshake_age(self, peer):
+                return self.age
+
+        class KillSwitch:
+            def on(self, *args):
+                pass
+
+            def off(self):
+                pass
+        c = Client(f"127.0.0.1:{self.gw.server.port}", self.d / "alice", server_name="localhost", tunnel=Tunnel(), kill_switch=KillSwitch())
+        c.step()
+        s = c.status()
+        self.assertEqual((s["state"], s["last_key_s"], s["renewal_failures"], s["overdue"]), ("protected", 0, 0, False))
+        self.assertIn("key last renewed 0 s ago", describe_vpn(s, details=True))
+        rotate = s["key_agreement"]["psk_rotation_s"]
+        c.agreed_at -= 2 * rotate + 1
+        s = c.status()
+        self.assertEqual((s["state"], s["overdue"]), ("protected", True), "an old key still protects, but it is late")
+        self.assertIn(f"has not been renewed for {(2 * rotate + 1) // 60} min", describe_vpn(s))
+        self.gw.shutdown()
+        for _ in range(2):
+            c.due = 0
+            c.step()
+        s = c.status()
+        self.assertEqual((s["state"], s["renewal_failures"]), ("not_protected", 2))
+        self.assertGreaterEqual(s["last_key_s"], 2 * rotate + 1)
+        self.assertGreaterEqual(s["retry_in_s"], 0)
+        text = describe_vpn(s)
+        self.assertIn("2 renewals in a row have failed", text)
+        self.assertIn("the last good key was agreed", text)
+        c.close()
+        self.assertNotIn("last_key_s", c.status())
+
     def test_invite_then_join_enrolls_and_agrees_keys_in_one_step(self):
         import contextlib
         import io

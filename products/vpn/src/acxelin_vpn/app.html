@@ -120,6 +120,7 @@ main[data-state="not_protected"] .i-bad, main[data-state="disconnected"] .i-off,
 .go:disabled { opacity: .55; cursor: default; }
 #error { margin: 0; padding: 10px 14px; border-radius: 6px; background: var(--bad-ground); color: var(--bad); font-weight: 500; font-size: 14px; }
 #error:empty { display: none; }
+#warn { margin: 0; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--rule-strong); background: var(--pane); color: var(--ink); font-size: 14px; }
 details { background: var(--pane); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 20px; }
 summary { cursor: pointer; font-weight: 500; color: var(--ink); list-style: none; display: flex; align-items: center; justify-content: space-between; }
 summary::-webkit-details-marker { display: none; }
@@ -212,6 +213,7 @@ main[data-state="none"] + footer { display: none; }
     </section>
 
     <p id="error" role="alert"></p>
+    <p id="warn" role="status" hidden></p>
 
     <details id="more" hidden>
       <summary>Connection details</summary>
@@ -246,6 +248,10 @@ async function call(method, path, body) {
   if (r.status === 401 || r.status === 429) throw new Stopped(data.error || "This window's key was not accepted.");
   if (!r.ok) { if (data.state) render(data.state); throw new Error(data.error || "Something went wrong (" + r.status + ")."); }
   return data;
+}
+
+function ago(s) {
+  return s < 120 ? s + " s ago" : s < 7200 ? Math.floor(s / 60) + " min ago" : Math.floor(s / 3600) + " h ago";
 }
 
 function since(t) {
@@ -295,7 +301,8 @@ function render(s) {
     protected: scope,
     connecting: "Keys are agreed with the gateway. Waiting for the tunnel's first handshake.",
     agreed: "Keys were agreed, but no tunnel is configured (started with --no-apply), so this computer is not protected.",
-    not_protected: (st.error || "Not connected yet") + ". Trying again automatically." + (st.full_tunnel ? " Internet traffic stays blocked meanwhile." : ""),
+    not_protected: (st.error || "Not connected yet") + ". Trying again automatically" + (st.renewal_failures > 1 ? " (" + st.renewal_failures + " tries in a row" +
+      (st.last_key_s != null ? "; the last good key was agreed " + ago(st.last_key_s) : "") + ")" : "") + "." + (st.full_tunnel ? " Internet traffic stays blocked meanwhile." : ""),
     disconnected: s.enrolled ? "Enter your passphrase to connect." : "Choose a passphrase for this computer, then connect.",
   }[state] || "";
   const k = st.key_agreement;
@@ -324,7 +331,7 @@ function render(s) {
     pq.append(tag, k.tls_group);
     rows($("details"), [
       ["Key agreement", pq], ["Gateway certificate", k.gateway_certificate],
-      ["Gateway name", k.gateway], ["Key renewed every", k.psk_rotation_s + " s"],
+      ["Gateway name", k.gateway], ["Key renewed every", k.psk_rotation_s + " s"], ["Key renewed", ago(st.last_key_s)],
       ["Next key in", st.next_key_s + " s"], ["Last handshake", st.handshake_age_s == null ? "none yet" : st.handshake_age_s + " s ago"],
       ["Routes", (st.routes || []).join(", "), "mono"], ["Device", st.device],
     ]);
@@ -340,6 +347,9 @@ function render(s) {
   $("pass-label").textContent = s.enrolled ? "Passphrase" : "Choose a passphrase for this computer";
   $("pass").autocomplete = s.enrolled ? "current-password" : "new-password";
   if (!busy) $("error").textContent = s.error || "";
+  $("warn").hidden = !st.overdue;
+  $("warn").textContent = st.overdue ? "This computer's key has not been renewed for " + Math.floor(st.last_key_s / 60) + " min (it should be every " +
+    Math.round(k.psk_rotation_s / 60) + " min). The last key still protects this computer; if this lasts, tell your administrator." : "";
 }
 
 function lock(on, label) {

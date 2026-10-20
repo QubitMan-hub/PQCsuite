@@ -139,6 +139,16 @@ def test_open_an_invitation_enroll_connect_disconnect(browser, window, invitatio
         expect(page.locator("#facts")).to_contain_text("10.99.0.")
         page.click("#more summary")
         expect(page.locator("#details")).to_contain_text("Post-quantum")
+        expect(page.locator("#details")).to_contain_text("Key renewed")
+        expect(page.locator("#warn")).to_be_hidden()
+        if scheme == "light":
+            w.client.agreed_at -= 3600
+            page.reload()
+            expect(page.locator("#warn")).to_contain_text("has not been renewed for 60 min")
+            assert axe(page) == []
+            w.client.agreed_at += 3600
+            page.reload()
+            expect(page.locator("#warn")).to_be_hidden()
         assert axe(page) == []
         page.click("#disconnect")
         expect(page.locator("#word")).to_have_text("Disconnected")

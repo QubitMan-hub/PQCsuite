@@ -338,7 +338,7 @@ class Client:
         self.private, self.public = private_key(self.dir / "wireguard.key")
         self.applied, self.stop = None, threading.Event()
         self.due, self.failures = 0.0, 0
-        self.last = self.error = self.since = self.reported = None
+        self.last = self.error = self.since = self.reported = self.agreed_at = None
         self.details, self.on_status = {}, on_status
         self.status_file = status_file or (Path(tunnel.folder) / f"{interface}.status.json" if apply and hasattr(tunnel, "folder") else None)
 
@@ -393,7 +393,7 @@ class Client:
                 reply = self.once()
                 log.info("connected as %s through %s; next key in %ds", reply["address"], reply["endpoint"], reply["rotate_s"])
                 self.failures, self.due = 0, time.time() + reply["rotate_s"]
-                self.last, self.error, self.since = reply, None, self.since or time.time()
+                self.last, self.error, self.since, self.agreed_at = reply, None, self.since or time.time(), time.time()
             except (tls.TLSError, WGError, OSError, ValueError, KeyError) as e:
                 self.failures += 1
                 retry = min(5 * 2 ** (self.failures - 1), 60)
@@ -410,7 +410,12 @@ class Client:
     def status(self):
         """What a person needs to know: protected, connecting or not protected, and why. Protected means WireGuard has completed
         a handshake within three minutes using the PSK from the latest post-quantum key agreement, not merely that keys were agreed."""
-        s = {"state": "not_protected", "gateway": f"{self.host}:{self.port}", "device": self.name, "error": self.error, "updated": time.time()}
+        s = {"state": "not_protected", "gateway": f"{self.host}:{self.port}", "device": self.name, "error": self.error, "updated": time.time(),
+             "renewal_failures": self.failures}
+        if self.agreed_at:
+            s["last_key_s"] = round(time.time() - self.agreed_at)
+        if self.failures:
+            s["retry_in_s"] = max(0, round(self.due - time.time()))
         if self.last and not self.error:
             age = None
             if self.apply_ and self.tunnel.up_:
@@ -422,6 +427,7 @@ class Client:
             s |= {"state": ("protected" if age is not None and age <= 180 else "connecting") if self.apply_ else "agreed",
                   "address": self.last["address"], "routes": self.last["routes"], "full_tunnel": full, "kill_switch": full and self.apply_,
                   "connected_since": self.since, "handshake_age_s": None if age is None else round(age), "next_key_s": max(0, round(self.due - time.time())),
+                  "overdue": s["last_key_s"] > 2 * self.last["rotate_s"],  # renewal is late: still the last key, but nothing new arrives
                   "key_agreement": self.details | {"post_quantum": "MLKEM" in str(self.details.get("tls_group", "")).upper(),
                                                    "psk_rotation_s": self.last["rotate_s"]}}
         return s
@@ -448,7 +454,8 @@ class Client:
         if self.apply_:
             self.tunnel.down()
             self.kill_switch.off()
-        self.last = None
+        self.last = self.agreed_at = None
+        self.failures = 0
         self.report({"state": "disconnected", "gateway": f"{self.host}:{self.port}", "device": self.name, "error": None, "updated": time.time()})
 
 

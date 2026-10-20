@@ -231,6 +231,10 @@ def connect(a, keyring, cert_dir, passphrase, server_name=None):
     return 0
 
 
+def ago(seconds):
+    return f"{seconds} s ago" if seconds < 120 else f"{seconds // 60} min ago" if seconds < 7200 else f"{seconds // 3600} h ago"
+
+
 def describe_vpn(s, details=False):
     """Plain words first (protected or not, and why); the algorithms underneath for anyone who asks."""
     state = s["state"]
@@ -247,6 +251,13 @@ def describe_vpn(s, details=False):
         lines = [f"Not running. The VPN client last reported at {s['last_seen']}; start it again with `acxelin-vpn join` or `acxelin-vpn connect`."]
     else:
         lines = [f"Not protected. {s.get('error') or 'Not connected yet'}. Retrying automatically; full-tunnel traffic stays blocked meanwhile."]
+        if s.get("renewal_failures", 0) > 1:
+            lines.append(f"  {s['renewal_failures']} renewals in a row have failed; the next try is in {s.get('retry_in_s', 0)} s"
+                         + (f"; the last good key was agreed {ago(s['last_key_s'])}" if s.get("last_key_s") is not None else ""))
+    if s.get("overdue"):
+        lines.append(f"  Warning: the key has not been renewed for {s['last_key_s'] // 60} min (it should be every "
+                     f"{s['key_agreement']['psk_rotation_s'] // 60} min). The last key still protects this computer; if this lasts, "
+                     "tell your administrator.")
     k = s.get("key_agreement")
     if k and (details or state == "protected"):
         kind = "Post-quantum" if k["post_quantum"] else "Classical (NOT post-quantum)"
@@ -254,7 +265,7 @@ def describe_vpn(s, details=False):
                      f"the WireGuard pre-shared key is renewed every {k['psk_rotation_s']} s")
     if details and k:
         age = s.get("handshake_age_s")
-        lines.append(f"  last handshake {'never' if age is None else f'{age} s ago'}; next key in {s['next_key_s']} s; "
+        lines.append(f"  key last renewed {s['last_key_s']} s ago; last handshake {'never' if age is None else f'{age} s ago'}; next key in {s['next_key_s']} s; "
                      f"device {s['device']}; routes {', '.join(s['routes'])}")
     return "\n".join(lines)
 
