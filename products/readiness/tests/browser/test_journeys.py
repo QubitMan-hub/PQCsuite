@@ -3,7 +3,6 @@
 Run with the Playwright browser installed (`python -m playwright install chromium`); skipped when it is not.
 """
 import json
-import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -179,10 +178,10 @@ def test_keyboard_only_reaches_setup_and_submits(page, console, repos):
     assert page.evaluate("document.activeElement.id") == "dir"
     page.keyboard.type(str(repos))
     page.keyboard.press("Enter")
-    page.get_by_role("tab", name="Projects").wait_for()
+    page.get_by_label("Folder path").wait_for(state="detached")
+    page.wait_for_function("document.activeElement && document.activeElement.id === 'tab-projects'")
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement !== document.body")
-    time.sleep(0)
 
 
 def test_no_browser_errors_through_every_view(browser, console, tmp_path):

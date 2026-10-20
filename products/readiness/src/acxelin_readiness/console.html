@@ -48,7 +48,7 @@ function signedOut() {
 
 function setup() {
   const input = h("input", {type: "text", id: "dir", autocomplete: "off", placeholder: state.status.example, required: true});
-  const go = async () => { try { await call("setup", {directory: input.value}); await load(); } catch (e) {} };
+  const go = async () => { try { await call("setup", {directory: input.value}); await load(); $("#tab-projects").focus(); } catch (e) {} };
   $("#panel").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "Where are your repositories?"),
     h("p", {class: "lede"}, "Acxelin Readiness only scans folders inside the one you choose here. Enter the full path of the folder that holds your repositories. To grade servers instead, open Endpoints; it needs no folder."),
     h("label", {for: "dir"}, "Folder path"), input,

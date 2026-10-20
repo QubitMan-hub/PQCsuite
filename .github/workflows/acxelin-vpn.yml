@@ -179,7 +179,7 @@ jobs:
         run: |
           docker build -f products/vpn/deploy/Dockerfile -t acxelin-vpn:ci .
           docker run --rm acxelin-vpn:ci doctor
-          docker run --rm acxelin-vpn:ci --version | grep -q "acxelin-vpn 1.0.0"
+          docker run --rm acxelin-vpn:ci --version | grep -qF "acxelin-vpn $(sed -n 's/^version = "\(.*\)"/\1/p' products/vpn/pyproject.toml)"
       - name: A site starts strongSwan with ML-KEM and answers on its status address
         run: |
           pip install ./core ./products/vpn

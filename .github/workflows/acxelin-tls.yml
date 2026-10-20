@@ -85,7 +85,7 @@ jobs:
           docker build -f products/tls/deploy/Dockerfile -t acxelin-tls:ci .
           docker run --rm acxelin-tls:ci doctor
           docker run --rm acxelin-tls:ci
-          docker run --rm acxelin-tls:ci --version | grep -q "acxelin-tls 1.0.0"
+          docker run --rm acxelin-tls:ci --version | grep -qF "acxelin-tls $(sed -n 's/^version = "\(.*\)"/\1/p' products/tls/pyproject.toml)"
       - name: The console starts in the container and answers only through the loopback-published port
         run: |
           docker run -d --name console -p 127.0.0.1:8900:8900 acxelin-tls:ci console --container
