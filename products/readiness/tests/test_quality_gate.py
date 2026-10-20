@@ -9,7 +9,7 @@ from pathlib import Path
 from acxelin_readiness import bench
 
 BENCH = Path(__file__).resolve().parents[1] / "bench"
-FLOOR = {"precision": 1.0, "recall": 1.0}  # measured at commit 5f8c349 (tools/baseline.md)
+FLOOR = {"precision": 1.0, "recall": 1.0}  # what the labelled corpus scores today; it must not drop
 TRUTH_SHA256 = "03c80e1338a34c92586aab2ac696cc0109c90980fef279f56766432cf78379c4"
 
 
