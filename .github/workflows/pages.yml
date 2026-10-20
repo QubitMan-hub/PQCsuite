@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: apt-get update && apt-get install -y --no-install-recommends git
       - name: The website, its demo pages produced by running the products from this commit
-        run: pip install ./core "./products/readiness[crawler]" ./products/tls && python tools/build_site.py
+        run: pip install ./core "./products/readiness[crawler]" ./products/tls ./products/vpn && python tools/build_site.py
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: build/site

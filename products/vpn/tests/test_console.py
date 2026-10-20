@@ -125,7 +125,7 @@ def test_inviting_a_person_downloads_an_invitation_that_joins_and_is_audited(app
     assert app("people/settings", {"enroll": "http://ca.example", "gateway": "vpn.example:7443"})[0] == 400
 
 
-@pytest.mark.skipif(REASON, reason=REASON or "")
+@pytest.mark.skipif(bool(REASON), reason=REASON or "")
 def test_who_is_connected_since_when_and_revoking_someone_ends_their_session(app, home, tmp_path):
     from test_wireguard import FakeWG
     from acxelin_vpn.wireguard import Client, Gateway, GatewayConfig

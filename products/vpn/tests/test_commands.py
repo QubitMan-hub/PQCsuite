@@ -55,7 +55,7 @@ def test_errors_are_one_line_in_words(argv, words, tmp_path, monkeypatch):
     assert code == 1 and text.startswith("error: ") and re.search(words, text) and "Traceback" not in text and text.count("\n") == 1
 
 
-@pytest.mark.skipif(REASON, reason=REASON or "")
+@pytest.mark.skipif(bool(REASON), reason=REASON or "")
 def test_invite_then_join_needs_no_other_product():
     """The gateway, enrollment service, invitation and join of the end-to-end test, in a Python where Acxelin TLS, Acxelin
     Readiness and the suite cannot be imported."""

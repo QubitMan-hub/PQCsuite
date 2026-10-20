@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: apt-get update && apt-get install -y --no-install-recommends nodejs npm git
-      - run: pip install ./core "./products/readiness[crawler]" ./products/tls pytest playwright==1.56.0
+      - run: pip install ./core "./products/readiness[crawler]" ./products/tls ./products/vpn pytest playwright==1.56.0
       - run: python -m playwright install --with-deps chromium && npm ci --prefix tools/browser
       - name: Build (the demo pages run the products, so a broken product fails the build) and test every page
         run: python tools/build_site.py && python -m pytest -q website/tests
