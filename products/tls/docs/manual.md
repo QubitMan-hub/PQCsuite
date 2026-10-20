@@ -22,12 +22,54 @@ A connection that cannot meet your policy ends. Nothing falls back silently to a
 
 ## 3. Install
 
-You receive Acxelin TLS as one release folder, `acxelin-tls-1.0.0-wheelhouse`. It holds everything the product needs, so it installs without internet access.
+Get two files from the [release page](https://github.com/QubitMan-hub/acxelin/releases/tag/tls-v1.0.0) and save them in one folder:
 
-| Where | Run in the release folder |
+- `acxelin-tls-1.0.0-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
+- `SHA256SUMS`: a fingerprint of every file in the release
+
+Then open a terminal in that folder. On Windows, use PowerShell.
+
+**Step 1: check the download.** This confirms the file is exactly the one we published, not damaged or changed on the way. It only reads the file.
+
+On Linux:
+
+```
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+You should see the file's name followed by `OK`.
+
+On macOS:
+
+```
+shasum -a 256 acxelin-tls-1.0.0-wheelhouse.tar.gz
+```
+
+On Windows:
+
+```
+Get-FileHash .\acxelin-tls-1.0.0-wheelhouse.tar.gz
+```
+
+On macOS and Windows this prints the file's fingerprint, a long string of letters and numbers. It should match the one next to the file's name in `SHA256SUMS` (capital or small letters do not matter). If the check fails, delete the file and download it again. Do not install it.
+
+Optional: if you use the GitHub command line, `gh attestation verify acxelin-tls-1.0.0-wheelhouse.tar.gz --owner QubitMan-hub` shows that our release workflow built the file. You should see `Verification succeeded`.
+
+**Step 2: unpack it.** The same two lines work in PowerShell:
+
+```
+tar xzf acxelin-tls-1.0.0-wheelhouse.tar.gz
+cd acxelin-tls-1.0.0-wheelhouse
+```
+
+**Step 3: install.** Still in that folder:
+
+| System | Run |
 |---|---|
 | Linux, macOS | `sh install.sh` |
 | Windows | `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1` |
+
+On Windows, the first command tells Windows you trust this downloaded script, and the second runs it.
 
 The installer checks your Python, finds OpenSSL 3.5, puts `acxelin-tls` on your PATH and runs a health check. A ready machine prints:
 

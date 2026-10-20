@@ -9,14 +9,14 @@ Acxelin TLS has three parts:
 
 ## Install
 
-Python 3.11 to 3.14, and OpenSSL 3.5 or newer (Debian 13 and macOS with `brew install openssl@3` have it; on Windows, `choco install openssl`). One command installs it for your user and puts `acxelin-tls` on your PATH:
+Python 3.11 to 3.14, and OpenSSL 3.5 or newer (Debian 13 and macOS with `brew install openssl@3` have it; on Windows, `choco install openssl`). It installs for your user only, without internet access:
 
-| Where | Command |
-|---|---|
-| Linux, macOS | `sh install.sh` |
-| Windows | `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1` |
+1. Download `acxelin-tls-1.0.0-wheelhouse.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/QubitMan-hub/acxelin/releases/tag/tls-v1.0.0).
+2. Check the download: `sha256sum -c SHA256SUMS --ignore-missing` should print `OK` (on macOS and Windows, compare the fingerprint by hand; the manual shows how).
+3. Unpack it: `tar xzf acxelin-tls-1.0.0-wheelhouse.tar.gz`, then `cd acxelin-tls-1.0.0-wheelhouse`.
+4. Install: `sh install.sh`, which puts `acxelin-tls` on your PATH. On Windows, `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1`.
 
-Run it in an unpacked release wheelhouse (it installs offline from the wheels next to it) or in `products/tls` of a checkout. It checks your Python, finds OpenSSL 3.5, runs `acxelin-tls doctor` and says what to do next. `sh install.sh --uninstall` (or `-Uninstall`) removes it.
+The installer checks your Python, finds OpenSSL 3.5, runs `acxelin-tls doctor` and says what to do next. `sh install.sh --uninstall` (or `-Uninstall`) removes it.
 
 For a virtual environment of your own: `pip install ./core ./products/tls`.
 

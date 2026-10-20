@@ -44,21 +44,35 @@ powershell -ExecutionPolicy RemoteSigned -File .\install.ps1</code></pre>
 <div><dt>Remove it</dt><dd><code>sh install.sh --uninstall</code>, or <code>install.ps1 -Uninstall</code>. Your authorities, certificates and settings stay where you put them.</dd></div>
 </dl></li>
 <li><h2>See it work</h2>
+<p>A one-minute tour that needs nothing set up. In a temporary folder it creates an authority, puts the edge in front of a small web server, and shows a post-quantum client getting in and a classical one being turned away. It deletes everything when it ends.</p>
 <pre><code>acxelin-tls try</code></pre>
-<p>A one-minute tour with nothing to set up. <a href="demo.html">The demo</a> shows its real output, frame by frame.</p></li>
-<li><h2>Create the authority and a certificate</h2>
-<p>Use the console (step 6), or the command line:</p>
-<pre><code>acxelin-tls ca init --name "Example Root CA" --dir pki
-acxelin-tls ca issue server web.example.com --dir pki --out web</code></pre>
-<p class="see"><code>ca init</code> asks for a passphrase and encrypts the authority's key with it. Keep <code>pki</code> readable by its owner only.</p></li>
-<li><h2>Put the edge in front of a service</h2>
-<pre><code>acxelin-tls edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 \
-  --cert web/chain.pem --key web/key.pem</code></pre>
-<p><code>0.0.0.0</code> listens on every network interface. Open port 8443 in your firewall only to the clients that need it, and keep the service itself on <code>127.0.0.1</code> or a private network.</p>
-<p>Add <code>--require-client-cert --ca pki/ca.crt --crl pki/crl.pem</code> for mutual TLS. For several routes, write an <code>edge.toml</code>, check it with <code>acxelin-tls doctor --config edge.toml</code>, and run <code>acxelin-tls edge --config edge.toml</code>.</p></li>
+<p class="see">Five numbered steps, each saying what happened. <a href="demo.html">The demo</a> shows the same output, frame by frame.</p></li>
+<li><h2>Create your certificate authority</h2>
+<p>The authority signs every certificate your edges and clients use. You can also do this step and the next in the console (step 9).</p>
+<pre><code>acxelin-tls ca init --name "Example Root CA" --dir pki</code></pre>
+<p class="see">It asks you to choose a passphrase, which protects the authority's key. Keep it somewhere safe: you need it to issue or revoke certificates. The folder <code>pki</code> now holds the authority; only you should be able to read it.</p></li>
+<li><h2>Issue the edge's certificate</h2>
+<p>The edge shows this certificate to clients, so name it after the address clients connect to.</p>
+<pre><code>acxelin-tls ca issue server web.example.com --dir pki --out web</code></pre>
+<p class="see">The folder <code>web</code> now holds the certificate (<code>chain.pem</code>) and its key (<code>key.pem</code>).</p></li>
+<li><h2>Put the edge in front of your service</h2>
+<p>Here the service listens on port 8080 of this machine, and clients reach it through the edge on port 8443:</p>
+<pre><code>acxelin-tls edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 --cert web/chain.pem --key web/key.pem</code></pre>
+<p class="see">The edge says it is listening and keeps running until you stop it. Clients now connect to port 8443 with post-quantum TLS 1.3, and the service itself does not change.</p>
+<p><code>0.0.0.0</code> means every network interface. Open port 8443 in your firewall only to the clients that need it, and keep the service on <code>127.0.0.1</code> or a private network.</p>
+<details><summary>Optional: only let in clients with a certificate (mutual TLS)</summary>
+<p>Add these to the edge command, and issue each client a certificate with <code>acxelin-tls ca issue client NAME --dir pki --out NAME</code>:</p>
+<pre><code>--require-client-cert --ca pki/ca.crt --crl pki/crl.pem</code></pre>
+</details>
+<details><summary>Optional: several services in one edge</summary>
+<p>Write the routes in an <code>edge.toml</code>, starting from <code>config/example.toml</code> in the release folder. Check it, then start the edge from it:</p>
+<pre><code>acxelin-tls doctor --config edge.toml</code></pre>
+<pre><code>acxelin-tls edge --config edge.toml</code></pre>
+</details></li>
 <li><h2>Open the console</h2>
+<p>The console does the same work in your browser: create the authority, issue and revoke certificates, see each running edge and its policy, test a connection, and read the health checks.</p>
 <pre><code>acxelin-tls console</code></pre>
-<p>Your browser opens already signed in. Create the authority, then issue and revoke certificates, add running edges to see their policy, test a connection, and read the health checks. The console keeps the passphrase in memory only, so it asks again after a restart.</p>
+<p class="see">Your browser opens, already signed in. The console holds the authority's passphrase in memory only, so it asks again after a restart.</p>
 <h3>On a remote server</h3>
 <p>The console listens only on the machine it runs on. Forward a port, then ask the running console for a fresh link:</p>
 <pre><code>ssh -L 8900:127.0.0.1:8900 server
@@ -68,6 +82,8 @@ acxelin-tls console link --port 8900</code></pre>
 <pre><code>docker run -v acxelin-tls:/data -p 127.0.0.1:8900:8900 ghcr.io/qubitman-hub/acxelin-tls:{{VERSION}} console --container
 docker exec -it NAME acxelin-tls console link</code></pre></li>
 <li><h2>Keep it running</h2>
-<p>Run <code>acxelin-tls ca maintain --dir pki</code> every day; the release folder has systemd units and a daily timer for it. Before you go to production, read <a href="security.html">what Acxelin TLS defends against</a> and the <a href="manual.html">manual</a>.</p></li>
+<p>Once a day, the authority must renew certificates that are close to expiring and publish a fresh revocation list:</p>
+<pre><code>acxelin-tls ca maintain --dir pki</code></pre>
+<p>The release folder has systemd units and a daily timer that run it for you. Before you go to production, read <a href="security.html">what Acxelin TLS defends against</a> and the <a href="manual.html">manual</a>.</p></li>
 </ol>
 </section>

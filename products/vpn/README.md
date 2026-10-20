@@ -8,8 +8,21 @@ within 15 seconds.
 - **People:** a WireGuard gateway, an invitation file per person, and the desktop app for Windows, macOS and Linux.
 - **Administrators:** the certificate authority, a local console, health checks and a CBOM of what the VPN uses.
 
+## Install
+
+The administrator's command line needs Python 3.11 to 3.14 and OpenSSL 3.5 or newer. It installs for your user only, without
+internet access:
+
+1. Download `acxelin-vpn-1.0.0-wheelhouse.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/QubitMan-hub/acxelin/releases/tag/vpn-v1.0.0).
+2. Check the download: `sha256sum -c SHA256SUMS --ignore-missing` should print `OK` (on macOS and Windows, compare the fingerprint by hand; the manual shows how).
+3. Unpack it: `tar xzf acxelin-vpn-1.0.0-wheelhouse.tar.gz`, then `cd acxelin-vpn-1.0.0-wheelhouse`.
+4. Install: `sh install.sh`, which puts `acxelin-vpn` on your PATH. On Windows, `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1`.
+
+Gateways use the gateway image or systemd, and people use the desktop app; the manual covers both.
+
+## First steps
+
 ```
-sh install.sh                                   # or install.ps1 on Windows; offline, from the release folder
 acxelin-vpn doctor
 acxelin-vpn ca init --name "Acme VPN Root" --dir pki
 acxelin-vpn invite alice --dir pki --enroll https://ca.acme.example:9443 --gateway vpn.acme.example:7443

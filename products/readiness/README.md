@@ -9,14 +9,14 @@ Acxelin Readiness reads source code, configuration, keys and certificates, binar
 
 ## Install
 
-Python 3.11 to 3.14, on Linux, Windows or macOS. One command installs it for your user and puts `acxelin-readiness` on your PATH:
+Python 3.11 to 3.14, on Linux, Windows or macOS. It installs for your user only, without internet access:
 
-| Where | Command |
-|---|---|
-| Linux, macOS | `sh install.sh` |
-| Windows | `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1` |
+1. Download `acxelin-readiness-1.0.0-wheelhouse.tar.gz` and `SHA256SUMS` from the [release page](https://github.com/QubitMan-hub/acxelin/releases/tag/readiness-v1.0.0).
+2. Check the download: `sha256sum -c SHA256SUMS --ignore-missing` should print `OK` (on macOS and Windows, compare the fingerprint by hand; the manual shows how).
+3. Unpack it: `tar xzf acxelin-readiness-1.0.0-wheelhouse.tar.gz`, then `cd acxelin-readiness-1.0.0-wheelhouse`.
+4. Install: `sh install.sh`, which puts `acxelin-readiness` on your PATH. On Windows, `Unblock-File .\install.ps1`, then `powershell -ExecutionPolicy RemoteSigned -File .\install.ps1`.
 
-Run it in an unpacked release wheelhouse (it installs offline from the wheels next to it) or in `products/readiness` of a checkout. It checks your Python, finds OpenSSL 3.5, runs `acxelin-readiness doctor` and says what to do next. `sh install.sh --uninstall` (or `-Uninstall`) removes it.
+The installer checks your Python, finds OpenSSL 3.5, runs `acxelin-readiness doctor` and says what to do next. `sh install.sh --uninstall` (or `-Uninstall`) removes it.
 
 For a virtual environment of your own: `pip install ./core ./products/readiness`.
 
