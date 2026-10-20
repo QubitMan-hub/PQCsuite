@@ -60,7 +60,7 @@ def open_console(page, console):
 def fill_setup(page, repos):
     page.get_by_label("Folder path").fill(str(repos))
     page.get_by_role("button", name="Use this folder").click()
-    page.get_by_role("tab", name="Projects").wait_for()
+    page.get_by_label("Folder path").wait_for(state="detached")
 
 
 def scan_shop(page):
@@ -138,10 +138,10 @@ def test_endpoints_changes_since_the_last_check_and_cbom_download(page, console,
     page.get_by_role("tab", name="Endpoints").click()
     runs = iter([[grade("127.0.0.1:1", "F")], [grade("127.0.0.1:1", "A")]])
     with patch("acxelin_readiness.console.endpoints.scan", side_effect=lambda t: next(runs)):
-        for _ in range(2):
+        for g in ("F", "A"):
             page.get_by_label("Hosts to check").fill("127.0.0.1:1")
             page.get_by_role("button", name="Check endpoints").click()
-            page.get_by_role("button", name="Check endpoints").wait_for(state="visible")
+            page.locator("#ep-result td .pill", has_text=g).wait_for()
             page.wait_for_function("!document.querySelector('#check').disabled")
         page.get_by_role("heading", name="Changed since the scan before").wait_for()
         assert "127.0.0.1:1: F → A" in page.content()
