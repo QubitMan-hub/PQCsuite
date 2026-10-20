@@ -29,7 +29,7 @@ const h = (tag, props = {}, ...kids) => {
   for (const k of kids.flat()) el.append(k instanceof Node ? k : document.createTextNode(k ?? ""));
   return el;
 };
-const say = (text) => { $("#msg").textContent = text || ""; };
+const say = (text) => { const m = $("#msg"); m.textContent = text || ""; if (text) m.scrollIntoView({block: "nearest"}); };
 const state = {tab: "sites", status: null};
 const call = async (path, body) => { try { say(""); return await acx.api(path, body); } catch (e) { say(e.status === 401 ? "This session has ended. Run the console command again to open a new one." : e.message); throw e; } };
 const day = (t) => t ? t.slice(0, 10) : "";
@@ -42,10 +42,20 @@ function signedOut() {
 }
 
 function noCa() {
-  $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "Create the VPN's certificate authority first"),
-    h("p", {class: "lede"}, "Gateways, sites and people get their certificates from it. In a terminal, run:"),
-    h("p", {}, h("code", {class: "cmd"}, "acxelin-vpn ca init --name \"Example VPN Root\" --dir " + state.status.ca_dir)),
-    h("p", {class: "lede"}, "Then reload this page.")));
+  const name = h("input", {type: "text", id: "ca-name", autocomplete: "off", placeholder: "Example VPN Root"});
+  const pass = h("input", {type: "password", id: "ca-pass", autocomplete: "new-password"});
+  const again = h("input", {type: "password", id: "ca-pass2", autocomplete: "new-password"});
+  const go = async () => {
+    if (pass.value !== again.value) { say("The two passphrases are different. Type the same passphrase in both boxes."); again.select(); return; }
+    try { await call("ca/create", {name: name.value, passphrase: pass.value || null}); await load(); } catch (e) {}
+  };
+  $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "Create the VPN's certificate authority"),
+    h("p", {class: "lede"}, "Gateways, sites and people get their certificates from it. It is kept in " + state.status.ca_dir + "."),
+    ...field("ca-name", "Name", name), ...field("ca-pass", "Passphrase (recommended)", pass, "Encrypts the CA key. The console keeps it in memory only, so you enter it again after a restart. Without one, the key file is stored unencrypted."),
+    ...field("ca-pass2", "Repeat passphrase", again),
+    h("div", {class: "row", style: "margin-top:18px"}, h("button", {class: "btn", onclick: go}, "Create certificate authority"))));
+  name.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  name.focus();
 }
 
 function unlock() {
@@ -108,6 +118,10 @@ async function peopleView() {
   const gateway = h("input", {type: "text", id: "gateway", value: s.gateway || "", placeholder: "vpn.example.com:7443", autocomplete: "off"});
   const sname = h("input", {type: "text", id: "server-name", value: s.server_name || "", placeholder: "vpn.example.com", autocomplete: "off"});
   const save = async () => { try { await call("people/settings", {enroll: enroll.value, gateway: gateway.value, server_name: sname.value || null}); state.status = await call("status"); say(""); $("#saved").textContent = "Saved."; } catch (e) {} };
+  const ready = s.enroll && s.gateway;
+  const where = () => [...field("enroll", "Enrollment service", enroll, "Where `acxelin-vpn ca serve` runs."), ...field("gateway", "Gateway key agreement address", gateway),
+    ...field("server-name", "Gateway certificate name (if different from its host)", sname),
+    h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn quiet", onclick: save}, "Save"), h("span", {id: "saved", class: "ok-msg", role: "status"}))];
   const who = h("input", {type: "text", id: "who", autocomplete: "off", placeholder: "alice"});
   const hours = h("input", {type: "text", id: "hours", value: "24", inputmode: "numeric"});
   const invite = async (ev) => {
@@ -116,17 +130,16 @@ async function peopleView() {
     catch (e) { say(e.status === 401 ? "This session has ended. Run the console command again to open a new one." : e.message); }
   };
   $("#panel").replaceChildren(h("h1", {}, "People"), h("div", {class: "split"},
-    h("div", {}, h("form", {onsubmit: invite}, h("h2", {}, "Invite someone"), ...field("who", "Their name", who, "The name on their certificate. If the gateway lists users, add it there too."),
+    h("div", {}, ready ? "" : h("section", {style: "margin-bottom:24px"}, h("h2", {}, "First, say where invitations point"),
+        h("p", {class: "lede"}, "An invitation tells the person's computer where to enroll and which gateway to reach. Set this once."), ...where()),
+      h("form", {onsubmit: invite}, h("h2", {}, "Invite someone"), ...field("who", "Their name", who, "The name on their certificate. If the gateway lists users, add it there too."),
         ...field("hours", "Valid for (hours)", hours), h("div", {class: "row", style: "margin-top:14px"}, h("button", {class: "btn", type: "submit"}, "Download invitation")), h("div", {id: "invited", "aria-live": "polite"})),
-      h("details", {style: "margin-top:24px", open: !(s.enroll && s.gateway)}, h("summary", {}, "Where invitations point"),
-        ...field("enroll", "Enrollment service", enroll, "Where `acxelin-vpn ca serve` runs."), ...field("gateway", "Gateway key agreement address", gateway),
-        ...field("server-name", "Gateway certificate name (if different from its host)", sname),
-        h("div", {class: "row", style: "margin-top:12px"}, h("button", {class: "btn quiet", onclick: save}, "Save"), h("span", {id: "saved", class: "ok-msg"}))),
+      ready ? h("details", {style: "margin-top:24px"}, h("summary", {}, "Where invitations point"), ...where()) : "",
       h("div", {style: "margin-top:24px"}, serviceForm("gateway", "Add a gateway", "The status address of `acxelin-vpn gateway` with `metrics = \"HOST:PORT\"` in its `[wireguard]`.", paintPeople))),
     h("div", {id: "people-list"})));
   await paintPeople();
 }
-const ACTIONS = {invite: "Invited", revoke: "Revoked", enroll: "Enrolled", renew: "Renewed", "enrollment refused": "Refused an enrollment for"};
+const ACTIONS = {create: "Created the certificate authority", invite: "Invited", revoke: "Revoked", enroll: "Enrolled", renew: "Renewed", "enrollment refused": "Refused an enrollment for"};
 async function paintPeople() {
   const out = $("#people-list");
   if (!out) return;
@@ -138,7 +151,7 @@ async function paintPeople() {
     h("td", {}, p.certificate === "valid" ? revokeButton(p) : "")));
   out.replaceChildren(d.gateways.length ? "" : h("p", {class: "legend", style: "margin:0 0 12px"}, "Who is connected now shows once you add a gateway."),
     d.people.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "People, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Person", "Now", "Since", "Address", "Certificate", "Action"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
-      : h("p", {class: "empty"}, "Nobody yet. Invite someone on the left."),
+      : h("p", {class: "empty"}, "Nobody yet. Use Invite someone to add the first person."),
     h("h2", {style: "margin-top:26px"}, "Recent activity"),
     d.activity.length ? h("ul", {class: "acts"}, d.activity.map((a) => h("li", {}, h("span", {class: "mute"}, (a.time || "").replace("T", " ").replace("Z", " UTC")), " ", (ACTIONS[a.action] || a.action) + " " + (a.name || ""))))
       : h("p", {class: "empty"}, "Nothing yet."));

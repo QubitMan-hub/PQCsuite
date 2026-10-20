@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from acxelin_core.config import build, read_toml
 
 NAME = "acxelin-vpn"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 PROFILES = {
     "standard": ("aes256gcm16-prfsha384-x25519-ke1_mlkem768", "aes256gcm16-x25519-ke1_mlkem768"),

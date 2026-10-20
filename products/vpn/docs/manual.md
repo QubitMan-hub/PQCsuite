@@ -29,9 +29,9 @@ A key agreement that cannot meet the VPN's policy (TLS 1.3, hybrid ML-KEM, ML-DS
 
 The release folder installs on Linux (x86-64 and ARM), Windows (x64) and Macs with Apple silicon, with Python 3.11 to 3.14. On an Intel Mac, use the Docker image.
 
-Get two files from the [release page](https://github.com/QubitMan-hub/acxelin/releases/tag/vpn-v1.0.1) and save them in one folder:
+Get two files from the [release page](https://github.com/QubitMan-hub/acxelin/releases/tag/vpn-v1.0.2) and save them in one folder:
 
-- `acxelin-vpn-1.0.1-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
+- `acxelin-vpn-1.0.2-wheelhouse.tar.gz`: the program, with everything it needs, so it installs without internet access
 - `SHA256SUMS`: a fingerprint of every file in the release
 
 The desktop installers for people's computers are on the same page; section "The desktop app, for people" below covers them.
@@ -51,24 +51,24 @@ You should see the file's name followed by `OK`.
 On macOS:
 
 ```
-shasum -a 256 acxelin-vpn-1.0.1-wheelhouse.tar.gz
+shasum -a 256 acxelin-vpn-1.0.2-wheelhouse.tar.gz
 ```
 
 On Windows:
 
 ```
-Get-FileHash .\acxelin-vpn-1.0.1-wheelhouse.tar.gz
+Get-FileHash .\acxelin-vpn-1.0.2-wheelhouse.tar.gz
 ```
 
 On macOS and Windows this prints the file's fingerprint, a long string of letters and numbers. It should match the one next to the file's name in `SHA256SUMS` (capital or small letters do not matter). If the check fails, delete the file and download it again. Do not install it.
 
-Optional: if you use the GitHub command line, `gh attestation verify acxelin-vpn-1.0.1-wheelhouse.tar.gz --owner QubitMan-hub` shows that our release workflow built the file. You should see `Verification succeeded`.
+Optional: if you use the GitHub command line, `gh attestation verify acxelin-vpn-1.0.2-wheelhouse.tar.gz --owner QubitMan-hub` shows that our release workflow built the file. You should see `Verification succeeded`.
 
 **Step 2: unpack it.** The same two lines work in PowerShell:
 
 ```
-tar xzf acxelin-vpn-1.0.1-wheelhouse.tar.gz
-cd acxelin-vpn-1.0.1-wheelhouse
+tar xzf acxelin-vpn-1.0.2-wheelhouse.tar.gz
+cd acxelin-vpn-1.0.2-wheelhouse
 ```
 
 **Step 3: install.** Still in that folder:
@@ -83,7 +83,7 @@ On Windows, the first command tells Windows you trust this downloaded script, an
 The installer checks your Python, finds OpenSSL 3.5, puts `acxelin-vpn` on your PATH and runs a health check. A laptop prints:
 
 ```
-acxelin-vpn 1.0.1, Python 3.11.15
+acxelin-vpn 1.0.2, Python 3.11.15
 ok    OpenSSL 3.5.9 29 Sep 2026 can agree keys over post-quantum mutual TLS
 WARN  This machine is not set up as an IPsec gateway (fine for a laptop)
 ```
@@ -95,8 +95,8 @@ If OpenSSL 3.5 is in a folder of its own, run `ACXELIN_OPENSSL=/path/to/openssl-
 **With Docker (recommended):** each release publishes a gateway image with strongSwan 6.1, OpenSSL 3.5 and WireGuard's tools. IPsec and WireGuard live in the host's kernel, so the container shares the host's network:
 
 ```
-docker pull ghcr.io/qubitman-hub/acxelin-vpn:1.0.1
-docker tag ghcr.io/qubitman-hub/acxelin-vpn:1.0.1 acxelin-vpn
+docker pull ghcr.io/qubitman-hub/acxelin-vpn:1.0.2
+docker tag ghcr.io/qubitman-hub/acxelin-vpn:1.0.2 acxelin-vpn
 docker run --rm acxelin-vpn doctor
 ```
 
@@ -114,15 +114,15 @@ Section 8 says which unit runs what.
 
 | System | File | How to install |
 |---|---|---|
-| Windows 10/11 (x64) | `Acxelin-VPN-1.0.1-Setup.exe` | Run it and follow the steps. Leave **Show Acxelin VPN in the tray when I log in** ticked to start it at login. Install [WireGuard for Windows](https://www.wireguard.com/install/) too; the installer reminds you if it is missing. |
-| macOS (Apple silicon) | `Acxelin-VPN-1.0.1.dmg` | Open it and drag Acxelin VPN to Applications. Install WireGuard's tools with `brew install wireguard-tools`. |
-| Ubuntu, Debian (x64) | `acxelin-vpn_1.0.1_amd64.deb` | `sudo apt install ./acxelin-vpn_1.0.1_amd64.deb`, which also installs WireGuard's tools. |
+| Windows 10/11 (x64) | `Acxelin-VPN-1.0.2-Setup.exe` | Run it and follow the steps. Leave **Show Acxelin VPN in the tray when I log in** ticked to start it at login. Install [WireGuard for Windows](https://www.wireguard.com/install/) too; the installer reminds you if it is missing. |
+| macOS (Apple silicon) | `Acxelin-VPN-1.0.2.dmg` | Open it and drag Acxelin VPN to Applications. Install WireGuard's tools with `brew install wireguard-tools`. |
+| Ubuntu, Debian (x64) | `acxelin-vpn_1.0.2_amd64.deb` | `sudo apt install ./acxelin-vpn_1.0.2_amd64.deb`, which also installs WireGuard's tools. |
 
 The installers are not code-signed yet, so the first launch shows a warning. Check the installer first, the same way as in Step 1 above, with its own file name. On Windows, SmartScreen says "Windows protected your PC": choose **More info**, then **Run anyway**. On macOS, open **System Settings > Privacy & Security** and choose **Open Anyway**.
 
 ## 4. Two sites and a laptop in fifteen minutes
 
-These steps connect headquarters (`hq.acme.example`, 203.0.113.10, subnet 10.1.0.1/16) to a branch (`branch1.acme.example`, 198.51.100.7, subnet 10.2.0.0/16), and give Alice's laptop access through a WireGuard gateway at headquarters (`vpn.acme.example`). Replace the names and addresses with yours. `config/` in the release folder has the three configurations used here, with every setting explained.
+These steps connect headquarters (`hq.acme.example`, 203.0.113.10, subnet 10.1.0.2/16) to a branch (`branch1.acme.example`, 198.51.100.7, subnet 10.2.0.0/16), and give Alice's laptop access through a WireGuard gateway at headquarters (`vpn.acme.example`). Replace the names and addresses with yours. `config/` in the release folder has the three configurations used here, with every setting explained.
 
 ### Step 1: create the certificate authority
 
@@ -253,12 +253,12 @@ Set `profile` per `[[peer]]`. Both sides of a tunnel must use the same one.
 acxelin-vpn console
 ```
 
-Your browser opens, already signed in. The console asks for the CA key's passphrase and keeps it in memory only, so it asks again after a restart.
+Your browser opens, already signed in. If there is no certificate authority yet, the console creates one for you. It asks for the CA key's passphrase and keeps it in memory only, so it asks again after a restart.
 
 | Tab | What you do there |
 |---|---|
 | **Sites** | Add each site gateway by its status address (`metrics` in its `[site]`) to see its tunnels: state, key exchange, encryption, whether the PPK is in use, the last key rotation, traffic and the peer's certificate. |
-| **People** | Invite a person and download their invitation file. Add the WireGuard gateway by its status address to see who is connected now and since when. Revoke a person in two clicks; their session ends at the gateway's next check. |
+| **People** | The first time, say where invitations point: the enrollment service and the gateway. Then invite a person and download their invitation file. Add the WireGuard gateway by its status address to see who is connected now and since when. Revoke a person in two clicks; their session ends at the gateway's next check. |
 | **Health** | Whether this computer can run Acxelin VPN, whether the CA, its CRL and its certificates are in good shape, and whether every site and gateway answers, each with what to do. |
 
 Invitations and revocations, from the console or the command line, are written to `audit.jsonl` in the CA folder, which only you can read. The People tab shows the latest of them together with enrollments, refused enrollments and renewals from the enrollment service's log beside it. No token, key or passphrase is written. Each laptop keeps its own `audit.jsonl` of kill-switch changes in its tunnel folder; the app's connection details and `acxelin-vpn status --details` show the last one.

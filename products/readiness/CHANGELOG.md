@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2
+
+- Console: the Endpoints tab works before you choose a folder. **Add and scan** adds a repository and scans it in one step.
+  Choose an asset to see each file and line it was found on; choose a priority to show only those. Track a finding as
+  accepted risk with a reason and an end date. Due dates use a date picker, and errors scroll into view.
+
 ## 1.0.1
 
 - Windows: `install.ps1` no longer stops at Python's `>>>` prompt on computers with the `py` launcher (Python from

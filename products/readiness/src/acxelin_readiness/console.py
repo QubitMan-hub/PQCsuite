@@ -50,7 +50,7 @@ class Readiness:
                 available = sorted(p.name for p in self.folder.iterdir() if not p.name.startswith(".") and p.is_dir() and not p.is_symlink())[:200]
             except OSError:
                 pass
-        return 200, {"configured": bool(self.folder), "directory": str(self.folder or ""), "available": available,
+        return 200, {"configured": bool(self.folder), "directory": str(self.folder or ""), "available": available, "example": str(Path.home() / "code"),
                      "projects": [{"id": i, "name": p.name} for i, p in enumerate(self.projects)]}
 
     def setup(self, body):

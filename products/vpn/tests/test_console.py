@@ -79,6 +79,33 @@ def test_status_says_what_is_set_up_and_a_locked_ca_asks_for_its_passphrase(app)
     assert app("status")[1]["unlocked"]
 
 
+def test_the_console_creates_the_certificate_authority_once_and_keeps_its_passphrase_in_memory(tmp_path):
+    a = console.build(tmp_path / "fresh")
+    srv = core.serve(a)
+    token = a.sessions.redeem(a.sessions.ticket())
+
+    def call(path, body=None):
+        c = http.client.HTTPConnection("127.0.0.1", srv.server_address[1], timeout=30)
+        c.request("GET" if body is None else "POST", f"/api/{path}", None if body is None else json.dumps(body),
+                  {"Host": f"127.0.0.1:{srv.server_address[1]}", "Content-Type": "application/json", "Authorization": f"Bearer {token}"})
+        r = c.getresponse()
+        return r.status, json.loads(r.read())
+    try:
+        assert call("status")[1]["configured"] is False
+        assert call("ca/create", {"name": ""})[0] == 400
+        code, r = call("ca/create", {"name": "Example VPN Root", "passphrase": PASS})
+        assert code == 200 and r["name"] == "Example VPN Root"
+        s = call("status")[1]
+        assert s["configured"] and s["encrypted"] and s["unlocked"]
+        ca = tmp_path / "fresh/ca"
+        assert (ca / "crl.pem").exists() and PASS.encode() not in b"".join(f.read_bytes() for f in ca.rglob("*") if f.is_file())
+        assert any(e["action"] == "create" and e["name"] == "Example VPN Root" for e in console.audit.recent(ca))
+        code, e = call("ca/create", {"name": "Again"})
+        assert code == 400 and "already" in e["error"]
+    finally:
+        srv.shutdown()
+
+
 def test_sites_show_each_tunnel_its_algorithms_last_rotation_and_the_peers_certificate(app, home):
     unlocked(app)
     _, rec = CA(home / "ca", PASS.encode()).issue("branch.acme", "site", ["10.0.0.2"], out=home / "branch")

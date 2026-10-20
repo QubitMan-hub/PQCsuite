@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- Console: create the certificate authority in the console instead of the command line. The People tab asks where
+  invitations point first, before the invite form. Errors scroll into view.
+
 ## 1.0.1
 
 - Windows: `install.ps1` no longer stops at Python's `>>>` prompt on computers with the `py` launcher (Python from

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- Console: type the CA passphrase twice, so a typo is caught before the CA exists. An issued server certificate shows where its
+  files are and the `acxelin-tls edge` command that uses them, with a Copy button. Errors scroll into view.
+
 ## 1.0.1
 
 - Windows: `install.ps1` no longer stops at Python's `>>>` prompt on computers with the `py` launcher (Python from

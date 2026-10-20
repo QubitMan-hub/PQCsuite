@@ -66,9 +66,8 @@ def fill_setup(page, repos):
 
 def scan_shop(page):
     page.get_by_label("Add a repository").select_option("shop")
-    page.get_by_role("button", name="Add", exact=True).click()
-    page.get_by_role("button", name="Scan repository").click()
-    page.get_by_role("cell", name="RSA", exact=False).first.wait_for(timeout=30000)
+    page.get_by_role("button", name="Add and scan").click()  # adding starts the first scan
+    page.get_by_text("RSA", exact=False).first.wait_for(timeout=30000)
 
 
 def test_first_run_signs_in_without_leaving_a_ticket_or_cookie(page, console, repos):
@@ -76,6 +75,7 @@ def test_first_run_signs_in_without_leaving_a_ticket_or_cookie(page, console, re
     ticket = app.sessions.ticket()
     page.goto(f"{base}/#{ticket}")
     page.get_by_role("heading", name="Where are your repositories?").wait_for()
+    assert page.get_by_role("tab", name="Endpoints").is_visible(), "grading servers needs no repository folder"
     assert "#" not in page.url and ticket not in page.url
     assert page.context.cookies() == []
     assert page.evaluate("sessionStorage.getItem('acx-token')")
@@ -122,11 +122,11 @@ def test_choosing_another_repository_shows_its_own_state(page, console, repos):
     fill_setup(page, repos)
     scan_shop(page)
     page.get_by_label("Add a repository").select_option("api")
-    page.get_by_role("button", name="Add", exact=True).click()
-    page.get_by_role("button", name="api").click()
-    page.get_by_text("Not scanned yet").wait_for()
-    page.get_by_role("button", name="shop").click()
-    page.get_by_role("cell", name="RSA", exact=False).first.wait_for()
+    page.get_by_role("button", name="Add and scan").click()
+    page.get_by_text("SHA-1", exact=False).first.wait_for(timeout=30000)
+    assert not page.get_by_text("RSA", exact=False).count(), "api shows its own findings, not shop's"
+    page.get_by_role("button", name="shop", exact=True).click()
+    page.get_by_text("RSA", exact=False).first.wait_for()
 
 
 def grade(target, g):
@@ -210,4 +210,50 @@ def VIEWS(page, console, tmp_path):
     page.get_by_role("tab", name="Endpoints").click()
     page.get_by_label("Hosts to check").wait_for()
     page.get_by_role("tab", name="Projects").click()
-    page.get_by_role("cell", name="RSA", exact=False).first.wait_for()
+    page.get_by_text("RSA", exact=False).first.wait_for()
+
+
+def test_endpoints_work_before_choosing_a_repository_folder(page, console):
+    open_console(page, console)
+    page.get_by_role("tab", name="Endpoints").click()
+    with patch("acxelin_readiness.console.endpoints.scan", side_effect=lambda t: [grade("example.com:443", "C")]):
+        page.get_by_label("Hosts to check").fill("https://example.com/some/page")
+        page.get_by_role("button", name="Check endpoints").click()
+        page.get_by_text("example.com:443").first.wait_for()
+    assert "Only the host and port are checked" in page.content(), "a pasted address says its path was not graded"
+
+
+def test_the_folder_example_is_this_computers_own_kind_of_path(page, console):
+    open_console(page, console)
+    assert str(Path.home()) in page.get_by_label("Folder path").get_attribute("placeholder")
+
+
+def test_a_finding_shows_where_it_is_and_the_priority_chips_filter_the_list(page, console, tmp_path):
+    root = tmp_path / "many"
+    (root / "shop").mkdir(parents=True)
+    (root / "shop/keys.py").write_text("from cryptography.hazmat.primitives.asymmetric import rsa\nimport hashlib\n\n"
+                                      "rsa.generate_private_key(public_exponent=65537, key_size=2048)\nhashlib.md5(b'x').hexdigest()\n")
+    open_console(page, console)
+    fill_setup(page, root)
+    scan_shop(page)
+    page.get_by_text("MD5", exact=True).wait_for()
+    page.get_by_role("button", name="Show only critical").click()
+    page.wait_for_function("!document.body.innerText.includes('RSA-2048')")
+    assert page.get_by_text("MD5", exact=True).is_visible()
+    page.get_by_role("button", name="Show every priority").click()
+    page.get_by_text("RSA-2048").wait_for()
+    page.get_by_text("RSA-2048").click()
+    page.get_by_text("keys.py:4").wait_for()
+
+
+def test_a_finding_can_be_accepted_as_a_risk_until_a_date(page, console, repos):
+    open_console(page, console)
+    fill_setup(page, repos)
+    scan_shop(page)
+    page.get_by_text("Assign an owner").first.click()
+    page.get_by_label("Status").first.select_option("exception")
+    page.get_by_label("Why it is accepted").first.fill("Vendor appliance, replaced in 2027")
+    assert page.get_by_label("Due date").first.get_attribute("type") == "date"
+    page.get_by_label("Accepted until").first.fill("2099-01-01")
+    page.get_by_role("button", name="Save").first.click()
+    page.get_by_text("Accepted risk until 2099-01-01").wait_for()

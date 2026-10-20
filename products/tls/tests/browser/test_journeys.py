@@ -51,6 +51,7 @@ def create_ca(page, passphrase=""):
     page.get_by_label("Name", exact=True).fill("Example Root CA")
     if passphrase:
         page.get_by_label("Passphrase (recommended)").fill(passphrase)
+        page.get_by_label("Repeat passphrase").fill(passphrase)
     page.get_by_role("button", name="Create certificate authority").click()
     page.get_by_role("heading", name="Example Root CA").wait_for()
 
@@ -250,3 +251,27 @@ def VIEWS(page, console, tmp_path):
     for tab, ready in (("Edges", "No edges added yet"), ("Health", "post-quantum TLS"), ("Certificates", "Issued certificates")):
         page.get_by_role("tab", name=tab).click()
         page.get_by_text(ready).first.wait_for()
+
+
+def test_a_mistyped_passphrase_is_caught_before_the_ca_exists(page, console):
+    app, base, home = console
+    open_console(page, console)
+    page.get_by_label("Name", exact=True).fill("Example Root CA")
+    page.get_by_label("Passphrase (recommended)").fill("first-try-1")
+    page.get_by_label("Repeat passphrase").fill("first-try-2")
+    page.get_by_role("button", name="Create certificate authority").click()
+    page.get_by_text("The two passphrases are different").wait_for()
+    assert not (home / "ca/ca.crt").exists()
+
+
+def test_an_issued_server_certificate_says_where_it_is_and_how_to_use_it(page, console):
+    app, base, home = console
+    open_console(page, console)
+    create_ca(page)
+    issue(page, "web.example.invalid")
+    folder = next((home / "issued").iterdir())
+    text = page.locator("#issued").inner_text()
+    assert str(folder / "chain.pem") in text and str(folder / "key.pem") in text, text
+    assert "acxelin-tls edge --listen" in text
+    assert page.get_by_role("button", name="Copy command").is_visible()
+    assert "on the left" not in page.content()

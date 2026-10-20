@@ -130,6 +130,36 @@ def test_a_used_link_says_how_to_open_a_new_one(browser, console):
     c.close()
 
 
+def test_a_new_administrator_creates_the_certificate_authority_in_the_console(browser, tmp_path):
+    home = tmp_path / "fresh"
+    app = vc.build(home)
+    server = core.start(app, home, port=0)
+    c = browser.new_context()
+    page = c.new_page()
+    try:
+        page.goto(f"http://127.0.0.1:{server.server_address[1]}/#{app.sessions.ticket()}")
+        page.get_by_role("heading", name="Create the VPN's certificate authority").wait_for()
+        page.get_by_label("Name").fill("Example VPN Root")
+        page.get_by_label("Passphrase (recommended)").fill(PASS)
+        page.get_by_label("Repeat passphrase").fill(PASS + "x")
+        page.get_by_role("button", name="Create certificate authority").click()
+        page.get_by_text("The two passphrases are different").wait_for()
+        assert not (home / "ca/ca.crt").exists()
+        page.get_by_label("Repeat passphrase").fill(PASS)
+        page.get_by_role("button", name="Create certificate authority").click()
+        page.get_by_role("heading", name="Sites").wait_for()
+        assert CA(home / "ca").cert.subject.rfc4514_string() == "CN=Example VPN Root"
+        page.get_by_role("tab", name="People").click()
+        first = page.get_by_role("heading", name="First, say where invitations point")
+        first.wait_for()
+        assert first.bounding_box()["y"] < page.get_by_role("heading", name="Invite someone").bounding_box()["y"]
+        page.get_by_text("Use Invite someone to add the first person.").wait_for()
+        assert "on the left" not in page.content()
+    finally:
+        c.close()
+        server.shutdown()
+
+
 @pytest.mark.parametrize("width,scheme", [(1280, "light"), (1280, "dark"), (390, "light")])
 def test_every_tab_passes_axe_and_fits_the_screen(browser, console, width, scheme):
     c, page = opened(browser, console, viewport={"width": width, "height": 900}, color_scheme=scheme)

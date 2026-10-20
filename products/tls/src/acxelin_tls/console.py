@@ -185,7 +185,9 @@ class TLSConsole:
         folder = Path("issued") / f"{re.sub(r'[^A-Za-z0-9.-]', '_', cn)}-{secrets.token_hex(3)}"
         _, rec = ca.issue(cn, kind, names, days, out=self.home / folder)
         self.audit("issue", {"serial": rec.serial, "common_name": cn, "kind": kind})
-        return 200, {"serial": rec.serial, "common_name": cn, "kind": kind, "folder": folder.as_posix(), "files": ["chain.pem", "key.pem"]}
+        where = self.home / folder
+        return 200, {"serial": rec.serial, "common_name": cn, "kind": kind, "folder": folder.as_posix(), "files": ["chain.pem", "key.pem"],
+                     "chain": str(where / "chain.pem"), "key": str(where / "key.pem")}
 
     @task
     def revoke(self, body):

@@ -112,6 +112,23 @@ class VPNConsole:
                      "settings": self._load("settings.json", {}), "version": __version__}
 
     @task
+    def create(self, body):
+        name = _text(body, "name", "a name for the certificate authority")
+        if self._exists():
+            raise ValueError("A certificate authority already exists here")
+        pw = body.get("passphrase")
+        if pw is not None and not isinstance(pw, str):
+            raise ValueError("The passphrase must be text")
+        key = pw.encode() if pw else None
+        CA.init(self.ca_dir, name, passphrase=key)
+        ca = CA(self.ca_dir, key)
+        ca.crl(7)
+        with self.lock:
+            self.passphrase = key
+        self.audit("create", {"name": name})
+        return 200, {"name": name, "algorithm": ca.algorithm}
+
+    @task
     def unlock(self, body):
         pw = body.get("passphrase")
         if not isinstance(pw, str) or not pw:
@@ -260,7 +277,7 @@ def page():
 
 def build(home, ca_dir=None):
     c = VPNConsole(home, ca_dir)
-    routes = {("GET", "/api/status"): c.status, ("POST", "/api/ca/unlock"): c.unlock, ("GET", "/api/sites"): c.sites,
+    routes = {("GET", "/api/status"): c.status, ("POST", "/api/ca/create"): c.create, ("POST", "/api/ca/unlock"): c.unlock, ("GET", "/api/sites"): c.sites,
               ("POST", "/api/services/add"): c.add_service, ("POST", "/api/services/remove"): c.remove_service,
               ("GET", "/api/people"): c.people, ("POST", "/api/people/settings"): c.settings, ("POST", "/api/people/invite"): c.invite,
               ("POST", "/api/people/revoke"): c.revoke, ("GET", "/api/health"): c.health}

@@ -11,6 +11,7 @@ td:last-child{padding-right:16px}
 @media (max-width:560px){.inline-acts{flex-wrap:wrap}}
 .edge{border-top:1px solid var(--rule);padding:14px 0}
 .edge h3{font:500 15px var(--display);margin:0 0 4px;color:var(--ink)}
+.copyable{display:grid;gap:6px;justify-items:start;min-width:0}.copyable pre{margin:0;max-width:100%;overflow-x:auto;white-space:pre;font-size:12.5px}
 </style>
 </head>
 <body>
@@ -30,7 +31,13 @@ const h = (tag, props = {}, ...kids) => {
   for (const k of kids.flat()) el.append(k instanceof Node ? k : document.createTextNode(k ?? ""));
   return el;
 };
-const say = (text) => { $("#msg").textContent = text || ""; };
+const say = (text) => { const m = $("#msg"); m.textContent = text || ""; if (text) m.scrollIntoView({block: "center", behavior: "smooth"}); };
+const quote = (p) => /[\s"]/.test(p) ? '"' + p + '"' : p;
+function copyable(text) {
+  const b = h("button", {class: "btn quiet small", type: "button"}, "Copy command");
+  b.addEventListener("click", async () => { try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; } catch (e) { b.textContent = "Select and copy"; } });
+  return h("div", {class: "copyable"}, h("pre", {tabindex: "0", "aria-label": "Command"}, h("code", {}, text)), b);
+}
 const state = {tab: "certs", status: null};
 const call = async (path, body) => { try { say(""); return await acx.api(path, body); } catch (e) { say(e.status === 401 ? "This session has ended. Run the console command again to open a new one." : e.message); throw e; } };
 const day = (t) => t ? t.slice(0, 10) : "";
@@ -45,10 +52,15 @@ function signedOut() {
 function createCa() {
   const name = h("input", {type: "text", id: "ca-name", autocomplete: "off", placeholder: "Example Root CA", required: true});
   const pass = h("input", {type: "password", id: "ca-pass", autocomplete: "new-password"});
-  const go = async () => { try { await call("ca/create", {name: name.value, passphrase: pass.value || null}); await load(); } catch (e) {} };
+  const again = h("input", {type: "password", id: "ca-pass2", autocomplete: "new-password"});
+  const go = async () => {
+    if (pass.value !== again.value) { say("The two passphrases are different. Type the same passphrase in both boxes."); again.select(); return; }
+    try { await call("ca/create", {name: name.value, passphrase: pass.value || null}); await load(); } catch (e) {}
+  };
   $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "Create your certificate authority"),
     h("p", {class: "lede"}, "The certificate authority signs the certificates your services and users present. It uses ML-DSA-87, a post-quantum signature."),
     ...field("ca-name", "Name", name), ...field("ca-pass", "Passphrase (recommended)", pass, "Encrypts the CA key. The console keeps it in memory only, so you enter it again after a restart. Without one, the key file is stored unencrypted."),
+    ...field("ca-pass2", "Repeat passphrase", again),
     h("div", {class: "row", style: "margin-top:18px"}, h("button", {class: "btn", onclick: go}, "Create certificate authority"))));
   name.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
   name.focus();
@@ -89,7 +101,11 @@ async function certsView() {
     ev.preventDefault();
     try {
       const r = await call("certificates/issue", {kind: kind.value, common_name: cn.value, names: names.value, days: Number(days.value)});
-      result.replaceChildren(h("div", {class: "result"}, h("p", {class: "ok-msg"}, "Issued " + r.common_name + "."), h("p", {style: "margin:0"}, "Files are in ", h("code", {}, s.home + "/" + r.folder), ": ", h("code", {}, "chain.pem"), " and ", h("code", {}, "key.pem"), ". Download them from the list.")));
+      const next = r.kind === "server" ? [h("p", {style: "margin:12px 0 6px"}, "To put it in front of a service on this computer (change the ports to yours):"),
+        copyable("acxelin-tls edge --listen 0.0.0.0:8443 --target 127.0.0.1:8080 --cert " + quote(r.chain) + " --key " + quote(r.key))]
+        : [h("p", {style: "margin:12px 0 0"}, "Give these two files to the client, or download them from the list.")];
+      result.replaceChildren(h("div", {class: "result"}, h("p", {class: "ok-msg"}, "Issued " + r.common_name + "."),
+        h("p", {style: "margin:0"}, "Certificate: ", h("code", {}, r.chain)), h("p", {style: "margin:0"}, "Key: ", h("code", {}, r.key)), ...next));
       cn.value = ""; names.value = "";
       await refreshCerts();
     } catch (e) {}
@@ -117,7 +133,7 @@ async function refreshCerts() {
     return h("tr", {}, h("td", {class: "nw"}, c.common_name), h("td", {class: "nw"}, (c.kind === "server" ? "Server" : "Client") + " · " + c.algorithm), h("td", {class: "num"}, day(c.not_after)), h("td", {}, h("span", {class: "pill " + (state === "Valid" ? "ok" : state === "Renewed" ? "mute" : "bad")}, state)), h("td", {}, acts));
   });
   out.replaceChildren(h("h2", {}, "Issued certificates"), data.certificates.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Table, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Name", "Type", "Expires", "Status", "Actions"].map((c) => h("th", {}, c)))), h("tbody", {}, rows)))
-    : h("p", {class: "empty"}, "Nothing issued yet. Issue your first certificate on the left."),
+    : h("p", {class: "empty"}, "Nothing issued yet. Use Issue a certificate to make your first one."),
     h("p", {class: "legend"}, "Download gives the certificate, its chain and the CA certificate. The private key is included only when you choose With key; every download is recorded."),
     activityList(state.status.activity || []));
 }

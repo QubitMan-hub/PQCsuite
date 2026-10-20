@@ -11,6 +11,11 @@
 td.asset{font-family:var(--mono);font-size:13px}
 details.track summary{white-space:nowrap;list-style:none}details.track summary::-webkit-details-marker{display:none}
 details.track summary{text-decoration:underline;text-decoration-color:var(--rule-strong);text-underline-offset:3px}
+details.where summary{cursor:pointer;list-style:none;font-family:var(--mono);font-size:13px}details.where summary::-webkit-details-marker{display:none}
+details.where summary::after{content:" ▸";color:var(--muted)}details.where[open] summary::after{content:" ▾"}
+details.where ul{margin:8px 0 2px;padding-left:16px;font:12.5px/1.6 var(--mono);color:var(--body)}details.where p{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.counts button{all:unset;cursor:pointer;display:inline-flex;gap:6px;align-items:center;border-radius:6px;padding:2px 4px}
+.counts button:focus-visible{outline:2px solid var(--ink)}.counts button[aria-pressed="true"]{background:var(--select)}
 </style>
 </head>
 <body>
@@ -30,8 +35,8 @@ const h = (tag, props = {}, ...kids) => {
   for (const k of kids.flat()) el.append(k instanceof Node ? k : document.createTextNode(k ?? ""));
   return el;
 };
-const say = (text) => { $("#msg").textContent = text || ""; };
-const state = {tab: "projects", status: null, projects: null, endpoints: null, selected: 0, timer: null, targets: ""};
+const say = (text) => { const m = $("#msg"); m.textContent = text || ""; if (text) m.scrollIntoView({block: "center", behavior: "smooth"}); };
+const state = {tab: "projects", status: null, projects: null, endpoints: null, selected: 0, timer: null, targets: "", filter: null};
 const when = (t) => t ? new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" : "never";
 const call = async (path, body) => { try { say(""); return await acx.api(path, body); } catch (e) { say(e.status === 401 ? "This session has ended. Run the console command again to open a new one." : e.message); throw e; } };
 
@@ -42,10 +47,10 @@ function signedOut() {
 }
 
 function setup() {
-  const input = h("input", {type: "text", id: "dir", autocomplete: "off", placeholder: "/home/you/code", required: true});
+  const input = h("input", {type: "text", id: "dir", autocomplete: "off", placeholder: state.status.example, required: true});
   const go = async () => { try { await call("setup", {directory: input.value}); await load(); } catch (e) {} };
-  $("#app").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "Where are your repositories?"),
-    h("p", {class: "lede"}, "Acxelin Readiness only scans folders inside the one you choose here. Enter the full path of the folder that holds your repositories."),
+  $("#panel").replaceChildren(h("div", {class: "narrow"}, h("h1", {}, "Where are your repositories?"),
+    h("p", {class: "lede"}, "Acxelin Readiness only scans folders inside the one you choose here. Enter the full path of the folder that holds your repositories. To grade servers instead, open Endpoints; it needs no folder."),
     h("label", {for: "dir"}, "Folder path"), input,
     h("div", {class: "row", style: "margin-top:18px"}, h("button", {class: "btn", onclick: go}, "Use this folder"))));
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
@@ -64,11 +69,23 @@ const tier = (t) => h("span", {class: "tag " + t}, t);
 function trackForm(asset) {
   const t = asset.tracking || {}, id = asset.id.slice(0, 8);
   const owner = h("input", {type: "text", value: t.owner || "", id: "o" + id});
-  const due = h("input", {type: "text", value: t.due || "", placeholder: "YYYY-MM-DD", id: "d" + id});
-  const status = h("select", {id: "s" + id}, [["open", "Open"], ["in_progress", "In progress"]].map(([v, l]) => h("option", {value: v, selected: (t.status || "open") === v}, l)));
-  const save = async (ev) => { ev.preventDefault(); try { await call("projects/track", {project: state.selected, finding: asset.id, owner: owner.value, due: due.value, status: status.value}); await refreshProject(); } catch (e) {} };
-  return h("details", {class: "track"}, h("summary", {}, t.owner ? "Owner: " + t.owner : "Assign an owner"),
-    h("form", {onsubmit: save}, h("label", {for: owner.id}, "Owner"), owner, h("label", {for: due.id}, "Due date"), due, h("label", {for: status.id}, "Status"), status, h("button", {class: "btn quiet", type: "submit"}, "Save")));
+  const due = h("input", {type: "date", value: t.due || "", id: "d" + id});
+  const status = h("select", {id: "s" + id}, [["open", "Open"], ["in_progress", "In progress"], ["exception", "Accepted risk"]].map(([v, l]) => h("option", {value: v, selected: (t.status || "open") === v}, l)));
+  const reason = h("textarea", {id: "r" + id, rows: "2"}, t.reason || "");
+  const until = h("input", {type: "date", value: t.until || "", id: "u" + id});
+  const accept = h("div", {hidden: status.value !== "exception"}, h("label", {for: reason.id}, "Why it is accepted"), reason, h("label", {for: until.id}, "Accepted until"), until);
+  status.addEventListener("change", () => { accept.hidden = status.value !== "exception"; });
+  const save = async (ev) => { ev.preventDefault(); try { await call("projects/track", {project: state.selected, finding: asset.id, owner: owner.value, due: due.value, status: status.value, reason: reason.value, until: until.value}); await refreshProject(); } catch (e) {} };
+  const label = t.status === "exception" ? "Accepted risk until " + t.until : t.owner ? "Owner: " + t.owner : "Assign an owner";
+  return h("details", {class: "track"}, h("summary", {}, label),
+    h("form", {onsubmit: save}, h("label", {for: owner.id}, "Owner"), owner, h("label", {for: due.id}, "Due date"), due, h("label", {for: status.id}, "Status"), status, accept, h("button", {class: "btn quiet", type: "submit"}, "Save")));
+}
+function where(a) {
+  const shown = a.locations.slice(0, 50);
+  return h("details", {class: "where"}, h("summary", {}, a.name),
+    h("ul", {}, shown.map(([f, l]) => h("li", {}, f + ":" + l))),
+    a.locations.length > shown.length ? h("p", {}, "and " + (a.locations.length - shown.length) + " more places") : "",
+    a.why ? h("p", {}, a.why) : "", a.uncertainty ? h("p", {}, a.uncertainty) : "");
 }
 
 function results(p) {
@@ -77,27 +94,31 @@ function results(p) {
   const last = p.last;
   if (!last) { out.replaceChildren(h("p", {class: "empty"}, p.running ? "The first scan of this repository is running. Results appear here when it finishes." : "Not scanned yet. Choose Scan repository to see which cryptography this project uses and what to migrate first.")); return; }
   const pri = last.summary.priorities || {};
-  const counts = h("div", {class: "counts"}, ["critical", "high", "medium", "low", "ok"].filter((k) => pri[k]).map((k) => h("span", {}, tier(k), " ", String(pri[k]))));
-  const assets = last.assets.filter((a) => !a.test_only);
-  const rows = assets.map((a) => h("tr", {}, h("td", {class: "asset"}, a.name), h("td", {}, tier(a.tier)), h("td", {}, a.action || a.why || ""), h("td", {class: "num"}, String(a.locations.length)), h("td", {}, trackForm(a))));
+  const pick = (k) => { state.filter = state.filter === k ? null : k; results(state.projects); };
+  const counts = h("div", {class: "counts"}, ["critical", "high", "medium", "low", "ok"].filter((k) => pri[k]).map((k) =>
+    h("button", {"aria-pressed": String(state.filter === k), "aria-label": state.filter === k ? "Show every priority" : "Show only " + k, onclick: () => pick(k)}, tier(k), " ", String(pri[k]))));
+  const assets = last.assets.filter((a) => !a.test_only && (!state.filter || a.tier === state.filter));
+  const rows = assets.map((a) => h("tr", {}, h("td", {class: "asset"}, where(a)), h("td", {}, tier(a.tier)), h("td", {}, a.action || a.why || ""), h("td", {class: "num"}, String(a.locations.length)), h("td", {}, trackForm(a))));
   out.replaceChildren(h("p", {class: "state"}, "Scanned " + when(last.finished) + ". " + last.summary.crypto_assets + " cryptographic assets found."), counts,
+    h("p", {class: "legend"}, "Choose an asset to see where it is. Choose a priority to show only those."),
     assets.length ? h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Table, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Asset", "Priority", "What to do", "Places", "Owner"].map((c) => h("th", {}, c)))), h("tbody", {}, rows))) : h("p", {class: "empty"}, "No cryptography was found in this repository."),
     last.notes && last.notes.length ? h("p", {class: "legend"}, last.notes.join(" ")) : "");
 }
 
 function projectsView() {
   const s = state.status, panel = $("#panel");
+  if (!s.configured) return setup();
   const names = new Set(s.projects.map((p) => p.name)), addable = s.available.filter((n) => !names.has(n));
   const pick = h("select", {id: "add"}, addable.map((n) => h("option", {value: n}, n)));
-  const add = async () => { try { const r = await call("projects/register", {name: pick.value}); state.selected = r.project; await load(); } catch (e) {} };
-  const choose = async (id) => { try { await call("projects/select", {project: id}); state.selected = id; projectsView(); } catch (e) {} };
+  const add = async () => { try { const r = await call("projects/register", {name: pick.value}); state.selected = r.project; state.filter = null; await call("projects/select", {project: r.project}); await load(); await call("projects/scan", {project: r.project}); pollProject(); } catch (e) {} };
+  const choose = async (id) => { try { await call("projects/select", {project: id}); state.selected = id; state.filter = null; projectsView(); } catch (e) {} };
   const side = h("div", {}, h("h2", {}, "Repositories"),
     s.projects.length ? h("ul", {class: "list"}, s.projects.map((p) => h("li", {}, h("button", {"aria-current": String(p.id === state.selected), onclick: () => choose(p.id)}, p.name)))) : h("p", {class: "state"}, "None added yet."),
-    addable.length ? h("div", {}, h("label", {for: "add", style: "margin-top:0"}, "Add a repository"), pick, h("div", {style: "margin-top:10px"}, h("button", {class: "btn quiet", onclick: add}, "Add")))
+    addable.length ? h("div", {}, h("label", {for: "add", style: "margin-top:0"}, "Add a repository"), pick, h("div", {style: "margin-top:10px"}, h("button", {class: "btn quiet", onclick: add}, "Add and scan")))
       : h("p", {class: "state"}, s.available.length ? "Every repository in " + s.directory + " is added." : "No repositories found in " + s.directory + ". Put one there, then reload."));
   const main = h("div", {id: "pj-main"});
   panel.replaceChildren(h("div", {class: "split"}, side, main));
-  if (!s.projects.length) { main.replaceChildren(h("h1", {}, "Add your first repository"), h("p", {class: "empty"}, "Pick one on the left, then scan it to see which cryptography it uses and what to migrate first.")); return; }
+  if (!s.projects.length) { main.replaceChildren(h("h1", {}, "Add your first repository"), h("p", {class: "empty"}, "Choose one under Add a repository. It is scanned straight away, to show which cryptography it uses and what to migrate first.")); return; }
   const button = h("button", {class: "btn", id: "scan"}, "Scan repository");
   main.replaceChildren(h("div", {class: "sectionhead"}, h("h1", {}, s.projects[state.selected].name), h("div", {class: "row"}, button)), h("p", {class: "state", id: "pj-state"}), h("div", {id: "pj-result"}));
   button.addEventListener("click", async () => {
@@ -132,7 +153,9 @@ function endpointResults(e) {
   const rows = last.endpoints.map((r) => h("tr", {}, h("td", {}, r.target), h("td", {}, h("span", {class: "pill " + GRADE_TONE[r.grade]}, r.grade)), h("td", {}, r.negotiated || r.error || ""),
     h("td", {}, r.certificate ? (r.certificate.key || "") + " · " + r.certificate.days_left + " days left" : "",
       r.certificate && r.certificate.issuer ? h("div", {class: "legend", style: "margin:2px 0 0"}, "issued by " + ((r.certificate.issuer.match(/CN=([^,]+)/) || [])[1] || r.certificate.issuer)) : "")));
+  const pasted = (last.targets || []).some((t) => /^https?:\/\//i.test(t) || /^[^/]+\/./.test(t.replace(/^\w+:\/\//, "")));
   out.replaceChildren(h("p", {class: "state"}, "Checked " + when(last.finished) + ". " + last.summary.pq_key_exchange + " of " + last.summary.endpoints + " offer post-quantum key exchange."),
+    pasted ? h("p", {class: "legend", style: "color:var(--ink)"}, "Only the host and port are checked: a server is graded as a whole, so anything after the host in an address is ignored.") : "",
     h("div", {class: "scroll", tabindex: "0", role: "region", "aria-label": "Table, scrolls sideways"}, h("table", {}, h("thead", {}, h("tr", {}, ["Endpoint", "Grade", "Negotiated", "Certificate"].map((c) => h("th", {}, c)))), h("tbody", {}, rows))),
     h("p", {class: "legend"}, Object.entries(GRADES).map(([g, t]) => g + ": " + t).join(" · ")),
     proxyNote(last.endpoints),
@@ -176,8 +199,8 @@ function pollEndpoints() { clearInterval(state.timer); state.timer = setInterval
 
 async function load() {
   try { state.status = await call("status"); } catch (e) { return signedOut(); }
-  if (!state.status.configured) return setup();
   shell();
+  if (!state.status.configured && state.tab === "projects") $("#dir").focus();
 }
 acx.start().then((ok) => (ok ? load() : signedOut()));
 </script>
