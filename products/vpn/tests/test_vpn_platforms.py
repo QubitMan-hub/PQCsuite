@@ -143,8 +143,7 @@ class KillSwitchTest(unittest.TestCase):
         ks.on("utun5", self.ENDPOINT, self.KEYRING)
         self.assertEqual(run.commands().count(["pfctl", "-E"]), 1, "pf is enabled once, with one reference")
         ks.off()
-        self.assertEqual(run.commands()[-3:], [["pfctl", "-a", "com.apple/acxelin-vpn", "-F", "all"], ["pfctl", "-X", "12345"],
-                                               ["pfctl", "-a", "com.apple/pqcsuite", "-F", "all"]], "and the suite's anchor, if an upgrade left one")
+        self.assertEqual(run.commands()[-2:], [["pfctl", "-a", "com.apple/acxelin-vpn", "-F", "all"], ["pfctl", "-X", "12345"]])
 
 
 class ServiceTest(unittest.TestCase):

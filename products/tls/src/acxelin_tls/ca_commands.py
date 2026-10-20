@@ -2,6 +2,7 @@
 import argparse
 import getpass
 import json
+import os
 import sys
 import threading
 from pathlib import Path
@@ -11,7 +12,7 @@ from acxelin_core.config import env_passphrase
 from acxelin_core.http import PEM, serve_http
 from acxelin_core.pki import ALGORITHMS, CA, CA_ALGORITHMS, REASONS, CAError, encrypted
 
-from .common import CA_PASS_ENV, ca_passphrase, env
+from .common import CA_PASS_ENV, ca_passphrase
 
 
 def cmd_ca(a):
@@ -20,7 +21,7 @@ def cmd_ca(a):
         if a.parent:
             pw = None
             if encrypted(Path(a.parent) / "ca.key"):
-                pw = (env("ACXELIN_TLS_PARENT_CA_PASSPHRASE", "PQCSUITE_PARENT_CA_PASSPHRASE") or "").encode() or ask("Parent CA passphrase: ", "set ACXELIN_TLS_PARENT_CA_PASSPHRASE")
+                pw = (os.environ.get("ACXELIN_TLS_PARENT_CA_PASSPHRASE") or "").encode() or ask("Parent CA passphrase: ", "set ACXELIN_TLS_PARENT_CA_PASSPHRASE")
             parent = CA(a.parent, pw)
         if a.signer_command and not a.signer_public_key:
             raise CAError("--signer-command needs --signer-public-key")
@@ -121,7 +122,7 @@ def cmd_enroll(a):
         a.common_name = a.common_name or input('Device or service name assigned by your administrator: ').strip()
         if not a.ca and not a.ca_fingerprint:
             a.ca_fingerprint = input('CA SHA-256 fingerprint supplied by your administrator: ').strip()
-        a.token = a.token or env('ACXELIN_TLS_ENROLL_TOKEN', 'PQCSUITE_ENROLL_TOKEN') or getpass.getpass('One-time enrollment token: ')
+        a.token = a.token or os.environ.get('ACXELIN_TLS_ENROLL_TOKEN') or getpass.getpass('One-time enrollment token: ')
         if not key_passphrase:
             key_passphrase = getpass.getpass('New local key passphrase: ').encode()
             if not key_passphrase or key_passphrase != getpass.getpass('Repeat key passphrase: ').encode():
@@ -133,7 +134,7 @@ def cmd_enroll(a):
         print(f"{a.renew}: " + (f"renewed, new serial {cert.serial_number:x}, valid until {cert.not_valid_after_utc.date()}" if cert
                                 else f"still valid for more than {a.within_days} days, nothing to do"))
         return 0
-    token = a.token or env("ACXELIN_TLS_ENROLL_TOKEN", "PQCSUITE_ENROLL_TOKEN")
+    token = a.token or os.environ.get("ACXELIN_TLS_ENROLL_TOKEN")
     if not (token and a.common_name):
         raise CAError("first enrollment needs the token (ACXELIN_TLS_ENROLL_TOKEN, or --token) and --cn (renewal needs --renew FOLDER)")
     ca = a.ca

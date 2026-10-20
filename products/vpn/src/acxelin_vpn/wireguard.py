@@ -35,7 +35,7 @@ from acxelin_core.files import write
 from acxelin_core.http import explain, hostport
 from acxelin_core.pki import CAError, algorithm_of, follow_crl
 
-from . import agreement, audit, legacy
+from . import agreement, audit
 from .agreement import TAG, common_name, read_line
 from .platforms import FULL, WG, WGError, addresses, this_machine
 
@@ -73,7 +73,7 @@ def ensure_interface(name, address, routes=()):
     ip = lambda *a: subprocess.run(["ip", *a], capture_output=True, text=True)
     if ip("link", "show", name).returncode:
         if ip("link", "add", name, "type", "wireguard").returncode:
-            go = legacy.env("WIREGUARD_GO") or shutil.which("wireguard-go")
+            go = os.environ.get("ACXELIN_WIREGUARD_GO") or shutil.which("wireguard-go")
             if not go:
                 raise WGError("no WireGuard kernel module and no wireguard-go; install one of them")
             subprocess.run([go, name], capture_output=True, timeout=15, env=os.environ | {"WG_I_PREFER_BUGGY_USERSPACE_TO_POLISHED_KMOD": "1"})

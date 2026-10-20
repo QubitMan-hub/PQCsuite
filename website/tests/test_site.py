@@ -19,7 +19,7 @@ PRODUCTS = {"readiness": ("Acxelin Readiness", "See Acxelin Readiness", "sh inst
             "tls": ("Acxelin TLS", "See Acxelin TLS", "sh install.sh"),
             "vpn": ("Acxelin VPN", "See Acxelin VPN", "sh install.sh")}
 PAGES = ["index.html"] + [f"{s}/{p}" for s, (_, pages) in build_site.SECTIONS.items() for p, _ in pages]
-OLD = re.compile(r"Wolf ?Pack|wolfpack|PQC ?Suite(?!/)|pqcsuite(?!/)", re.I)  # the repository path QubitMan-hub/PQCsuite/... is a real URL
+OLD = re.compile(r"Wolf ?Pack|wolfpack", re.I)
 
 
 @pytest.fixture(scope="module")
@@ -67,7 +67,7 @@ def test_each_product_page_names_only_its_own_product_and_the_home_page_only_rou
     base, _ = site
     page = browser.new_page()
     for section, (name, _, _) in PRODUCTS.items():
-        others = [n for s, (n, _, _) in PRODUCTS.items() if s != section] + ["Acxelin Q-Vault"]
+        others = [n for s, (n, _, _) in PRODUCTS.items() if s != section]
         expected = [name] + [label for _, label in build_site.SECTIONS[section][1]]
         for page_name, _ in build_site.SECTIONS[section][1]:
             page.goto(f"{base}/{section}/{page_name}")

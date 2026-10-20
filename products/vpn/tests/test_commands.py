@@ -58,9 +58,9 @@ def test_errors_are_one_line_in_words(argv, words, tmp_path, monkeypatch):
 @pytest.mark.skipif(bool(REASON), reason=REASON or "")
 def test_invite_then_join_needs_no_other_product():
     """The gateway, enrollment service, invitation and join of the end-to-end test, in a Python where Acxelin TLS, Acxelin
-    Readiness and the suite cannot be imported."""
+    Readiness cannot be imported."""
     test = Path(__file__).with_name("test_wireguard.py")
-    code = ("import sys\nfor m in ('acxelin_tls', 'acxelin_readiness', 'pqcsuite'): sys.modules[m] = None\nimport pytest\n"
+    code = ("import sys\nfor m in ('acxelin_tls', 'acxelin_readiness'): sys.modules[m] = None\nimport pytest\n"
             f"sys.exit(pytest.main(['-q', '-p', 'no:cacheprovider', {str(test) + '::GatewayTest::test_invite_then_join_enrolls_and_agrees_keys_in_one_step'!r}]))")
     r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=300, cwd=test.parent)
     assert r.returncode == 0 and "1 passed" in r.stdout, r.stdout + r.stderr

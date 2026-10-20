@@ -75,10 +75,10 @@ def test_content_is_deterministic_apart_from_export_metadata(tmp_path):
 def test_scanner_certificates_carry_the_fingerprint_the_merge_keys_on():
     from acxelin_readiness import cbom
     from pathlib import Path
-    golden = Path(__file__).resolve().parents[3] / "tests/golden/pki/edge/cert.pem"
-    import tempfile, shutil
+    import tempfile
+    from acxelin_core.pki import CA
     with tempfile.TemporaryDirectory() as d:
-        shutil.copy(golden, Path(d) / "cert.pem")
+        CA.init(Path(d) / "ca", "Root").issue("edge.invalid", "server", out=Path(d) / "edge")
         from acxelin_readiness import pipeline
         r = pipeline.run(d, "p")
         bom = cbom.build("p", r.assets, r.artifacts, r.libraries, r.endpoints)

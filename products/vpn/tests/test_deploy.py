@@ -53,16 +53,16 @@ def test_the_gateway_image_runs_a_real_command_and_starts_charon_only_for_up():
     assert parses(__import__("json").loads(cmd[4:])).cmd == "up"
     entry = (ROOT / "deploy/entrypoint.sh").read_text()
     assert 'if [ "${1:-}" = up ]' in entry and 'exec acxelin-vpn "$@"' in entry
-    assert "STRONGSWAN=6.1.0" in docker and "STRONGSWAN_SHA256=" in docker and "pqcsuite" not in docker
+    assert "STRONGSWAN=6.1.0" in docker and "STRONGSWAN_SHA256=" in docker
     assert "COPY --from=strongswan /etc/strongswan.d /etc/strongswan.d" in docker, "without its plugin settings charon loads nothing and exits"
 
 
 def test_the_desktop_package_opens_the_desktop_app_and_starts_at_login_in_the_tray():
     launcher = (ROOT / "packaging/launcher.py").read_text()
-    assert 'main(sys.argv[1:] or ["desktop"])' in launcher and "pqcsuite" not in launcher
+    assert 'main(sys.argv[1:] or ["desktop"])' in launcher
     assert parses(["desktop", "--background"]).cmd == "desktop"
     build = (ROOT / "packaging/build.py").read_text()
-    assert '"" desktop --background"' in build and "pqcsuite" not in build
+    assert '"" desktop --background"' in build
 
 
 def test_doctor_reports_the_machine_as_json_for_the_package_check(capsys):

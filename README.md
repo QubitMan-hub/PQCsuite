@@ -8,10 +8,9 @@ release. A customer installs only the product that fits their problem.
 | **Acxelin Readiness + CBOM**: find the cryptography in code, configuration, keys and endpoints, write a CycloneDX 1.6 CBOM, and rank what to migrate | [`products/readiness`](products/readiness/README.md) | `acxelin-readiness` | 1.0.0 |
 | **Acxelin TLS/mTLS + CA**: post-quantum TLS 1.3 in front of any TCP service, mutual TLS, and an ML-DSA certificate authority | [`products/tls`](products/tls/README.md) | `acxelin-tls` | 1.0.0 |
 | **Acxelin VPN**: site-to-site IPsec with hybrid ML-KEM, WireGuard remote access and the desktop app | [`products/vpn`](products/vpn/README.md) | `acxelin-vpn` | 1.0.0 |
-| **Acxelin Q-Vault**: quantum-safe encryption for files, folders and backups | `pqcsuite/vault.py` until it moves to `products/vault` | `pqcsuite vault` | moving next |
 
 Start with a product's own README: install (one command: `products/*/install.sh`, or `install.ps1` on Windows), first
-steps, the console and the manual. The website is https://qubitman-hub.github.io/PQCsuite/.
+steps, the console and the manual. The website is https://qubitman-hub.github.io/acxelin/.
 
 ## Repository layout
 
@@ -22,24 +21,10 @@ products/readiness/   Acxelin Readiness + CBOM: src, tests, docs, examples, depl
 products/tls/         Acxelin TLS/mTLS + CA: src, tests, docs, examples, deploy (Docker, systemd), installers
 products/vpn/         Acxelin VPN: src, tests, docs, config, deploy (gateway image, systemd), packaging (desktop installers), installers
 website/              the shared home page and one section per product, built by tools/build_site.py
-tools/                repository tooling: the site build, release gate, wheelhouse, browser test kit, fixtures
-pqcsuite/ tests/ examples/ docs/
-                      Vault and the old console, until Vault moves to products/vault; then these folders go
+tools/                repository tooling: the site build, release gate, wheelhouse, browser test kit
 ```
 
 No product imports another, and core works with nothing else installed; tests enforce both.
-
-## Vault, until it moves
-
-```
-pip install ./core ./products/tls ./products/vpn .     # from this checkout
-pqcsuite doctor
-pqcsuite vault keygen ops
-pqcsuite vault backup /var/lib/app --to /backups -r ops.pub -r recovery.pub --keep 14
-```
-
-`pqcsuite console` shows Vault backups next to the older views. What Vault protects against, and its limits:
-[docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).
 
 ## Working on this repository
 

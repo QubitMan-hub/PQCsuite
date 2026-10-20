@@ -30,7 +30,7 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     installed = {d["name"].lower(): d for d in json.loads(run(str(bin_ / "python"), "-m", "pip", "list", "--format", "json", "-v").stdout)}
     assert "acxelin-tls" in installed and "acxelin-core" in installed
     assert not any("editable_project_location" in d for d in installed.values())
-    assert not set(installed) & {"pqcsuite", "acxelin-readiness", "acxelin-vpn", "acxelin-vault"}
+    assert not set(installed) & {"acxelin-readiness", "acxelin-vpn"}
     where = run(str(bin_ / "python"), "-c", "import acxelin_tls, acxelin_core; print(acxelin_tls.__file__); print(acxelin_core.__file__)").stdout.split()
     assert all(str(env_dir) in w for w in where), where
     lic = run(str(bin_ / "python"), "-c", "import importlib.metadata as m\nfor d in ('acxelin-tls', 'acxelin-core'):\n"

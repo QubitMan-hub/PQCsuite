@@ -1,1 +1,0 @@
-golden plaintext: legitimate data written before the restructure

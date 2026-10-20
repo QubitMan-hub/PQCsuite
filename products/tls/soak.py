@@ -1,6 +1,6 @@
 """Soak: run the edge for a long time under steady change and fail if it degrades. Linux (reads /proc).
 
-    python scripts/soak.py --minutes 120 [--out soak.json]
+    python products/tls/soak.py --minutes 120 [--out soak.json]
 
 A mutual-TLS edge follows the CA's published CRL (crl_url) in front of a plain service while clients connect without a
 pause. Every 20 s a client certificate is issued and revoked (the revoked one must be refused once the CRL arrives, a valid
@@ -17,9 +17,12 @@ import threading
 import time
 from pathlib import Path
 
-from pqcsuite import PEM, serve_http, tls
-from pqcsuite.pki import CA
-from pqcsuite.tls.edge import Edge, Route
+from acxelin_core import tls
+from acxelin_core.http import PEM, serve_http
+from acxelin_core.pki import CA
+
+from acxelin_tls import policies
+from acxelin_tls.edge import Edge, Route
 
 
 def usage():
@@ -55,7 +58,7 @@ def main():
     edge = Edge(Route("soak", "terminate", "127.0.0.1:0", f"127.0.0.1:{echo_server()}", cert=str(srv / "chain.pem"), key=str(srv / "key.pem"),
                       ca=cafile, require_client_cert=True, crl=str(d / "edge-crl.pem"),
                       crl_url=f"http://127.0.0.1:{publish.server_address[1]}/crl.pem", crl_every=5)).start()
-    steady = tls.client_context(cafile, who / "chain.pem", who / "key.pem")
+    steady = tls.client_context(policies.policy("strict"), cafile, who / "chain.pem", who / "key.pem")
     counts = {"ok": 0, "failed": 0, "revocations": 0, "revocations_enforced": 0, "renewals": 0}
     lock, stop, deadline = threading.Lock(), threading.Event(), time.monotonic() + a.minutes * 60
 
@@ -80,7 +83,7 @@ def main():
         time.sleep(20)
         n += 1
         out, rec = ca.issue(f"leaver-{n}", "client", out=d / f"leaver-{n}")
-        ctx = tls.client_context(cafile, out / "chain.pem", out / "key.pem")
+        ctx = tls.client_context(policies.policy("strict"), cafile, out / "chain.pem", out / "key.pem")
         ca.revoke(rec.serial)
         counts["revocations"] += 1
         for _ in range(30):  # the edge fetches the CRL every 5 s

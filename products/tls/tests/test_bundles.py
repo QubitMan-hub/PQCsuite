@@ -25,7 +25,7 @@ class BundleTest(unittest.TestCase):
                 self.assertTrue((out / "ca.key.KEEP-OFFLINE").exists())
                 readme = (out / "README.txt").read_text()
                 self.assertIn("acxelin-tls connect", readme)
-                self.assertFalse([w for w in ("pqcsuite", "readiness", "vault", "vpn") if w in readme.lower()])
+                self.assertFalse([w for w in ("readiness", "vpn") if w in readme.lower()])
                 self.assertNotIn("Chrome", readme)
             with self.assertRaises(CAError):
                 create("nginx", Path(d) / "nginx", "again.example.com")

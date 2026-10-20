@@ -25,7 +25,6 @@ build/
 tests/golden/**/__pycache__/
 *.part
 readiness-out/
-pqcsuite-out/
 
 # the Readiness quality corpus holds deliberate test keys and weak code
 !products/readiness/bench/corpus/**
@@ -41,7 +40,6 @@ playwright-report/
 Thumbs.db
 
 # Private console workspace
-.pqcsuite/
 
 # archify working folders (finished diagrams go in the product's docs)
 .archify/

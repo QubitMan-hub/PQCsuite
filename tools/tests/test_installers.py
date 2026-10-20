@@ -39,7 +39,7 @@ def test_install_offline_from_a_release_wheelhouse(tmp_path):
     house = package("tls", tmp_path / "acxelin-tls-1.0.0-wheelhouse")
     shipped = {p.relative_to(house).as_posix() for p in house.rglob("*") if p.is_file()}
     assert {"install.sh", "install.ps1", "README.md", "LICENSE", "docs/manual.md", "config/example.toml", "deploy/systemd/acxelin-tls-edge.service"} <= shipped
-    assert not [n for n in shipped if n.startswith(("acxelin_readiness", "pqcsuite"))], shipped
+    assert not [n for n in shipped if n.startswith("acxelin_readiness")], shipped
     r = install(house / "install.sh", tmp_path)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "from the wheels next to it" in r.stdout
@@ -55,10 +55,10 @@ def test_the_vpn_release_folder_installs_offline_and_carries_its_units(tmp_path)
     shipped = {p.relative_to(house).as_posix() for p in house.rglob("*") if p.is_file()}
     units = {f"deploy/systemd/{u}" for u in ("acxelin-vpn-ipsec.service", "acxelin-vpn-wireguard.service", "strongswan-pqc.service",
                                               "acxelin-vpn-enroll.service", "acxelin-vpn-ca-maintain.service", "acxelin-vpn-ca-maintain.timer")}
-    assert {"install.sh", "install.ps1", "README.md", "LICENSE", "CHANGELOG.md", "docs/manual.md", "docs/upgrade.md", "config/site-hq.toml",
+    assert {"install.sh", "install.ps1", "README.md", "LICENSE", "CHANGELOG.md", "docs/manual.md", "config/site-hq.toml",
             "config/gateway.toml"} | units <= shipped
     assert any(n.startswith("vici-") for n in shipped), "a gateway installs acxelin-vpn[vpn] from the folder, offline"
-    assert not [n for n in shipped if n.startswith(("acxelin_readiness", "acxelin_tls", "pqcsuite"))], shipped
+    assert not [n for n in shipped if n.startswith(("acxelin_readiness", "acxelin_tls"))], shipped
     r = install(house / "install.sh", tmp_path)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "from the wheels next to it" in r.stdout and "acxelin-vpn join" in r.stdout

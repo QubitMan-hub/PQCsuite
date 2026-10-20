@@ -18,8 +18,7 @@ Acxelin Quantum sells post-quantum security products, each standalone, so a cust
 
 - Acxelin Readiness + CBOM: finds the cryptography an organisation depends on, shows what a quantum computer breaks, ranks what to migrate first, writes a CycloneDX 1.6 CBOM.
 - Acxelin TLS: post-quantum TLS 1.3 and mutual TLS in front of services that do not change, with its own ML-DSA certificate authority.
-- Acxelin VPN (moving into its own product now): post-quantum site-to-site IPsec and WireGuard remote access with a desktop app.
-- Acxelin Q-Vault (after VPN): quantum-safe encryption for files and backups.
+- Acxelin VPN: post-quantum site-to-site IPsec and WireGuard remote access with a desktop app.
 
 The website's job: let a visitor see, within a minute, which product answers their problem, that it really works, and how to start safely.
 
@@ -42,7 +41,7 @@ Visitors evaluate it at work, often on a laptop between meetings, sometimes on a
 
 ## Brand Commitments
 
-- Name and logo: Acxelin Quantum (`website/assets/acxelin-quantum.svg`); product names Acxelin Readiness, Acxelin TLS, Acxelin VPN, Acxelin Q-Vault.
+- Name and logo: Acxelin Quantum (`website/assets/acxelin-quantum.svg`); product names Acxelin Readiness, Acxelin TLS, Acxelin VPN.
 - Amber is the brand colour; Host Grotesk is the display face (both kept by owner decision).
 - Voice: plain, precise, honest; short sentences; no hype; British spelling.
 - Copyright line: © 2026 Acxelin Quantum, all rights reserved.

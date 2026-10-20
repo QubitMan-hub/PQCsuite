@@ -151,7 +151,7 @@ def test_guided_enrollment_keeps_secrets_out_of_output_and_requires_trust(tmp_pa
     with patch("sys.stdin.isatty", return_value=True), patch("acxelin_tls.checks.prerequisites", return_value=[]), \
             patch("builtins.input", side_effect=["https://ca.example:9443", "device-1", "a" * 64]), \
             patch("getpass.getpass", side_effect=["PRIVATE_TOKEN", "PRIVATE_PASSWORD", "PRIVATE_PASSWORD"]), \
-            patch.dict(os.environ, {"ACXELIN_TLS_ENROLL_TOKEN": "", "PQCSUITE_ENROLL_TOKEN": ""}), \
+            patch.dict(os.environ, {"ACXELIN_TLS_ENROLL_TOKEN": ""}), \
             patch("acxelin_core.pki.est.fetch_ca") as fetch, patch("acxelin_core.pki.est.enroll", return_value=cert) as enroll:
         with pytest.raises(SystemExit) as result:
             main(args)

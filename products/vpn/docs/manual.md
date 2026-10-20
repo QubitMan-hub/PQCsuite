@@ -317,8 +317,6 @@ With `metrics = "HOST:PORT"`, a site serves `/metrics` (Prometheus) and `/status
 
 **Does it contact the internet?** Only the addresses you configure: peers, gateways, the enrollment service and a `crl_url`. It never contacts Acxelin Quantum.
 
-**Can I upgrade gateways one at a time from release 0.4.3?** Yes. A gateway on 1.0 agrees the same keys as one still on 0.4.3, so you can move one site, check its tunnels, then the next. See `docs/upgrade.md`.
-
 **Does it need any other Acxelin product?** No. It installs and runs on its own, from its own release folder.
 
 ## 12. Limits

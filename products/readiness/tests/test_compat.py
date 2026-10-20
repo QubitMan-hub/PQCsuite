@@ -41,7 +41,7 @@ def test_cnsa2_does_not_pass_aes_of_unknown_size(tmp_path):
     assert not result["passed"]
 
 
-def test_no_remedy_names_another_product_or_the_old_suite(tmp_path):
+def test_no_remedy_names_another_product(tmp_path):
     (tmp_path / "a.py").write_text("import hashlib\nfrom Crypto.Cipher import AES\nfrom cryptography.hazmat.primitives.asymmetric import rsa\n"
                                    "rsa.generate_private_key(public_exponent=65537, key_size=2048)\nAES.new(k, AES.MODE_ECB)\nhashlib.md5(b'x').hexdigest()\n")
     (tmp_path / "nginx.conf").write_text("ssl_protocols TLSv1.1 TLSv1.2;\n")
@@ -49,4 +49,4 @@ def test_no_remedy_names_another_product_or_the_old_suite(tmp_path):
     from acxelin_readiness import remedy
     texts = [f"{who} {fix}" for a in r.assets for who, fix in remedy.remedies(a)]
     assert texts, "the fixture must produce remedies"
-    assert not [t for t in texts if "pqcsuite" in t.lower() or "pqc suite" in t.lower() or "vault" in t.lower() and "pqc" in t.lower()], texts
+    assert not [t for t in texts if "acxelin" in t.lower()], texts

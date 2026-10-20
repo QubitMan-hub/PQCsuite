@@ -5,7 +5,7 @@
 <p class="lead">It runs on Linux, Windows and macOS with Python 3.11 to 3.14. You do not need another Acxelin product, and nothing contacts Acxelin Quantum.</p>
 <ol class="steps">
 <li><h2>Download</h2>
-<p>From the <a href="https://github.com/QubitMan-hub/PQCsuite/releases/tag/readiness-v{{VERSION}}">release page</a>, save two files in the same folder:</p>
+<p>From the <a href="https://github.com/QubitMan-hub/acxelin/releases/tag/readiness-v{{VERSION}}">release page</a>, save two files in the same folder:</p>
 <ul>
 <li><code>acxelin-readiness-{{VERSION}}-wheelhouse.tar.gz</code>: the program</li>
 <li><code>SHA256SUMS</code>: a fingerprint of every file in the release</li>
@@ -62,7 +62,7 @@ acxelin-readiness console link --port 8900</code></pre>
 docker exec -it NAME acxelin-readiness console link</code></pre></li>
 <li><h2>Gate pull requests</h2>
 <p>Pin the action to the release you installed, so the check you trust is the check that runs:</p>
-<pre><code>- uses: QubitMan-hub/PQCsuite/products/readiness@readiness-v{{VERSION}}
+<pre><code>- uses: QubitMan-hub/acxelin/products/readiness@readiness-v{{VERSION}}
   with:
     fail-on: high
     baseline: cbom.json</code></pre>

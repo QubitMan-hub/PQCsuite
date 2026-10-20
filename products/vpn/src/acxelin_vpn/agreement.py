@@ -1,7 +1,7 @@
 """The post-quantum key agreement both data planes use: one mutual TLS 1.3 session under the VPN's policy (hybrid ML-KEM key
 exchange, ML-DSA certificates), one JSON line each way, and keys exported from that session (RFC 8446 section 7.5). IPsec takes
-64 bytes (IKE PSK and PPK), WireGuard 32 (its PSK). Labels and contexts are pinned: gateways already deployed, PQC Suite 0.4.3
-among them, derive the same keys only while they stay as they are."""
+64 bytes (IKE PSK and PPK), WireGuard 32 (its PSK). Labels and contexts are pinned: deployed gateways and
+computers derive the same keys only while they stay as they are."""
 import json
 import re
 import secrets

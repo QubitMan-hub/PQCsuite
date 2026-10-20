@@ -16,7 +16,7 @@ binaries = [(str(p), "openssl") for p in Path(openssl).iterdir() if p.suffix in 
 a = Analysis([str(here / "launcher.py")], binaries=binaries,
              datas=collect_data_files("acxelin_vpn") + collect_data_files("acxelin_core"),
              hiddenimports=collect_submodules("acxelin_vpn") + ["PIL.Image", "PIL.ImageDraw"] + [f"pystray._{b}" for b in TRAYS],
-             excludes=["tkinter", "pqcsuite", "acxelin_tls", "acxelin_readiness", "boto3", "botocore", "pytest", "hypothesis"])
+             excludes=["tkinter", "acxelin_tls", "acxelin_readiness", "boto3", "botocore", "pytest", "hypothesis"])
 pyz = PYZ(a.pure)
 gui = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Acxelin VPN", console=False, icon=icon)
 cli = EXE(pyz, a.scripts, [], exclude_binaries=True, name="acxelin-vpn", console=True, icon=icon)

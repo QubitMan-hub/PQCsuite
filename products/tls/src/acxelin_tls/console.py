@@ -7,6 +7,7 @@ import datetime as dt
 import functools
 import io
 import json
+import os
 import re
 import secrets
 import threading
@@ -27,7 +28,6 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID
 
 from . import __version__, checks, policies
-from .common import env
 
 NAME = re.compile(r"[A-Za-z0-9*._-]{1,253}")
 MAX_EDGES = 50
@@ -62,7 +62,7 @@ class TLSConsole:
         self.ca_dir = Path(ca_dir) if ca_dir else self.home / "ca"
         self.passphrase = None
         self.lock = threading.Lock()
-        given = env("ACXELIN_TLS_CA_PASSPHRASE", "PQCSUITE_CA_PASSPHRASE")  # a service's secret, so nobody types it into a browser
+        given = os.environ.get("ACXELIN_TLS_CA_PASSPHRASE")  # a service's secret, so nobody types it into a browser
         if given and self._exists() and encrypted(self.ca_dir / "ca.key"):
             try:
                 CA(self.ca_dir, given.encode()).signer

@@ -1,4 +1,4 @@
-"""Disaster recovery, with the commands docs/THREAT-MODEL.md gives: back the CA folder up with Vault, lose the machine, restore
+"""Disaster recovery: back the CA folder up with any tool, lose the machine, restore
 it elsewhere, and carry on: existing clients still connect, a revoked one is still refused, new certificates can be issued and
 revoked. The restore time is measured."""
 import os

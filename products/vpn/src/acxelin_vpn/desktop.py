@@ -19,7 +19,7 @@ import webbrowser
 from pathlib import Path
 
 from acxelin_core.files import write
-from . import app, legacy
+from . import app
 
 NAME = "Acxelin VPN"
 TONES = {"protected": "#26734d", "connecting": "#c98a00", "agreed": "#c98a00", "not_protected": "#b3431f"}
@@ -28,7 +28,7 @@ WORDS = {"protected": "Protected", "connecting": "Connecting", "agreed": "Keys a
 
 
 def folder():
-    return legacy.home()
+    return Path.home() / ".acxelin-vpn"
 
 
 def summary(state):

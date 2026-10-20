@@ -26,7 +26,7 @@ pytestmark = pytest.mark.skipif(openssl.available() is not None, reason="needs O
 
 
 def openssl_cli():
-    folder = os.environ.get("ACXELIN_OPENSSL") or os.environ.get("PQCSUITE_OPENSSL")
+    folder = os.environ.get("ACXELIN_OPENSSL")
     for c in ([str(Path(folder).parent / "bin" / "openssl")] if folder else []) + [shutil.which("openssl") or ""]:
         if c and Path(c).exists() and "OpenSSL 3.5" <= subprocess.run([c, "version"], capture_output=True, text=True).stdout[:11]:
             return c

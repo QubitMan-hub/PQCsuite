@@ -5,10 +5,10 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: pip
-    directories: ["/", "/core", "/products/tls", "/products/vpn", "/products/readiness"]
+    directories: ["/core", "/products/tls", "/products/vpn", "/products/readiness"]
     schedule:
       interval: weekly
   - package-ecosystem: docker
-    directories: ["/", "/products/tls/deploy", "/products/vpn/deploy", "/products/readiness/deploy"]
+    directories: ["/products/tls/deploy", "/products/vpn/deploy", "/products/readiness/deploy"]
     schedule:
       interval: weekly

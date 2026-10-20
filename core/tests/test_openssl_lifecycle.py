@@ -89,14 +89,10 @@ def test_windows_loader_prefers_the_configured_directory(tmp_path, monkeypatch):
     for folder in (pinned, other):
         (folder / 'libssl-3-x64.dll').touch()
     (other / 'libssl-4-x64.dll').touch()
-    for name in ('ACXELIN_OPENSSL', 'PQCSUITE_OPENSSL', 'PQC_OPENSSL'):
-        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv('PATH', str(other))
-    for setting in ('ACXELIN_OPENSSL', 'PQC_OPENSSL'):  # the new name, and the old one read through 1.x
-        monkeypatch.setenv(setting, str(pinned))
-        with mock.patch('acxelin_core.openssl.platform.system', return_value='Windows'):
-            assert _names('ssl')[0] == str(pinned / 'libssl-3-x64.dll')
-        monkeypatch.delenv(setting)
+    monkeypatch.setenv('ACXELIN_OPENSSL', str(pinned))
+    with mock.patch('acxelin_core.openssl.platform.system', return_value='Windows'):
+        assert _names('ssl')[0] == str(pinned / 'libssl-3-x64.dll')
 
 
 def test_exporter_uses_the_encoded_label_length(connection):

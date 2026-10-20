@@ -8,7 +8,7 @@ import pytest
 
 from acxelin_vpn import cli
 
-DOCS = [Path(__file__).resolve().parents[1] / p for p in ("README.md", "docs/manual.md", "docs/upgrade.md")]
+DOCS = [Path(__file__).resolve().parents[1] / p for p in ("README.md", "docs/manual.md")]
 
 
 def blocks(text):

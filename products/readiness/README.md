@@ -47,7 +47,7 @@ Grades, accepted groups and SSH algorithms need nothing extra. To read the certi
 
 ## Deploy
 
-- **GitHub Action:** `uses: QubitMan-hub/PQCsuite/products/readiness@<tag>` with inputs `path`, `fail-on`, `baseline`, `args`, `output` and `upload-sarif`.
+- **GitHub Action:** `uses: QubitMan-hub/acxelin/products/readiness@<tag>` with inputs `path`, `fail-on`, `baseline`, `args`, `output` and `upload-sarif`.
 - **Docker:** `docker build -f products/readiness/deploy/Dockerfile -t acxelin-readiness .`, then `docker run --rm -v "$PWD:/scan" acxelin-readiness` (on Linux add `--user "$(id -u):$(id -g)"`, so the scan can write `readiness-out` into your folder).
 
 ## Limits
@@ -55,7 +55,7 @@ Grades, accepted groups and SSH algorithms need nothing extra. To read the certi
 - A missing finding is not proof that cryptography is absent. Code that builds algorithm names at run time, or loads them from outside the scanned files, can be missed.
 - The quality gate's precision and recall come from a labelled corpus that was tuned on, so they guard against regressions. They are not a claim about unseen code.
 
-More: `docs/manual.md`, `docs/upgrade.md` (coming from Wolf Pack or the PQC Suite) and `docs/threat-model.md`.
+More: `docs/manual.md`, `docs/upgrade.md` (coming from Wolf Pack) and `docs/threat-model.md`.
 
 ## Licence
 

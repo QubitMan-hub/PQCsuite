@@ -11,7 +11,7 @@ def test_tags_name_a_product_and_a_version():
     assert parse_tag("tls-v1.0.0") == ("tls", "1.0.0")
     assert parse_tag("refs/tags/readiness-v1.2.3") == ("readiness", "1.2.3")
     assert parse_tag("vpn-v1.0.0") == ("vpn", "1.0.0")
-    for bad in ("v1.0.0", "tls-1.0.0", "vault-v1.0.0", "tls-v1.0", "tls-v1.0.0-rc1;rm"):
+    for bad in ("v1.0.0", "tls-1.0.0", "storage-v1.0.0", "tls-v1.0", "tls-v1.0.0-rc1;rm"):
         with pytest.raises(ValueError):
             parse_tag(bad)
 

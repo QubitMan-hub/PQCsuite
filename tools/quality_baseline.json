@@ -1,6 +1,0 @@
-{
- "precision": 1.0,
- "recall": 1.0,
- "truth_sha256": "03c80e1338a34c92586aab2ac696cc0109c90980fef279f56766432cf78379c4",
- "corpus": "wolf-pack/bench/corpus"
-}

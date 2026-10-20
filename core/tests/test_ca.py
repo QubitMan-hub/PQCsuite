@@ -198,8 +198,8 @@ class CATest(unittest.TestCase):
             self.ca.renew(new.serial, out=out)
 
     def test_renewal_keeps_the_algorithm(self):
-        out = Path(self.tmp.name) / "vault"
-        _, rec = self.ca.issue("vault.bank", "server", algorithm="ML-DSA-87", days=10, out=out)
+        out = Path(self.tmp.name) / "backup"
+        _, rec = self.ca.issue("backup.bank", "server", algorithm="ML-DSA-87", days=10, out=out)
         renewed, _ = self.ca.maintain(renew_within=30)
         self.assertEqual([r.algorithm for r in renewed], ["ML-DSA-87"])
         self.assertEqual(self.ca.renew(renewed[0].serial, out=out)[1].algorithm, "ML-DSA-87")

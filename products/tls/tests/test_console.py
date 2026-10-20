@@ -177,7 +177,7 @@ def test_the_console_signs_in_over_http_and_loads_no_other_product(app, home):
     import subprocess
     import sys
     code = "import sys, acxelin_tls.console;" \
-           "bad=[m for m in sys.modules if m.split('.')[0] in ('pqcsuite','acxelin_readiness','acxelin_vpn','acxelin_vault')]; assert not bad, bad"
+           "bad=[m for m in sys.modules if m.split('.')[0] in ('acxelin_readiness','acxelin_vpn')]; assert not bad, bad"
     assert subprocess.run([sys.executable, "-c", code]).returncode == 0
 
 
@@ -250,7 +250,7 @@ def test_download_gives_the_key_only_when_asked_and_never_for_a_revoked_certific
 
 def test_an_encrypted_key_is_not_handed_out(app, home):
     make_ca(app)
-    _, rec = tc.TLSConsole(home)._ca().issue("vault", "client", out=home / "issued/vault", passphrase=b"pw")
+    _, rec = tc.TLSConsole(home)._ca().issue("ops", "client", out=home / "issued/ops", passphrase=b"pw")
     with pytest.raises(ValueError, match="encrypted"):
         call(app, "POST", "/api/certificates/download", {"serial": rec.serial, "key": True})
     assert call(app, "POST", "/api/certificates/download", {"serial": rec.serial})[0] == 200

@@ -16,7 +16,7 @@ acxelin-vpn invite alice --dir pki --enroll https://ca.acme.example:9443 --gatew
 ```
 
 The manual (`docs/manual.md`) covers two sites and a laptop in fifteen minutes, the console, the app and production.
-`docs/upgrade.md` is for moving from the PQC Suite; `docs/threat-model.md` says what is and is not protected.
+`docs/threat-model.md` says what is and is not protected.
 
 | In this folder | |
 |---|---|

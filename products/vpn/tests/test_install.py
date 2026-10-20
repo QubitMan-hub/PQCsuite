@@ -31,7 +31,7 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     installed = {d["name"].lower(): d for d in json.loads(run(str(bin_ / "python"), "-m", "pip", "list", "--format", "json", "-v").stdout)}
     assert {"acxelin-vpn", "acxelin-core", "vici"} <= set(installed)
     assert not any("editable_project_location" in d for d in installed.values())
-    assert not set(installed) & {"pqcsuite", "acxelin-readiness", "acxelin-tls", "acxelin-vault"}
+    assert not set(installed) & {"acxelin-readiness", "acxelin-tls"}
     cli = str(bin_ / "acxelin-vpn")
     assert run(cli, "--version").stdout.strip() == "acxelin-vpn 1.0.0"
     doctor = subprocess.run([cli, "doctor", "--json"], cwd=tmp_path, env=clean, capture_output=True, text=True)

@@ -1,11 +1,10 @@
-"""Each product stands alone, in its source and in its tests: core imports no product, a product imports no other product,
-and neither imports the old pqcsuite package. Read from the files, so an import that only works because everything is
-installed together still fails here."""
+"""Each product stands alone, in its source and in its tests: core imports no product, a product imports no other product.
+Read from the files, so an import that only works because everything is installed together still fails here."""
 import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OTHERS = {"pqcsuite", "acxelin_readiness", "acxelin_tls", "acxelin_vpn", "acxelin_vault"}
+OTHERS = {"acxelin_readiness", "acxelin_tls", "acxelin_vpn"}
 OWN = {"core": None, "products/readiness": "acxelin_readiness", "products/tls": "acxelin_tls", "products/vpn": "acxelin_vpn"}
 
 

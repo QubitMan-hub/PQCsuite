@@ -139,12 +139,6 @@ jobs:
             --enable-kdf --enable-kernel-netlink --enable-socket-default --enable-updown --enable-resolve --enable-attr --enable-constraints \
             --enable-revocation && make -j4 && sudo make install && sudo chmod -R a+rX /opt/pqc
       - run: pip install ./core "./products/vpn[vpn,test]"
-      - name: Upgrade path, Acxelin VPN agrees the same keys as the released PQC Suite 0.4.3 in both directions (a skip fails)
-        run: |
-          set -o pipefail
-          git fetch --depth 1 origin tag v0.4.3
-          ACXELIN_OPENSSL=/opt/pqc/lib LD_LIBRARY_PATH=/opt/pqc/lib python -m pytest tools/tests/test_vpn_wire.py -v -rs | tee wire.txt
-          ! grep -q SKIPPED wire.txt
       - name: Real application for VPN traffic checks
         run: sudo apt-get update && sudo apt-get install -y redis-server wireguard-tools
       - name: Two sites in network namespaces, real ESP traffic

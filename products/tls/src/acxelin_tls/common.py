@@ -8,19 +8,13 @@ from acxelin_core.pki import CAError, encrypted
 from . import policies
 
 CA_PASS_ENV = "ACXELIN_TLS_CA_PASSPHRASE"
-OLD_CA_PASS_ENV = "PQCSUITE_CA_PASSPHRASE"  # read through 1.x; the new name wins
-
-
-def env(new, old):
-    """An environment setting by its new name, or the old PQCSUITE_ name (read through 1.x); the new name wins."""
-    return os.environ.get(new) or os.environ.get(old)
 
 
 def ca_passphrase(root, new=False):
     """From ACXELIN_TLS_CA_PASSPHRASE or a prompt, and only when the CA key is (or will be) encrypted."""
     if not new and not encrypted(Path(root) / "ca.key"):
         return None
-    given = env(CA_PASS_ENV, OLD_CA_PASS_ENV)
+    given = os.environ.get(CA_PASS_ENV)
     if given:
         return given.encode()
     if not new:

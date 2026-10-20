@@ -1,4 +1,4 @@
-name: ci
+name: repository
 on:
   push:
   pull_request:
@@ -6,93 +6,18 @@ on:
 permissions:
   contents: read
 jobs:
-  unit:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        python: ["3.11", "3.13"]
-    runs-on: ${{ matrix.os }}
+  checks:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: {fetch-depth: 0}  # the coverage map reads the base commit the restructure started from
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: ${{ matrix.python }}
-      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn -e ".[test,integration,scan-web]"
-      - run: python -m pytest -q
-      - name: Repository checks (each product stands alone; installers; release rules; the VPN's CBOM in Readiness)
-        if: runner.os == 'Linux'
+          python-version: "3.13"
+      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e "./products/vpn[vpn,test]"
+      - name: Each product stands alone; installers; release rules; the VPN's CBOM in Readiness
         run: python -m pytest -q tools/tests
-  macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-      - name: OpenSSL 3.5+ from Homebrew, so the TLS tests run too
-        run: brew install openssl@3 && echo "PQCSUITE_OPENSSL=$(brew --prefix openssl@3)/lib" >> "$GITHUB_ENV"
-      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn -e ".[test,integration,scan-web]" && pqcsuite doctor && pqcsuite try
-      - name: A second loopback address, as Linux has, for the per-host limit test
-        run: sudo ifconfig lo0 alias 127.0.0.2 up
-      - run: python -m pytest -q
-  scenarios:
-    # the old suite's tests with real services (Vault until its stage; TLS, Readiness and VPN test in their own workflows)
-    runs-on: ubuntu-latest
-    container: python:3.13-slim-trixie@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: A real database for the Vault restore scenario
-        run: apt-get update && apt-get install -y --no-install-recommends git openssl curl postgresql
-      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn -e ".[test,integration,scan-web]" && pqcsuite doctor
-      - run: python -m coverage run -m pytest -q
-      - name: Coverage floor
-        run: |
-          python -m coverage report --skip-covered --sort=cover
-          echo "::notice title=Coverage::pqcsuite/ line coverage $(python -m coverage report --format=total)%"
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-      - name: Known vulnerabilities in the runtime and optional dependencies
-        run: |
-          pip install pip-audit==2.10.1
-          python -c 'import tomllib; p=tomllib.load(open("pyproject.toml","rb"))["project"]; extra=p["optional-dependencies"]; print("\n".join(d for d in p["dependencies"] + extra["vpn"] + extra["kms"] if not d.startswith("acxelin-")))' > deps.txt
-          pip-audit -r deps.txt
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: pipx run ruff==0.14.0 check .
-  cbom:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.14"
-      - run: pip install ./core ./products/readiness
-      - name: Acxelin Readiness on the old suite; new high-risk cryptography since docs/cbom.json fails the build
-        run: acxelin-readiness scan pqcsuite -o cbom --baseline docs/cbom.json --fail-on high
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: pqcsuite-cbom
-          path: cbom
-  browser:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.13"
-      - run: pip install -e ./core -e "./products/readiness[crawler,test]" -e ./products/tls -e ./products/vpn ".[scan-web]"
-      - name: The suite console in Chromium, with axe accessibility checks
-        working-directory: tests/browser
-        run: |
-          npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium
-          npx playwright test

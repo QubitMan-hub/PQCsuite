@@ -22,7 +22,6 @@ from pathlib import Path
 
 from acxelin_core.files import write
 
-from . import legacy
 
 FULL = ["0.0.0.0/0", "::/0"]
 SECRET = object()
@@ -120,7 +119,7 @@ class Tunnel:
         return self.folder / f"{self.name}.conf"
 
     def env(self):
-        go = legacy.env("WIREGUARD_GO")
+        go = os.environ.get("ACXELIN_WIREGUARD_GO")
         return {"WG_QUICK_USERSPACE_IMPLEMENTATION": go, "WG_I_PREFER_BUGGY_USERSPACE_TO_POLISHED_KMOD": "1"} if go else {}
 
     def device(self):
@@ -204,7 +203,7 @@ class KillSwitch:
 
 
 class LinuxKillSwitch(KillSwitch):
-    CHAIN, OLD_CHAIN = "ACXELIN-KILLSWITCH", "PQCSUITE-KILLSWITCH"
+    CHAIN = "ACXELIN-KILLSWITCH"
 
     def rules(self, device, endpoint, keyring, v6):
         keep = lambda ip: (":" in ip) == v6
@@ -227,7 +226,6 @@ class LinuxKillSwitch(KillSwitch):
             self.runner([tool, "-I", "OUTPUT", "1", "-j", new])
             self.drop(tool, self.CHAIN)
             self.runner([tool, "-E", new, self.CHAIN])
-            self.drop(tool, self.OLD_CHAIN)  # the suite's, left by an upgrade: removed only once ours is in place
         self.applied = (device, endpoint, keyring)
 
     def drop(self, tool, chain):
@@ -245,13 +243,12 @@ class LinuxKillSwitch(KillSwitch):
     def off(self):
         for tool in ("iptables", "ip6tables"):
             self.drop(tool, self.CHAIN)
-            self.drop(tool, self.OLD_CHAIN)
         self.applied = None
 
 
 class MacKillSwitch(KillSwitch):
     """A pf anchor under Apple's own `com.apple/*`, which the stock /etc/pf.conf already evaluates."""
-    ANCHOR, OLD_ANCHOR, OLD_FOLDER = "com.apple/acxelin-vpn", "com.apple/pqcsuite", Path("/var/run/pqcsuite")
+    ANCHOR = "com.apple/acxelin-vpn"
 
     @property
     def token(self):
@@ -287,11 +284,9 @@ class MacKillSwitch(KillSwitch):
             out = self.runner(["pfctl", "-E"])
             token = next((line.split(":", 1)[1].strip() for line in out.splitlines() if line.startswith("Token")), "")
             write(self.token, token.encode(), secret=True)
-        self.release(self.OLD_ANCHOR, self.OLD_FOLDER / "killswitch.token")  # the suite's, only once ours holds pf
 
     def off(self):
         self.release(self.ANCHOR, self.token)
-        self.release(self.OLD_ANCHOR, self.OLD_FOLDER / "killswitch.token")
 
 
 def folder():
@@ -312,16 +307,14 @@ def this_machine(name, where=None, runner=run):
     return Tunnel(name, where, runner), LinuxKillSwitch(where, runner)
 
 
-SERVICE, OLD_SERVICE = "acxelin-vpn", "pqcsuite-vpn"
+SERVICE = "acxelin-vpn"
 
 
 def service(argv, kind=None, name=SERVICE):
-    """(path, contents, commands to start it, commands to remove it) that keep `argv` running from boot, restarted if it stops.
-    `name=OLD_SERVICE` describes the suite's, which an upgrade removes."""
+    """(path, contents, commands to start it, commands to remove it) that keep `argv` running from boot, restarted if it stops."""
     kind = kind or system()
-    old = name == OLD_SERVICE
     if kind == "Windows":
-        base = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / ("pqcsuite" if old else "Acxelin") / "vpn"
+        base = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Acxelin" / "vpn"
         script = base / "connect.cmd"
         line = subprocess.list2cmdline(argv)
         return (script, f"@echo off\r\n:again\r\n{line}\r\ntimeout /t 10 /nobreak >nul\r\ngoto again\r\n",
@@ -329,7 +322,7 @@ def service(argv, kind=None, name=SERVICE):
                  ["schtasks", "/run", "/tn", name]],
                 [["schtasks", "/end", "/tn", name], ["schtasks", "/delete", "/tn", name, "/f"]])
     if kind == "Darwin":
-        label = "com.acxelin.pqcsuite.vpn" if old else "com.acxelin.vpn"
+        label = "com.acxelin.vpn"
         path = Path(f"/Library/LaunchDaemons/{label}.plist")
         args = "".join(f"<string>{html.escape(a)}</string>" for a in argv)
         plist = (f'<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
@@ -347,7 +340,6 @@ def service(argv, kind=None, name=SERVICE):
 
 
 def install(argv, runner=run):
-    remove(OLD_SERVICE, runner)
     path, text, start, _ = service(argv)
     write(path, text.encode())
     for cmd in start:
@@ -356,14 +348,11 @@ def install(argv, runner=run):
 
 
 def uninstall(runner=run):
-    remove(OLD_SERVICE, runner)
     return remove(SERVICE, runner)
 
 
 def remove(name, runner=run):
     path, _, _, stop = service([sys.executable], name=name)
-    if name == OLD_SERVICE and not path.exists():
-        return path
     for cmd in stop:
         try:
             runner(cmd)

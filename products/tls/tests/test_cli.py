@@ -27,7 +27,7 @@ def test_version_and_help_name_the_product_only():
     assert code == 0
     for command in ("edge", "bundle", "serve", "connect", "ca", "try", "doctor", "status", "console"):
         assert command in out
-    assert "vault" not in out.lower() and "vpn" not in out.lower() and "readiness" not in out.lower() and "pqcsuite" not in out.lower()
+    assert "vpn" not in out.lower() and "readiness" not in out.lower()
 
 
 def test_ca_lifecycle_from_the_command_line(tmp_path):
@@ -41,16 +41,12 @@ def test_ca_lifecycle_from_the_command_line(tmp_path):
     assert (tmp_path / "pki/crl.pem").exists()
 
 
-def test_the_old_passphrase_variable_is_read_and_the_new_one_wins(tmp_path):
-    CA.init(tmp_path / "ca", "Root", passphrase=b"old-secret")
-    os.environ.pop("ACXELIN_TLS_CA_PASSPHRASE", None)
-    os.environ["PQCSUITE_CA_PASSPHRASE"] = "old-secret"
+def test_the_passphrase_comes_from_its_variable(tmp_path):
+    CA.init(tmp_path / "ca", "Root", passphrase=b"secret")
+    os.environ["ACXELIN_TLS_CA_PASSPHRASE"] = "secret"
     try:
-        assert common.ca_passphrase(tmp_path / "ca") == b"old-secret"
-        os.environ["ACXELIN_TLS_CA_PASSPHRASE"] = "new-secret"
-        assert common.ca_passphrase(tmp_path / "ca") == b"new-secret"
+        assert common.ca_passphrase(tmp_path / "ca") == b"secret"
     finally:
-        os.environ.pop("PQCSUITE_CA_PASSPHRASE", None)
         os.environ.pop("ACXELIN_TLS_CA_PASSPHRASE", None)
 
 
@@ -70,7 +66,7 @@ def test_the_one_minute_tour_ends_with_the_classical_client_refused():
     code, out, err = run("try")
     assert code == 0, err
     assert "refused, as it should be" in out and "ML-KEM" in out
-    assert not any(w in out.lower() for w in ("pqcsuite", "readiness", "vault", "vpn"))
+    assert not any(w in out.lower() for w in ("readiness", "vpn"))
 
 
 @needs_openssl
@@ -99,7 +95,7 @@ def test_a_bundle_never_sends_the_reader_to_another_product(tmp_path):
     assert code == 0, err
     text = out + (tmp_path / "b/README.txt").read_text() + (tmp_path / "b/docker-compose.yml").read_text() + (tmp_path / "b/edge.toml").read_text()
     assert "acxelin-tls connect shop.example.invalid:443" in text
-    assert not any(w in text.lower() for w in ("pqcsuite", "readiness", "vault", "vpn"))
+    assert not any(w in text.lower() for w in ("readiness", "vpn"))
     assert "acxelin-tls:1.0.0" in text and "/etc/acxelin-tls/edge.toml" in text
 
 

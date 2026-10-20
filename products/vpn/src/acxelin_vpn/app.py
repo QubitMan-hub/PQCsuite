@@ -20,13 +20,13 @@ from acxelin_core.http import HTTP_IDLE, explain
 from acxelin_core.console import Backoff, Handler, policy, with_tour
 from acxelin_core.pki import encrypted
 from acxelin_core.files import write
-from . import join, legacy
+from . import join
 from .wireguard import Client
 
 
 class App:
     def __init__(self, invitation=None, folder=None, interface="wg0", apply=True):
-        self.folder = Path(folder) if folder else legacy.home()
+        self.folder = Path(folder) if folder else Path.home() / ".acxelin-vpn"
         self.invitation = Path(invitation) if invitation else self.newest()
         self.interface, self.apply = interface, apply
         self.client = self.thread = self.on_quit = None
@@ -46,7 +46,7 @@ class App:
             return isinstance(code, str) and self.tickets.pop(code, 0) > time.monotonic()
 
     def newest(self):
-        found = sorted((p for s in legacy.INVITE_SUFFIXES for p in self.folder.glob(f"*{s}")), key=lambda p: p.stat().st_mtime) if self.folder.is_dir() else []
+        found = sorted(self.folder.glob("*.acxinvite"), key=lambda p: p.stat().st_mtime) if self.folder.is_dir() else []
         return found[-1] if found else None
 
     def state(self):

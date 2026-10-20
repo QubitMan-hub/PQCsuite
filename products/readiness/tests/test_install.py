@@ -27,14 +27,14 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     installed = {d["name"].lower(): d for d in json.loads(run(str(bin_ / "python"), "-m", "pip", "list", "--format", "json", "-v").stdout)}
     assert "acxelin-readiness" in installed and "acxelin-core" in installed
     assert not any("editable_project_location" in d for d in installed.values())
-    assert not set(installed) & {"pqcsuite", "acxelin-tls", "acxelin-vpn", "acxelin-vault"}
+    assert not set(installed) & {"acxelin-tls", "acxelin-vpn"}
     where = run(str(bin_ / "python"), "-c", "import acxelin_readiness, acxelin_core; print(acxelin_readiness.__file__); print(acxelin_core.__file__)").stdout.split()
     assert all(str(env_dir) in w for w in where), where
     lic = run(str(bin_ / "python"), "-c", "import importlib.metadata as m\nfor d in ('acxelin-readiness', 'acxelin-core'):\n"
               "    dist = m.distribution(d); print(any(f.name == 'LICENSE' for f in dist.files), 'Proprietary' in ' '.join(dist.metadata.get_all('Classifier')))").stdout
     assert lic.split() == ["True", "True", "True", "True"], lic
     project = tmp_path / "project"
-    shutil.copytree(ROOT / "tests/golden/readiness/project", project)
+    shutil.copytree(Path(__file__).parent / "fixtures/project", project)
     run(str(bin_ / "acxelin-readiness"), "scan", str(project), "-o", str(tmp_path / "out"), "-q")
     bom = json.loads((tmp_path / "out/cbom.json").read_text())
     assert bom["specVersion"] == "1.6" and any(c["name"].startswith("RSA") for c in bom["components"])

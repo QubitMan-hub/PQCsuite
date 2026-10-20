@@ -90,7 +90,7 @@ class ACMETest(unittest.TestCase):
 
     def acme(self, key=None):
         key = key or jose.JWKEC(key=ec.generate_private_key(ec.SECP256R1()))
-        net = client.ClientNetwork(key, alg=jose.ES256 if isinstance(key, jose.JWKEC) else jose.RS256, user_agent="pqcsuite-test")
+        net = client.ClientNetwork(key, alg=jose.ES256 if isinstance(key, jose.JWKEC) else jose.RS256, user_agent="acxelin-tls-test")
         return client.ClientV2(client.ClientV2.get_directory(self.url + "/directory", net), net), key
 
     def obtain(self, c, key, names):

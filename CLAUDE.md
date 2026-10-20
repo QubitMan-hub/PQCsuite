@@ -3,8 +3,6 @@
 Acxelin Quantum's post-quantum products, each standalone. The owner develops on Windows with PowerShell, prefers minimal code
 with few comments, wants limits stated honestly and pushes back on overclaiming.
 
-Design and stage reports: `docs/superpowers/specs/` and `docs/superpowers/plans/` (read them before a stage).
-
 ## Layout
 
 - `core/` (acxelin-core): mechanisms only: config, safe file writes (owner-only secrets, Windows ACLs), loopback HTTP, the
@@ -15,8 +13,7 @@ Design and stage reports: `docs/superpowers/specs/` and `docs/superpowers/plans/
 - `website/`: the shared home page and one section per product (`tools/build_site.py`); demo content is real product output.
 - `products/vpn/` (acxelin-vpn): site-to-site IPsec, WireGuard remote access, the desktop app and its installers, the VPN's
   CA subset, console and CBOM export, the gateway image and systemd units.
-- `pqcsuite/`, `tests/`, `examples/`, `docs/`: Vault and the old console until Stage 4 moves Vault to `products/vault`;
-  `pqcsuite.vpn` and the other moved modules are re-exports. Stage 6 then deletes these folders.
+- `tools/`: the site build, release gate, wheelhouse, browser test kit, and the repository checks in `tools/tests`.
 
 ## Rules
 
@@ -25,9 +22,9 @@ Design and stage reports: `docs/superpowers/specs/` and `docs/superpowers/plans/
 3. Must work on Windows: pathlib, UTF-8, no POSIX-only code outside the VPN and signal handling.
 4. Tests for intended behaviour first; every security behaviour has a test that shows the attack refused. Never weaken or
    delete a test to pass.
-5. Wire and cryptographic formats do not change. Old names (`PQCSUITE_*`, `wolfpack:ignore`, `.wolfpack.toml`, `wolfpack:*`
-   CBOM properties) are read through each product's 1.x line with a warning; new names win. Breaking changes go in
-   `products/*/docs/upgrade.md`. Wolf Pack is otherwise gone: no product, page, command or path uses its name.
+5. Wire and cryptographic formats do not change. Readiness reads Wolf Pack's old names (`wolfpack:ignore`, `.wolfpack.toml`,
+   `wolfpack:*` CBOM properties) through its 1.x line with a warning; new names win. Breaking changes go in
+   the product's CHANGELOG. Wolf Pack is otherwise gone: no product, page, command or path uses its name.
 6. Readiness's labelled corpus is a CI quality gate: precision and recall must not drop; `truth.json` changes only in
    commits titled `truth:` that the owner approves.
 7. Consoles: loopback only (`--container` in Docker), single-use launch tickets in the URL fragment, session tokens in
@@ -41,12 +38,11 @@ Design and stage reports: `docs/superpowers/specs/` and `docs/superpowers/plans/
 ## Commands
 
 ```
-pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e "./products/vpn[vpn,test]" -e ".[test]" ruff==0.14.0
+pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e "./products/vpn[vpn,test]" ruff==0.14.0
 ruff check .
 python -m pytest -q core/tests products/tls/tests tools/tests
 python -m pytest -q products/readiness/tests website/tests
-python -m pytest -q products/vpn/tests
-python -m pytest -q tests        # Vault; run each product's tests separately (same-named test files clash)
+python -m pytest -q products/vpn/tests          # run each product's tests separately (same-named test files clash)
 ```
 
 On Linux set `ACXELIN_OPENSSL` and `LD_LIBRARY_PATH` to an OpenSSL 3.5+ lib folder.

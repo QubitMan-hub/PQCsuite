@@ -8,18 +8,16 @@ from acxelin_core.cli import ask, positive, run_until_signal
 from acxelin_core.config import env_passphrase
 from acxelin_core.pki import ALGORITHMS, CA, CA_ALGORITHMS, REASONS, CAError, encrypted
 
-from . import audit, legacy
+from . import audit
 
 CA_PASS_ENV = "ACXELIN_VPN_CA_PASSPHRASE"
 
 
 def ca_passphrase(root, new=False):
-    """From ACXELIN_VPN_CA_PASSPHRASE (or the suite's PQCSUITE_CA_PASSPHRASE) or a prompt, only when the key is or will be encrypted."""
+    """From ACXELIN_VPN_CA_PASSPHRASE or a prompt, only when the key is or will be encrypted."""
     if not new and not encrypted(Path(root) / "ca.key"):
         return None
     given = os.environ.get(CA_PASS_ENV)
-    if not given and (given := os.environ.get("PQCSUITE_CA_PASSPHRASE")):
-        legacy.warn("PQCSUITE_CA_PASSPHRASE", CA_PASS_ENV)
     if given:
         return given.encode()
     if not new:

@@ -9,7 +9,7 @@ from ..catalog import CATALOG
 from ..model import Detection
 
 SKIP_DIRS = {".git", ".hg", ".svn", "node_modules", "vendor", "venv", ".venv", "env", "__pycache__", "dist", "build", "target", ".tox",
-             "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "readiness-out", "pqcsuite-out", ".pqcsuite"}
+             "site-packages", ".idea", ".vscode", ".gradle", ".mypy_cache", ".pytest_cache", "bin", "obj", "readiness-out"}
 TEST_PARTS = {"test", "tests", "unit", "spec", "specs", "__tests__", "testdata", "test_data", "test_vectors", "selftest", "selftests", "fixtures", "mocks", "examples", "example", "samples", "sample", "demo",
               "bench", "benches", "benchmark", "benchmarks", "browsertest", "test-classes"}
 TEST_DIR = re.compile(r"(?:^|[._-])(?:unit|integration|functional|i)?tests?(?:net\d+|core)?$")

@@ -1,8 +1,0 @@
-{
-  "private": true,
-  "description": "Browser tests for the suite console and the VPN window: npm install, npx playwright install chromium, npx playwright test",
-  "devDependencies": {
-    "@axe-core/playwright": "4.11.0",
-    "@playwright/test": "1.56.1"
-  }
-}

@@ -1,51 +1,8 @@
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "pqcsuite"
-version = "0.4.3"
-description = "Vault and the suite console, until they move to their products; the others re-exported until Stage 6"
-readme = "README.md"
-requires-python = ">=3.11"
-dependencies = ["cryptography>=49", "acxelin-core>=1,<2", "acxelin-tls>=1,<2", "acxelin-vpn>=1,<2"]  # re-exported until Stage 6
-authors = [{name = "Acxelin Quantum"}]
-
-[project.urls]
-Homepage = "https://qubitman-hub.github.io/PQCsuite/"
-Source = "https://github.com/QubitMan-hub/PQCsuite"
-Changelog = "https://github.com/QubitMan-hub/PQCsuite/blob/main/CHANGELOG.md"
-
-[project.optional-dependencies]
-scan = ["acxelin-readiness>=1,<2"]
-scan-web = ["acxelin-readiness[crawler]>=1,<2"]
-vpn = ["vici>=6.0"]
-kms = ["boto3>=1.35"]
-test = ["coverage>=7.6", "hypothesis>=6.100", "pytest>=9"]
-integration = ["acme>=4", "certbot>=4; sys_platform != 'win32'"]  # the ACME tests against certbot's client
-
-[project.scripts]
-pqcsuite = "pqcsuite.cli:main"
-
-[tool.setuptools.packages.find]
-include = ["pqcsuite*"]
-
-[tool.setuptools.package-data]
-"pqcsuite.console" = ["console.html"]
-
-[tool.distutils.build]
-build_base = "dist/.build"  # keeps `pip wheel .` from leaving build/ in the source tree
+# Repository-wide tool settings only; each product and core is its own package with its own pyproject.toml.
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
 # the Readiness corpus is deliberately weak code to scan, never tests to run
 norecursedirs = ["corpus", ".*", "build", "dist", "*.egg", "venv", "node_modules"]
-
-[tool.coverage.run]
-source = ["pqcsuite"]
-
-[tool.coverage.report]
-fail_under = 74  # Vault and the console, as measured in the scenarios job; TLS, Readiness and VPN moved to products/ with their own tests
 
 [tool.ruff]
 target-version = "py311"
@@ -53,4 +10,3 @@ extend-exclude = ["products/readiness/bench/corpus", "products/readiness/example
 
 [tool.ruff.lint]
 ignore = ["E401", "E702", "E731", "E741"]
-

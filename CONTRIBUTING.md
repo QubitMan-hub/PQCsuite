@@ -9,8 +9,7 @@ How to work on this repository. Using a product is in its own README under `prod
 | `core/` | acxelin-core: shared mechanisms, no product policy. Works with nothing else installed |
 | `products/readiness/`, `products/tls/`, `products/vpn/` | One product each: `src/`, `tests/`, `docs/`, `examples/`, `deploy/`, `install.sh`, `install.ps1`, its own CHANGELOG |
 | `website/` | The shared home page and one section per product; `python tools/build_site.py` builds it into `build/site` |
-| `tools/` | Repository tooling: site build, `release_check.py`, `wheelhouse.py`, the browser test kit, golden-fixture generator |
-| `pqcsuite/`, `tests/`, `examples/`, `docs/` | Vault until it moves to `products/vault`; then these go |
+| `tools/` | Repository tooling: site build, `release_check.py`, `wheelhouse.py`, the browser test kit, repository checks in `tools/tests` |
 
 A product never imports another product, and core never names one; the import tests in each product fail if that changes.
 
@@ -19,13 +18,12 @@ A product never imports another product, and core never names one; the import te
 Python 3.11+ and OpenSSL 3.5+ (`ACXELIN_OPENSSL` set to its lib folder, `bin` on Windows; on Linux also `LD_LIBRARY_PATH`).
 
 ```
-pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e "./products/vpn[vpn,desktop,test]" -e ".[test]" ruff==0.14.0 playwright==1.56.0
+pip install -e ./core -e "./products/readiness[crawler,test]" -e "./products/tls[test]" -e "./products/vpn[vpn,desktop,test]" ruff==0.14.0 playwright==1.56.0
 npm ci --prefix tools/browser
 ruff check .
 python -m pytest -q core/tests products/tls/tests tools/tests
 python -m pytest -q products/readiness/tests website/tests
 python -m pytest -q products/vpn/tests
-python -m pytest -q tests                      # Vault and the old console
 ```
 
 Run the pytest commands separately: the products each have a `test_install.py`, which clash in one run. Installer tests
@@ -45,5 +43,5 @@ image; a VPN release also attaches the desktop installers. Nothing is uploaded t
 - Every security behaviour has a test showing the attack refused.
 - Python only; the runtime cryptography is `cryptography` and OpenSSL 3.5 through core's binding, never the `openssl` command.
 - Everything must work on Windows.
-- Old names (`PQCSUITE_*`, `wolfpack:ignore`, `.wolfpack.toml`, `wolfpack:*` CBOM properties) are still read through each
-  product's 1.x line, with a warning. Breaking changes go in `products/*/docs/upgrade.md`.
+- Readiness still reads Wolf Pack's old names (`wolfpack:ignore`, `.wolfpack.toml`, `wolfpack:*` CBOM properties) through
+  its 1.x line, with a warning. Breaking changes go in the product's CHANGELOG.

@@ -11,7 +11,6 @@ import platform
 import re
 import select
 import time
-import warnings
 from pathlib import Path
 
 MIN_VERSION = 0x30500000
@@ -107,11 +106,7 @@ EASIEST = ("Easiest: use the product's container image, which has it, "
 
 
 def folder_setting():
-    """ACXELIN_OPENSSL, or the old names PQCSUITE_OPENSSL and PQC_OPENSSL (read through 1.x with a warning); the new name wins."""
-    new, old = os.environ.get("ACXELIN_OPENSSL"), os.environ.get("PQCSUITE_OPENSSL") or os.environ.get("PQC_OPENSSL")
-    if old and not new:
-        warnings.warn("PQCSUITE_OPENSSL is the old name; set ACXELIN_OPENSSL instead", DeprecationWarning, stacklevel=2)
-    return new or old
+    return os.environ.get("ACXELIN_OPENSSL")
 
 
 def available():

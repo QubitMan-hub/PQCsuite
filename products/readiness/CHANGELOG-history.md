@@ -1,6 +1,6 @@
 # Changelog
 
-Versions of Acxelin Readiness. A release is a tag `scanner-pack-vX.Y.Z` on the PQC Suite repository; its GitHub release carries the wheel and build provenance.
+Versions of Acxelin Readiness. A release was a tag `scanner-pack-vX.Y.Z` on this repository; its GitHub release carries the wheel and build provenance.
 
 ## 1.4.1 (5 October 2026)
 
@@ -33,7 +33,7 @@ Versions of Acxelin Readiness. A release is a tag `scanner-pack-vX.Y.Z` on the P
 
 ## 1.2.1 (29 September 2026)
 
-- **Acxelin look:** the report, the organisation dashboard and the project page use Acxelin Quantum's colours, typeface and logo, in light and dark, like the PQC Suite console. Reports stay single self-contained files (the typeface is embedded; nothing is fetched). Tiers show as coloured labels instead of block marks; the terminal output is unchanged.
+- **Acxelin look:** the report, the organisation dashboard and the project page use Acxelin Quantum's colours, typeface and logo, in light and dark. Reports stay single self-contained files (the typeface is embedded; nothing is fetched). Tiers show as coloured labels instead of block marks; the terminal output is unchanged.
 
 ## 1.2.0 (28 September 2026)
 
@@ -44,7 +44,7 @@ Much higher recall on real code. The changes were made after reading the held-ou
 - **Incremental scans:** `--changed-since REF` reads only the files changed since a git ref (and uncommitted ones), for fast pull-request checks.
 - **Keyboard access:** the report's and the dashboard's wide tables can be scrolled with the keyboard.
 - **Readiness over time:** `merge --history FILE` keeps one line per day and charts the quantum-safe share, systems at critical or high, and policy breaches.
-- **How to fix:** every finding gets concrete fixes for where it was found. That means the replacement API in its language (JDK 24 ML-KEM/ML-DSA, Go 1.24 `crypto/mlkem`, OpenSSL 3.5, .NET 10, liboqs-python, @noble/post-quantum, RustCrypto), the configuration line for nginx, Apache, HAProxy, sshd or a cloud load balancer, a reissue for certificates, and the PQC Suite product that does the job. Fixes appear in the report, the CBOM (`acxelin:remediation`) and SARIF rule help.
+- **How to fix:** every finding gets concrete fixes for where it was found. That means the replacement API in its language (JDK 24 ML-KEM/ML-DSA, Go 1.24 `crypto/mlkem`, OpenSSL 3.5, .NET 10, liboqs-python, @noble/post-quantum, RustCrypto), the configuration line for nginx, Apache, HAProxy, sshd or a cloud load balancer and a reissue for certificates. Fixes appear in the report, the CBOM (`acxelin:remediation`) and SARIF rule help.
 - **Traffic captures:** `acxelin-readiness scan --pcap traffic.pcap` reads the TLS and SSH handshakes in a packet capture (pcap or pcapng) and reports what was actually negotiated per server: version, cipher suite and key-exchange group, and how many clients offered a PQ group. Pure Python; nothing is decrypted or sent.
 - **Kubernetes and cloud TLS:**
   - certificates in Kubernetes TLS Secrets (base64 `tls.crt`);
@@ -82,7 +82,7 @@ Much higher recall on real code. The changes were made after reading the held-ou
 - **Declared non-security hashes:** Python `hashlib` calls with `usedforsecurity=False` rank low and are SARIF notes. Switch: `--without purpose`.
 - **Nothing skipped silently:** Python files the running interpreter cannot parse, and source files over 2 MB, are named in the report. The Docker image and GitHub Action run Python 3.14.
 - RIPEMD-160 recognised; `itest/` and bare `unit/` folders count as tests; the deliberate TLS 1.0/1.1 probes no longer raise deprecation warnings.
-- Moved into the PQC Suite repository, under `scanner-pack/`. The GitHub Action is now `QubitMan-hub/PQCsuite/scanner-pack@main`.
+- Moved into this repository, under `scanner-pack/`.
 
 ## 1.0.0
 

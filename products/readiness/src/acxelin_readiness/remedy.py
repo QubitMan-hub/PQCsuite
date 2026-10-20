@@ -1,5 +1,4 @@
-"""How to fix each finding where it was found: the replacement in that language, library or configuration, and which PQC Suite
-product can do the job. Versions named here are the first releases that ship the feature."""
+"""How to fix each finding where it was found: the replacement in that language, library or configuration. Versions named here are the first releases that ship the feature."""
 from .catalog import CATALOG, LEGACY, SHOR, GROVER, classical_bits
 
 KEX = {

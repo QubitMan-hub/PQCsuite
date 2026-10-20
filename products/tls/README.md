@@ -79,7 +79,7 @@ In Docker, start the console with `--container` and publish its port to loopback
 - Revocation reaches an edge through its CRL, within `crl_every` seconds of the CA publishing one. A revoked client keeps access until then.
 - Hardware and cloud signing (`--kms`, `--signer-command`) are implemented, but they have not been run against real HSMs or cloud accounts here.
 
-More: `docs/manual.md`, `docs/upgrade.md` (coming from the PQC Suite) and `docs/threat-model.md`.
+More: `docs/manual.md` and `docs/threat-model.md`.
 
 ## Licence
 

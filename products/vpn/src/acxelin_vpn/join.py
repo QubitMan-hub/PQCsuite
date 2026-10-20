@@ -9,7 +9,7 @@ from pathlib import Path
 
 from acxelin_core.files import write
 from acxelin_core.http import hostport
-from . import legacy, platforms
+from . import platforms
 
 FIELDS = ("acxelin_invite", "name", "enroll", "ca_fingerprint", "gateway", "server_name", "expires")
 
@@ -19,9 +19,6 @@ def parse(text, where="this file"):
         inv = json.loads(text)
     except ValueError:
         inv = None
-    if isinstance(inv, dict) and inv.get("pqcsuite_invite") == 1 and "acxelin_invite" not in inv:
-        legacy.warn(f"{where} (a .pqcinvite from `pqcsuite vpn invite`)", "an invitation from `acxelin-vpn invite`")
-        inv = {"acxelin_invite": 1} | {k: v for k, v in inv.items() if k != "pqcsuite_invite"}
     if not isinstance(inv, dict) or inv.get("acxelin_invite") != 1 or not all(isinstance(inv.get(k), str) for k in ("name", "enroll", "ca_fingerprint", "gateway")) \
             or not inv["enroll"].startswith("https://") or not re.fullmatch(r"[0-9a-f]{64}", inv["ca_fingerprint"]):
         raise ValueError(f"{where} is not an Acxelin VPN invitation; ask your administrator for the .acxinvite file from `acxelin-vpn invite`")

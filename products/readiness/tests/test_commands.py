@@ -15,7 +15,7 @@ def test_grade_writes_json_and_html_and_an_unreachable_endpoint_is_f(tmp_path):
 def test_doctor_says_whether_full_handshakes_are_available(capsys):
     assert cli.main(["doctor"]) == 0
     out = capsys.readouterr().out
-    expected = "available" if os.environ.get("PQCSUITE_OPENSSL") or os.environ.get("ACXELIN_OPENSSL") else ""
+    expected = "available" if os.environ.get("ACXELIN_OPENSSL") else ""
     assert "full TLS handshakes (OpenSSL 3.5+):" in out and expected in out
 
 

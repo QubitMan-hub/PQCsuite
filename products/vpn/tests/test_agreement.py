@@ -1,5 +1,5 @@
 """IPsec and WireGuard agree keys through one module: the same mutual TLS session, message framing and exporter, with only
-the label, context and length differing. The labels and contexts are pinned to what deployed gateways (and 0.4.3) use."""
+the label, context and length differing. The labels and contexts are pinned to what deployed gateways use."""
 import inspect
 
 import pytest
@@ -9,7 +9,7 @@ from acxelin_core.pki import CA
 from acxelin_vpn import agreement, controller, wireguard
 
 
-def test_labels_and_contexts_are_pinned_and_the_old_names_still_resolve():
+def test_labels_and_contexts_are_pinned():
     assert (agreement.IPSEC, agreement.WIREGUARD) == ("EXPORTER-pqcsuite-ipsec-v1", "EXPORTER-pqcsuite-wireguard-v1")
     assert agreement.ipsec_context("hq.acme", "branch.acme", "0123456789ab") == b"branch.acme|hq.acme|0123456789ab"
     assert agreement.wireguard_context("gw", "alice", "t", "C=", "G=") == b"gw|alice|t|C=|G="

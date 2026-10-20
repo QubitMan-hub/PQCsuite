@@ -136,7 +136,7 @@ acxelin-readiness scan . --baseline cbom.json --fail-on high
 **GitHub Actions:**
 
 ```
-- uses: QubitMan-hub/PQCsuite/products/readiness@<tag>
+- uses: QubitMan-hub/acxelin/products/readiness@<tag>
   with:
     path: .
     fail-on: high

@@ -2,8 +2,8 @@
 
 ## 1.0.0
 
-First release of Acxelin Readiness, from Wolf Pack CBOM 1.4.1 and the PQC Suite's readiness assessment (their history is in
-`CHANGELOG-history.md`). See `docs/upgrade.md`.
+First release of Acxelin Readiness, from Wolf Pack CBOM 1.4.1 (its history is in `CHANGELOG-history.md`). See
+`docs/upgrade.md`.
 
 - One product: `scan`, `grade`, `report`, `merge`, `doctor` and a console for projects and endpoints.
 - CBOM merges keep each system's observations; certificates match by fingerprint; secrets never merge.
