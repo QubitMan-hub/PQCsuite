@@ -35,7 +35,7 @@ def test_each_service_runs_a_real_command_on_the_file_it_waits_for(path):
     assert exe == "/opt/acxelin-vpn/bin/acxelin-vpn"
     a = parses(argv)
     wanted = s["Unit"]["ConditionPathExists"]
-    named = getattr(a, "config", None) or str(Path(a.dir) / "ca.crt")
+    named = getattr(a, "config", None) or f"{a.dir}/ca.crt"
     assert named == wanted, (named, wanted)
     assert s["Service"].get("NoNewPrivileges") == "yes" and s["Service"].get("PrivateTmp") == "yes"
 

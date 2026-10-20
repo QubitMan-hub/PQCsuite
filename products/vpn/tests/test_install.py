@@ -34,7 +34,9 @@ def test_wheels_install_alone_and_the_product_works(tmp_path):
     assert not set(installed) & {"pqcsuite", "acxelin-readiness", "acxelin-tls", "acxelin-vault"}
     cli = str(bin_ / "acxelin-vpn")
     assert run(cli, "--version").stdout.strip() == "acxelin-vpn 1.0.0"
-    assert json.loads(run(cli, "doctor", "--json").stdout)["checks"][0]["product"] == "key agreement"
+    doctor = subprocess.run([cli, "doctor", "--json"], cwd=tmp_path, env=clean, capture_output=True, text=True)
+    assert doctor.returncode in (0, 3), doctor.stderr  # 3: this machine's OpenSSL is older than 3.5, and doctor says so
+    assert json.loads(doctor.stdout)["checks"][0]["product"] == "key agreement"
     pki = tmp_path / "pki"
     run(cli, "ca", "init", "--name", "Wheel VPN Root", "--dir", str(pki), "--no-encrypt")
     run(cli, "ca", "issue", "server", "vpn.example.invalid", "--dir", str(pki), "--out", str(tmp_path / "gw"))

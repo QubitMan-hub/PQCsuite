@@ -27,6 +27,9 @@ def connect(uri):
     s = None
     try:
         if u.scheme == "unix":
+            if not hasattr(socket, "AF_UNIX"):
+                raise CharonError(f"cannot reach charon at {uri}: this machine has no Unix sockets; strongSwan gateways run on Linux"
+                                  " (use tcp://host:port to reach one from here)")
             s = socket.socket(socket.AF_UNIX)
             s.settimeout(10)
             s.connect(u.path)

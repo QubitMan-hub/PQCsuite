@@ -197,9 +197,10 @@ jobs:
             'local_subnets = ["10.1.0.0/16"]' 'remote_subnets = ["10.2.0.0/16"]' > "$d/site.toml"
           chmod -R a+rX "$d"
           docker run -d --name site --cap-add NET_ADMIN -v "$d:/etc/acxelin-vpn:ro" acxelin-vpn:ci
-          for i in $(seq 30); do docker exec site acxelin-vpn check 2>/dev/null | grep -q ML_KEM_768 && break; sleep 1; done
+          status() { docker exec site python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:9101/status').read().decode())"; }
+          for i in $(seq 30); do status >/dev/null 2>&1 && break; sleep 1; done
           docker exec site acxelin-vpn check | grep -q ML_KEM_768
-          docker exec site python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:9101/status').read().decode())" | grep -q branch.example
+          status | grep -q branch.example
           docker logs site 2>&1 | grep -q "keyring: listening on 0.0.0.0:7443"
           docker rm -f site
       - name: Known vulnerabilities in the image (fails on fixable HIGH/CRITICAL; exceptions are triaged in .trivyignore.yaml)

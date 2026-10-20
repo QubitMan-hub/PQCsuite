@@ -1,6 +1,7 @@
 """Upgrading from PQC Suite 0.4.3: the wire protocol is unchanged, the suite's names are still read with a warning, and the
 suite's kill switch and service are replaced without a moment where traffic leaks or two of them are left behind."""
 import json
+import os
 import logging
 
 import pytest
@@ -36,6 +37,7 @@ def test_an_invitation_from_the_suite_still_joins_with_a_warning(tmp_path, caplo
 
 def test_the_app_finds_both_kinds_of_invitation_newest_first(tmp_path):
     (tmp_path / "a.pqcinvite").write_text("{}")
+    os.utime(tmp_path / "a.pqcinvite", (1_700_000_000, 1_700_000_000))  # older for certain: some file systems keep coarse times
     newer = tmp_path / "b.acxinvite"
     newer.write_text("{}")
     assert app.App(folder=tmp_path).invitation == newer

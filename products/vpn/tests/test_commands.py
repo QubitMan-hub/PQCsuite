@@ -115,3 +115,12 @@ def test_a_guided_device_key_connect_prompts_without_disclosing_the_secret(tmp_p
     assert code != 0
     install.assert_not_called()
     client.assert_not_called()
+
+
+def test_a_unix_socket_address_on_a_machine_without_them_fails_in_words(monkeypatch):
+    import socket
+    import types
+    monkeypatch.setitem(sys.modules, "vici", types.ModuleType("vici"))  # the gateway extra, installed as on Windows CI
+    monkeypatch.delattr(socket, "AF_UNIX", raising=False)
+    code, out = run("check", "--vici", "unix:///var/run/charon.vici")
+    assert code == 1 and "no Unix sockets" in out and "Traceback" not in out

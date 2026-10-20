@@ -22,8 +22,9 @@ def with_tour(html):
 
 
 def policy(html):
-    """The page's one inline script is allowed by its hash, so no other script can run even if markup were ever injected."""
-    script = html.split(b"<script>", 1)[1].split(b"</script>", 1)[0]
+    """The page's one inline script is allowed by its hash, so no other script can run even if markup were ever injected. The
+    hash is of the script as a browser sees it, newlines normalised, so a CRLF checkout (Git on Windows) is not blocked."""
+    script = html.split(b"<script>", 1)[1].split(b"</script>", 1)[0].replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     digest = base64.b64encode(hashlib.sha256(script).digest()).decode()
     return f"default-src 'self'; img-src 'self' data:; font-src data:; style-src 'self' 'unsafe-inline'; script-src 'sha256-{digest}'; frame-ancestors 'none'"
 

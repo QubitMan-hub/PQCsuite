@@ -236,3 +236,14 @@ def test_secret_files_on_windows_get_an_owner_only_acl(tmp_path):
         acl = subprocess.run(["icacls", str(f)], capture_output=True, text=True).stdout
         assert os.environ["USERNAME"].lower() in acl.lower(), acl
         assert not any(w in acl for w in ("Everyone", "BUILTIN\\Users", "Authenticated Users")), acl
+
+
+def test_the_script_hash_matches_what_a_browser_hashes_on_a_crlf_checkout():
+    """Git on Windows checks pages out with CRLF; a browser normalises newlines before hashing an inline script, so a hash of
+    the raw bytes would block every page read as bytes (the VPN app window)."""
+    import base64
+    import hashlib
+    from acxelin_core.console import policy
+    lf = b"<html><script>\nconst a = 1;\nrun(a);\n</script></html>"
+    browser = "sha256-" + base64.b64encode(hashlib.sha256(b"\nconst a = 1;\nrun(a);\n").digest()).decode()
+    assert browser in policy(lf) and browser in policy(lf.replace(b"\n", b"\r\n")) and browser in policy(lf.replace(b"\n", b"\r"))
