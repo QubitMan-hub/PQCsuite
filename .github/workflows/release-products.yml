@@ -53,7 +53,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git config --global --add safe.directory "$PWD"
           folder=$([ "$PRODUCT" = core ] && echo core || echo "products/$PRODUCT")
           python - "$folder/CHANGELOG.md" "$VERSION" > notes.md <<'PY'
           import re, sys
@@ -61,7 +60,7 @@ jobs:
           m = re.search(rf"^## {re.escape(sys.argv[2])}\b.*?$(.*?)(?=^## |\Z)", text, re.M | re.S)
           print(m.group(1).strip() if m else "")
           PY
-          gh release create "$GITHUB_REF_NAME" "acxelin-$PRODUCT-$VERSION-wheelhouse.tar.gz" SHA256SUMS --title "Acxelin $PRODUCT $VERSION" --notes-file notes.md
+          gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" "acxelin-$PRODUCT-$VERSION-wheelhouse.tar.gz" SHA256SUMS --title "Acxelin $PRODUCT $VERSION" --notes-file notes.md
   image:
     needs: [gate, build]
     if: needs.gate.outputs.product != 'core'
@@ -116,7 +115,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/installers/* --clobber
+        run: gh release upload "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" dist/installers/* --clobber
   checksums:
     # the desktop installers join SHA256SUMS, so people check them the same way as the archive
     needs: [gate, installers]
