@@ -98,6 +98,27 @@ def test_add_scan_see_priorities_and_assign_an_owner(page, console, repos):
     assert "key_size=2048" not in page.content()
 
 
+def test_an_open_list_of_places_and_a_half_typed_owner_survive_a_running_scan(page, console, repos):
+    open_console(page, console)
+    fill_setup(page, repos)
+    scan_shop(page)
+
+    def slow(path, **kw):
+        kw["cancel"].wait(20)
+        raise rc.workspace.ScanStopped("Scan cancelled; the previous completed assessment is preserved")
+    with patch("acxelin_readiness.console.workspace.scan", side_effect=slow):
+        page.get_by_role("button", name="Scan repository").click()
+        page.get_by_role("button", name="Stop scan").wait_for()
+        page.locator("details.where summary", has_text="RSA").click()
+        page.locator("details.track summary").first.click()
+        page.locator("details.track input[type=text]").first.fill("ali")
+        page.wait_for_timeout(2000)
+        assert page.locator("details.where", has_text="RSA").evaluate("d => d.open")
+        assert page.locator("details.track input[type=text]").first.input_value() == "ali"
+        page.get_by_role("button", name="Stop scan").click()
+        page.get_by_text("cancelled", exact=False).wait_for()
+
+
 def test_stopping_a_scan_keeps_the_previous_result(page, console, repos):
     app, _ = console
     open_console(page, console)

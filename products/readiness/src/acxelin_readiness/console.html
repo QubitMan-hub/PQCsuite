@@ -93,6 +93,9 @@ function results(p) {
   if (!out) return;
   const last = p.last;
   if (!last) { out.replaceChildren(h("p", {class: "empty"}, p.running ? "The first scan of this repository is running. Results appear here when it finishes." : "Not scanned yet. Choose Scan repository to see which cryptography this project uses and what to migrate first.")); return; }
+  const shown = JSON.stringify([last.finished, state.filter, last.assets.map((a) => a.tracking)]);
+  if (out.dataset.shown === shown) return;  // polling during a scan must not close what the reader opened
+  out.dataset.shown = shown;
   const pri = last.summary.priorities || {};
   const pick = (k) => { state.filter = state.filter === k ? null : k; results(state.projects); };
   const counts = h("div", {class: "counts"}, ["critical", "high", "medium", "low", "ok"].filter((k) => pri[k]).map((k) =>
