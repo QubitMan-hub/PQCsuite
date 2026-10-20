@@ -324,6 +324,7 @@ With `metrics = "HOST:PORT"`, a site serves `/metrics` (Prometheus) and `/status
 ## 12. Limits
 
 - WireGuard's handshake is classical; the post-quantum part is the pre-shared key (see Questions).
+- IKE does not sign with ML-DSA certificates: strongSwan 6.1 cannot load them (checked with `deploy/mldsa_ike_check.py`). IKE authenticates with a PSK, and mixes in a PPK, both derived from ML-DSA mutual TLS between the gateways.
 - Phones are not supported.
 - On Windows, the kill switch can lift for a moment while the tunnel is recreated.
 - The desktop installers are not code-signed yet.
